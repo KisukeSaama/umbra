@@ -40,7 +40,10 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
 
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-baseline gap-x-3">
-            <h1 className="text-2xl tracking-tight sm:text-3xl">
+            {/* The serif has taller ascenders than the line box a size
+                utility gives it, so the tops of the capitals are shaved
+                without a roomier leading. */}
+            <h1 className="text-2xl leading-snug tracking-tight sm:text-3xl">
               {detail.title}
             </h1>
             {detail.year ? (
