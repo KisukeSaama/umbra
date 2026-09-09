@@ -13,6 +13,10 @@ do not go through it: server components call the domain layer directly.
 - Error codes: `bad_request`, `unauthorized`, `forbidden`, `not_found`,
   `conflict`, `rate_limited`, `upstream_unavailable`, `internal_error`.
 - `member` means an approved account, `admin` means the administrator.
+- A `POST`, `PATCH` or `DELETE` sent by a browser from another origin is
+  refused with 403 before any handler runs. Requests without an `Origin`
+  (the sync worker, command-line tools) are not affected.
+- A `rate_limited` answer carries `Retry-After` when the upstream gave one.
 
 ## Sign-in
 

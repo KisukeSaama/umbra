@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { SearchPanel } from "@/components/search-panel";
+import { requireMemberPage } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Request" };
@@ -8,6 +9,7 @@ export const metadata: Metadata = { title: "Request" };
 export default async function RequestPage({
   searchParams,
 }: PageProps<"/request">) {
+  await requireMemberPage();
   const t = await getTranslator();
   const { q } = await searchParams;
   const initialQuery = typeof q === "string" ? q : "";

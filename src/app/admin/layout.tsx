@@ -1,19 +1,17 @@
-import { redirect } from "next/navigation";
-
 import { AdminHeading, AdminNav } from "@/components/admin/admin-nav";
 import { SiteHeader } from "@/components/site-header";
-import { currentAccount } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/session";
 
 /**
  * The administration side.
  *
  * Same shell as the public site, one column narrower: this is a workspace, not
- * a dashboard to admire. Access is checked here, not in each page.
+ * a dashboard to admire. Access is checked here and again in every page: a
+ * layout does not stop the page under it from rendering, and is not re-run
+ * on a navigation between two admin pages.
  */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
-  const account = await currentAccount();
-  if (!account) redirect("/sign-in");
-  if (account.role !== "admin" || account.status !== "approved") redirect("/");
+  await requireAdminPage();
 
   return (
     <>

@@ -8,6 +8,7 @@ import { activePoll } from "@/lib/domain/polls";
 import { storageOverview } from "@/lib/domain/storage";
 import { formatDateTime } from "@/lib/format";
 import { jobStatus } from "@/lib/jobs";
+import { requireAdminPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -17,6 +18,7 @@ import { getI18n } from "@/lib/i18n/server";
  * on belong on the analytics page, not here.
  */
 export default async function AdminOverviewPage() {
+  await requireAdminPage();
   const { t, locale } = await getI18n();
   const [requests, tasks, poll, pendingAccounts, storage, jobs] =
     await Promise.all([

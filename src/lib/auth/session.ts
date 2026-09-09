@@ -1,11 +1,13 @@
 import "server-only";
 
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import { and, eq, gt, lt } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { safeEquals } from "@/lib/auth/compare";
 import { db } from "@/lib/db";
 import {
   accounts,
@@ -116,6 +118,35 @@ export async function requireAdmin(): Promise<CurrentAccount> {
 }
 
 /**
+ * Page-side guards.
+ *
+ * A layout does not stop the page under it from rendering, and it is not
+ * re-run on a client-side navigation between sibling pages. Every page
+ * therefore checks for itself, and answers with a redirect rather than an
+ * error: on a page, "not signed in" is a place to go, not a fault.
+ */
+export async function requireMemberPage(): Promise<CurrentAccount> {
+  const account = await currentAccount();
+  if (!account) redirect("/sign-in");
+  if (account.status !== "approved") redirect("/pending");
+  return account;
+}
+
+export async function requireAdminPage(): Promise<CurrentAccount> {
+  const account = await requireMemberPage();
+  if (account.role !== "admin") redirect("/");
+  return account;
+}
+
+/**
+ * Ends every session of an account. Called when access is withdrawn, so a
+ * blocked or demoted account does not keep a working cookie until it expires.
+ */
+export async function revokeSessions(accountId: string) {
+  await db().delete(sessions).where(eq(sessions.accountId, accountId));
+}
+
+/**
  * Creates or refreshes the local account matching a Plex account.
  *
  * The account named by `ADMIN_PLEX_ACCOUNT_ID` becomes an administrator. Others
@@ -178,12 +209,4 @@ export async function upsertAccountFromPlex(
     })
     .returning(columns);
   return created;
-}
-
-/** Constant-time comparison, so response timing reveals nothing. */
-function safeEquals(a: string, b: string) {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
 }

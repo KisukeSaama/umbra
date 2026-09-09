@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { route } from "@/lib/api";
+import { safeEquals } from "@/lib/auth/compare";
 import { env } from "@/lib/env";
 import { NotFoundError, UnauthorizedError } from "@/lib/errors";
 import { runSyncCycle } from "@/lib/jobs";
@@ -20,7 +21,8 @@ export async function POST(request: NextRequest) {
     const provided = request.headers
       .get("authorization")
       ?.replace(/^Bearer /i, "");
-    if (provided !== secret) throw new UnauthorizedError();
+    if (!provided || !safeEquals(provided, secret))
+      throw new UnauthorizedError();
 
     return { outcomes: await runSyncCycle() };
   });

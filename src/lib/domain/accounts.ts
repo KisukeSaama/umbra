@@ -2,6 +2,7 @@ import "server-only";
 
 import { desc, eq, sql } from "drizzle-orm";
 
+import { revokeSessions } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import {
   accounts,
@@ -72,5 +73,12 @@ export async function updateAccount(
       role: accounts.role,
     });
   if (!row) throw new NotFoundError("error.notFound");
+
+  // Withdrawing access ends the sessions that carried it: the next request
+  // from that browser starts from the sign-in screen, not from a stale cookie.
+  // A role change needs nothing: the role is read on every request.
+  if (input.status !== undefined && input.status !== "approved")
+    await revokeSessions(accountId);
+
   return row;
 }

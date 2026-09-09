@@ -6,7 +6,7 @@ import { jsonBody, route } from "@/lib/api";
 import { currentAccount } from "@/lib/auth/session";
 import { isProduction } from "@/lib/env";
 import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, LOCALES } from "@/lib/i18n";
-import { checkRate, perMinute } from "@/lib/rate-limit";
+import { checkRate, clientAddress, perMinute } from "@/lib/rate-limit";
 
 const schema = z.object({ locale: z.enum([...LOCALES, "auto"]) });
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const account = await currentAccount();
     checkRate(
       "locale",
-      account?.id ?? request.headers.get("x-forwarded-for") ?? "anonymous",
+      account?.id ?? clientAddress(request.headers),
       perMinute(20),
     );
 

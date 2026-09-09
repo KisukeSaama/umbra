@@ -156,7 +156,23 @@ route is refused by the gateway, which is the expected behaviour, and
 
 - No third-party API secret in the repository, and none in the browser.
 - Every input validated with Zod at the route boundary.
-- Rate limiting on writes and on search, keyed by account.
+- Rate limiting on writes and on search, keyed by account. Anonymous
+  buckets (sign-in pins, language) are keyed by the address the edge vouches
+  for (`CF-Connecting-IP`, then `X-Real-IP`), never by `X-Forwarded-For`
+  alone, and paired with a global cap.
+- Cross-site request forgery: the session cookie is `SameSite=Lax`, and
+  `src/proxy.ts` refuses any mutation under `/api` whose `Origin` or
+  `Sec-Fetch-Site` names another site.
+- Access is checked in every page, not only in the layout above it: a layout
+  does not stop the page under it from rendering and is not re-run on a
+  client-side navigation. `requireMemberPage` and `requireAdminPage` redirect,
+  `requireMember` and `requireAdmin` throw. Blocking or demoting an account
+  ends its sessions at once.
+- Shared secrets (`CRON_SECRET`, the administrator's Plex id) are compared in
+  constant time.
+- A Content Security Policy, `Permissions-Policy` and HSTS are sent by Next on
+  every response; the only external origin the browser may reach is the TMDB
+  image CDN.
 - Errors return a stable code and a `messageKey`; internal detail stays in logs.
 - Storage paths come from configuration only. No endpoint takes a path, and
   nothing on the machine is ever executed.

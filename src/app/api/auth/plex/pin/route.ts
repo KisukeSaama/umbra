@@ -4,7 +4,7 @@ import { route } from "@/lib/api";
 import { db } from "@/lib/db";
 import { authPins } from "@/lib/db/schema";
 import { authorizeUrl, createPin } from "@/lib/providers/plex-tv";
-import { checkRate, perMinute } from "@/lib/rate-limit";
+import { checkRate, clientAddress, perMinute } from "@/lib/rate-limit";
 
 /**
  * Opens a Plex sign-in PIN.
@@ -14,7 +14,10 @@ import { checkRate, perMinute } from "@/lib/rate-limit";
  */
 export async function POST(request: NextRequest) {
   return route(async () => {
-    checkRate("auth-pin", clientKey(request), perMinute(5));
+    // Per address, then for everyone: the address can be a forged hint, the
+    // global cap cannot. Both stay well under the plex.tv quota in Janus.
+    checkRate("auth-pin", clientAddress(request.headers), perMinute(5));
+    checkRate("auth-pin", "all", perMinute(60));
 
     const pin = await createPin();
     const [row] = await db()
@@ -32,10 +35,4 @@ export async function POST(request: NextRequest) {
       authorizeUrl: authorizeUrl(pin.code),
     };
   });
-}
-
-export function clientKey(request: NextRequest) {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
-  );
 }

@@ -3,6 +3,7 @@ import { FundingPanel } from "@/components/admin/funding-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { goalHistory, listGoals } from "@/lib/domain/funding";
 import { formatAmount, formatDateTime } from "@/lib/format";
+import { requireAdminPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -12,6 +13,7 @@ import { getI18n } from "@/lib/i18n/server";
  * leave behind. No payment provider is involved anywhere in this page.
  */
 export default async function AdminFundingPage() {
+  await requireAdminPage();
   const { t, locale } = await getI18n();
   const goals = await listGoals();
   const active =

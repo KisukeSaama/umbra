@@ -5,6 +5,7 @@ import type { RequestStatus } from "@/lib/db/schema";
 import { listRequests } from "@/lib/domain/requests";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
+import { requireAdminPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -14,6 +15,7 @@ import { getI18n } from "@/lib/i18n/server";
  * the entry point of the whole episode pipeline.
  */
 export default async function AdminRequestsPage() {
+  await requireAdminPage();
   const { t, locale } = await getI18n();
   const requests = await listRequests();
 

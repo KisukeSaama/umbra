@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { requireMemberPage } from "@/lib/auth/session";
 import { publishedAnnouncements } from "@/lib/domain/announcements";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
@@ -16,6 +17,7 @@ import { getI18n } from "@/lib/i18n/server";
 export const metadata: Metadata = { title: "News" };
 
 export default async function NewsPage() {
+  await requireMemberPage();
   const { t, locale } = await getI18n();
   const announcements = await publishedAnnouncements(30);
 

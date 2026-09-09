@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { listAccounts } from "@/lib/domain/accounts";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
+import { requireAdminPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -12,6 +13,7 @@ import { getI18n } from "@/lib/i18n/server";
  * activity trail. Approving is the only gate into the community.
  */
 export default async function AdminAccountsPage() {
+  await requireAdminPage();
   const { t, locale } = await getI18n();
   const accounts = await listAccounts();
 

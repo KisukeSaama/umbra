@@ -3,9 +3,11 @@ import { PollForm } from "@/components/admin/poll-form";
 import { Badge } from "@/components/ui/badge";
 import { listPolls } from "@/lib/domain/polls";
 import { formatDate } from "@/lib/format";
+import { requireAdminPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 export default async function AdminPollsPage() {
+  await requireAdminPage();
   const { t, locale } = await getI18n();
   const polls = await listPolls();
 

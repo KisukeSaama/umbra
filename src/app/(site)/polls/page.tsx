@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 import { PollCard } from "@/components/poll-card";
-import { currentAccount } from "@/lib/auth/session";
+import { requireMemberPage } from "@/lib/auth/session";
 import { activePoll } from "@/lib/domain/polls";
 import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Polls" };
 
 export default async function PollsPage() {
-  const account = await currentAccount();
+  const account = await requireMemberPage();
   const [poll, t] = await Promise.all([
     activePoll(account?.id),
     getTranslator(),

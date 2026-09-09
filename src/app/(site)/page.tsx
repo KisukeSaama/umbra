@@ -7,7 +7,7 @@ import { StorageCard } from "@/components/home/storage-card";
 import { UpcomingEpisodes } from "@/components/home/upcoming";
 import { WeekStats } from "@/components/home/week-stats";
 import { PollCard } from "@/components/poll-card";
-import { currentAccount } from "@/lib/auth/session";
+import { requireMemberPage } from "@/lib/auth/session";
 import { weeklyStats } from "@/lib/domain/analytics";
 import { latestAnnouncement } from "@/lib/domain/announcements";
 import { activeGoal } from "@/lib/domain/funding";
@@ -22,7 +22,7 @@ import { getTranslator } from "@/lib/i18n/server";
  * community is deciding, and how the server is doing.
  */
 export default async function HomePage() {
-  const account = await currentAccount();
+  const account = await requireMemberPage();
   const t = await getTranslator();
 
   const [recent, upcoming, poll, announcement, storage, goal, stats] =
