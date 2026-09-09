@@ -163,6 +163,36 @@
       );
   }
 
+  /*
+   * The picture at the top of a title.
+   *
+   * Nothing is read over it, unlike the hero, so it is not washed flat: it
+   * stays a picture and only dissolves where it meets the surface below, which
+   * is the page normally and the panel inside a dialog.
+   */
+  .umbra-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    /* The surface is inherited, never set here: a default on the banner itself
+       would win over the value a dialog passes down. */
+    background: linear-gradient(
+      to bottom,
+      color-mix(
+        in oklab,
+        var(--umbra-banner-surface, var(--background)) 10%,
+        transparent
+      ),
+      color-mix(
+          in oklab,
+          var(--umbra-banner-surface, var(--background)) 45%,
+          transparent
+        )
+        60%,
+      var(--umbra-banner-surface, var(--background))
+    );
+  }
+
   .umbra-hairline {
     border-color: color-mix(in oklab, var(--foreground) 10%, transparent);
   }

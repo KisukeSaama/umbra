@@ -30,7 +30,7 @@ export function TitleModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && router.back()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl">
         {/* The panel repeats the heading for screen readers; the view below
             draws its own. */}
         <DialogTitle className="sr-only">{title}</DialogTitle>
