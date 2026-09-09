@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -11,8 +11,6 @@ import {
   type EpisodeStatus,
 } from "@/lib/db/schema";
 import { ensureMedia } from "@/lib/domain/catalog";
-import { formatEpisodeCode } from "@/lib/format";
-import { notify } from "@/lib/domain/notifications";
 import { NotFoundError } from "@/lib/errors";
 import { isRunning } from "@/lib/providers/metadata";
 import { tmdbProvider } from "@/lib/providers/tmdb";
@@ -30,9 +28,6 @@ import { tmdbProvider } from "@/lib/providers/tmdb";
  * Umbra can therefore stay down for days and catch up entirely on the next run
  * (see `docs/architecture.md`).
  */
-
-/** Past this count, one summary is sent instead of one message per episode. */
-const MAX_EPISODE_NOTIFICATIONS = 5;
 
 export async function trackSeries(providerId: string) {
   const details = await tmdbProvider.seriesDetails(providerId);
@@ -193,66 +188,6 @@ export async function reconcileEpisodes(): Promise<{
     missing: missingResult.count ?? 0,
     tasksOpened: openedResult.count ?? 0,
   };
-}
-
-/**
- * Tells the administrator about aired but missing episodes, once per episode
- * (`notified_at`). A large catch-up is summarised in one message rather than
- * fifty notifications.
- */
-export async function notifyOpenEpisodeTasks() {
-  const pending = await db()
-    .select({
-      taskId: episodeTasks.id,
-      seasonNumber: episodes.seasonNumber,
-      episodeNumber: episodes.episodeNumber,
-      airDate: episodes.airDate,
-      title: media.title,
-    })
-    .from(episodeTasks)
-    .innerJoin(episodes, eq(episodes.id, episodeTasks.episodeId))
-    .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
-    .innerJoin(media, eq(media.id, trackedSeries.mediaId))
-    .where(
-      and(eq(episodeTasks.status, "open"), isNull(episodeTasks.notifiedAt)),
-    )
-    .orderBy(asc(episodes.airDate));
-
-  if (pending.length === 0) return 0;
-
-  if (pending.length <= MAX_EPISODE_NOTIFICATIONS) {
-    for (const task of pending) {
-      await notify({
-        kind: "episode",
-        title: `${task.title} ${formatEpisodeCode(task.seasonNumber, task.episodeNumber)} has aired and seems missing from the server.`,
-      });
-    }
-  } else {
-    const head = pending
-      .slice(0, MAX_EPISODE_NOTIFICATIONS)
-      .map(
-        (task) =>
-          `- ${task.title} ${formatEpisodeCode(task.seasonNumber, task.episodeNumber)}`,
-      )
-      .join("\n");
-    await notify({
-      kind: "episode",
-      title: `${pending.length} aired episodes seem missing from the server.`,
-      body: `${head}\n... and ${pending.length - MAX_EPISODE_NOTIFICATIONS} more.`,
-    });
-  }
-
-  await db()
-    .update(episodeTasks)
-    .set({ notifiedAt: new Date() })
-    .where(
-      inArray(
-        episodeTasks.id,
-        pending.map((task) => task.taskId),
-      ),
-    );
-
-  return pending.length;
 }
 
 export type UpcomingEpisode = {

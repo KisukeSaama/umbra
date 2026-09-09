@@ -118,7 +118,7 @@ does not stop the others: a metadata outage must not prevent a storage snapshot.
    close requests whose title has appeared; fill in missing posters.
 2. **series-sync**: refresh the calendar of series due for a resync.
 3. **episode-reconcile**: mark episodes available or missing, raise tasks, close
-   tasks whose episode arrived, notify once per episode.
+   tasks whose episode arrived.
 4. **storage-snapshot**: measure the configured volumes and record a point.
 
 ### Catching up after downtime
@@ -126,8 +126,8 @@ does not stop the others: a metadata outage must not prevent a storage snapshot.
 Reconciliation compares dates against now rather than reacting to an event, so
 there is nothing to miss. An episode that aired while Umbra was down is picked
 up on the next run, and `ON CONFLICT DO NOTHING` on the task means a rerun never
-duplicates work. A large catch-up sends one summary notification instead of
-fifty messages.
+duplicates work. A large catch-up therefore lands as a batch of tasks in the
+administration rather than being lost.
 
 The worker holds no state at all: it calls the endpoint, and the endpoint knows
 what is left to do.

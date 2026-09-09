@@ -12,7 +12,6 @@
 #   UMBRA_CRON_SECRET              shared by the worker and the sync endpoint
 # Optional:
 #   UMBRA_ADMIN_PLEX_ACCOUNT_ID    Plex account promoted to admin on first sign-in
-#   UMBRA_DISCORD_WEBHOOK_URL      admin notifications
 #   UMBRA_STORAGE_PATHS            published volumes, `Label:/path` comma separated
 #   UMBRA_AUTO_APPROVE_MEMBERS     "true" to skip manual approval
 #   UMBRA_JANUS_URL                overrides the gateway address
@@ -121,7 +120,6 @@ variables:
           "JANUS_PLEX_TV_SLUG=${UMBRA_JANUS_PLEX_TV_SLUG:-plex-tv}" \
           "ADMIN_PLEX_ACCOUNT_ID=${UMBRA_ADMIN_PLEX_ACCOUNT_ID:-}" \
           "AUTO_APPROVE_MEMBERS=${UMBRA_AUTO_APPROVE_MEMBERS:-false}" \
-          "DISCORD_WEBHOOK_URL=${UMBRA_DISCORD_WEBHOOK_URL:-}" \
           "STORAGE_PATHS=${UMBRA_STORAGE_PATHS:-Media:/mnt/plex}" \
           "CRON_SECRET=${UMBRA_CRON_SECRET}" \
           "SYNC_INTERVAL_MINUTES=${UMBRA_SYNC_INTERVAL_MINUTES:-30}" \

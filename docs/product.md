@@ -94,7 +94,7 @@ requested -> accepted -> processing -> available
    - present on the server: marked available, and its task closes itself;
    - aired but absent: marked to add, and a task is raised;
    - not aired yet: scheduled.
-4. The administrator is notified once per episode.
+4. Open tasks are listed in the administration, where they are handled.
 
 Nothing in that depends on running at a precise moment. If Umbra is down for a
 week, the next run sees every date that has passed and catches up.

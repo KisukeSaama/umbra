@@ -30,7 +30,6 @@ administrator and the community, quietly.
   is still missing, and closed by itself when it arrives.
 - Announcements, polls, storage detail and history, funding goal with a manual
   history, job status.
-- Discord notifications for new requests and missing episodes.
 
 **What it deliberately does not do**: comments, chat, reviews, profiles, uptime
 monitoring, payments, or a second copy of the Plex library.
@@ -106,7 +105,6 @@ live in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 | `SESSION_TTL_DAYS`      | no       | Session lifetime, default 30                       |
 | `DEV_LOGIN`             | no       | Opens the development sign-in. Never in production |
 | `STORAGE_PATHS`         | no       | Published volumes, `Label:/path`, comma separated  |
-| `DISCORD_WEBHOOK_URL`   | no       | Admin notifications                                |
 | `CRON_SECRET`           | for sync | Shared by the worker and `POST /api/cron/sync`     |
 | `SYNC_INTERVAL_MINUTES` | no       | Worker interval, default 30                        |
 

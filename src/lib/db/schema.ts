@@ -280,7 +280,6 @@ export const episodeTasks = pgTable(
       .unique()
       .references(() => episodes.id, { onDelete: "cascade" }),
     status: text("status").$type<EpisodeTaskStatus>().notNull().default("open"),
-    notifiedAt: timestamp("notified_at", { withTimezone: true }),
     createdAt,
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },

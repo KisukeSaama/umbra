@@ -12,7 +12,6 @@ import {
 } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
-import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import type { MediaKind } from "@/lib/providers/metadata";
@@ -63,13 +62,6 @@ export async function createRequest(
       .returning({ id: mediaRequests.id });
 
     await bumpMetric("requests_created");
-    await notify({
-      kind: "request",
-      title: `New Umbra request: ${summary.title}`,
-      body: [kind === "movie" ? "Movie" : "Series", yearOf(summary.releaseDate)]
-        .filter(Boolean)
-        .join(" - "),
-    });
 
     return { requestId: row.id, title: summary.title };
   } catch (error) {

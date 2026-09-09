@@ -42,7 +42,6 @@ CREATE TABLE "episode_task" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"episode_id" uuid NOT NULL,
 	"status" text DEFAULT 'open' NOT NULL,
-	"notified_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"completed_at" timestamp with time zone,
 	CONSTRAINT "episode_task_episode_id_unique" UNIQUE("episode_id"),

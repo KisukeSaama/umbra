@@ -37,7 +37,6 @@ const schema = z.object({
   /** `Movies:/data/movies,Series:/data/series` */
   STORAGE_PATHS: z.string().default(""),
 
-  DISCORD_WEBHOOK_URL: z.string().url().optional(),
 
   /** Token expected by the scheduled sync route. */
   CRON_SECRET: z.string().min(16).optional(),

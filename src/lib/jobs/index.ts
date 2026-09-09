@@ -8,7 +8,6 @@ import { enrichLibraryPosters, syncLibrary } from "@/lib/domain/library";
 import { closeRequestsPresentInLibrary } from "@/lib/domain/requests";
 import {
   linkSeriesToLibrary,
-  notifyOpenEpisodeTasks,
   reconcileEpisodes,
   seriesDueForSync,
   syncSeriesEpisodes,
@@ -107,7 +106,6 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
   outcomes.push(
     await runJob("episode-reconcile", async () => {
       const result = await reconcileEpisodes();
-      await notifyOpenEpisodeTasks();
       return result.tasksOpened;
     }),
   );
