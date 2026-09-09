@@ -1,3 +1,4 @@
+import { CutIcon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Poster } from "@/components/poster";
 import { SeasonList } from "@/components/season-list";
@@ -26,9 +27,12 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
    * index will only show at the next scan. Read here rather than in
    * `titleDetail`, because they say what the buttons may do and not what the
    * title is.
+   *
+   * A re-cut is the whole story under another numbering, so it has no ladder
+   * and nothing to ask for: neither is read at all.
    */
   const [openAsks, settled] =
-    detail.kind === "tv"
+    detail.kind === "tv" && !detail.alternateCut
       ? await Promise.all([
           openAsksFor(detail.kind, detail.providerId),
           settledAsksFor(detail.kind, detail.providerId),
@@ -73,6 +77,14 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
             <Badge variant="outline">
               {detail.kind === "movie" ? t("common.movie") : t("common.series")}
             </Badge>
+            {/* The cut sits with the year and the kind, because it is what the
+                title is here rather than something the server is late on. */}
+            {detail.alternateCut ? (
+              <Badge variant="secondary">
+                <CutIcon />
+                {t("title.cut", { cut: t(`cut.${detail.alternateCut}`) })}
+              </Badge>
+            ) : null}
           </div>
 
           {detail.originalTitle ? (
@@ -87,18 +99,25 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
             </p>
           ) : null}
 
+          {detail.alternateCut ? (
+            <p className="text-muted-foreground max-w-prose text-sm leading-relaxed">
+              {t("title.cut.note")}
+            </p>
+          ) : null}
+
           <TitleActions
             kind={detail.kind}
             providerId={detail.providerId}
             title={detail.title}
             availability={detail.availability}
+            alternateCut={detail.alternateCut}
           />
         </div>
       </div>
 
       {/* A series is never one thing you either have or do not: the answer is
           per season, and then per episode. */}
-      {detail.kind === "tv" ? (
+      {detail.kind === "tv" && !detail.alternateCut ? (
         <SeasonList
           providerId={detail.providerId}
           seasons={detail.seasons}

@@ -9,6 +9,7 @@ import {
   jsonb,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -174,6 +175,18 @@ export const libraryItems = pgTable(
      * request. Not personal data, and what the taste profile is built from.
      */
     genreIds: integer("genre_ids").array(),
+    /**
+     * The provider score, out of ten, and the votes behind it. Filled by the
+     * same enrichment pass, from a details call that already carries them.
+     *
+     * Null means the pass has not reached this row yet, and reads treat that as
+     * "unknown" rather than "bad": the index fills in over several runs, and a
+     * quality filter that took null for a failing score would empty the shelves
+     * in the meantime. Zero is an answer, and it is what a title nobody rated
+     * gets, so a row is stamped once and never comes back.
+     */
+    voteAverage: real("vote_average"),
+    voteCount: integer("vote_count"),
     addedAt: timestamp("added_at", { withTimezone: true }),
     syncedAt: timestamp("synced_at", { withTimezone: true })
       .notNull()
@@ -589,9 +602,12 @@ export const reports = pgTable(
     /**
      * A word from the administration to the members waiting on this report.
      *
-     * The same one-way exception as `media_request.admin_note`: nothing is
-     * typed by a member, and this is erased once the report is resolved, where
-     * it has nothing left to say.
+     * The same one-way exception as `media_request.admin_note`: nothing is ever
+     * typed by a member. It parts ways with the request note at the end. A
+     * request that arrives has answered itself, so its note goes with it; a
+     * report that closes has not, and this is where the outcome is read, so it
+     * survives closing. One column and not a thread: a word that has aged is
+     * replaced, never appended to.
      */
     adminNote: text("admin_note"),
     createdAt,

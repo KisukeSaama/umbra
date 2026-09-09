@@ -442,6 +442,11 @@ export const en = {
   "title.requested": "Already requested",
   "title.cancelRequest": "Cancel this request",
   "title.similar": "In the same vein",
+  "title.cut": "On the server in the {cut} cut",
+  "title.cut.note":
+    "This cut is the same story with the filler taken out and what is left renumbered, so it is here whole and there is no episode list to line up against the broadcast order.",
+  "cut.kai": "Kai",
+  "cut.yabai": "Yabai",
 
   "season.heading": "Seasons",
   "season.number": "Season {number}",
@@ -494,6 +499,8 @@ export const en = {
   "report.reason.playback_error": "It will not play",
   "report.reason.duplicate_entry": "It appears twice",
   "report.reason.wrong_order": "The numbering is wrong",
+  "report.cut.note":
+    "This is a re-cut: its picture, its tracks and its numbering are the ones whoever made it chose, and none of that can be put right here. What can be is the rest of it arriving.",
   "report.status.open": "Sent",
   "report.status.acknowledged": "Taken up",
   "report.status.in_progress": "Being fixed",
@@ -1012,6 +1019,11 @@ export const fr: Record<TranslationKey, string> = {
   "title.requested": "Déjà demandé",
   "title.cancelRequest": "Annuler la demande",
   "title.similar": "Dans la même veine",
+  "title.cut": "Sur le serveur en version {cut}",
+  "title.cut.note":
+    "Cette version reprend la même histoire sans les épisodes de remplissage et renumérote ce qui reste : elle est donc ici en entier, et il n'y a pas de liste d'épisodes à aligner sur l'ordre de diffusion.",
+  "cut.kai": "Kai",
+  "cut.yabai": "Yabai",
 
   "season.heading": "Saisons",
   "season.number": "Saison {number}",
@@ -1064,6 +1076,8 @@ export const fr: Record<TranslationKey, string> = {
   "report.reason.playback_error": "La lecture ne démarre pas",
   "report.reason.duplicate_entry": "Le titre apparaît en double",
   "report.reason.wrong_order": "La numérotation est fausse",
+  "report.cut.note":
+    "C'est une version remontée : son image, ses pistes et sa numérotation sont celles choisies par ceux qui l'ont faite, et rien de tout cela ne peut être corrigé ici. Ce qui peut l'être, c'est la suite qui arrive.",
   "report.status.open": "Envoyé",
   "report.status.acknowledged": "Pris en compte",
   "report.status.in_progress": "En cours de correction",

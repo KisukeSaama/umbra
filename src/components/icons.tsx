@@ -30,6 +30,7 @@ import {
   Moon,
   Play,
   Plus,
+  Scissors,
   SignOut,
   Sparkle,
   SquaresFour,
@@ -119,6 +120,7 @@ export const TrashIcon = icon(Trash, "regular");
 export const FolderIcon = icon(FolderSimple, "regular");
 export const FileIcon = icon(File, "regular");
 export const PlayIcon = icon(Play, "fill");
+export const CutIcon = icon(Scissors);
 export const ClockIcon = icon(Clock, "regular");
 export const WrenchIcon = icon(Wrench);
 export const HandHeartIcon = icon(HandHeart);

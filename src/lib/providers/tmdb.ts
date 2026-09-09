@@ -79,6 +79,24 @@ function voteFloor(kind: MediaKind, sortBy: DiscoverQuery["sortBy"]) {
   return kind === "movie" ? 1000 : 600;
 }
 
+/**
+ * The floor under the score itself.
+ *
+ * The vote count says a title has been seen, not that it was worth it, and
+ * sorting by average only protects the top of the first page: a narrow mood
+ * rolled to its fourth page, or a shelf that gave up its vote floor to come
+ * back with anything at all, ends well below where it started. Discovery is
+ * Umbra suggesting something, so the score is a condition of the query rather
+ * than a property of the order, and it holds wherever the listing is read.
+ *
+ * The value sits just above the middle of the scale, where TMDB averages
+ * cluster: high enough that the bottom half cannot be suggested, low enough
+ * that it removes a shelf from no mood. It is exported because the library
+ * index stores the same provider score: the two halves of the picker answer the
+ * same question, so they cannot hold different bars.
+ */
+export const RATING_FLOOR = 6.5;
+
 type Json = Record<string, unknown>;
 
 async function get<T = Json>(
@@ -91,6 +109,41 @@ async function get<T = Json>(
     path,
     query: { language: tmdbLanguage(language), ...query },
   });
+}
+
+/**
+ * The discover call, expressed as parameters.
+ *
+ * Pure and exported so the filters can be read without a gateway: this is where
+ * a mood stops being a set of answers and becomes a listing, and the floors it
+ * carries are the difference between a suggestion and a row of results.
+ */
+export function discoverParams({
+  kind,
+  genreIds,
+  excludeGenreIds,
+  originalLanguage,
+  runtimeLte,
+  sortBy,
+  voteCountGte,
+  voteAverageGte,
+  page,
+}: DiscoverQuery): Record<string, string | number> {
+  const query: Record<string, string | number> = {
+    include_adult: "false",
+    page: safePage(page),
+    sort_by: sortFor(kind, sortBy),
+    "vote_count.gte": voteCountGte ?? voteFloor(kind, sortBy),
+    "vote_average.gte": voteAverageGte ?? RATING_FLOOR,
+  };
+  // A pipe is "any of these", a comma would demand all of them at once.
+  if (genreIds?.length) query.with_genres = genreIds.join("|");
+  if (excludeGenreIds?.length) query.without_genres = excludeGenreIds.join("|");
+  if (originalLanguage) query.with_original_language = originalLanguage;
+  // On a show this parameter filters the length of one episode, which is a
+  // different question, so it is only ever sent for a film.
+  if (runtimeLte && kind === "movie") query["with_runtime.lte"] = runtimeLte;
+  return query;
 }
 
 export const tmdbProvider: MediaMetadataProvider = {
@@ -169,38 +222,13 @@ export const tmdbProvider: MediaMetadataProvider = {
       .filter((row): row is MediaSummary => row !== null);
   },
 
-  async discoverBy({
-    kind,
-    genreIds,
-    excludeGenreIds,
-    requireGenreIds,
-    originalLanguage,
-    runtimeLte,
-    sortBy,
-    voteCountGte,
-    page,
-    language,
-  }) {
-    const query: Record<string, string | number> = {
-      include_adult: "false",
-      page: safePage(page),
-      sort_by: sortFor(kind, sortBy),
-      "vote_count.gte": voteCountGte ?? voteFloor(kind, sortBy),
-    };
-    // A pipe is "any of these", a comma would demand all of them at once.
-    if (genreIds?.length) query.with_genres = genreIds.join("|");
-    if (excludeGenreIds?.length)
-      query.without_genres = excludeGenreIds.join("|");
-    if (originalLanguage) query.with_original_language = originalLanguage;
-    // On a show this parameter filters the length of one episode, which is a
-    // different question, so it is only ever sent for a film.
-    if (runtimeLte && kind === "movie") query["with_runtime.lte"] = runtimeLte;
-
+  async discoverBy(query) {
     const body = await get<{ results?: unknown[] }>(
-      `/discover/${kind}`,
-      language,
-      query,
+      `/discover/${query.kind}`,
+      query.language,
+      discoverParams(query),
     );
+    const { kind, requireGenreIds } = query;
     const rows = summariesOfKind(body.results, kind);
     // TMDB reads a comma in `with_genres` as "all of these" and a pipe as "any
     // of these", and it does not accept the two mixed in one value: a mood is
@@ -316,6 +344,14 @@ export function summaryFromJsonWithKind(
     backdropPath: str(row, "backdrop_path"),
     popularity: typeof row.popularity === "number" ? row.popularity : 0,
     genreIds: genreIdsFrom(row),
+    voteAverage:
+      typeof row.vote_average === "number" && Number.isFinite(row.vote_average)
+        ? row.vote_average
+        : null,
+    voteCount:
+      typeof row.vote_count === "number" && Number.isFinite(row.vote_count)
+        ? row.vote_count
+        : 0,
   };
 }
 

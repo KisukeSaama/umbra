@@ -15,9 +15,14 @@ import {
 
 import { db } from "@/lib/db";
 import { libraryItems } from "@/lib/db/schema";
+import {
+  alternateCutOf,
+  hasCutMarker,
+  type AlternateCut,
+} from "@/lib/domain/cuts";
 import type { LibraryItem } from "@/lib/providers/library";
 import { plexLibrary } from "@/lib/providers/plex";
-import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
+import { posterUrl, RATING_FLOOR, tmdbProvider } from "@/lib/providers/tmdb";
 
 /**
  * Local view of the server library.
@@ -35,6 +40,12 @@ export type LibraryMatch = {
   title: string;
   year: number | null;
   posterUrl: string | null;
+  /**
+   * The re-cut the server holds it in, when it is one. It travels with the
+   * match because it decides what may be said about the title: see
+   * `@/lib/reports/reasons`.
+   */
+  alternateCut: AlternateCut | null;
 };
 
 export type RecentItem = {
@@ -210,7 +221,9 @@ export async function episodePresence(showRatingKey: string) {
  *
  * Genres ride along because the details call already carries them. They are
  * what the genre shelves read and what the taste profile is built from, so they
- * cost nothing beyond a call that was happening anyway.
+ * cost nothing beyond a call that was happening anyway. The score rides along
+ * for the same reason, and it is what lets the half of the picker drawn from
+ * the server hold the same bar as the half drawn from the provider.
  */
 export async function enrichLibraryPosters(limit = 120): Promise<number> {
   const rows = await db()
@@ -222,7 +235,11 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
     .from(libraryItems)
     .where(
       and(
-        or(isNull(libraryItems.posterPath), isNull(libraryItems.genreIds)),
+        or(
+          isNull(libraryItems.posterPath),
+          isNull(libraryItems.genreIds),
+          isNull(libraryItems.voteAverage),
+        ),
         isNotNull(libraryItems.tmdbId),
         inArray(libraryItems.kind, ["movie", "show"]),
       ),
@@ -246,6 +263,11 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
           // An empty list is still an answer: it stops the row coming back on
           // every run for a title the provider has no genres for.
           genreIds: summary.genreIds,
+          // Same reasoning, and the reason the column is written rather than
+          // left null when the provider has no score: unrated reads as zero,
+          // which fails the floor, and null would fetch this row forever.
+          voteAverage: summary.voteAverage ?? 0,
+          voteCount: summary.voteCount,
         })
         .where(eq(libraryItems.id, row.id));
       filled += 1;
@@ -292,14 +314,66 @@ export async function searchLibrary(
     .orderBy(desc(libraryItems.addedAt))
     .limit(limit);
 
-  return rows.map((row) => ({
-    ratingKey: row.ratingKey,
-    kind: row.kind === "movie" ? ("movie" as const) : ("tv" as const),
-    providerId: row.tmdbId ?? "",
-    title: row.title,
-    year: row.year,
-    posterUrl: posterUrl(row.posterPath),
-  }));
+  return Promise.all(
+    rows.map(async (row) => {
+      const kind = row.kind === "movie" ? ("movie" as const) : ("tv" as const);
+      return {
+        ratingKey: row.ratingKey,
+        kind,
+        providerId: row.tmdbId ?? "",
+        title: row.title,
+        year: row.year,
+        posterUrl: posterUrl(row.posterPath),
+        alternateCut: await alternateCutFor(kind, row.tmdbId ?? "", row.title),
+      };
+    }),
+  );
+}
+
+/**
+ * The re-cut a title on the server is in, or nothing.
+ *
+ * The name the server files it under is compared with the names the provider
+ * gives it, so a series the provider itself calls "Kai" keeps its own identity.
+ * Passing the server title in avoids a query for callers that already hold it;
+ * the provider call behind the comparison only happens for the handful of
+ * titles whose name carries a marker, and Janus answers it from its cache.
+ *
+ * A film is never a re-cut, so it is answered without asking anyone.
+ */
+export async function alternateCutFor(
+  kind: "movie" | "tv",
+  providerId: string,
+  libraryTitle?: string | null,
+): Promise<AlternateCut | null> {
+  if (kind === "movie" || !providerId) return null;
+
+  const title =
+    libraryTitle === undefined
+      ? await libraryTitleOf(providerId)
+      : libraryTitle;
+  if (!hasCutMarker(title)) return null;
+
+  try {
+    const summary = await tmdbProvider.details("tv", providerId);
+    return alternateCutOf(title, [summary.title, summary.originalTitle]);
+  } catch (error) {
+    // Unknown reads as a re-cut, which is the safe way round: it states the
+    // cut rather than inventing a shortfall out of a numbering of its own.
+    console.warn("[library] cut check unavailable", error);
+    return alternateCutOf(title);
+  }
+}
+
+async function libraryTitleOf(providerId: string): Promise<string | null> {
+  const [row] = await db()
+    .select({ title: libraryItems.title })
+    .from(libraryItems)
+    .where(
+      and(eq(libraryItems.tmdbId, providerId), eq(libraryItems.kind, "show")),
+    )
+    .limit(1);
+  return row?.title ?? null;
 }
 
 /**
@@ -388,6 +462,15 @@ export function intArray(values: number[]) {
 }
 
 /**
+ * How many votes a score has to stand on before it is read as one.
+ *
+ * Far below the floor the provider applies, and deliberately: the shelf here is
+ * one server's library rather than every title ever released, so the number is
+ * only there to throw out a score nobody agreed on yet.
+ */
+const MEANINGFUL_VOTES = 50;
+
+/**
  * Random picks on the server that match at least one of these genres.
  *
  * The overlap operator reads the array the enrichment pass filled in, so the
@@ -428,6 +511,19 @@ export async function randomAvailableByGenres(
         ...(requireGenreIds.length
           ? [sql`${libraryItems.genreIds} @> ${intArray(requireGenreIds)}`]
           : []),
+        // The same bar the provider half is held to, on the one score the index
+        // has. Null is not a failing grade: the enrichment pass fills the index
+        // over several runs, and reading null as "bad" would leave the picker
+        // with an empty evening until it caught up. A row that has been stamped
+        // has to earn its place, and it earns it on both numbers at once, since
+        // a nine standing on a handful of votes is not a recommendation.
+        sql`(
+          ${libraryItems.voteAverage} IS NULL
+          OR (
+            ${libraryItems.voteAverage} >= ${RATING_FLOOR}
+            AND coalesce(${libraryItems.voteCount}, 0) >= ${MEANINGFUL_VOTES}
+          )
+        )`,
       ),
     )
     .orderBy(sql`random()`)

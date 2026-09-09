@@ -15,10 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { ReportReason } from "@/lib/db/schema";
+import type { AlternateCut } from "@/lib/domain/cuts";
 import type { LibraryMatch } from "@/lib/domain/library";
 import { translateError, type TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
-import { reasonsFor, targetOf } from "@/lib/reports/reasons";
+import { reasonsFor, reasonsForCut, targetOf } from "@/lib/reports/reasons";
 
 /**
  * Reporting a problem, as three choices.
@@ -33,6 +34,11 @@ type Target = {
   kind: "movie" | "tv";
   providerId: string;
   title: string;
+  /**
+   * The re-cut the server holds it in, when it is one. A re-cut has no "where"
+   * step and a shorter list of reasons: see `@/lib/reports/reasons`.
+   */
+  alternateCut?: AlternateCut | null;
 };
 
 export function ReportFlow({
@@ -78,7 +84,11 @@ function ReportSteps({
   const [seasonNumber, setSeasonNumber] = useState<number | null>(null);
   const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
   // A series needs the "where" step answered before the reasons make sense.
-  const [placed, setPlaced] = useState(preset?.kind === "movie");
+  // A film has nowhere to point, and so has a re-cut: it numbers itself, the
+  // page draws no ladder, and the report is about the series as a whole.
+  const [placed, setPlaced] = useState(
+    preset?.kind === "movie" || Boolean(preset?.alternateCut),
+  );
   const [sending, setSending] = useState(false);
 
   async function send(reason: ReportReason) {
@@ -145,7 +155,7 @@ function ReportSteps({
       <TitleStep
         onPick={(match) => {
           setTarget(match);
-          setPlaced(match.kind === "movie");
+          setPlaced(match.kind === "movie" || Boolean(match.alternateCut));
         }}
       />
     );
@@ -162,13 +172,18 @@ function ReportSteps({
       />
     );
 
-  const reasons = reasonsFor(
-    targetOf(target.kind, seasonNumber, episodeNumber),
-  );
+  const reasons = target.alternateCut
+    ? reasonsForCut()
+    : reasonsFor(targetOf(target.kind, seasonNumber, episodeNumber));
 
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground text-sm">{t("report.step.why")}</p>
+      {/* The list is short here, and a short list with no reason given reads
+          as a list that is missing something. */}
+      {target.alternateCut ? (
+        <p className="text-muted-foreground text-xs">{t("report.cut.note")}</p>
+      ) : null}
       <ul className="space-y-2">
         {reasons.map((reason) => (
           <li key={reason}>
@@ -260,6 +275,7 @@ function TitleStep({ onPick }: { onPick: (match: Target) => void }) {
                     kind: match.kind,
                     providerId: match.providerId,
                     title: match.title,
+                    alternateCut: match.alternateCut,
                   })
                 }
                 className="h-auto w-full justify-start py-2 text-left"

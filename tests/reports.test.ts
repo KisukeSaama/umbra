@@ -7,12 +7,14 @@ import {
   canTransition,
   isAsk,
   isAutoClosable,
+  isCutReasonAllowed,
   isLive,
   isReasonAllowed,
   isSettled,
   nextStatuses,
   NOTHING_SETTLED,
   reasonsFor,
+  reasonsForCut,
   REPORT_TARGETS,
   targetOf,
 } from "@/lib/reports/reasons";
@@ -157,5 +159,29 @@ describe("asks the administration has just answered", () => {
     expect(isSettled(settled, null)).toBe(true);
     expect(isSettled(settled, 1)).toBe(true);
     expect(isSettled(settled, 12)).toBe(true);
+  });
+});
+
+describe("re-cut reasons", () => {
+  it("keeps only what asks for the rest", () => {
+    expect(reasonsForCut()).toEqual(["missing_episode", "series_outdated"]);
+    expect(reasonsForCut().every(isAsk)).toBe(true);
+  });
+
+  it("turns down what nobody on this side can put right", () => {
+    for (const reason of [
+      "bad_quality",
+      "missing_audio_track",
+      "missing_subtitles",
+      "playback_error",
+      "wrong_order",
+      "wrong_content",
+      "duplicate_entry",
+    ] as const)
+      expect(isCutReasonAllowed(reason)).toBe(false);
+  });
+
+  it("lets every reason it keeps close itself on the next scan", () => {
+    expect(reasonsForCut().every(isAutoClosable)).toBe(true);
   });
 });

@@ -26,6 +26,14 @@ export type MediaSummary = {
    * lets the library index be stamped without a second call.
    */
   genreIds: number[];
+  /**
+   * Average score out of ten, and how many votes stand behind it. The two are
+   * one fact: a nine held up by four votes says nothing. Null is "not known",
+   * which is not the same as zero, and the library index leans on that
+   * difference while it fills in.
+   */
+  voteAverage: number | null;
+  voteCount: number;
 };
 
 export type Genre = { id: number; name: string };
@@ -58,6 +66,14 @@ export type DiscoverQuery = {
    * the floor is what empties it rather than what cleans it up.
    */
   voteCountGte?: number;
+  /**
+   * Minimum average score, out of ten. Left out, the provider applies its own
+   * floor: a suggestion is a recommendation, so a title nobody rates well has
+   * no business being one, whatever the sort. A caller raises it for a shelf
+   * that has to be short and strong, and lowers it only when the floor is what
+   * empties the shelf rather than what cleans it up.
+   */
+  voteAverageGte?: number;
   page?: number;
   language?: string;
 };

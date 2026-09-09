@@ -137,6 +137,36 @@ export function isReasonAllowed(
   return reasonsFor(target).includes(reason);
 }
 
+/**
+ * What can still be said about a re-cut.
+ *
+ * A re-cut is a fan edit: the picture, the tracks and the numbering are what
+ * whoever made it chose, and nobody on this side can put another audio track
+ * into it or fix its order. Offering "the quality is poor" or "an audio track
+ * is missing" there sends the administration a queue of reports it can only
+ * close, and teaches members that reporting achieves nothing.
+ *
+ * What is left is the one thing that can actually be acted on: there is not
+ * all of it here yet, either in holes or at the end. Both are asks, so they
+ * close themselves when the rest arrives, exactly like everywhere else.
+ *
+ * There is no "where" to answer either. A re-cut numbers itself, and the page
+ * shows no ladder to point at, so the report is about the series and the
+ * season and episode stay empty.
+ */
+export const CUT_REASONS = [
+  "missing_episode",
+  "series_outdated",
+] as const satisfies readonly ReportReason[];
+
+export function reasonsForCut(): readonly ReportReason[] {
+  return CUT_REASONS;
+}
+
+export function isCutReasonAllowed(reason: ReportReason): boolean {
+  return (CUT_REASONS as readonly ReportReason[]).includes(reason);
+}
+
 /** Still waiting on someone. Mirrors the partial unique index on `report`. */
 /**
  * Key of one ask: the place it points at and the reason it gives.

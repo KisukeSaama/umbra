@@ -279,8 +279,9 @@ arrived. No card may ever do this.
 ## 5. Components
 
 **Buttons.** 12px corners (`rounded-lg`), 9.6px on the extra-small and small
-sizes. Heights 24, 28, 32, 36px with matching square icon variants; default 32px
-with 10px horizontal padding.
+sizes. Heights 28, 32, 36, 40px with matching square icon variants; default 36px
+with 12px horizontal padding, so every control clears a comfortable pointer
+target.
 
 - _Primary_: ochre on ochre-foreground, hover to the same ochre at 80 percent.
 - _Outline_: hairline border on the page background, hover to Quiet Sand; at night the surface is the input colour at 30 percent.
