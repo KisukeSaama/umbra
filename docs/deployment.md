@@ -63,9 +63,9 @@ curl -sI https://umbra.kisukesaama.com | head -1
 ```
 
 The first sign-in of `UMBRA_ADMIN_PLEX_ACCOUNT_ID` creates the administrator.
-Then run a sync from the admin jobs page, or wait for the worker: the first pass
-indexes the library, which is what makes search able to answer "already
-available".
+Then run a sync from the admin synchronisation page, or wait for the worker: the
+first pass indexes the library, which is what makes search able to answer
+"already available".
 
 ## Things specific to this platform
 

@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 import { ActionButton } from "@/components/admin/action-button";
+import { StatStrip } from "@/components/admin/stat-strip";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
 import { pendingAccountCount } from "@/lib/domain/accounts";
-import { activePoll } from "@/lib/domain/polls";
 import { listReports } from "@/lib/domain/reports";
 import { countRequestsByStatus, listRequests } from "@/lib/domain/requests";
 import { listOpenEpisodeTasks } from "@/lib/domain/series";
@@ -17,41 +17,36 @@ import { jobStatus } from "@/lib/jobs";
 import { LIVE_REPORT_STATUSES } from "@/lib/reports/reasons";
 
 /**
- * Today.
+ * The dashboard.
  *
- * Not a dashboard: a queue. Everything that is waiting on a decision, in the
- * order it arrived, with the decision available on the row rather than three
- * pages away. Counters nobody acts on live on the pages they belong to.
+ * Two readings, in this order. A strip of figures, so the state of the place is
+ * one glance rather than four visits, then the queues themselves: everything
+ * waiting on a decision, in the order it arrived, with the decision available
+ * on the row rather than three pages away.
  *
- * When the queue is empty the page says so and stops, which is the only honest
- * thing a page like this can do on a quiet day.
+ * The figures are counts of work, never a scoreboard: no trend arrow, no
+ * gauge, and nothing about whether the server is up. If Umbra answered, it is.
+ *
+ * When every queue is empty the page says so and stops, which is the only
+ * honest thing a page like this can do on a quiet day.
  */
-export default async function AdminTodayPage() {
+export default async function AdminDashboardPage() {
   const viewer = await requireStaffPage();
   const { t, locale } = await getI18n();
   // Accounts are the administrator's alone, so an assistant is never shown a
   // queue they would be redirected away from.
   const isAdmin = viewer.role === "admin";
 
-  const [
-    requests,
-    reports,
-    tasks,
-    poll,
-    pendingAccounts,
-    counts,
-    storage,
-    jobs,
-  ] = await Promise.all([
-    listRequests(["requested"]),
-    listReports([...LIVE_REPORT_STATUSES]),
-    listOpenEpisodeTasks(),
-    activePoll(),
-    isAdmin ? pendingAccountCount() : 0,
-    countRequestsByStatus(),
-    storageOverview(),
-    jobStatus(),
-  ]);
+  const [requests, reports, tasks, pendingAccounts, counts, storage, jobs] =
+    await Promise.all([
+      listRequests(["requested"]),
+      listReports([...LIVE_REPORT_STATUSES]),
+      listOpenEpisodeTasks(),
+      isAdmin ? pendingAccountCount() : 0,
+      countRequestsByStatus(),
+      storageOverview(),
+      jobStatus(),
+    ]);
 
   const quiet =
     requests.length === 0 &&
@@ -66,162 +61,153 @@ export default async function AdminTodayPage() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("admin.today")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {quiet ? (
-            <p className="text-muted-foreground text-sm">
-              {t("admin.inbox.clear")}
-            </p>
-          ) : null}
+      <StatStrip
+        stats={[
+          { label: t("admin.stat.requests"), value: requests.length },
+          { label: t("admin.stat.reports"), value: reports.length },
+          { label: t("admin.stat.episodes"), value: tasks.length },
+          {
+            label: t("admin.requests.status.processing"),
+            value: counts.processing,
+          },
+          ...(isAdmin
+            ? [{ label: t("admin.stat.accounts"), value: pendingAccounts }]
+            : []),
+          {
+            label: t("section.storage"),
+            value: storage
+              ? `${Math.round(storage.usedRatio * 100)}%`
+              : t("storage.unknown"),
+          },
+        ]}
+      />
 
-          {requests.length > 0 ? (
-            <Queue
-              title={t("admin.inbox.requests", { count: requests.length })}
-              href="/admin/requests"
-              label={t("admin.nav.requests")}
-            >
-              {requests.slice(0, 6).map((request) => (
-                <Row
-                  key={request.id}
-                  main={request.media.title}
-                  aside={
-                    request.media.year ? String(request.media.year) : undefined
-                  }
+      {quiet ? (
+        <Card>
+          <CardContent className="text-muted-foreground py-8 text-center text-sm">
+            {t("admin.inbox.clear")}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Two columns from the large breakpoint, and never stretched to a
+          neighbour's height: an empty queue stays a short card rather than a
+          tall blank one. */}
+      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+        {requests.length > 0 ? (
+          <Queue
+            title={t("admin.inbox.requests", { count: requests.length })}
+            href="/admin/requests"
+            label={t("admin.nav.requests")}
+            more={requests.length - 6}
+          >
+            {requests.slice(0, 6).map((request) => (
+              <Row
+                key={request.id}
+                main={request.media.title}
+                aside={
+                  request.media.year ? String(request.media.year) : undefined
+                }
+              >
+                <ActionButton
+                  url={`/api/admin/requests/${request.id}`}
+                  body={{ status: "accepted" }}
+                  size="xs"
                 >
+                  {t("admin.requests.accept")}
+                </ActionButton>
+                <ActionButton
+                  url={`/api/admin/requests/${request.id}`}
+                  body={{ status: "rejected" }}
+                  size="xs"
+                  variant="ghost"
+                >
+                  {t("admin.requests.reject")}
+                </ActionButton>
+              </Row>
+            ))}
+          </Queue>
+        ) : null}
+
+        {reports.length > 0 ? (
+          <Queue
+            title={t("admin.inbox.reports", { count: reports.length })}
+            href="/admin/reports"
+            label={t("admin.nav.reports")}
+            more={reports.length - 6}
+          >
+            {reports.slice(0, 6).map((report) => (
+              <Row
+                key={report.id}
+                main={report.media.title}
+                aside={t(`report.reason.${report.reason}` as TranslationKey)}
+              >
+                {report.status === "open" ? (
                   <ActionButton
-                    url={`/api/admin/requests/${request.id}`}
-                    body={{ status: "accepted" }}
+                    url={`/api/admin/reports/${report.id}`}
+                    body={{ status: "acknowledged" }}
                     size="xs"
                   >
-                    {t("admin.requests.accept")}
+                    {t("admin.reports.acknowledge")}
                   </ActionButton>
+                ) : (
                   <ActionButton
-                    url={`/api/admin/requests/${request.id}`}
-                    body={{ status: "rejected" }}
+                    url={`/api/admin/reports/${report.id}`}
+                    body={{ status: "resolved" }}
                     size="xs"
-                    variant="ghost"
                   >
-                    {t("admin.requests.reject")}
+                    {t("admin.reports.resolve")}
                   </ActionButton>
-                </Row>
-              ))}
-            </Queue>
-          ) : null}
+                )}
+              </Row>
+            ))}
+          </Queue>
+        ) : null}
 
-          {reports.length > 0 ? (
-            <Queue
-              title={t("admin.inbox.reports", { count: reports.length })}
-              href="/admin/reports"
-              label={t("admin.nav.reports")}
-            >
-              {reports.slice(0, 6).map((report) => (
-                <Row
-                  key={report.id}
-                  main={report.media.title}
-                  aside={t(`report.reason.${report.reason}` as TranslationKey)}
+        {tasks.length > 0 ? (
+          <Queue
+            title={t("admin.inbox.episodes", { count: tasks.length })}
+            href="/admin/series"
+            label={t("admin.nav.series")}
+            more={tasks.length - 6}
+          >
+            {tasks.slice(0, 6).map((task) => (
+              <Row
+                key={task.id}
+                main={task.seriesTitle}
+                aside={formatEpisodeCode(task.seasonNumber, task.episodeNumber)}
+              >
+                <ActionButton
+                  url={`/api/admin/episodes/tasks/${task.id}`}
+                  body={{ status: "done" }}
+                  size="xs"
+                  variant="secondary"
                 >
-                  {report.status === "open" ? (
-                    <ActionButton
-                      url={`/api/admin/reports/${report.id}`}
-                      body={{ status: "acknowledged" }}
-                      size="xs"
-                    >
-                      {t("admin.reports.acknowledge")}
-                    </ActionButton>
-                  ) : (
-                    <ActionButton
-                      url={`/api/admin/reports/${report.id}`}
-                      body={{ status: "resolved" }}
-                      size="xs"
-                    >
-                      {t("admin.reports.resolve")}
-                    </ActionButton>
-                  )}
-                </Row>
-              ))}
-            </Queue>
-          ) : null}
+                  {t("admin.episodes.done")}
+                </ActionButton>
+              </Row>
+            ))}
+          </Queue>
+        ) : null}
 
-          {tasks.length > 0 ? (
-            <Queue
-              title={t("admin.inbox.episodes", { count: tasks.length })}
-              href="/admin/series"
-              label={t("admin.nav.series")}
-            >
-              {tasks.slice(0, 6).map((task) => (
-                <Row
-                  key={task.id}
-                  main={task.seriesTitle}
-                  aside={formatEpisodeCode(
-                    task.seasonNumber,
-                    task.episodeNumber,
-                  )}
-                >
-                  <ActionButton
-                    url={`/api/admin/episodes/tasks/${task.id}`}
-                    body={{ status: "done" }}
-                    size="xs"
-                    variant="secondary"
-                  >
-                    {t("admin.episodes.done")}
-                  </ActionButton>
-                </Row>
-              ))}
-            </Queue>
-          ) : null}
+        {pendingAccounts > 0 ? (
+          <Queue
+            title={t("admin.inbox.accounts", { count: pendingAccounts })}
+            href="/admin/accounts"
+            label={t("admin.nav.accounts")}
+          />
+        ) : null}
+      </div>
 
-          {pendingAccounts > 0 ? (
-            <Queue
-              title={t("admin.inbox.accounts", { count: pendingAccounts })}
-              href="/admin/accounts"
-              label={t("admin.nav.accounts")}
-            />
-          ) : null}
-
-          {poll ? (
-            <p className="text-muted-foreground text-sm">
-              <Link href="/admin/polls" className="hover:text-primary">
-                {t("admin.inbox.polls", { count: 1 })}
-              </Link>
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      {/* Two glances, not three cards: the numbers that are decisions live in
-          the queue above, and these are the only ones left worth a look. */}
-      <dl className="text-muted-foreground flex flex-wrap gap-x-8 gap-y-2 text-sm">
-        <div className="flex items-baseline gap-2">
-          <dt>{t("section.storage")}</dt>
-          <dd className="text-foreground tabular-nums">
-            {storage
-              ? t("storage.used", {
-                  percent: `${Math.round(storage.usedRatio * 100)}%`,
-                })
-              : t("storage.unknown")}
-          </dd>
-        </div>
-        <div className="flex items-baseline gap-2">
-          <dt>{t("admin.requests.status.processing")}</dt>
-          <dd className="text-foreground tabular-nums">{counts.processing}</dd>
-        </div>
-        <div className="flex items-baseline gap-2">
-          <dt>{t("admin.jobs.lastSuccess")}</dt>
-          <dd>
-            <Link
-              href="/admin/jobs"
-              className="text-foreground hover:text-primary focus-visible:ring-ring/50 rounded-md tabular-nums transition-colors outline-none focus-visible:ring-3"
-            >
-              {lastSync
-                ? formatDateTime(lastSync, locale)
-                : t("admin.jobs.never")}
-            </Link>
-          </dd>
-        </div>
-      </dl>
+      <p className="text-muted-foreground text-sm">
+        {t("admin.jobs.lastSuccess")}{" "}
+        <Link
+          href="/admin/sync"
+          className="text-foreground hover:text-primary focus-visible:ring-ring/50 rounded-md tabular-nums transition-colors outline-none focus-visible:ring-3"
+        >
+          {lastSync ? formatDateTime(lastSync, locale) : t("admin.jobs.never")}
+        </Link>
+      </p>
     </>
   );
 }
@@ -230,31 +216,37 @@ function Queue({
   title,
   href,
   label,
+  more = 0,
   children,
 }: {
   title: string;
   href: string;
   label: string;
+  /** Rows the card is not showing. Nothing is drawn when there are none. */
+  more?: number;
   children?: React.ReactNode;
 }) {
   return (
-    <section>
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
+    <Card className="gap-3">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-sm">
           <span className="bg-primary size-1.5 rounded-full" aria-hidden />
           {title}
-        </h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {children ? (
+          <ul className="divide-border/60 -mt-2 divide-y">{children}</ul>
+        ) : null}
         <Link
           href={href}
-          className="text-muted-foreground hover:text-primary focus-visible:ring-ring/50 rounded-md text-xs transition-colors outline-none focus-visible:ring-3"
+          className="text-muted-foreground hover:text-primary focus-visible:ring-ring/50 mt-3 inline-block rounded-md text-xs transition-colors outline-none focus-visible:ring-3"
         >
           {label}
+          {more > 0 ? ` (+${more})` : ""}
         </Link>
-      </div>
-      {children ? (
-        <ul className="divide-border/60 divide-y">{children}</ul>
-      ) : null}
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -269,7 +261,7 @@ function Row({
 }) {
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
-      <span className="truncate text-sm">{main}</span>
+      <span className="min-w-0 flex-1 truncate text-sm">{main}</span>
       {aside ? (
         <Badge variant="outline" className="shrink-0">
           {aside}

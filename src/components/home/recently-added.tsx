@@ -10,7 +10,8 @@ import { getTranslator } from "@/lib/i18n/server";
  * server lately, as a poster rail rather than a copy of the server's own UI.
  *
  * An entry the media server never matched to a provider id has no page to open,
- * so it stays a poster rather than becoming a link that goes nowhere.
+ * so it stays a poster rather than becoming a link that goes nowhere, and it
+ * does not lift on hover either: nothing promises a click it cannot keep.
  */
 export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
   const t = await getTranslator();
@@ -36,7 +37,7 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
                 priority={index < 4}
               />
             ) : (
-              <div className="group">
+              <div>
                 <Poster
                   src={item.posterUrl}
                   alt={item.title}

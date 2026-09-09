@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { BellIcon, SpinnerIcon } from "@/components/icons";
+import { BellIcon } from "@/components/icons";
+import { LoadingRegion, TextLine } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -95,10 +96,17 @@ export function NotificationBell({ unread }: { unread: number }) {
         <DropdownMenuSeparator />
 
         {loading && items === null ? (
-          <div className="text-muted-foreground flex items-center gap-2 px-2 py-3 text-sm">
-            <SpinnerIcon />
-            {t("common.loading")}
-          </div>
+          <LoadingRegion label={t("common.loading")}>
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="flex items-start gap-2 px-2 py-2">
+                <span className="mt-1.5 size-1.5 shrink-0" aria-hidden />
+                <TextLine
+                  size="sm"
+                  className={index === 1 ? "w-3/4" : "w-full"}
+                />
+              </div>
+            ))}
+          </LoadingRegion>
         ) : (items?.length ?? 0) === 0 ? (
           <p className="text-muted-foreground px-2 py-3 text-sm">
             {t("notifications.none")}

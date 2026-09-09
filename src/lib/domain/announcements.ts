@@ -1,10 +1,20 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { announcements, type AnnouncementCategory } from "@/lib/db/schema";
+import {
+  announcements,
+  polls,
+  type AnnouncementCategory,
+} from "@/lib/db/schema";
 import { notifyApprovedAccounts } from "@/lib/domain/notifications";
+import {
+  attachPoll,
+  pollView,
+  setPollActive,
+  type PollView,
+} from "@/lib/domain/polls";
 import { NotFoundError } from "@/lib/errors";
 
 /**
@@ -13,8 +23,15 @@ import { NotFoundError } from "@/lib/errors";
  * The administrator writes, the community reads. No comments, no reactions:
  * the one-way street is the feature.
  *
+ * A poll is an announcement too, so it is not a second object with a second
+ * page: it is a question hanging off a note, and the note is what carries it
+ * into the feed and into the bell.
+ *
  * Announcements are editorial, never a monitoring channel.
  */
+
+/** An outward address the note exists to point at, never a payment form. */
+export type AnnouncementLink = { url: string; label: string | null };
 
 export type AnnouncementView = {
   id: string;
@@ -22,43 +39,120 @@ export type AnnouncementView = {
   content: string;
   category: AnnouncementCategory;
   publishedAt: Date | null;
+  link: AnnouncementLink | null;
+  poll: PollView | null;
+};
+
+const listedColumns = {
+  id: announcements.id,
+  title: announcements.title,
+  content: announcements.content,
+  category: announcements.category,
+  publishedAt: announcements.publishedAt,
+  linkUrl: announcements.linkUrl,
+  linkLabel: announcements.linkLabel,
 };
 
 export async function publishedAnnouncements(
   limit = 20,
+  accountId?: string,
 ): Promise<AnnouncementView[]> {
-  return db()
-    .select({
-      id: announcements.id,
-      title: announcements.title,
-      content: announcements.content,
-      category: announcements.category,
-      publishedAt: announcements.publishedAt,
-    })
+  const rows = await db()
+    .select(listedColumns)
     .from(announcements)
     .where(eq(announcements.published, true))
     .orderBy(desc(announcements.publishedAt))
     .limit(limit);
+
+  return withPolls(rows, accountId);
 }
 
-export async function latestAnnouncement(): Promise<AnnouncementView | null> {
-  const [row] = await publishedAnnouncements(1);
+export async function latestAnnouncement(
+  accountId?: string,
+): Promise<AnnouncementView | null> {
+  const [row] = await publishedAnnouncements(1, accountId);
   return row ?? null;
 }
 
-export async function listAllAnnouncements() {
-  return db()
-    .select()
-    .from(announcements)
-    .orderBy(desc(announcements.createdAt));
+/**
+ * Fills in the questions.
+ *
+ * One query finds every poll of the page, so a feed of thirty notes costs two
+ * round trips plus one tally per poll rather than one per note.
+ */
+async function withPolls(
+  rows: {
+    id: string;
+    title: string;
+    content: string;
+    category: AnnouncementCategory;
+    publishedAt: Date | null;
+    linkUrl: string | null;
+    linkLabel: string | null;
+  }[],
+  accountId?: string,
+): Promise<AnnouncementView[]> {
+  if (rows.length === 0) return [];
+
+  const attached = await db()
+    .select({ id: polls.id, announcementId: polls.announcementId })
+    .from(polls)
+    .where(
+      inArray(
+        polls.announcementId,
+        rows.map((row) => row.id),
+      ),
+    );
+
+  const views = new Map<string, PollView>();
+  await Promise.all(
+    attached.map(async (poll) => {
+      views.set(poll.announcementId, await pollView(poll.id, accountId));
+    }),
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    category: row.category,
+    publishedAt: row.publishedAt,
+    link: row.linkUrl ? { url: row.linkUrl, label: row.linkLabel } : null,
+    poll: views.get(row.id) ?? null,
+  }));
 }
 
-export async function createAnnouncement(input: {
+/** Everything the administration edits, drafts included. */
+export async function listAllAnnouncements(): Promise<
+  (AnnouncementView & { published: boolean; createdAt: Date })[]
+> {
+  const rows = await db()
+    .select({
+      ...listedColumns,
+      published: announcements.published,
+      createdAt: announcements.createdAt,
+    })
+    .from(announcements)
+    .orderBy(desc(announcements.createdAt));
+
+  const views = await withPolls(rows);
+  return views.map((view, index) => ({
+    ...view,
+    published: rows[index].published,
+    createdAt: rows[index].createdAt,
+  }));
+}
+
+export type AnnouncementInput = {
   title: string;
   content: string;
   category: AnnouncementCategory;
   published: boolean;
-}) {
+  link?: { url: string; label?: string | null } | null;
+  poll?: { question: string; options: string[]; endsAt?: Date | null } | null;
+};
+
+export async function createAnnouncement(input: AnnouncementInput) {
   const [row] = await db()
     .insert(announcements)
     .values({
@@ -67,8 +161,22 @@ export async function createAnnouncement(input: {
       category: input.category,
       published: input.published,
       publishedAt: input.published ? new Date() : null,
+      linkUrl: input.link?.url.trim() ?? null,
+      linkLabel: input.link?.label?.trim() || null,
     })
     .returning({ id: announcements.id });
+
+  // A poll opens with the note that carries it: an unpublished draft asks
+  // nobody anything.
+  if (input.poll)
+    await attachPoll({
+      announcementId: row.id,
+      question: input.poll.question,
+      options: input.poll.options,
+      endsAt: input.poll.endsAt ?? null,
+      active: input.published,
+    });
+
   if (input.published)
     await announceToEveryone(row.id, input.title, input.category);
   return row;
@@ -81,6 +189,7 @@ export async function updateAnnouncement(
     content: string;
     category: AnnouncementCategory;
     published: boolean;
+    link: { url: string; label?: string | null } | null;
   }>,
 ) {
   const [existing] = await db()
@@ -99,19 +208,40 @@ export async function updateAnnouncement(
       ? new Date()
       : (existing.publishedAt ?? null);
 
+  const { link, ...columns } = input;
   const [row] = await db()
     .update(announcements)
-    .set({ ...input, publishedAt, updatedAt: new Date() })
+    .set({
+      ...columns,
+      ...(link === undefined
+        ? {}
+        : {
+            linkUrl: link?.url.trim() ?? null,
+            linkLabel: link?.label?.trim() || null,
+          }),
+      publishedAt,
+      updatedAt: new Date(),
+    })
     .where(eq(announcements.id, id))
     .returning({ id: announcements.id });
-  // Publishing is the moment worth telling people about, and only the first
-  // one: editing a published note is not news.
-  if (input.published && !existing.published)
+
+  const firstPublish = Boolean(input.published) && !existing.published;
+  if (firstPublish) {
+    // The question opens with the note, so publishing a draft that carries one
+    // opens it rather than leaving a poll nobody can answer.
+    const [poll] = await db()
+      .select({ id: polls.id })
+      .from(polls)
+      .where(eq(polls.announcementId, id))
+      .limit(1);
+    if (poll) await setPollActive(poll.id, true, { notify: false });
+
     await announceToEveryone(
       id,
       input.title ?? "",
       input.category ?? "information",
     );
+  }
   return row;
 }
 

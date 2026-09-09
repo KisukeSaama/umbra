@@ -85,6 +85,6 @@ describe("plurals", () => {
 
   it("leaves keys without a singular variant untouched", () => {
     const en = createTranslator("en");
-    expect(en("admin.inbox.polls", { count: 1 })).toBe("1 active poll");
+    expect(en("search.resultsCount", { count: 1 })).toBe("1 results");
   });
 });

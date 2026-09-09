@@ -352,6 +352,13 @@ export const announcements = pgTable(
       .notNull()
       .default("information"),
     published: boolean("published").notNull().default(false),
+    /**
+     * One outward link, for the note that exists to point somewhere: the
+     * fundraiser page, a status page, a changelog. Umbra never handles the
+     * money, it only carries the address (see `docs/adr/0010-no-funding-goal.md`).
+     */
+    linkUrl: text("link_url"),
+    linkLabel: text("link_label"),
     createdAt,
     updatedAt,
     publishedAt: timestamp("published_at", { withTimezone: true }),
@@ -365,14 +372,29 @@ export const announcements = pgTable(
   ],
 );
 
-export const polls = pgTable("poll", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  question: text("question").notNull(),
-  active: boolean("active").notNull().default(false),
-  startsAt: timestamp("starts_at", { withTimezone: true }),
-  endsAt: timestamp("ends_at", { withTimezone: true }),
-  createdAt,
-});
+/**
+ * A poll is an announcement that asks something back.
+ *
+ * It never exists on its own: the question always hangs off a note, so the
+ * community reads one stream rather than two, and the administrator writes in
+ * one place.
+ */
+export const polls = pgTable(
+  "poll",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    active: boolean("active").notNull().default(false),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    createdAt,
+  },
+  // One question per note: a second one would be a second note.
+  (t) => [uniqueIndex("poll_announcement_idx").on(t.announcementId)],
+);
 
 export const pollOptions = pgTable(
   "poll_option",
@@ -431,61 +453,44 @@ export const storageSnapshots = pgTable(
   (t) => [index("storage_snapshot_recorded_idx").on(t.recordedAt)],
 );
 
-/* ---------------------------------------------------------------- funding -- */
+/**
+ * One node of the measured tree.
+ *
+ * `bytes` is the total the node accounts for, itself included, so a directory
+ * can be drawn without walking its children. `children` is absent on a leaf and
+ * on a directory the scan chose not to open, which is what `truncated` says.
+ */
+export type StorageNode = {
+  name: string;
+  bytes: number;
+  kind: "directory" | "file";
+  /** Entries the scan folded away because they were too small to draw. */
+  truncated?: number;
+  children?: StorageNode[];
+};
 
-export const FUNDING_STATUSES = [
-  "draft",
-  "active",
-  "completed",
-  "archived",
-] as const;
-export type FundingStatus = (typeof FUNDING_STATUSES)[number];
+/**
+ * What actually fills the disk, measured by walking the configured paths.
+ *
+ * The walk is slow, so it is a scheduled job rather than something a page does:
+ * the administration reads the last snapshot. Paths still come from
+ * configuration alone, and only the label of a root ever leaves the server.
+ */
 
-export const fundingGoals = pgTable(
-  "funding_goal",
+export const storageTreeSnapshots = pgTable(
+  "storage_tree_snapshot",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    title: text("title").notNull(),
-    description: text("description"),
-    /** In cents: Umbra collects nothing, these amounts are entered by hand. */
-    targetAmountCents: bigint("target_amount_cents", {
-      mode: "number",
-    }).notNull(),
-    currentAmountCents: bigint("current_amount_cents", { mode: "number" })
+    /** One entry per configured volume, deepest detail first. */
+    roots: jsonb("roots").$type<StorageNode[]>().notNull().default([]),
+    totalBytes: bigint("total_bytes", { mode: "number" }).notNull(),
+    fileCount: integer("file_count").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    scannedAt: timestamp("scanned_at", { withTimezone: true })
       .notNull()
-      .default(0),
-    currency: text("currency").notNull().default("EUR"),
-    status: text("status").$type<FundingStatus>().notNull().default("draft"),
-    createdAt,
-    updatedAt,
-    completedAt: timestamp("completed_at", { withTimezone: true }),
+      .defaultNow(),
   },
-  (t) => [
-    // A single active goal at a time (V1).
-    uniqueIndex("funding_goal_single_active_idx")
-      .on(t.status)
-      .where(sql`status = 'active'`),
-    check("funding_goal_target_check", sql`${t.targetAmountCents} > 0`),
-    check(
-      "funding_goal_status_check",
-      sql`${t.status} IN ('draft', 'active', 'completed', 'archived')`,
-    ),
-  ],
-);
-
-export const fundingTransactions = pgTable(
-  "funding_transaction",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    goalId: uuid("goal_id")
-      .notNull()
-      .references(() => fundingGoals.id, { onDelete: "cascade" }),
-    /** May be negative: a correction is a movement like any other. */
-    deltaCents: bigint("delta_cents", { mode: "number" }).notNull(),
-    note: text("note"),
-    createdAt,
-  },
-  (t) => [index("funding_transaction_goal_idx").on(t.goalId, t.createdAt)],
+  (t) => [index("storage_tree_snapshot_scanned_idx").on(t.scannedAt)],
 );
 
 /* --------------------------------------------------------------- job runs -- */

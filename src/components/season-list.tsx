@@ -7,8 +7,8 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CircleIcon,
-  SpinnerIcon,
 } from "@/components/icons";
+import { LoadingRegion, TextLine } from "@/components/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { UpdateAsk } from "@/components/update-ask";
 import type {
@@ -120,7 +120,7 @@ export function SeasonList({
                 onClick={() => void toggle(season.seasonNumber)}
                 aria-expanded={expanded}
                 className={cn(
-                  "focus-visible:ring-ring/50 hover:bg-muted/40 flex w-full items-center gap-3 px-3 py-3 text-left outline-none focus-visible:ring-3",
+                  "focus-visible:ring-ring/50 hover:bg-muted/40 flex w-full items-center gap-3 px-3 py-3 text-left transition-colors outline-none focus-visible:ring-3",
                   // Kept in sight while its own episodes scroll under it: a
                   // list of twenty lines otherwise loses the season it belongs
                   // to on the first swipe.
@@ -151,10 +151,10 @@ export function SeasonList({
               {expanded ? (
                 <div className="space-y-3 px-3 pb-3">
                   {loading === season.seasonNumber ? (
-                    <p className="text-muted-foreground flex items-center gap-2 py-2 text-sm">
-                      <SpinnerIcon />
-                      {t("common.loading")}
-                    </p>
+                    <EpisodeRowsSkeleton
+                      count={season.episodeCount}
+                      label={t("common.loading")}
+                    />
                   ) : failed === season.seasonNumber ? (
                     <p className="text-muted-foreground py-2 text-sm">
                       {t("season.unavailable")}
@@ -264,5 +264,31 @@ function SeasonBadge({ season }: { season: SeasonState }) {
         total: season.episodeCount || season.onServer,
       })}
     </Badge>
+  );
+}
+
+/**
+ * The episodes of a season while they are fetched: as many lines as the
+ * provider says the season holds, so the list does not grow under the finger
+ * when they land. A season it has not counted yet gets a handful.
+ */
+function EpisodeRowsSkeleton({
+  count,
+  label,
+}: {
+  count: number;
+  label: string;
+}) {
+  const widths = ["w-1/2", "w-2/3", "w-2/5"];
+  return (
+    <LoadingRegion label={label} className="divide-border/40 divide-y">
+      {Array.from({ length: Math.min(count || 4, 10) }, (_, index) => (
+        <div key={index} className="flex items-center gap-3 py-2">
+          <TextLine size="xs" className="w-8 shrink-0" />
+          <TextLine size="sm" className={widths[index % widths.length]} />
+          <TextLine size="xs" className="ml-auto w-4 shrink-0 sm:w-20" />
+        </div>
+      ))}
+    </LoadingRegion>
   );
 }

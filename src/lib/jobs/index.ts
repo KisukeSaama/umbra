@@ -21,7 +21,7 @@ import {
   seriesDueForSync,
   syncSeriesEpisodes,
 } from "@/lib/domain/series";
-import { recordStorageSnapshot } from "@/lib/domain/storage";
+import { recordStorageSnapshot, scanStorageTree } from "@/lib/domain/storage";
 import { accountsForTaste, refreshTasteProfile } from "@/lib/domain/taste";
 
 /**
@@ -38,6 +38,7 @@ export const JOB_NAMES = [
   "series-sync",
   "episode-reconcile",
   "storage-snapshot",
+  "storage-scan",
   "taste-profile",
   "housekeeping",
 ] as const;
@@ -83,6 +84,26 @@ async function runJob(
 
     return { job, items: 0, error: message };
   }
+}
+
+/** A disk walk is worth doing four times a day, not forty-eight. */
+const SCAN_INTERVAL_HOURS = 6;
+
+/**
+ * Has enough time passed since this job last succeeded?
+ *
+ * The question is asked of the clock rather than of a schedule, so a step that
+ * was skipped for two days runs on the next pass instead of waiting for a slot
+ * that was missed.
+ */
+async function due(job: JobName, hours: number): Promise<boolean> {
+  const [state] = await db()
+    .select({ lastSuccessAt: jobState.lastSuccessAt })
+    .from(jobState)
+    .where(eq(jobState.jobName, job))
+    .limit(1);
+  if (!state?.lastSuccessAt) return true;
+  return Date.now() - state.lastSuccessAt.getTime() >= hours * 3_600_000;
 }
 
 /**
@@ -134,6 +155,22 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
     await runJob("storage-snapshot", async () => {
       const snapshot = await recordStorageSnapshot();
       return snapshot ? 1 : 0;
+    }),
+  );
+
+  /*
+   * What fills the disk.
+   *
+   * Walking the volumes costs minutes, and the answer moves by the day rather
+   * than by the half hour, so the step is due on a clock of its own. It is a
+   * date compared against now like everything else here: a week of downtime
+   * costs one late walk, not seven.
+   */
+  outcomes.push(
+    await runJob("storage-scan", async () => {
+      if (!(await due("storage-scan", SCAN_INTERVAL_HOURS))) return 0;
+      const tree = await scanStorageTree();
+      return tree?.fileCount ?? 0;
     }),
   );
 
@@ -190,6 +227,15 @@ async function purgeExpired(): Promise<number> {
     sql`DELETE FROM session WHERE expires_at < now()`,
     sql`DELETE FROM auth_pin WHERE expires_at < now() OR consumed_at IS NOT NULL`,
     sql`DELETE FROM job_run WHERE started_at < now() - interval '30 days'`,
+    /*
+     * Disk maps are large and only the latest is ever read. A week of them is
+     * kept so a scan that went wrong can be compared against the one before,
+     * and the newest is never swept whatever its age: a server that was down
+     * for a month must still have a map to draw when it comes back.
+     */
+    sql`DELETE FROM storage_tree_snapshot
+        WHERE scanned_at < now() - interval '7 days'
+          AND id <> (SELECT id FROM storage_tree_snapshot ORDER BY scanned_at DESC LIMIT 1)`,
   ];
 
   let removed = 0;
@@ -201,14 +247,18 @@ async function purgeExpired(): Promise<number> {
 }
 
 export type JobStatusRow = {
-  jobName: string;
+  jobName: JobName;
   lastSuccessAt: Date | null;
   lastStatus: string | null;
   lastRunAt: Date | null;
   lastError: string | null;
+  /** How long the last run took, in milliseconds, when it finished. */
+  lastDurationMs: number | null;
+  /** What the last run went through: titles, episodes, files, rows deleted. */
+  lastItems: number | null;
 };
 
-/** What the admin observability panel shows. */
+/** What the synchronisation page shows. */
 export async function jobStatus(): Promise<JobStatusRow[]> {
   const states = await db().select().from(jobState);
   const lastRuns = await db()
@@ -216,6 +266,8 @@ export async function jobStatus(): Promise<JobStatusRow[]> {
       jobName: jobRuns.jobName,
       status: jobRuns.status,
       startedAt: jobRuns.startedAt,
+      finishedAt: jobRuns.finishedAt,
+      itemsProcessed: jobRuns.itemsProcessed,
       error: jobRuns.error,
       rank: sql<number>`row_number() OVER (PARTITION BY ${jobRuns.jobName} ORDER BY ${jobRuns.startedAt} DESC)`,
     })
@@ -232,6 +284,11 @@ export async function jobStatus(): Promise<JobStatusRow[]> {
       lastStatus: run?.status ?? null,
       lastRunAt: run?.startedAt ?? null,
       lastError: run?.error ?? null,
+      lastDurationMs:
+        run?.finishedAt && run.startedAt
+          ? run.finishedAt.getTime() - run.startedAt.getTime()
+          : null,
+      lastItems: run?.itemsProcessed ?? null,
     };
   });
 }

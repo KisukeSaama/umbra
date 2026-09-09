@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
+import { CloseIcon, PlusIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ANNOUNCEMENT_CATEGORIES,
@@ -26,9 +28,23 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
 /**
  * Writing an announcement.
  *
- * Publishing is a second button on the same form rather than a second step: an
- * announcement is either a draft or out there, and both are one click away.
+ * One composer for the whole of what the administration says to the community.
+ * A note is a title, a body and a category; two optional blocks hang off it and
+ * stay folded until they are wanted:
+ *
+ * - a link, for the note whose reason to exist is an address elsewhere, a
+ *   fundraiser page being the case this was built for;
+ * - a question, because a poll is an announcement that expects something back,
+ *   not a second kind of object with a page of its own.
+ *
+ * Publishing is a second button on the same form rather than a second step: a
+ * note is either a draft or out there, and both are one click away. Publishing
+ * is also what opens the question, so a note and its poll never disagree about
+ * whether they are live.
  */
+const MIN_OPTIONS = 2;
+const MAX_OPTIONS = 8;
+
 export function AnnouncementForm() {
   const t = useTranslator();
   const locale = useLocale();
@@ -37,7 +53,43 @@ export function AnnouncementForm() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState<AnnouncementCategory>("information");
+
+  const [withLink, setWithLink] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkLabel, setLinkLabel] = useState("");
+
+  const [withPoll, setWithPoll] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [options, setOptions] = useState(["", ""]);
+
   const [busy, setBusy] = useState(false);
+
+  const filled = options.map((option) => option.trim()).filter(Boolean);
+  const linkReady = !withLink || /^https?:\/\/\S+$/.test(linkUrl.trim());
+  const pollReady =
+    !withPoll || (question.trim().length > 1 && filled.length >= MIN_OPTIONS);
+  const ready =
+    title.trim().length > 1 &&
+    content.trim().length > 1 &&
+    linkReady &&
+    pollReady;
+
+  function setOption(index: number, value: string) {
+    setOptions((previous) =>
+      previous.map((option, i) => (i === index ? value : option)),
+    );
+  }
+
+  function reset() {
+    setTitle("");
+    setContent("");
+    setWithLink(false);
+    setLinkUrl("");
+    setLinkLabel("");
+    setWithPoll(false);
+    setQuestion("");
+    setOptions(["", ""]);
+  }
 
   async function submit(published: boolean) {
     setBusy(true);
@@ -45,14 +97,22 @@ export function AnnouncementForm() {
       const response = await fetch("/api/admin/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content, category, published }),
+        body: JSON.stringify({
+          title,
+          content,
+          category,
+          published,
+          link: withLink
+            ? { url: linkUrl.trim(), label: linkLabel.trim() || null }
+            : null,
+          poll: withPoll ? { question, options: filled } : null,
+        }),
       });
       const body = await response.json();
       if (!response.ok)
         throw new Error(translateError(locale, body.messageKey));
 
-      setTitle("");
-      setContent("");
+      reset();
       toast.success(
         published
           ? t("admin.announcements.published")
@@ -69,8 +129,6 @@ export function AnnouncementForm() {
       setBusy(false);
     }
   }
-
-  const ready = title.trim().length > 1 && content.trim().length > 1;
 
   // Base UI prints the raw value in the trigger unless it is told the labels.
   const categories = ANNOUNCEMENT_CATEGORIES.map((value) => ({
@@ -89,7 +147,7 @@ export function AnnouncementForm() {
         <CardTitle>{t("admin.announcements.new")}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={onSubmit}>
+        <form className="space-y-5" onSubmit={onSubmit}>
           <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
             <div className="space-y-1.5">
               <Label htmlFor="announcement-title">{t("common.title")}</Label>
@@ -136,7 +194,99 @@ export function AnnouncementForm() {
             />
           </div>
 
-          <div className="flex gap-2">
+          <Block
+            title={t("admin.announcements.link")}
+            hint={t("admin.announcements.link.hint")}
+            checked={withLink}
+            onCheckedChange={setWithLink}
+          >
+            <div className="grid gap-4 sm:grid-cols-[1fr_14rem]">
+              <div className="space-y-1.5">
+                <Label htmlFor="announcement-link-url">
+                  {t("admin.announcements.link.url")}
+                </Label>
+                <Input
+                  id="announcement-link-url"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://"
+                  value={linkUrl}
+                  aria-invalid={!linkReady || undefined}
+                  onChange={(event) => setLinkUrl(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="announcement-link-label">
+                  {t("admin.announcements.link.label")}
+                </Label>
+                <Input
+                  id="announcement-link-label"
+                  value={linkLabel}
+                  placeholder={t("common.optional")}
+                  onChange={(event) => setLinkLabel(event.target.value)}
+                />
+              </div>
+            </div>
+          </Block>
+
+          <Block
+            title={t("admin.announcements.poll")}
+            hint={t("admin.announcements.poll.hint")}
+            checked={withPoll}
+            onCheckedChange={setWithPoll}
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="poll-question">{t("admin.polls.question")}</Label>
+              <Input
+                id="poll-question"
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+              />
+            </div>
+
+            <fieldset className="mt-4 space-y-2">
+              <legend className="mb-1.5 text-sm leading-none font-medium">
+                {t("admin.polls.options")}
+              </legend>
+              {options.map((option, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    value={option}
+                    aria-label={`${t("admin.polls.options")} ${index + 1}`}
+                    onChange={(event) => setOption(index, event.target.value)}
+                  />
+                  {options.length > MIN_OPTIONS ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`${t("common.delete")} ${index + 1}`}
+                      onClick={() =>
+                        setOptions((previous) =>
+                          previous.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      <CloseIcon />
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+              {options.length < MAX_OPTIONS ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOptions((previous) => [...previous, ""])}
+                >
+                  <PlusIcon />
+                  {t("admin.polls.addOption")}
+                </Button>
+              ) : null}
+            </fieldset>
+          </Block>
+
+          <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={!ready || busy}>
               {t("admin.announcements.publish")}
             </Button>
@@ -146,11 +296,51 @@ export function AnnouncementForm() {
               disabled={!ready || busy}
               onClick={() => void submit(false)}
             >
-              {t("admin.announcements.draft")}
+              {t("admin.announcements.saveDraft")}
             </Button>
           </div>
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * An optional part of the note.
+ *
+ * Folded away until switched on, because most notes are a title and a body and
+ * a form that shows every possibility at once reads as work rather than as
+ * writing. The switch is the heading, so the whole row is the target.
+ */
+function Block({
+  title,
+  hint,
+  checked,
+  onCheckedChange,
+  children,
+}: {
+  title: string;
+  hint: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-border/60 rounded-xl border">
+      <label className="flex cursor-pointer items-start gap-3 p-3">
+        <Switch
+          checked={checked}
+          onCheckedChange={onCheckedChange}
+          className="mt-0.5"
+        />
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">{title}</span>
+          <span className="text-muted-foreground block text-xs">{hint}</span>
+        </span>
+      </label>
+      {checked ? (
+        <div className="border-border/60 border-t p-3">{children}</div>
+      ) : null}
+    </div>
   );
 }

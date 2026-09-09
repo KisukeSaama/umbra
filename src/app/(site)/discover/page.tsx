@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { MoodPicker } from "@/components/mood-picker";
 import { Shelf } from "@/components/shelf";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ShelfSkeleton } from "@/components/skeletons";
 import { requireMemberPage } from "@/lib/auth/session";
 import {
   airingShelf,
@@ -136,22 +136,5 @@ async function Upcoming({ locale }: { locale: string }) {
       items={await upcomingShelf(locale)}
       delayMs={160}
     />
-  );
-}
-
-/** Shaped like the shelf that is coming, never a spinner parked on a page. */
-function ShelfSkeleton() {
-  return (
-    <div aria-busy="true">
-      <Skeleton className="mb-4 h-5 w-40" />
-      <div className="flex gap-4 overflow-hidden">
-        {[0, 1, 2, 3, 4, 5].map((index) => (
-          <div key={index} className="w-32 shrink-0 space-y-2 sm:w-36">
-            <Skeleton className="aspect-[2/3] w-full rounded-lg" />
-            <Skeleton className="h-3 w-3/4" />
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

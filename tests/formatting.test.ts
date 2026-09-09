@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatAmount, formatBytes, formatEpisodeCode } from "@/lib/format";
+import { formatBytes, formatEpisodeCode } from "@/lib/format";
 import { yearOf } from "@/lib/domain/catalog";
 import { isRunning } from "@/lib/providers/metadata";
 
@@ -9,11 +9,6 @@ describe("formatting", () => {
     expect(formatBytes(0)).toBe("0 B");
     expect(formatBytes(18_700_000_000_000)).toBe("18.7 TB");
     expect(formatBytes(18_700_000_000_000, "fr")).toContain("To");
-  });
-
-  it("writes amounts in the visitor's locale", () => {
-    expect(formatAmount(15_800, "EUR", "en")).toContain("158");
-    expect(formatAmount(22_050, "EUR", "en")).toContain("220.5");
   });
 
   it("writes an episode code the way a series does", () => {

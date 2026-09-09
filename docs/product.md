@@ -38,10 +38,11 @@ asking for the same film simply sees that it is already on the list.
 scheduled to air and never claims availability from a passed date. The wording is
 always: scheduled, aired, to add, on the server.
 
-**No money.** The funding goal is informational. The administrator moves the
-number by hand and every move leaves a history entry, negative ones included. No
-payment integration, no donor identity, and nothing on screen may suggest that
-contributing grants access or privileges.
+**No money.** Umbra holds no amount at all. A fundraiser lives on a page
+elsewhere, and Umbra announces it: a note that says what it is for, with a
+button leading to that page. No target, no progress bar, no payment integration,
+no donor identity, and nothing on screen may suggest that contributing grants
+access or privileges. See `docs/adr/0010-no-funding-goal.md`.
 
 **Not a status page.** Umbra and the media server run on the same machine, so if
 Umbra answers the server is up. Uptime indicators, availability alerts and
@@ -186,7 +187,7 @@ as a digest, never as a token, and the visitor's Plex token is used once to read
 their account id and then dropped.
 
 Never stored: e-mail addresses, a list of what anyone watched, who searched for
-what, who contributed to a funding goal.
+what, anything at all about who contributed to a fundraiser.
 
 One aggregate is kept per account and nothing more: a handful of weighted genre
 ids, rebuilt from a rolling ninety day window on every sync and therefore
@@ -200,8 +201,7 @@ week, requests handled, episodes added) and nothing traceable to a person.
 ## Deliberately postponed
 
 The full library, anything social, gamification, a mobile application, browser
-push notifications, integrated payments, several funding goals at once, detailed
-server statistics.
+push notifications, integrated payments, detailed server statistics.
 
 ## The question to ask before adding anything
 

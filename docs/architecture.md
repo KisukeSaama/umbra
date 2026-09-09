@@ -72,9 +72,9 @@ each sync.
 | `report`, `report_follower`                   | a problem a member pointed at, and who is waiting on it           |
 | `notification`                                | what a member has been told, as data rather than as a sentence    |
 | `taste_profile`                               | a few weighted genre ids per account, replaced on every run       |
-| `announcement`, `poll`, `poll_option`, `vote` | community                                                         |
+| `announcement`, `poll`, `poll_option`, `vote` | community. A poll hangs off the announcement carrying it          |
 | `storage_snapshot`                            | a storage measurement, with per-volume detail                     |
-| `funding_goal`, `funding_transaction`         | the goal and its manual history                                   |
+| `storage_tree_snapshot`                       | what fills the disk, walked directory by directory                |
 | `job_state`, `job_run`                        | resume point and run history                                      |
 | `analytics_daily`                             | daily counters, with no account column                            |
 
@@ -86,7 +86,9 @@ Uniqueness lives in the database, never in a read-then-write:
 - `vote_unique_idx` on `(poll_id, account_id)`: one vote per person per poll.
 - `episode_unique_idx` on `(series_id, season_number, episode_number)`: a resync
   updates instead of duplicating.
-- `funding_goal_single_active_idx`: one active goal at a time.
+- `poll_announcement_idx`, unique on `announcement_id`: one question per note.
+  A second one would be a second note. See
+  `docs/adr/0011-a-poll-is-an-announcement.md`.
 - `account_single_admin_idx`, unique on `role` where the role is `admin`: there
   is one administrator, and the database is what says so. The assistants named
   beside them share the workspace but not the accounts page.
@@ -107,7 +109,7 @@ result.
 
 ## Jobs
 
-`runSyncCycle()` in `src/lib/jobs/index.ts` runs six steps in dependency order,
+`runSyncCycle()` in `src/lib/jobs/index.ts` runs seven steps in dependency order,
 each recorded in `job_run` and stamped in `job_state` on success. A failing step
 does not stop the others: a metadata outage must not prevent a storage snapshot.
 
@@ -120,11 +122,17 @@ does not stop the others: a metadata outage must not prevent a storage snapshot.
    tasks whose episode arrived, then settle the season and series reports the
    refreshed calendar can now answer.
 4. **storage-snapshot**: measure the configured volumes and record a point.
-5. **taste-profile**: rebuild each opted-in account profile from a rolling window
+5. **storage-scan**: walk those volumes directory by directory and record the
+   tree the administration draws as a treemap. Slow, so it is due on a clock of
+   its own (six hours) rather than on every pass, asked of `job_state` and
+   therefore caught up after downtime like everything else here. The walk never
+   follows a symbolic link and never takes a path from a request.
+6. **taste-profile**: rebuild each opted-in account profile from a rolling window
    of the media server history, replacing the rows rather than adding to them.
-6. **housekeeping**: delete what nothing else deletes, bounded per run so a
+7. **housekeeping**: delete what nothing else deletes, bounded per run so a
    backlog drains over several passes: expired sessions and pins, old job runs,
-   read notifications past a month and everything past six.
+   disk maps past a week except the latest, read notifications past a month and
+   everything past six.
 
 The sweep in library-sync is scoped to the section that just answered, and only
 when it answered with something. A section whose storage is not mounted comes
@@ -193,10 +201,13 @@ work.
 Server components by default; client components only where there is interaction
 (search, vote, sign-in, reporting, admin writes).
 
-A title has its own route, `/title/[kind]/[id]`. Clicked from a shelf it is
-intercepted by the `@modal` slot and opens as a panel over what you were reading;
-reached from a link it renders as a page. Same address either way, so it can be
-shared and it comes back through history.
+A title has its own route, `/title/[kind]/[id]`, and it is a page, never a panel
+over the shelf it was clicked from. It carries the banner, the summary, every
+season and the decision to ask for it, which is more than a dialog holds on a
+phone. The page opens with a back link, which returns through history when there
+is one so the shelf comes back where it was left, and falls back to a plain link
+home when the address was reached cold. A button in the bottom corner appears
+after a screen of scrolling and goes back to the top.
 
 Discovery shelves each stream inside their own `Suspense` boundary. That is not a
 performance trick: the gateway can refuse one listing, and this way it costs a

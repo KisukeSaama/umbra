@@ -6,7 +6,9 @@ import { toast } from "sonner";
 
 import { SparkleIcon, SpinnerIcon } from "@/components/icons";
 import { Poster } from "@/components/poster";
+import { LoadingRegion, TextLine } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DURATIONS,
   type Duration,
@@ -119,7 +121,7 @@ export function MoodPicker() {
             </h3>
             <ul className="grid grid-cols-3 gap-4 sm:grid-cols-3">
               {selection.tonight.map((item) => (
-                <li key={item.ratingKey} className="group">
+                <li key={item.ratingKey}>
                   <Poster src={item.posterUrl} alt={item.title} sizes="10rem" />
                   <p className="mt-2 truncate text-sm font-medium">
                     {item.title}
@@ -138,17 +140,17 @@ export function MoodPicker() {
             <h3 className="mb-3 text-sm font-semibold">{t("section.ideas")}</h3>
             <ul className="grid grid-cols-3 gap-4 sm:grid-cols-6">
               {selection.ideas.map((item) => (
-                <li key={`${item.kind}:${item.providerId}`} className="group">
+                <li key={`${item.kind}:${item.providerId}`}>
                   <Link
                     href={`/title/${item.kind}/${item.providerId}`}
-                    className="focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-3"
+                    className="group focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-3"
                   >
                     <Poster
                       src={item.posterUrl}
                       alt={item.title}
                       sizes="8rem"
                     />
-                    <p className="mt-2 truncate text-sm font-medium">
+                    <p className="group-hover:text-primary mt-2 truncate text-sm font-medium transition-colors">
                       {item.title}
                     </p>
                   </Link>
@@ -163,6 +165,10 @@ export function MoodPicker() {
         ) : null}
       </div>
     );
+
+  // The third answer is the ask itself, so the questions have done their job:
+  // what stands here now is the shape of the selection about to land.
+  if (loading) return <SelectionSkeleton label={t("common.loading")} />;
 
   return (
     <div className="space-y-6">
@@ -206,13 +212,6 @@ export function MoodPicker() {
           }}
         />
       ) : null}
-
-      {loading ? (
-        <p className="text-muted-foreground flex items-center gap-2 text-sm">
-          <SpinnerIcon />
-          {t("common.loading")}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -245,5 +244,32 @@ function Question({
         ))}
       </div>
     </fieldset>
+  );
+}
+
+/** The selection before it is known: its heading row, its hint, one grid of posters. */
+function SelectionSkeleton({ label }: { label: string }) {
+  return (
+    <LoadingRegion label={label} className="space-y-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <TextLine size="h2" className="w-48 max-w-full" />
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-24 rounded-lg" />
+          <Skeleton className="h-8 w-20 rounded-lg" />
+        </div>
+      </div>
+      <TextLine size="sm" className="w-72 max-w-full" />
+      <div>
+        <TextLine size="sm" className="mb-3 w-32" />
+        <ul className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <li key={index}>
+              <Skeleton className="aspect-[2/3] w-full rounded-lg" />
+              <TextLine size="sm" className="mt-2 w-3/4" />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </LoadingRegion>
   );
 }

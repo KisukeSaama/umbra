@@ -1,5 +1,6 @@
 import {
   ArrowSquareOut,
+  ArrowsClockwise,
   Bell,
   CaretDown,
   CaretLeft,
@@ -10,23 +11,31 @@ import {
   CheckCircle,
   Circle,
   CircleNotch,
-  Coins,
+  Clock,
   Compass,
   DiceFive,
+  File,
   FilmSlate,
   Flag,
+  FolderSimple,
   HardDrives,
   Info,
+  List,
   ListChecks,
   MagnifyingGlass,
   Megaphone,
   Monitor,
   Moon,
+  Plus,
   SignOut,
   Sparkle,
+  SquaresFour,
   Sun,
   Television,
+  Trash,
+  Tray,
   UserCircle,
+  Users,
   Warning,
   X,
   XCircle,
@@ -81,7 +90,6 @@ export const MoonIcon = icon(Moon, "regular");
 export const DisplayIcon = icon(Monitor, "regular");
 export const AnnounceIcon = icon(Megaphone);
 export const DiskIcon = icon(HardDrives);
-export const GoalIcon = icon(Coins);
 export const ExternalLinkIcon = icon(ArrowSquareOut, "regular");
 export const AlertIcon = icon(Warning, "regular");
 export const InfoIcon = icon(Info, "regular");
@@ -96,6 +104,16 @@ export const SparkleIcon = icon(Sparkle);
 export const MovieIcon = icon(FilmSlate);
 export const SeriesIcon = icon(Television);
 export const PollIcon = icon(ChartBar);
+export const DashboardIcon = icon(SquaresFour);
+export const RequestIcon = icon(Tray);
+export const AccountsIcon = icon(Users);
+export const SyncIcon = icon(ArrowsClockwise, "regular");
+export const MenuIcon = icon(List, "regular");
+export const PlusIcon = icon(Plus, "bold");
+export const TrashIcon = icon(Trash, "regular");
+export const FolderIcon = icon(FolderSimple, "regular");
+export const FileIcon = icon(File, "regular");
+export const ClockIcon = icon(Clock, "regular");
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

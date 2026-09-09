@@ -29,19 +29,6 @@ export function formatBytes(bytes: number, locale: "en" | "fr" = "en"): string {
   return `${rounded.toLocaleString(locale === "fr" ? "fr-FR" : "en-US")} ${units[exponent]}`;
 }
 
-/** An amount written the way the visitor's locale expects. */
-export function formatAmount(
-  cents: number,
-  currency: string,
-  locale: "en" | "fr" = "en",
-) {
-  return new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-  }).format(cents / 100);
-}
-
 /** `S02E09` */
 export function formatEpisodeCode(season: number, episode: number) {
   return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;

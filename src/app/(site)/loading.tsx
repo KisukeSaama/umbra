@@ -1,29 +1,41 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Hero } from "@/components/home/hero";
+import {
+  CardSkeleton,
+  LoadingRegion,
+  ShelfSkeleton,
+} from "@/components/skeletons";
+import { getTranslator } from "@/lib/i18n/server";
 
 /**
- * Shown while a member page is still reading. Same gutter and same rhythm as
- * the page that replaces it, so nothing jumps when the content lands.
+ * The home page while it is still reading.
+ *
+ * The hero needs no data beyond the poster wall behind it, so it is drawn for
+ * real straight away: the front door is there before anything is fetched,
+ * and only the weather behind the messenger arrives with the page. Below it,
+ * the rail and the two rows of glances, in the frames they will fill.
  */
-export default function SiteLoading() {
+export default async function SiteLoading() {
+  const t = await getTranslator();
+
   return (
-    <div className="umbra-container max-w-3xl py-12" aria-busy="true">
-      <Skeleton className="h-9 w-56" />
-      <Skeleton className="mt-3 h-4 w-72" />
-      <div className="mt-8 space-y-3">
-        {[0, 1, 2].map((index) => (
-          <div
-            key={index}
-            className="border-border/60 flex gap-4 rounded-xl border p-3 sm:p-4"
-          >
-            <Skeleton className="aspect-[2/3] w-20 shrink-0 rounded-lg sm:w-24" />
-            <div className="flex-1 space-y-2 py-1">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-3 w-2/3" />
-              <Skeleton className="h-3 w-1/2" />
-            </div>
+    <>
+      <Hero posters={[]} />
+      <LoadingRegion
+        label={t("common.loading")}
+        className="umbra-container space-y-12 py-12"
+      >
+        <ShelfSkeleton />
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <CardSkeleton lines={3} />
+            <CardSkeleton lines={2} />
           </div>
-        ))}
-      </div>
-    </div>
+          <div className="grid gap-6 md:items-start lg:grid-cols-2">
+            <CardSkeleton lines={2} />
+            <CardSkeleton lines={2} />
+          </div>
+        </div>
+      </LoadingRegion>
+    </>
   );
 }

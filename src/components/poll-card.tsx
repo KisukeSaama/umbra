@@ -23,8 +23,18 @@ import { cn } from "@/lib/utils";
  * which is exactly why this needs no moderation.
  *
  * Results only show once you have voted, so the standings do not steer the vote.
+ *
+ * `bare` drops the card around it, for the news feed, where the question is
+ * part of the announcement that carries it and a card inside a card would say
+ * they were two separate things.
  */
-export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
+export function PollCard({
+  poll: initialPoll,
+  bare = false,
+}: {
+  poll: PollView | null;
+  bare?: boolean;
+}) {
   const t = useTranslator();
   const locale = useLocale();
 
@@ -35,6 +45,7 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
   const [submitting, setSubmitting] = useState(false);
 
   if (!poll) {
+    if (bare) return null;
     return (
       <Card>
         <CardHeader>
@@ -48,6 +59,9 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
   }
 
   const hasVoted = poll.votedOptionId !== null;
+  // The split is only revealed in motion when the vote just landed here; a
+  // poll already voted on an earlier visit is simply read.
+  const justVoted = poll !== initialPoll;
   const timeLeft = daysLeftLabel(poll, t);
 
   async function vote() {
@@ -76,6 +90,106 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
     }
   }
 
+  const question = (
+    <>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-medium">{poll.question}</p>
+        {timeLeft && bare ? (
+          <span className="text-muted-foreground text-xs">{timeLeft}</span>
+        ) : null}
+      </div>
+
+      {/* Once the vote is in, the options stop being controls: the split is
+            what is left to read, and it must stay readable, not greyed out. */}
+      <div
+        className="space-y-1"
+        role="radiogroup"
+        aria-label={poll.question}
+        aria-disabled={hasVoted || undefined}
+      >
+        {poll.options.map((option) => {
+          const chosen = selected === option.id;
+          const isOwnVote = poll.votedOptionId === option.id;
+          const share = Math.round(option.share * 100);
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={chosen}
+              disabled={hasVoted || submitting}
+              onClick={() => setSelected(option.id)}
+              className={cn(
+                "focus-visible:ring-ring/50 w-full rounded-lg px-3 py-2 text-left transition-colors outline-none focus-visible:ring-3",
+                hasVoted
+                  ? "cursor-default"
+                  : "hover:bg-secondary/60 active:bg-secondary",
+                chosen && !hasVoted ? "bg-secondary/60" : "",
+              )}
+            >
+              <span className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
+                    chosen || isOwnVote
+                      ? "border-primary"
+                      : "border-muted-foreground/50",
+                  )}
+                >
+                  {chosen || isOwnVote ? (
+                    <span className="bg-primary size-2 rounded-full" />
+                  ) : null}
+                </span>
+                <span className="flex-1 text-sm">{option.label}</span>
+                {hasVoted ? (
+                  <span className="text-muted-foreground text-sm tabular-nums">
+                    {share}%
+                  </span>
+                ) : null}
+              </span>
+
+              {hasVoted ? (
+                <span className="bg-secondary mt-2 block h-1.5 overflow-hidden rounded-full">
+                  <span
+                    className={cn(
+                      "block h-full rounded-full",
+                      justVoted && "umbra-fill",
+                      isOwnVote ? "bg-primary" : "bg-muted-foreground/40",
+                    )}
+                    style={{ width: `${share}%` }}
+                  />
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {t("poll.votes", { count: poll.totalVotes })}
+        </span>
+        {hasVoted ? (
+          <span className="text-primary text-sm">{t("poll.voted")}</span>
+        ) : (
+          <Button
+            onClick={() => void vote()}
+            disabled={!selected || submitting}
+          >
+            {t("poll.vote")}
+          </Button>
+        )}
+      </div>
+    </>
+  );
+
+  if (bare)
+    return (
+      <div className="border-border/60 space-y-4 rounded-xl border p-4">
+        {question}
+      </div>
+    );
+
   return (
     <Card>
       <CardHeader>
@@ -86,91 +200,7 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
           </CardAction>
         ) : null}
       </CardHeader>
-
-      <CardContent className="space-y-4">
-        <p className="font-medium">{poll.question}</p>
-
-        {/* Once the vote is in, the options stop being controls: the split is
-            what is left to read, and it must stay readable, not greyed out. */}
-        <div
-          className="space-y-1"
-          role="radiogroup"
-          aria-label={poll.question}
-          aria-disabled={hasVoted || undefined}
-        >
-          {poll.options.map((option) => {
-            const chosen = selected === option.id;
-            const isOwnVote = poll.votedOptionId === option.id;
-            const share = Math.round(option.share * 100);
-            return (
-              <button
-                key={option.id}
-                type="button"
-                role="radio"
-                aria-checked={chosen}
-                disabled={hasVoted || submitting}
-                onClick={() => setSelected(option.id)}
-                className={cn(
-                  "focus-visible:ring-ring/50 w-full rounded-lg px-3 py-2 text-left transition-colors outline-none focus-visible:ring-3",
-                  hasVoted
-                    ? "cursor-default"
-                    : "hover:bg-secondary/60 active:bg-secondary",
-                  chosen && !hasVoted ? "bg-secondary/60" : "",
-                )}
-              >
-                <span className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-                      chosen || isOwnVote
-                        ? "border-primary"
-                        : "border-muted-foreground/50",
-                    )}
-                  >
-                    {chosen || isOwnVote ? (
-                      <span className="bg-primary size-2 rounded-full" />
-                    ) : null}
-                  </span>
-                  <span className="flex-1 text-sm">{option.label}</span>
-                  {hasVoted ? (
-                    <span className="text-muted-foreground text-sm tabular-nums">
-                      {share}%
-                    </span>
-                  ) : null}
-                </span>
-
-                {hasVoted ? (
-                  <span className="bg-secondary mt-2 block h-1.5 overflow-hidden rounded-full">
-                    <span
-                      className={cn(
-                        "block h-full rounded-full transition-[width] duration-700 ease-out",
-                        isOwnVote ? "bg-primary" : "bg-muted-foreground/40",
-                      )}
-                      style={{ width: `${share}%` }}
-                    />
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {t("poll.votes", { count: poll.totalVotes })}
-          </span>
-          {hasVoted ? (
-            <span className="text-primary text-sm">{t("poll.voted")}</span>
-          ) : (
-            <Button
-              onClick={() => void vote()}
-              disabled={!selected || submitting}
-            >
-              {t("poll.vote")}
-            </Button>
-          )}
-        </div>
-      </CardContent>
+      <CardContent className="space-y-4">{question}</CardContent>
     </Card>
   );
 }

@@ -14,11 +14,18 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
  *
  * A question, fixed options, one vote per person. No free text anywhere, by
  * design: nothing here ever needs moderation.
+ *
+ * A poll never stands on its own: it hangs off the announcement that carries
+ * it, so the community reads one feed and the administration writes in one
+ * place. Everything here is reached through `domain/announcements`, except the
+ * vote itself and the one open question the home page shows.
  */
 
 export type PollView = {
   id: string;
   question: string;
+  /** Whether the question is open. One poll is open at a time. */
+  active: boolean;
   endsAt: Date | null;
   totalVotes: number;
   /** Option id the current visitor picked, when they voted. */
@@ -84,6 +91,7 @@ export async function pollView(
   return {
     id: poll.id,
     question: poll.question,
+    active: poll.active,
     endsAt: poll.endsAt,
     totalVotes,
     votedOptionId,
@@ -136,41 +144,14 @@ export async function castVote(
 }
 
 /**
- * The polls a member can still see, newest first.
+ * Hangs a question off a note.
  *
- * Polls live in the news feed rather than on a page of their own: a poll is
- * news you can answer, and a page that holds one card at a time was never worth
- * a nav entry. Closed ones stay so the answer does not vanish with the question.
+ * Called from `domain/announcements` when a note is written with a question on
+ * it: there is no way to create a poll without the announcement that carries
+ * it, which is what keeps the two from drifting into separate feeds again.
  */
-export async function recentPolls(
-  accountId?: string,
-  limit = 6,
-): Promise<PollView[]> {
-  const rows = await db()
-    .select({ id: polls.id })
-    .from(polls)
-    .where(sql`(${polls.startsAt} IS NULL OR ${polls.startsAt} <= now())`)
-    .orderBy(desc(polls.createdAt))
-    .limit(limit);
-
-  return Promise.all(rows.map((row) => pollView(row.id, accountId)));
-}
-
-export async function listPolls() {
-  return db()
-    .select({
-      id: polls.id,
-      question: polls.question,
-      active: polls.active,
-      endsAt: polls.endsAt,
-      createdAt: polls.createdAt,
-      totalVotes: sql<number>`(SELECT count(*)::int FROM vote v WHERE v.poll_id = ${polls.id})`,
-    })
-    .from(polls)
-    .orderBy(desc(polls.createdAt));
-}
-
-export async function createPoll(input: {
+export async function attachPoll(input: {
+  announcementId: string;
   question: string;
   options: string[];
   active?: boolean;
@@ -189,6 +170,7 @@ export async function createPoll(input: {
   const [poll] = await db()
     .insert(polls)
     .values({
+      announcementId: input.announcementId,
       question: input.question.trim(),
       active: input.active ?? false,
       startsAt: new Date(),
@@ -205,7 +187,18 @@ export async function createPoll(input: {
   return poll;
 }
 
-export async function setPollActive(pollId: string, active: boolean) {
+/**
+ * Opens or closes a question.
+ *
+ * `notify` is off when the change rides on the publication of the note that
+ * carries the poll: that publication already rang the bell, and one act should
+ * not arrive twice.
+ */
+export async function setPollActive(
+  pollId: string,
+  active: boolean,
+  options: { notify?: boolean } = {},
+) {
   if (active)
     await db()
       .update(polls)
@@ -225,7 +218,7 @@ export async function setPollActive(pollId: string, active: boolean) {
 
   // Opening a poll is worth an entry; closing one is not, since there is
   // nothing left to do about it.
-  if (active)
+  if (active && options.notify !== false)
     await notifyApprovedAccounts({
       kind: "poll_open",
       subjectId: row.id,

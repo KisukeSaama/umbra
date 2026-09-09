@@ -27,9 +27,10 @@ before changing behaviour and `docs/architecture.md` before changing structure.
 3. **Umbra runs on the same machine as the media server.** Never build uptime
    indicators, "server online" badges or availability monitoring. If Umbra
    answers, the server is up.
-4. **Umbra handles no money.** The funding goal is a number the administrator
-   edits by hand, with a history. No payment provider, no donor identity, no
-   wording suggesting that contributing buys access.
+4. **Umbra handles no money.** Not a provider, not an amount, not a target. A
+   fundraiser is an announcement carrying a link to the page where it actually
+   happens. No donor identity, no progress bar, no wording suggesting that
+   contributing buys access. See `docs/adr/0010-no-funding-goal.md`.
 5. **Collect the minimum.** A Plex account id and a display name. No e-mail, no
    Plex token, and never a list of what a person watched. The one exception is
    `taste_profile`: a handful of weighted genre ids per account, rebuilt from a

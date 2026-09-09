@@ -10,14 +10,8 @@ import { getTranslator } from "@/lib/i18n/server";
  * the page under it from rendering and is not re-run on every navigation, so
  * each page calls the same guard for itself. An account that is not approved
  * is sent to its own screen, `/pending`.
- *
- * The `modal` slot is empty on every page except an intercepted title, where it
- * holds the panel that opens over whatever you were reading.
  */
-export default async function SiteLayout({
-  children,
-  modal,
-}: LayoutProps<"/">) {
+export default async function SiteLayout({ children }: LayoutProps<"/">) {
   await requireMemberPage();
   const t = await getTranslator();
 
@@ -30,7 +24,6 @@ export default async function SiteLayout({
       <main id="content" className="flex-1">
         {children}
       </main>
-      {modal}
       <SiteFooter />
     </>
   );

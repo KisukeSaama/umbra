@@ -175,6 +175,9 @@ being wrong, not the system.
 - Compact controls, identical on member and admin screens.
 - Posters carry the visual weight; the chrome stays quiet.
 - Motion conveys state only, and disappears under `prefers-reduced-motion`.
+  One curve, `--ease-out-quart`, is the default for every transition at 180ms;
+  `--ease-out-quint` is for the few things that travel (shelves, posters, the
+  poll split). Nothing answers a hover unless it can be clicked.
 
 ## 2. Colors
 
@@ -196,13 +199,23 @@ one warm accent, deliberately rare. Warm neutrals carry hue 85, cold neutrals hu
 | Hairline        | `oklch(0.9 0.006 85)`   | `oklch(1 0 0 / 9%)`      | borders, input strokes, dividers. A white alpha at night, so it lifts with what sits under it                    |
 | Alert Red       | `oklch(0.58 0.2 25)`    | `oklch(0.65 0.17 25)`    | destructive and error, always a 10 to 20 percent background with the full hue as text                            |
 
-Three further chart hues (green 155, violet 300, gold 90) are reserved. No chart
-component ships yet, so they must not be borrowed for interface colour.
+**Data colour.** Three further chart hues (green 155, violet 300, gold 90) join
+Messenger Ochre and Moon Blue to make a five hue set, in that order, used by one
+component: the storage treemap. A hue there identifies a volume and keeps
+identifying it, so the colour carries meaning rather than decoration; depth
+inside a volume is the same hue mixed further into the card surface, never a
+second scale. Every tile is `color-mix(in oklab, <hue> 16 to 26%, var(--card))`,
+so the whole map follows the theme without a second palette for the night.
+
+These five are for data only. They must not be borrowed for interface colour,
+and no other component may use them until one earns them the way the treemap
+did: by needing to tell things apart, not by wanting to look colourful.
 
 **The One Lamp Rule.** Ochre is the only lamp on the desk: primary actions, the
-current selection, state indicators, and the single funding glyph tile. Prohibited
-on headings, icon fills, dividers, non-action badges and anything decorative. Two
-ochre areas competing on one screen means one is wrong.
+current selection and state indicators. Prohibited on headings, icon fills,
+dividers, non-action badges and anything decorative. Two ochre areas competing on
+one screen means one is wrong. The storage treemap is the one exception, and it
+is an exception to the palette rather than to the rule: see Data colour below.
 
 **The Tinted Neutral Rule.** No `#000`, no `#fff`, no untinted grey. The one
 sanctioned pure value is the daylight card, `oklch(1 0 0)`, the sheet of paper.
@@ -228,7 +241,7 @@ marketing headline.
 | Code     | JetBrains Mono 400                                                | job names and identifiers, nothing else                                                 |
 
 Numbers a reader compares vertically or that update in place carry `tabular-nums`:
-the week strip, funding amounts, storage figures.
+the week strip, the stat strip, storage figures.
 
 **The One Serif Line Rule.** Instrument Serif appears exactly once per page, on
 the h1, enforced by the base layer. Forbidden on section headings, card titles,
@@ -301,10 +314,15 @@ text plus a one-pixel ochre underline inset to the item padding, inactive is mut
 ink hovering to foreground on Quiet Sand at 60 percent, and the admin entry shows
 only for the administrator and the assistants. On mobile it does not collapse into a burger: it moves to
 its own centred row below the wordmark, because four items fit and one tap beats
-two. Admin nav: a horizontally scrollable row on small screens, a vertical column
-from the large breakpoint, active item Quiet Sand at medium weight rather than an
-ochre fill, with the accounts entry left out for an assistant rather than shown
-disabled: a door that is not theirs is not drawn. Header: sticky, 64px, bottom border at 60 percent, backdrop blur.
+two. Admin nav: a resting sidebar from the large breakpoint, 15rem, sticky under the
+site header with its own scroll, sections in three named groups (work, community,
+server) with the count of what is waiting at the end of each row. Below that
+breakpoint it becomes a left drawer, opened from a sticky bar that names the
+current section: nine entries scrolling sideways is a menu you have to hunt
+through, and a phone has no room for a permanent column. Active item Quiet Sand
+at medium weight rather than an ochre fill, with the accounts entry left out for
+an assistant rather than shown disabled: a door that is not theirs is not drawn.
+Header: sticky, 64px, bottom border at 60 percent, backdrop blur.
 
 **Icons.** Phosphor, exposed through `src/components/icons.tsx` at `light` weight,
 `regular` only where a glyph must survive at 16px. Never imported from the library
@@ -317,9 +335,25 @@ replaces the hero-metric block: no gradients, icons, trend arrows or cards. When
 every figure is zero the strip removes itself rather than rendering empty state
 theatre.
 
+**Stat strip.** The same shape on the administration side, wrapping to two
+columns on a phone and six on a wide screen, each cell drawing its own leading
+hairlines so a last row that is not full leaves no line hanging. It counts work
+waiting, so a zero is shown rather than removed: an empty queue is information.
+Still no gauge, no trend arrow and no card per figure.
+
+**Treemap.** One component, on the storage page. Rectangles squarified so they
+come out closer to squares than to splinters, area proportional to bytes, one
+level of children drawn inside each tile, a directory clickable and a file not.
+The box is 3:4 on a phone, 4:3 from the small breakpoint and 2:1 from the large
+one, and the layout is computed in the measured pixels of that box rather than
+in a normalised square: a treemap laid out for one aspect ratio and stretched
+into another is a treemap of splinters. A tile too small for a name does not get
+one, and entries too small to draw are folded away with a line saying how many.
+
 **Posters.** A 2:3 frame with a hairline border and a Quiet Sand ground, filled
-before the image arrives so nothing shifts. Hover scales to 1.03 over 500ms inside
-the clip. With no artwork, the frame holds the title in centred muted 12px text
+before the image arrives so nothing shifts. Inside a link, hover and keyboard focus
+scale it to 1.03 over 500ms inside the clip; a poster with no page to open stays
+still. With no artwork, the frame holds the title in centred muted 12px text
 instead of a broken-image glyph.
 
 **Shelves.** A named run of poster cards, scrolling with a finger and with two
@@ -352,7 +386,7 @@ budget for the screen.
 - Use `border-left` or `border-right` above one pixel as a coloured accent stripe. Use a full ring, a background tint, or nothing.
 - Apply `background-clip: text` with a gradient. Emphasis comes from weight and size.
 - Build the big-number-plus-gradient hero metric block, or fill a screen with identically sized icon-heading-text cards. The home grid is deliberately uneven.
-- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, and genuine confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not a modal: it is a route that happens to be intercepted, so it can be shared and it comes back through history.
+- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, and genuine confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not one of them: it is a page, with a back link at the top left and a return to the top in the bottom right corner once the scroll is long.
 - Animate anything that does not convey state, or animate a layout property. Transitions run 150 to 250ms; the poster scale at 500ms is the outer limit.
 - Use an em dash or an emoji anywhere: code, comments, documentation, interface copy.
 

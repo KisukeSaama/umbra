@@ -9,7 +9,17 @@ import { currentAccount } from "@/lib/auth/session";
 import { unreadCount } from "@/lib/domain/notifications";
 import { getLocaleOverride, getTranslator } from "@/lib/i18n/server";
 
-export async function SiteHeader() {
+/**
+ * `narrow` drops the second row that carries the member nav on a phone.
+ *
+ * The workspace has its own navigation and its own way back to the site, so
+ * that row would be a second menu over the first. It also makes the header
+ * exactly 64px tall at every width there, which is what lets the section bar
+ * under it stick to a fixed offset instead of guessing at one.
+ */
+export async function SiteHeader({
+  narrow = false,
+}: { narrow?: boolean } = {}) {
   const [account, t, localeOverride] = await Promise.all([
     currentAccount(),
     getTranslator(),
@@ -61,11 +71,13 @@ export async function SiteHeader() {
       {/* On a phone the nav sits under the brand rather than being folded into a
           burger: one tap is better than two. It scrolls sideways when the
           administrator's fifth entry does not fit, rather than being clipped. */}
-      <div className="umbra-container flex overflow-x-auto pb-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
-        <div className="mx-auto shrink-0">
-          <MainNav isStaff={isStaff} />
+      {narrow ? null : (
+        <div className="umbra-container flex overflow-x-auto pb-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+          <div className="mx-auto shrink-0">
+            <MainNav isStaff={isStaff} />
+          </div>
         </div>
-      </div>
+      )}
     </header>
   );
 }

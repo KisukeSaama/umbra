@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { EmptyNote } from "@/components/empty-note";
 import { GlyphTile } from "@/components/glyph-tile";
-import { AnnounceIcon } from "@/components/icons";
+import { AnnounceIcon, ExternalLinkIcon } from "@/components/icons";
 import {
   Card,
   CardAction,
@@ -49,6 +49,21 @@ export async function AnnouncementCard({
               <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-line">
                 {announcement.content}
               </p>
+              {/* A note whose whole point is an address elsewhere carries it
+                  here too, so the home page is not a teaser for one click. */}
+              {announcement.link ? (
+                <a
+                  href={announcement.link.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-primary hover:text-primary/80 focus-visible:ring-ring/50 inline-flex max-w-full items-center gap-1.5 rounded-md pt-1 text-sm transition-colors outline-none focus-visible:ring-3"
+                >
+                  <span className="truncate">
+                    {announcement.link.label ?? t("news.openLink")}
+                  </span>
+                  <ExternalLinkIcon className="shrink-0" />
+                </a>
+              ) : null}
             </div>
           </div>
         ) : (
