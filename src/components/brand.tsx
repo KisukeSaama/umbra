@@ -1,44 +1,54 @@
+import Image from "next/image";
+
+import logoFigure from "@/assets/logo.png";
+import logoMark from "@/assets/logo-mark.png";
 import { cn } from "@/lib/utils";
 
 /**
- * The Umbra mark: a messenger's crest, read as a canine head against a low moon.
+ * The Umbra mark: the messenger, cropped to the head and the letter it carries.
  *
- * Abstract on purpose. It should feel nocturnal and quiet, and it must not
- * borrow anything from the game the name nods to.
+ * The full figure loses its subject below roughly 40px, so anything small (the
+ * header, the footer, a tab) gets this crop instead of a shrunken portrait.
  */
 export function UmbraMark({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 32 32"
-      role="presentation"
+    <Image
+      src={logoMark}
+      alt=""
       aria-hidden="true"
-      className={cn("size-8 shrink-0", className)}
-    >
-      <defs>
-        <linearGradient id="umbra-mark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="var(--primary)" />
-          <stop
-            offset="100%"
-            stopColor="color-mix(in oklab, var(--primary) 62%, black)"
-          />
-        </linearGradient>
-      </defs>
-      <circle cx="16" cy="16" r="15" fill="url(#umbra-mark)" />
-      {/* The moon, half hidden behind the crest. */}
-      <circle
-        cx="23"
-        cy="9.5"
-        r="3.4"
-        fill="var(--primary-foreground)"
-        opacity="0.35"
-      />
-      <path
-        d="M16 26c-4.9-2-7.5-5.5-7.5-9.9v-5.2l3.4 1.8L16 7.5l4.1 5.2 3.4-1.8v5.2c0 4.4-2.6 7.9-7.5 9.9z"
-        fill="var(--primary-foreground)"
-      />
-      <circle cx="13.3" cy="16.2" r="1.05" fill="url(#umbra-mark)" />
-      <circle cx="18.7" cy="16.2" r="1.05" fill="url(#umbra-mark)" />
-    </svg>
+      sizes="64px"
+      className={cn("size-8 shrink-0 object-contain", className)}
+    />
+  );
+}
+
+/**
+ * The messenger, whole and seated.
+ *
+ * Reserved for the screens that have room to be quiet about it: the sign-in
+ * page and the home hero. `alt` is a real description because on sign-in this
+ * image is the only thing on the page besides the wordmark.
+ */
+export function UmbraFigure({
+  alt,
+  className,
+  sizes = "(min-width: 640px) 18rem, 12rem",
+  preload = false,
+}: {
+  alt: string;
+  className?: string;
+  sizes?: string;
+  preload?: boolean;
+}) {
+  return (
+    <Image
+      src={logoFigure}
+      alt={alt}
+      sizes={sizes}
+      preload={preload}
+      placeholder="blur"
+      className={cn("h-auto w-full object-contain select-none", className)}
+    />
   );
 }
 
@@ -50,14 +60,19 @@ export function UmbraWordmark({
   forLabel,
   className,
   compact = false,
+  withMark = true,
 }: {
   forLabel: string;
   className?: string;
   compact?: boolean;
+  /** Dropped where the full figure already stands above, to show one dog, not two. */
+  withMark?: boolean;
 }) {
   return (
     <span className={cn("flex items-center gap-2.5", className)}>
-      <UmbraMark className={compact ? "size-7" : "size-8"} />
+      {withMark ? (
+        <UmbraMark className={compact ? "size-9" : "size-11"} />
+      ) : null}
       <span className="flex flex-col leading-none">
         <span
           className={cn(

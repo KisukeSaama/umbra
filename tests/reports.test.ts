@@ -1,0 +1,106 @@
+import { describe, expect, it } from "vitest";
+
+import { REPORT_REASONS, REPORT_STATUSES } from "@/lib/db/schema";
+import {
+  askKey,
+  canTransition,
+  isAutoClosable,
+  isLive,
+  isReasonAllowed,
+  nextStatuses,
+  reasonsFor,
+  REPORT_TARGETS,
+  targetOf,
+} from "@/lib/reports/reasons";
+
+/**
+ * A report is entirely made of choices, so the rules that decide which choices
+ * exist are the feature. These are the ones that would go wrong quietly.
+ */
+
+describe("report targets", () => {
+  it("reads the target from what the member actually picked", () => {
+    expect(targetOf("movie", null, null)).toBe("movie");
+    expect(targetOf("tv", null, null)).toBe("series");
+    expect(targetOf("tv", 2, null)).toBe("season");
+    expect(targetOf("tv", 2, 5)).toBe("episode");
+  });
+
+  it("never offers a reason that cannot apply where it points", () => {
+    // A film has no seasons, and an episode cannot be the thing that is behind.
+    expect(reasonsFor("movie")).not.toContain("missing_season");
+    expect(reasonsFor("movie")).not.toContain("series_outdated");
+    expect(reasonsFor("episode")).not.toContain("series_outdated");
+    expect(reasonsFor("series")).toContain("series_outdated");
+  });
+
+  it("only knows reasons the database will accept", () => {
+    for (const target of REPORT_TARGETS)
+      for (const reason of reasonsFor(target))
+        expect(REPORT_REASONS).toContain(reason);
+  });
+
+  it("gives every target something to say", () => {
+    for (const target of REPORT_TARGETS)
+      expect(reasonsFor(target).length).toBeGreaterThan(0);
+  });
+
+  it("rejects a reason that does not belong to the target", () => {
+    // The route trusts this, so a crafted body cannot record "a season is
+    // missing" against a film.
+    expect(isReasonAllowed("movie", "missing_season")).toBe(false);
+    expect(isReasonAllowed("series", "missing_season")).toBe(true);
+  });
+});
+
+describe("report lifecycle", () => {
+  it("matches the live statuses the partial unique index uses", () => {
+    // If these ever drift, a closed report would start blocking a new one, or
+    // duplicates would slip past the index.
+    const live = REPORT_STATUSES.filter((status) => isLive(status));
+    expect(live).toEqual(["open", "acknowledged", "in_progress"]);
+  });
+
+  it("only moves forward, and never out of a settled state", () => {
+    expect(canTransition("open", "acknowledged")).toBe(true);
+    expect(canTransition("open", "resolved")).toBe(false);
+    expect(canTransition("acknowledged", "resolved")).toBe(true);
+    expect(canTransition("resolved", "open")).toBe(false);
+    expect(nextStatuses("rejected")).toHaveLength(0);
+  });
+
+  it("proposes nothing that is not a real status", () => {
+    for (const status of REPORT_STATUSES)
+      for (const next of nextStatuses(status))
+        expect(REPORT_STATUSES).toContain(next);
+  });
+
+  it("only lets the sync close what the sync can actually see", () => {
+    // Umbra indexes titles and episodes, not codecs, tracks or playback. A job
+    // that closed those would have to walk media parts on the server, which is
+    // exactly what this project refuses to do.
+    expect(isAutoClosable("missing_episode")).toBe(true);
+    expect(isAutoClosable("missing_season")).toBe(true);
+    expect(isAutoClosable("series_outdated")).toBe(true);
+    expect(isAutoClosable("bad_quality")).toBe(false);
+    expect(isAutoClosable("missing_subtitles")).toBe(false);
+    expect(isAutoClosable("playback_error")).toBe(false);
+    expect(isAutoClosable("wrong_content")).toBe(false);
+  });
+});
+
+describe("ask keys", () => {
+  it("tells the series apart from its seasons", () => {
+    // The page reads these to know an ask is already open. A series and a
+    // season colliding here would hide the button that has never been pressed.
+    expect(askKey({ seasonNumber: null, reason: "series_outdated" })).not.toBe(
+      askKey({ seasonNumber: 1, reason: "series_outdated" }),
+    );
+    expect(askKey({ seasonNumber: 1, reason: "missing_season" })).not.toBe(
+      askKey({ seasonNumber: 1, reason: "missing_episode" }),
+    );
+    expect(askKey({ seasonNumber: 2, reason: "missing_episode" })).toBe(
+      askKey({ seasonNumber: 2, reason: "missing_episode" }),
+    );
+  });
+});

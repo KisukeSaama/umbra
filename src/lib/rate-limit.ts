@@ -38,6 +38,25 @@ export function checkRate(
   if (window.count > quota.max) throw new RateLimitedError();
 }
 
+/**
+ * Address behind an anonymous request, for the buckets keyed on it.
+ *
+ * Umbra sits behind Cloudflare and Traefik. Cloudflare names the visitor in
+ * `CF-Connecting-IP`, which nothing upstream of it can forge; Traefik names its
+ * own peer in `X-Real-IP`. `X-Forwarded-For` comes last: its first entry is
+ * whatever the visitor chose to send, so it is only a hint, never the key on
+ * its own. The anonymous buckets pair it with a global quota for that reason.
+ */
+export function clientAddress(headers: Pick<Headers, "get">): string {
+  const direct =
+    headers.get("cf-connecting-ip")?.trim() || headers.get("x-real-ip")?.trim();
+  if (direct) return direct;
+
+  const forwarded = headers.get("x-forwarded-for");
+  const first = forwarded?.split(",")[0]?.trim();
+  return first || "unknown";
+}
+
 /** Test-only. */
 export function resetRateLimits() {
   windows.clear();

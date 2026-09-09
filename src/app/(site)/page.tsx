@@ -1,66 +1,92 @@
+import { Suspense } from "react";
+
 import { AnnouncementCard } from "@/components/home/announcement-card";
-import { FundingCard } from "@/components/home/funding-card";
-import { HeroSearch } from "@/components/home/hero-search";
+import { Hero } from "@/components/home/hero";
 import { RecentlyAdded } from "@/components/home/recently-added";
 import { StorageCard } from "@/components/home/storage-card";
 import { UpcomingEpisodes } from "@/components/home/upcoming";
 import { WeekStats } from "@/components/home/week-stats";
 import { PollCard } from "@/components/poll-card";
-import { currentAccount } from "@/lib/auth/session";
+import { Shelf } from "@/components/shelf";
+import { ShelfSkeleton } from "@/components/skeletons";
+import { requireMemberPage } from "@/lib/auth/session";
 import { weeklyStats } from "@/lib/domain/analytics";
 import { latestAnnouncement } from "@/lib/domain/announcements";
-import { activeGoal } from "@/lib/domain/funding";
+import { trendingShelf } from "@/lib/domain/discovery";
 import { recentlyAdded } from "@/lib/domain/library";
 import { activePoll } from "@/lib/domain/polls";
 import { upcomingEpisodes } from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
-import { getTranslator } from "@/lib/i18n/server";
+import { followedSeriesKeys } from "@/lib/domain/taste";
+import { getI18n } from "@/lib/i18n/server";
 
 /**
  * The home page answers, in one screen: what is new, what is coming, what the
  * community is deciding, and how the server is doing.
+ *
+ * It stays deliberately uneven. A hero that changes with the week, then a rail,
+ * then blocks of different sizes: a grid of identical cards would say that
+ * everything here matters equally, and it does not.
  */
 export default async function HomePage() {
-  const account = await currentAccount();
-  const t = await getTranslator();
+  const account = await requireMemberPage();
+  const { locale } = await getI18n();
 
-  const [recent, upcoming, poll, announcement, storage, goal, stats] =
+  const [recent, upcoming, poll, announcement, storage, stats] =
     await Promise.all([
-      recentlyAdded(12),
-      upcomingEpisodes(5),
+      recentlyAdded(14),
+      // The week is read through this member: the shows they are on, then the
+      // rest of what is due. The history behind that is read live and dropped
+      // with the render, never stored.
+      followedSeriesKeys(account.id, account.personalisationEnabled).then(
+        (keys) => upcomingEpisodes(5, keys),
+      ),
       activePoll(account?.id),
       latestAnnouncement(),
       storageOverview(),
-      activeGoal(),
       weeklyStats(),
     ]);
 
   return (
     <>
-      <section className="umbra-glow border-border/60 border-b">
-        <div className="umbra-container py-16 text-center sm:py-24">
-          <p className="text-muted-foreground text-sm">{t("home.greeting")}</p>
-          <h1 className="mt-3 mb-9 text-4xl tracking-tight text-balance sm:text-6xl">
-            {t("home.title")}
-          </h1>
-          <HeroSearch />
-        </div>
-      </section>
+      <Hero posters={recent} />
 
       <div className="umbra-container space-y-12 py-12">
         <WeekStats stats={stats} />
         <RecentlyAdded items={recent} />
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <UpcomingEpisodes episodes={upcoming} />
-          <PollCard poll={poll} />
-          <div className="space-y-6">
+        {/* One shelf from the wider world on the home page, and only one: the
+            rest of that lives on its own page, which is where you go when you
+            came without an idea. A refused listing costs this rail alone. */}
+        <Suspense fallback={<ShelfSkeleton />}>
+          <TrendingRail locale={locale} />
+        </Suspense>
+
+        {/* Two rows of like with like: the two lists that can run long, then
+            the glances. Nothing is stretched to a neighbour's height, so an
+            empty list stays a short card rather than a tall blank one. */}
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <UpcomingEpisodes episodes={upcoming} />
+            <PollCard poll={poll} />
+          </div>
+          <div className="grid gap-6 md:items-start lg:grid-cols-2">
             <AnnouncementCard announcement={announcement} />
             <StorageCard storage={storage} />
-            <FundingCard goal={goal} />
           </div>
         </div>
       </div>
     </>
+  );
+}
+
+async function TrendingRail({ locale }: { locale: string }) {
+  const { t } = await getI18n();
+  return (
+    <Shelf
+      title={t("section.trending")}
+      items={await trendingShelf(locale)}
+      href="/discover"
+    />
   );
 }

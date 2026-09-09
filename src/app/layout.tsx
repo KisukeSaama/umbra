@@ -28,8 +28,19 @@ const code = JetBrains_Mono({ variable: "--font-code", subsets: ["latin"] });
  * `next.config.ts`.
  */
 export const metadata: Metadata = {
+  // Read straight from the process rather than through `env()`: root metadata is
+  // evaluated at build time, where the validated configuration is deliberately
+  // absent. Only the icon and preview URLs depend on it, and a wrong origin
+  // costs a broken thumbnail, never a broken build.
+  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   title: { default: "Umbra", template: "%s - Umbra" },
   description: "Private media community hub.",
+  applicationName: "Umbra",
+  appleWebApp: {
+    title: "Umbra",
+    capable: true,
+    statusBarStyle: "black-translucent",
+  },
   robots: {
     index: false,
     follow: false,

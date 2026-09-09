@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { pollOptions, polls, votes } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
+import { notifyApprovedAccounts } from "@/lib/domain/notifications";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 
 /**
@@ -13,11 +14,20 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
  *
  * A question, fixed options, one vote per person. No free text anywhere, by
  * design: nothing here ever needs moderation.
+ *
+ * A poll never stands on its own: it hangs off the announcement that carries
+ * it, so the community reads one feed and the administration writes in one
+ * place. Everything here is reached through `domain/announcements`, except the
+ * vote itself and the one open question the home page shows.
  */
 
 export type PollView = {
   id: string;
   question: string;
+  /** Whether the question is open. One poll is open at a time. */
+  active: boolean;
+  /** Closed either by hand or by its own end date. Nothing left to vote on. */
+  closed: boolean;
   endsAt: Date | null;
   totalVotes: number;
   /** Option id the current visitor picked, when they voted. */
@@ -83,6 +93,8 @@ export async function pollView(
   return {
     id: poll.id,
     question: poll.question,
+    active: poll.active,
+    closed: isClosed(poll),
     endsAt: poll.endsAt,
     totalVotes,
     votedOptionId,
@@ -93,11 +105,19 @@ export async function pollView(
   };
 }
 
+/** A question stops taking votes when it is closed by hand or runs out. */
+function isClosed(poll: { active: boolean; endsAt: Date | null }) {
+  return (
+    !poll.active ||
+    (poll.endsAt !== null && poll.endsAt.getTime() <= Date.now())
+  );
+}
+
 /**
- * Records a vote.
+ * Records a vote, or moves one already cast.
  *
- * The one vote per person rule is a unique index, so two simultaneous clicks
- * cannot both get through.
+ * The one vote per person rule is a unique index, so a person holds a single
+ * row and changing their mind moves that row rather than adding another.
  */
 export async function castVote(
   pollId: string,
@@ -117,38 +137,50 @@ export async function castVote(
     .where(eq(polls.id, pollId))
     .limit(1);
   if (!poll) throw new NotFoundError("error.pollNotFound");
-  if (!poll.active || (poll.endsAt && poll.endsAt.getTime() <= Date.now())) {
-    throw new ConflictError("error.pollClosed");
+  if (isClosed(poll)) throw new ConflictError("error.pollClosed");
+
+  const [existing] = await db()
+    .select({ id: votes.id, optionId: votes.optionId })
+    .from(votes)
+    .where(and(eq(votes.pollId, pollId), eq(votes.accountId, accountId)))
+    .limit(1);
+
+  if (existing) {
+    // Moving a vote is not a new vote: the tally counts people, and the
+    // metric counts the act of taking part, which already happened.
+    if (existing.optionId !== optionId)
+      await db()
+        .update(votes)
+        .set({ optionId })
+        .where(eq(votes.id, existing.id));
+    return pollView(pollId, accountId);
   }
 
   try {
     await db().insert(votes).values({ pollId, optionId, accountId });
+    await bumpMetric("votes_cast");
   } catch (error) {
-    // The unique index is what actually enforces one vote per person; two
-    // simultaneous clicks both reach here and only one gets through.
-    if (isUniqueViolation(error)) throw new ConflictError("error.alreadyVoted");
-    throw error;
+    // The unique index is what actually enforces one row per person; when two
+    // clicks race, the one that lost simply moves the row it did not write.
+    if (!isUniqueViolation(error)) throw error;
+    await db()
+      .update(votes)
+      .set({ optionId })
+      .where(and(eq(votes.pollId, pollId), eq(votes.accountId, accountId)));
   }
 
-  await bumpMetric("votes_cast");
   return pollView(pollId, accountId);
 }
 
-export async function listPolls() {
-  return db()
-    .select({
-      id: polls.id,
-      question: polls.question,
-      active: polls.active,
-      endsAt: polls.endsAt,
-      createdAt: polls.createdAt,
-      totalVotes: sql<number>`(SELECT count(*)::int FROM vote v WHERE v.poll_id = ${polls.id})`,
-    })
-    .from(polls)
-    .orderBy(desc(polls.createdAt));
-}
-
-export async function createPoll(input: {
+/**
+ * Hangs a question off a note.
+ *
+ * Called from `domain/announcements` when a note is written with a question on
+ * it: there is no way to create a poll without the announcement that carries
+ * it, which is what keeps the two from drifting into separate feeds again.
+ */
+export async function attachPoll(input: {
+  announcementId: string;
   question: string;
   options: string[];
   active?: boolean;
@@ -167,6 +199,7 @@ export async function createPoll(input: {
   const [poll] = await db()
     .insert(polls)
     .values({
+      announcementId: input.announcementId,
       question: input.question.trim(),
       active: input.active ?? false,
       startsAt: new Date(),
@@ -183,7 +216,18 @@ export async function createPoll(input: {
   return poll;
 }
 
-export async function setPollActive(pollId: string, active: boolean) {
+/**
+ * Opens or closes a question.
+ *
+ * `notify` is off when the change rides on the publication of the note that
+ * carries the poll: that publication already rang the bell, and one act should
+ * not arrive twice.
+ */
+export async function setPollActive(
+  pollId: string,
+  active: boolean,
+  options: { notify?: boolean } = {},
+) {
   if (active)
     await db()
       .update(polls)
@@ -194,8 +238,23 @@ export async function setPollActive(pollId: string, active: boolean) {
     .update(polls)
     .set({ active })
     .where(eq(polls.id, pollId))
-    .returning({ id: polls.id, active: polls.active });
+    .returning({
+      id: polls.id,
+      active: polls.active,
+      question: polls.question,
+    });
   if (!row) throw new NotFoundError("error.pollNotFound");
+
+  // Opening a poll is worth an entry; closing one is not, since there is
+  // nothing left to do about it.
+  if (active && options.notify !== false)
+    await notifyApprovedAccounts({
+      kind: "poll_open",
+      subjectId: row.id,
+      step: "open",
+      payload: { title: row.question },
+    });
+
   return row;
 }
 

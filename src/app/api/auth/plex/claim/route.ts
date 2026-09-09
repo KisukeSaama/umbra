@@ -7,7 +7,6 @@ import { createSession, upsertAccountFromPlex } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { authPins } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
-import { notify } from "@/lib/domain/notifications";
 import { BadRequestError } from "@/lib/errors";
 import { accountOf, pollPin } from "@/lib/providers/plex-tv";
 import { checkRate, perMinute } from "@/lib/rate-limit";
@@ -51,10 +50,6 @@ export async function POST(request: NextRequest) {
       .where(eq(authPins.id, pin.id));
 
     if (account.status !== "approved") {
-      await notify({
-        kind: "system",
-        title: `New Umbra account waiting for approval: ${account.username}`,
-      });
       return { status: "pending" as const };
     }
 

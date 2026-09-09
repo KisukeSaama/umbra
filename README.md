@@ -1,96 +1,70 @@
 # Umbra
 
-Umbra is the link between a private Plex server, Kisuflix, and the people who
-use it.
-
-Kisuflix is where you watch. Umbra is where you take part: search a title, see
-whether it is already there, ask for it when it is not, follow what arrives,
-vote on what comes next, and see how the server is doing.
-
-The name nods to a messenger dog: something that carries word between the
-administrator and the community, quietly.
+Umbra is the link between a private Plex server, Kisuflix, and the people who use
+it. Kisuflix is where you watch. Umbra is where you take part: find something, ask
+for it when it is not there, say so when what is there is wrong, follow what
+happens next, vote on what comes after, and see how the server is doing. The name
+nods to a messenger dog carrying word between the administrator and the
+community.
 
 ## What it does
 
-**For the community**
+**Community.** Shelves to browse and a search palette one keystroke away, with
+three possible answers on every card: already on the server, already requested, or
+requestable. Request a missing title, once per title ever, with no vote pile-up.
+Report a problem on something that is there, down to the episode, as three closed
+choices and never a sentence. Follow your requests and reports on one page, with a
+bell for what moved. A guided picker for the evenings with no idea, and shelves
+shaped in part by an aggregated taste profile you can switch off. Recent
+additions, what airs this week, the news feed with its polls, storage and the
+funding goal.
 
-- Search movies, series and anime, with three possible answers: already on the
-  server, already requested, or requestable.
-- Request a missing title. One request per title, ever: no vote pile-up, no
-  "me too".
-- See what was added recently, what airs this week, the active poll, the latest
-  announcement, storage, and the current funding goal.
-- One random pick for evenings without an idea.
+**Administrator.** A queue of everything waiting on a decision: new requests, open
+reports, episodes to add and accounts waiting for approval, each with its action
+on the row. A series tracker: broadcast calendar from the metadata provider,
+compared against the server, a task raised for every aired episode still missing
+and closed by itself when it arrives. Announcements, polls, storage detail and
+history with an "Open in Episort" link that hands a folder to the desktop sorter,
+funding goal with a manual history, job status.
 
-**For the administrator**
-
-- An inbox: new requests, episodes to add, accounts waiting for approval.
-- A series tracker: broadcast calendar pulled from the metadata provider,
-  compared against the server, with a task raised for every aired episode that
-  is still missing, and closed by itself when it arrives.
-- Announcements, polls, storage detail and history, funding goal with a manual
-  history, job status.
-- Discord notifications for new requests and missing episodes.
-
-**What it deliberately does not do**: comments, chat, reviews, profiles, uptime
-monitoring, payments, or a second copy of the Plex library.
+**Deliberately absent.** Comments, chat, reviews, profiles, uptime monitoring,
+browser push, payments, a stored list of what anyone watched, a second copy of the
+Plex library. See [docs/product.md](docs/product.md).
 
 ## Stack
 
-|              |                                                             |
-| ------------ | ----------------------------------------------------------- |
-| Application  | Next.js 16 (App Router), React 19, TypeScript               |
-| Interface    | Tailwind CSS 4, shadcn/ui (Base UI), Phosphor icons         |
-| Database     | PostgreSQL 18, Drizzle ORM, SQL migrations                  |
-| Integrations | TMDB and the Plex server, both through the Janus gateway    |
-| Scheduling   | A worker container calling an idempotent sync endpoint      |
-| Deployment   | Docker image, Traefik, GitLab CI, dev and prod environments |
-
-One application, one image. The worker runs the same image with another command.
-
-## Architecture in one paragraph
+Next.js 16 (App Router), React 19, TypeScript. Tailwind CSS 4, shadcn/ui (Base
+UI), Phosphor icons. PostgreSQL 18 with Drizzle ORM and committed SQL migrations.
+TMDB and the Plex server, both through the Janus gateway. Docker image behind
+Traefik, deployed by GitLab CI to a dev and a prod environment. One application,
+one image; the worker runs the same image with another command.
 
 Server components read straight from `src/lib/domain`; mutations go through REST
 routes under `src/app/api`, which is where validation, rate limiting and
 authorisation live. Integrations sit behind two contracts,
-`MediaMetadataProvider` and `MediaLibraryProvider`, and every call to them
-leaves through Janus, which holds the credentials. A local index of the library
+`MediaMetadataProvider` and `MediaLibraryProvider`, and every call to them leaves
+through Janus, which holds the credentials. A local index of the library
 (`library_item`) is what lets a search answer "already available" without asking
 the media server on every keystroke. Details in
 [docs/architecture.md](docs/architecture.md).
 
-## Local setup
+## Quick start
 
-Requirements: Node 24, Docker, and a Janus application id and key.
+Node 24, Docker, and a Janus application id and key.
 
 ```bash
 cp .env.example .env.local   # then fill JANUS_APPLICATION_ID and JANUS_API_KEY
-docker compose up            # the whole stack on http://localhost:3000
+docker compose up            # whole stack on http://localhost:3000
 ```
 
-Or run Next on the host, which is faster to iterate on:
-
-```bash
-npm install
-docker compose up -d postgres
-npm run db:migrate           # applies drizzle/*.sql
-npm run dev                  # http://localhost:3000
-```
-
-Sign in with `DEV_LOGIN=true` from the sign-in page: it creates an approved
-administrator without calling plex.tv. Real sign-in needs `plex.tv` registered
-in Janus first, see [docs/deployment.md](docs/deployment.md).
-
-Then, to fill the site with real data:
-
-```bash
-curl -X POST localhost:3000/api/cron/sync -H "Authorization: Bearer $CRON_SECRET"
-```
+Sign in with `DEV_LOGIN=true`, then fill the site with a sync. The faster loop,
+the worker profile and real Plex sign-in are in
+[docs/development.md](docs/development.md).
 
 ## Environment
 
-No third-party API key belongs in this repository. TMDB and Plex credentials
-live in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
+No third-party API key belongs in this repository. TMDB and Plex credentials live
+in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 
 | Variable                | Required | Purpose                                            |
 | ----------------------- | -------- | -------------------------------------------------- |
@@ -106,41 +80,23 @@ live in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 | `SESSION_TTL_DAYS`      | no       | Session lifetime, default 30                       |
 | `DEV_LOGIN`             | no       | Opens the development sign-in. Never in production |
 | `STORAGE_PATHS`         | no       | Published volumes, `Label:/path`, comma separated  |
-| `DISCORD_WEBHOOK_URL`   | no       | Admin notifications                                |
 | `CRON_SECRET`           | for sync | Shared by the worker and `POST /api/cron/sync`     |
 | `SYNC_INTERVAL_MINUTES` | no       | Worker interval, default 30                        |
 
 ## Commands
 
-```bash
-npm run dev          # development server
-npm run build        # production build
-npm run lint         # ESLint
-npm run typecheck    # TypeScript
-npm test             # unit tests (Vitest)
-npm run format       # Prettier
-npm run db:generate  # regenerate migrations from the schema
-npm run db:migrate   # apply migrations
-```
+`npm run dev | build | lint | typecheck | format`, `npm test` (Vitest),
+`npm run db:generate` to regenerate migrations from the schema and
+`npm run db:migrate` to apply them.
 
 ## Repository
 
-```
-src/app/(site)     community pages
-src/app/admin      administration
-src/app/api        REST routes
-src/components     interface, including the icon module and shadcn primitives
-src/lib/domain     business rules
-src/lib/providers  integration contracts and implementations
-src/lib/jobs       scheduled work
-src/lib/db         Drizzle schema and connection
-src/lib/i18n       dictionaries and language detection
-drizzle/           generated SQL migrations
-deploy/            compose file and environment for the server
-docs/              product, architecture, API, development, deployment, ADRs
-scripts/           sync worker
-tests/             unit tests
-```
+`src/app` holds the community pages, the administration and the REST routes;
+`src/components` the interface, the icon module and the shadcn primitives;
+`src/lib` the domain rules, the provider contracts, the jobs, the Drizzle schema
+and the dictionaries. Around them: `drizzle/` (generated SQL migrations),
+`deploy/` (server compose and environment), `docs/`, `scripts/` (sync worker) and
+`tests/`.
 
 ## Documentation
 
@@ -149,6 +105,7 @@ tests/             unit tests
 - [docs/api.md](docs/api.md) - REST surface
 - [docs/development.md](docs/development.md) - working on the code
 - [docs/deployment.md](docs/deployment.md) - dev and prod on the homelab
+- [docs/DESIGN.md](docs/DESIGN.md) - design system and its named rules
 - [docs/adr/](docs/adr/) - the decisions worth remembering
 - `JANUS.md` - the gateway every external call goes through
 - `AGENTS.md` - the rules an agent must follow in this repository

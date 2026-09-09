@@ -4,7 +4,8 @@
 # pipeline's compose() wrapper.
 #
 # Available here:
-#   ${APP_SLUG} ${APP_SUBDOMAIN} ${DEPLOY_DIR} ${DATA_DIR} ${TRAEFIK_NETWORK}   (paths.env)
+#   ${APP_SLUG} ${APP_SUBDOMAIN} ${DEPLOY_DIR} ${DATA_DIR} ${TRAEFIK_NETWORK}
+#   ${POSTGRES_IMAGE} ${MEDIA_ROOT}                                            (paths.env)
 #   ${DEPLOY_ENV} ${APP_HOST} ${CI_REGISTRY_IMAGE} ${IMAGE_TAG} + Umbra's keys   (app.env)
 
 x-logging: &logging
@@ -27,7 +28,6 @@ x-umbra-env: &umbra-env
   JANUS_PLEX_TV_SLUG: ${JANUS_PLEX_TV_SLUG}
   ADMIN_PLEX_ACCOUNT_ID: ${ADMIN_PLEX_ACCOUNT_ID}
   AUTO_APPROVE_MEMBERS: ${AUTO_APPROVE_MEMBERS}
-  DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
   STORAGE_PATHS: ${STORAGE_PATHS}
   CRON_SECRET: ${CRON_SECRET}
 
@@ -38,7 +38,7 @@ services:
     logging: *logging
     environment:
       <<: *umbra-env
-      PUBLIC_SITE_URL: https://${APP_HOST}
+      APP_URL: https://${APP_HOST}
     networks:
       - application
       - egress
@@ -47,9 +47,14 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      # Read-only, and only so the storage gauge has something to measure.
-      # Mounted by absolute path: bulk data does not live under DATA_DIR.
-      - /mnt/plex:/mnt/plex:ro
+      # Read-write: the storage page lets the administrator delete files (see
+      # docs/adr/0012). The container still runs as uid 10001 with every
+      # capability dropped, so the media must be writable by that user or its
+      # group; otherwise a deletion answers "read-only" and changes nothing.
+      # Mounted by absolute path: bulk data does not live under DATA_DIR. The
+      # path comes from paths.env, which is also where STORAGE_PATHS takes its
+      # default, so the mount and what the gauge measures cannot drift apart.
+      - ${MEDIA_ROOT}:${MEDIA_ROOT}:rw
     # expose, never ports: Traefik reaches this over the docker network.
     expose:
       - "3000"
@@ -118,7 +123,9 @@ services:
       - ALL
 
   postgres:
-    image: postgres:18-alpine
+    # Pinned in paths.env: the pipeline reads the same value to give the data
+    # directory on the host the ownership this image expects.
+    image: ${POSTGRES_IMAGE}
     logging: *logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -129,7 +136,8 @@ services:
       # Bind mount, not a named volume: state must be visible on the host for
       # backups, and the per-environment path keeps dev and prod apart.
       # Postgres 18 images take a single mount at /var/lib/postgresql and put the
-      # cluster in a version named subdirectory under it.
+      # cluster in a version named subdirectory under it. They also run as the
+      # postgres user, so the directory must belong to it before the first start.
       - ${DATA_DIR}/${DEPLOY_ENV}/postgres:/var/lib/postgresql
     networks:
       - application

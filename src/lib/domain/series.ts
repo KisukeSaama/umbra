@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -11,8 +11,6 @@ import {
   type EpisodeStatus,
 } from "@/lib/db/schema";
 import { ensureMedia } from "@/lib/domain/catalog";
-import { formatEpisodeCode } from "@/lib/format";
-import { notify } from "@/lib/domain/notifications";
 import { NotFoundError } from "@/lib/errors";
 import { isRunning } from "@/lib/providers/metadata";
 import { tmdbProvider } from "@/lib/providers/tmdb";
@@ -30,9 +28,6 @@ import { tmdbProvider } from "@/lib/providers/tmdb";
  * Umbra can therefore stay down for days and catch up entirely on the next run
  * (see `docs/architecture.md`).
  */
-
-/** Past this count, one summary is sent instead of one message per episode. */
-const MAX_EPISODE_NOTIFICATIONS = 5;
 
 export async function trackSeries(providerId: string) {
   const details = await tmdbProvider.seriesDetails(providerId);
@@ -195,66 +190,6 @@ export async function reconcileEpisodes(): Promise<{
   };
 }
 
-/**
- * Tells the administrator about aired but missing episodes, once per episode
- * (`notified_at`). A large catch-up is summarised in one message rather than
- * fifty notifications.
- */
-export async function notifyOpenEpisodeTasks() {
-  const pending = await db()
-    .select({
-      taskId: episodeTasks.id,
-      seasonNumber: episodes.seasonNumber,
-      episodeNumber: episodes.episodeNumber,
-      airDate: episodes.airDate,
-      title: media.title,
-    })
-    .from(episodeTasks)
-    .innerJoin(episodes, eq(episodes.id, episodeTasks.episodeId))
-    .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
-    .innerJoin(media, eq(media.id, trackedSeries.mediaId))
-    .where(
-      and(eq(episodeTasks.status, "open"), isNull(episodeTasks.notifiedAt)),
-    )
-    .orderBy(asc(episodes.airDate));
-
-  if (pending.length === 0) return 0;
-
-  if (pending.length <= MAX_EPISODE_NOTIFICATIONS) {
-    for (const task of pending) {
-      await notify({
-        kind: "episode",
-        title: `${task.title} ${formatEpisodeCode(task.seasonNumber, task.episodeNumber)} has aired and seems missing from the server.`,
-      });
-    }
-  } else {
-    const head = pending
-      .slice(0, MAX_EPISODE_NOTIFICATIONS)
-      .map(
-        (task) =>
-          `- ${task.title} ${formatEpisodeCode(task.seasonNumber, task.episodeNumber)}`,
-      )
-      .join("\n");
-    await notify({
-      kind: "episode",
-      title: `${pending.length} aired episodes seem missing from the server.`,
-      body: `${head}\n... and ${pending.length - MAX_EPISODE_NOTIFICATIONS} more.`,
-    });
-  }
-
-  await db()
-    .update(episodeTasks)
-    .set({ notifiedAt: new Date() })
-    .where(
-      inArray(
-        episodeTasks.id,
-        pending.map((task) => task.taskId),
-      ),
-    );
-
-  return pending.length;
-}
-
 export type UpcomingEpisode = {
   seriesTitle: string;
   posterPath: string | null;
@@ -263,10 +198,33 @@ export type UpcomingEpisode = {
   episodeTitle: string | null;
   airDate: string | null;
   status: EpisodeStatus;
+  /** The member is on this show: that is why the entry sits where it sits. */
+  followed: boolean;
 };
 
-/** Next broadcasts of tracked shows, for the home page and the calendar. */
-export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
+/**
+ * Next broadcasts of tracked shows, for the home page and the calendar.
+ *
+ * The week is read through the member first: the shows they are actually on
+ * come at the top, whatever else is due follows. Passing no key gives the plain
+ * calendar, which is what the shared views and a member who turned
+ * personalisation off get.
+ *
+ * The list is never cut down to the followed shows alone. A week the server is
+ * preparing for everybody is still news, and a member who watched nothing this
+ * month would otherwise be shown an empty card.
+ */
+export async function upcomingEpisodes(
+  limit = 8,
+  followedKeys: string[] = [],
+): Promise<UpcomingEpisode[]> {
+  const personalised = followedKeys.length > 0;
+  // A bare FALSE in ORDER BY reads as a column position in Postgres, so the
+  // plain calendar orders on the air date alone rather than on a constant.
+  const followed = personalised
+    ? sql<boolean>`COALESCE(${inArray(trackedSeries.plexRatingKey, followedKeys)}, FALSE)`
+    : sql<boolean>`FALSE::boolean`;
+
   return db()
     .select({
       seriesTitle: media.title,
@@ -276,6 +234,7 @@ export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
       episodeTitle: episodes.title,
       airDate: episodes.airDate,
       status: episodes.status,
+      followed,
     })
     .from(episodes)
     .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
@@ -288,7 +247,10 @@ export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
         sql`${episodes.airDate} >= CURRENT_DATE - INTERVAL '7 days'`,
       ),
     )
-    .orderBy(asc(episodes.airDate))
+    .orderBy(
+      ...(personalised ? [desc(followed)] : []),
+      asc(episodes.airDate),
+    )
     .limit(limit);
 }
 

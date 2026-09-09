@@ -1,11 +1,17 @@
+import { Rail } from "@/components/rail";
 import { Poster } from "@/components/poster";
 import { SectionHeading } from "@/components/section";
+import { TitleCard } from "@/components/title-card";
 import type { RecentItem } from "@/lib/domain/library";
 import { getTranslator } from "@/lib/i18n/server";
 
 /**
  * The reason to come back when nothing is being requested: what landed on the
  * server lately, as a poster rail rather than a copy of the server's own UI.
+ *
+ * An entry the media server never matched to a provider id has no page to open,
+ * so it stays a poster rather than becoming a link that goes nowhere, and it
+ * does not lift on hover either: nothing promises a click it cannot keep.
  */
 export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
   const t = await getTranslator();
@@ -13,25 +19,45 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
 
   return (
     <section>
-      <SectionHeading title={t("section.recentlyAdded")} />
-      {/* A rail on small screens, a grid once there is room: the same cards either way. */}
-      <ul className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 lg:grid-cols-6">
-        {items.map((item) => (
-          <li
+      <SectionHeading title={t("section.recentlyAdded")} href="/discover" />
+      <Rail>
+        {items.map((item, index) => (
+          <div
             key={item.ratingKey}
-            className="group w-32 shrink-0 snap-start sm:w-auto"
+            className="w-32 shrink-0 snap-start sm:w-36"
           >
-            <Poster src={item.posterUrl} alt={item.title} />
-            <p className="mt-2 truncate text-sm font-medium" title={item.title}>
-              {item.title}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {item.kind === "movie" ? t("common.movie") : t("common.series")}
-              {item.year ? ` - ${item.year}` : ""}
-            </p>
-          </li>
+            {item.providerId ? (
+              <TitleCard
+                kind={item.kind === "movie" ? "movie" : "tv"}
+                providerId={item.providerId}
+                title={item.title}
+                year={item.year}
+                posterUrl={item.posterUrl}
+                availability="available"
+                priority={index < 4}
+              />
+            ) : (
+              <div>
+                <Poster
+                  src={item.posterUrl}
+                  alt={item.title}
+                  sizes="10rem"
+                  priority={index < 4}
+                />
+                <p className="mt-2 truncate text-sm font-medium">
+                  {item.title}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {item.kind === "movie"
+                    ? t("common.movie")
+                    : t("common.series")}
+                  {item.year ? ` · ${item.year}` : ""}
+                </p>
+              </div>
+            )}
+          </div>
         ))}
-      </ul>
+      </Rail>
     </section>
   );
 }

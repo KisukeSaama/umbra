@@ -3,7 +3,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-import { AppError } from "@/lib/errors";
+import { AppError, RateLimitedError } from "@/lib/errors";
 
 /**
  * Shared wrapper for route handlers: an application error becomes a stable JSON
@@ -26,9 +26,12 @@ export async function route<T>(
 export function errorResponse(error: unknown): NextResponse {
   if (error instanceof AppError) {
     if (error.status >= 500) console.error("[api] server error", error);
+    const headers = new Headers();
+    if (error instanceof RateLimitedError && error.retryAfter)
+      headers.set("Retry-After", error.retryAfter);
     return NextResponse.json(
       { error: error.code, messageKey: error.messageKey },
-      { status: error.status },
+      { status: error.status, headers },
     );
   }
 

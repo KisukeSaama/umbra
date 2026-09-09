@@ -29,20 +29,52 @@ export function formatBytes(bytes: number, locale: "en" | "fr" = "en"): string {
   return `${rounded.toLocaleString(locale === "fr" ? "fr-FR" : "en-US")} ${units[exponent]}`;
 }
 
-/** An amount written the way the visitor's locale expects. */
-export function formatAmount(
-  cents: number,
-  currency: string,
-  locale: "en" | "fr" = "en",
-) {
-  return new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-  }).format(cents / 100);
-}
-
 /** `S02E09` */
 export function formatEpisodeCode(season: number, episode: number) {
   return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
+}
+
+type DateLocale = "en" | "fr";
+
+const LOCALE_TAGS: Record<DateLocale, string> = { en: "en-US", fr: "fr-FR" };
+
+/**
+ * A date-only string (`2026-09-09`) is pinned to noon UTC before it becomes a
+ * `Date`, so no timezone west or east of Greenwich shifts it to the wrong day.
+ */
+export function toDate(value: Date | string): Date {
+  return typeof value === "string" ? new Date(`${value}T12:00:00Z`) : value;
+}
+
+/** `9 Sept 2026`, or the long month when the date is the point of the line. */
+export function formatDate(
+  value: Date | string,
+  locale: DateLocale = "en",
+  month: "short" | "long" = "short",
+): string {
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {
+    day: "numeric",
+    month,
+    year: "numeric",
+  }).format(toDate(value));
+}
+
+/** `9 Sept 2026, 10:23`: job runs and history entries. */
+export function formatDateTime(value: Date, locale: DateLocale = "en"): string {
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(value);
+}
+
+/** `Tue 9 Sept`: a broadcast day, close enough not to need its year. */
+export function formatAirDate(
+  value: Date | string,
+  locale: DateLocale = "en",
+): string {
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(toDate(value));
 }

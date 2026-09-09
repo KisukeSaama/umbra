@@ -1,5 +1,13 @@
+import { EmptyNote } from "@/components/empty-note";
+import { GlyphTile } from "@/components/glyph-tile";
 import { DiskIcon } from "@/components/icons";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { formatBytes } from "@/lib/format";
 import type { StorageOverview } from "@/lib/domain/storage";
@@ -21,33 +29,30 @@ export async function StorageCard({
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+      <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-            <DiskIcon />
-          </span>
+          <GlyphTile icon={DiskIcon} />
           {t("section.storage")}
         </CardTitle>
         {storage ? (
-          <span className="text-sm font-medium">
+          <CardAction className="self-center text-sm font-medium tabular-nums">
             {t("storage.used", { percent: `${percent}%` })}
-          </span>
+          </CardAction>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-2">
         {storage ? (
           <>
             <Progress value={percent} aria-label={t("section.storage")} />
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm tabular-nums">
               {t("storage.available", {
                 value: formatBytes(storage.availableBytes, locale),
+                total: formatBytes(storage.totalBytes, locale),
               })}
             </p>
           </>
         ) : (
-          <p className="text-muted-foreground text-sm">
-            {t("storage.unknown")}
-          </p>
+          <EmptyNote icon={DiskIcon}>{t("storage.unknown")}</EmptyNote>
         )}
       </CardContent>
     </Card>

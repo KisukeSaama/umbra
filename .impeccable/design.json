@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-09T00:00:00.000Z",
+  "title": "Design System: Umbra",
+  "extensions": {
+    "colorMeta": {
+      "messenger-ochre": {
+        "role": "primary",
+        "displayName": "Messenger Ochre",
+        "canonical": "oklch(0.565 0.125 57)",
+        "darkValue": "oklch(0.735 0.13 57)",
+        "tonalRamp": [
+          "oklch(0.20 0.045 57)",
+          "oklch(0.31 0.070 57)",
+          "oklch(0.42 0.098 57)",
+          "oklch(0.565 0.125 57)",
+          "oklch(0.66 0.128 57)",
+          "oklch(0.735 0.13 57)",
+          "oklch(0.85 0.075 57)",
+          "oklch(0.95 0.030 57)"
+        ]
+      },
+      "ochre-wash": {
+        "role": "primary",
+        "displayName": "Ochre Wash",
+        "canonical": "oklch(0.935 0.022 57)",
+        "darkValue": "oklch(0.285 0.022 57)",
+        "tonalRamp": [
+          "oklch(0.18 0.018 57)",
+          "oklch(0.285 0.022 57)",
+          "oklch(0.40 0.022 57)",
+          "oklch(0.52 0.022 57)",
+          "oklch(0.64 0.022 57)",
+          "oklch(0.76 0.022 57)",
+          "oklch(0.87 0.022 57)",
+          "oklch(0.935 0.022 57)"
+        ]
+      },
+      "quiet-sand": {
+        "role": "secondary",
+        "displayName": "Quiet Sand",
+        "canonical": "oklch(0.945 0.006 85)",
+        "darkValue": "oklch(0.26 0.009 262)",
+        "tonalRamp": [
+          "oklch(0.16 0.006 85)",
+          "oklch(0.27 0.006 85)",
+          "oklch(0.39 0.006 85)",
+          "oklch(0.51 0.006 85)",
+          "oklch(0.63 0.006 85)",
+          "oklch(0.76 0.006 85)",
+          "oklch(0.87 0.006 85)",
+          "oklch(0.945 0.006 85)"
+        ]
+      },
+      "moon-blue": {
+        "role": "tertiary",
+        "displayName": "Moon Blue",
+        "canonical": "oklch(0.55 0.09 245)",
+        "darkValue": "oklch(0.66 0.09 245)",
+        "tonalRamp": [
+          "oklch(0.17 0.035 245)",
+          "oklch(0.28 0.055 245)",
+          "oklch(0.40 0.075 245)",
+          "oklch(0.55 0.09 245)",
+          "oklch(0.66 0.09 245)",
+          "oklch(0.77 0.075 245)",
+          "oklch(0.87 0.050 245)",
+          "oklch(0.95 0.022 245)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "oklch(0.972 0.004 85)",
+        "tonalRamp": [
+          "oklch(0.16 0.004 85)",
+          "oklch(0.28 0.004 85)",
+          "oklch(0.40 0.004 85)",
+          "oklch(0.52 0.004 85)",
+          "oklch(0.65 0.004 85)",
+          "oklch(0.78 0.004 85)",
+          "oklch(0.90 0.004 85)",
+          "oklch(0.972 0.004 85)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.24 0.012 265)",
+        "darkValue": "oklch(0.95 0.008 85)",
+        "tonalRamp": [
+          "oklch(0.15 0.012 265)",
+          "oklch(0.24 0.012 265)",
+          "oklch(0.35 0.012 265)",
+          "oklch(0.46 0.012 265)",
+          "oklch(0.58 0.012 265)",
+          "oklch(0.70 0.012 265)",
+          "oklch(0.83 0.010 265)",
+          "oklch(0.95 0.008 265)"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "oklch(0.52 0.012 265)",
+        "darkValue": "oklch(0.7 0.012 262)",
+        "tonalRamp": [
+          "oklch(0.16 0.012 265)",
+          "oklch(0.27 0.012 265)",
+          "oklch(0.39 0.012 265)",
+          "oklch(0.52 0.012 265)",
+          "oklch(0.63 0.012 265)",
+          "oklch(0.75 0.012 265)",
+          "oklch(0.86 0.010 265)",
+          "oklch(0.95 0.008 265)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.9 0.006 85)",
+        "darkValue": "oklch(1 0 0 / 9%)",
+        "tonalRamp": [
+          "oklch(0.17 0.006 85)",
+          "oklch(0.28 0.006 85)",
+          "oklch(0.40 0.006 85)",
+          "oklch(0.52 0.006 85)",
+          "oklch(0.65 0.006 85)",
+          "oklch(0.78 0.006 85)",
+          "oklch(0.90 0.006 85)",
+          "oklch(0.96 0.005 85)"
+        ]
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Night",
+        "canonical": "oklch(0.16 0.008 262)",
+        "tonalRamp": [
+          "oklch(0.16 0.008 262)",
+          "oklch(0.185 0.009 262)",
+          "oklch(0.205 0.009 262)",
+          "oklch(0.26 0.009 262)",
+          "oklch(0.40 0.009 262)",
+          "oklch(0.58 0.010 262)",
+          "oklch(0.78 0.010 262)",
+          "oklch(0.95 0.008 262)"
+        ]
+      },
+      "alert-red": {
+        "role": "neutral",
+        "displayName": "Alert Red",
+        "canonical": "oklch(0.58 0.2 25)",
+        "darkValue": "oklch(0.65 0.17 25)",
+        "tonalRamp": [
+          "oklch(0.20 0.070 25)",
+          "oklch(0.30 0.110 25)",
+          "oklch(0.43 0.160 25)",
+          "oklch(0.58 0.2 25)",
+          "oklch(0.65 0.17 25)",
+          "oklch(0.76 0.120 25)",
+          "oklch(0.87 0.070 25)",
+          "oklch(0.95 0.030 25)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Instrument Serif on the page h1 only, enforced by the base layer. One serif line per page."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings, the single SectionHeading shape used on every screen."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, dropping one step in small cards."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "The default size of the entire interface, set on the card container itself."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase eyebrows above page titles and the wordmark lockup. Nowhere else."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "JetBrains Mono for job names and identifiers only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-ring",
+        "value": "0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent)",
+        "purpose": "Every card, at rest and on hover. A contour, not a shadow."
+      },
+      {
+        "name": "hero-lift",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "The home search field, the only resting element in the system allowed to float."
+      },
+      {
+        "name": "moon-glow",
+        "value": "radial-gradient(60rem 32rem at 78% -18%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 65%), radial-gradient(48rem 28rem at 12% -12%, color-mix(in oklab, var(--chart-2) 14%, transparent), transparent 70%)",
+        "purpose": "The hero band background. Atmosphere, not elevation, and it appears once per site."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default for every colour, border and ring transition on controls."
+      },
+      {
+        "name": "poster-scale",
+        "value": "500ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "The poster hover scale to 1.03 inside its clip. The outer limit of the system."
+      },
+      {
+        "name": "reduced",
+        "value": "0.01ms",
+        "purpose": "Global override under prefers-reduced-motion: animations, transitions and scroll behaviour all collapse to the end state."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "container", "value": "1152px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main action on a screen. One per screen, and it is the only ochre fill.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Request</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius-lg, 12px); font-family: var(--font-body), system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; white-space: nowrap; cursor: pointer; transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); outline: none; } .ds-btn-primary { background: var(--primary); color: var(--primary-foreground); } .ds-btn-primary:hover { background: color-mix(in oklab, var(--primary) 80%, transparent); } .ds-btn-primary:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Everything that is not the main action. The most used variant in the interface.",
+      "html": "<button class=\"ds-btn ds-btn-ghost\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 256 256\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"12\"><rect x=\"40\" y=\"40\" width=\"176\" height=\"176\" rx=\"24\"/><circle cx=\"92\" cy=\"92\" r=\"10\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"164\" cy=\"164\" r=\"10\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"128\" cy=\"128\" r=\"10\" fill=\"currentColor\" stroke=\"none\"/></svg>Surprise me</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: var(--muted-foreground); } .ds-btn-ghost:hover { background: var(--muted); color: var(--foreground); } .ds-btn-ghost:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-btn-ghost:active { transform: translateY(1px); } .ds-btn-ghost svg { flex-shrink: 0; pointer-events: none; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "A ten percent wash with red text. Never a solid red fill.",
+      "html": "<button class=\"ds-btn ds-btn-destructive\">Reject</button>",
+      "css": ".ds-btn-destructive { background: color-mix(in oklab, var(--destructive) 10%, transparent); color: var(--destructive); } .ds-btn-destructive:hover { background: color-mix(in oklab, var(--destructive) 20%, transparent); } .ds-btn-destructive:focus-visible { border-color: color-mix(in oklab, var(--destructive) 40%, transparent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 20%, transparent); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "32px tall, hairline stroke, transparent ground. Focus is a border shift plus a three-pixel ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search a title\" aria-label=\"Search a title\" />",
+      "css": ".ds-input { height: 32px; width: 100%; min-width: 0; padding: 4px 10px; border: 1px solid var(--input); border-radius: var(--radius-lg, 12px); background: transparent; color: var(--foreground); font-family: var(--font-body), system-ui, sans-serif; font-size: 0.875rem; outline: none; transition: color 150ms, border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-input[aria-invalid=\"true\"] { border-color: var(--destructive); box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 20%, transparent); } .ds-input:disabled { background: color-mix(in oklab, var(--input) 50%, transparent); opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Hero Search",
+      "kind": "custom",
+      "refersTo": "hero-search",
+      "description": "The one input that matters on the site, and the only resting element in the system that carries a shadow.",
+      "html": "<form class=\"ds-hero-search\"><span class=\"ds-hero-search-field\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 256 256\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"14\" stroke-linecap=\"round\"><circle cx=\"116\" cy=\"116\" r=\"76\"/><line x1=\"170\" y1=\"170\" x2=\"216\" y2=\"216\"/></svg><input type=\"text\" placeholder=\"A film, a series\" aria-label=\"Search\" /></span><button type=\"submit\" class=\"ds-hero-search-submit\">Search</button></form>",
+      "css": ".ds-hero-search { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 768px; margin: 0 auto; padding: 8px; border: 1px solid color-mix(in oklab, var(--border) 70%, transparent); border-radius: 9999px; background: color-mix(in oklab, var(--card) 70%, transparent); backdrop-filter: blur(8px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); transition: border-color 150ms; } .ds-hero-search:focus-within { border-color: color-mix(in oklab, var(--primary) 50%, transparent); } .ds-hero-search-field { display: flex; flex: 1; align-items: center; gap: 12px; padding: 0 12px; color: var(--muted-foreground); } .ds-hero-search-field input { height: 44px; width: 100%; border: 0; background: transparent; color: var(--foreground); font-family: var(--font-body), system-ui, sans-serif; font-size: 1rem; outline: none; } .ds-hero-search-field input::placeholder { color: var(--muted-foreground); } .ds-hero-search-submit { height: 44px; padding: 0 24px; border: 0; border-radius: 9999px; background: var(--primary); color: var(--primary-foreground); font-family: var(--font-body), system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 150ms; } .ds-hero-search-submit:hover { background: color-mix(in oklab, var(--primary) 80%, transparent); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "A hairline ring on a surface one tonal step above the page. No shadow, at rest or on hover.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><div class=\"ds-card-title\">Community poll</div><div class=\"ds-card-action\">4 days left</div></div><div class=\"ds-card-content\"><p class=\"ds-card-question\">Which season do we add next?</p><p class=\"ds-card-description\">Results appear once you have voted.</p></div></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 16px; padding: 16px 0; overflow: hidden; border-radius: 16.8px; background: var(--card); color: var(--card-foreground); font-family: var(--font-body), system-ui, sans-serif; font-size: 0.875rem; box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent); } .ds-card-header { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 4px; padding: 0 16px; } .ds-card-title { font-size: 1rem; font-weight: 600; line-height: 1.375; letter-spacing: -0.01em; } .ds-card-action { color: var(--muted-foreground); font-size: 0.75rem; } .ds-card-content { padding: 0 16px; } .ds-card-question { margin: 0 0 4px; font-weight: 500; } .ds-card-description { margin: 0; color: var(--muted-foreground); }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge-outline",
+      "description": "Request and episode states. The ochre default variant is reserved for genuinely primary marks.",
+      "html": "<span class=\"ds-badge ds-badge-outline\">Scheduled</span> <span class=\"ds-badge ds-badge-secondary\">To add</span> <span class=\"ds-badge ds-badge-default\">On the server</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 20px; width: fit-content; padding: 2px 8px; border: 1px solid transparent; border-radius: 31.2px; font-family: var(--font-body), system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; white-space: nowrap; transition: all 150ms; } .ds-badge-default { background: var(--primary); color: var(--primary-foreground); } .ds-badge-secondary { background: var(--secondary); color: var(--secondary-foreground); } .ds-badge-outline { border-color: var(--border); color: var(--foreground); }"
+    },
+    {
+      "name": "Member Nav",
+      "kind": "nav",
+      "refersTo": "nav-pill-active",
+      "description": "Four destinations in a blurred hairline pill. The active item is an ochre underline, never a fill.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\" aria-current=\"page\">Home<span class=\"ds-nav-underline\"></span></a><a class=\"ds-nav-item\" href=\"#\">Request</a><a class=\"ds-nav-item\" href=\"#\">Polls</a><a class=\"ds-nav-item\" href=\"#\">News</a></nav>",
+      "css": ".ds-nav { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); border-radius: 9999px; background: color-mix(in oklab, var(--card) 60%, transparent); backdrop-filter: blur(8px); } .ds-nav-item { position: relative; padding: 8px 16px; border-radius: 9999px; color: var(--muted-foreground); font-family: var(--font-body), system-ui, sans-serif; font-size: 0.875rem; text-decoration: none; transition: color 150ms, background 150ms; outline: none; } .ds-nav-item:hover { background: color-mix(in oklab, var(--secondary) 60%, transparent); color: var(--foreground); } .ds-nav-item:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-nav-item-active { color: var(--foreground); } .ds-nav-underline { position: absolute; left: 16px; right: 16px; bottom: -1px; height: 1px; border-radius: 9999px; background: var(--primary); }"
+    },
+    {
+      "name": "Week Strip",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The answer to the hero metric block: three aggregate figures on hairlines. It removes itself when every figure is zero.",
+      "html": "<ul class=\"ds-week-strip\"><li><p class=\"ds-week-value\">7</p><p class=\"ds-week-label\">New titles</p></li><li><p class=\"ds-week-value\">3</p><p class=\"ds-week-label\">Requests handled</p></li><li><p class=\"ds-week-value\">24</p><p class=\"ds-week-label\">New episodes</p></li></ul>",
+      "css": ".ds-week-strip { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; padding: 0; list-style: none; border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); border-radius: 16.8px; font-family: var(--font-body), system-ui, sans-serif; } .ds-week-strip li { padding: 12px 16px; text-align: center; } .ds-week-strip li + li { border-left: 1px solid color-mix(in oklab, var(--border) 60%, transparent); } .ds-week-value { margin: 0; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; } .ds-week-label { margin: 0; color: var(--muted-foreground); font-size: 0.75rem; }"
+    },
+    {
+      "name": "Poster",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "A 2:3 frame that exists before the image arrives, so nothing shifts. Falls back to the title rather than a broken glyph.",
+      "html": "<div class=\"ds-poster\"><span class=\"ds-poster-fallback\">The Third Man</span></div>",
+      "css": ".ds-poster { position: relative; aspect-ratio: 2 / 3; width: 160px; overflow: hidden; border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); border-radius: var(--radius-lg, 12px); background: color-mix(in oklab, var(--secondary) 60%, transparent); } .ds-poster img { width: 100%; height: 100%; object-fit: cover; transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-poster:hover img { transform: scale(1.03); } .ds-poster-fallback { display: flex; align-items: center; justify-content: center; height: 100%; padding: 0 8px; color: var(--muted-foreground); font-family: var(--font-body), system-ui, sans-serif; font-size: 0.75rem; text-align: center; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Messenger's Desk",
+    "overview": "Umbra is a desk, not a storefront. Warm paper under a lamp, blue-black ink, and one ochre, the colour the messenger dog wears in the mark. You come to it to leave a request, to see what arrived, to pick one of two options. Then you leave and go watch. The interface is the surface between the two, and its whole job is to be legible and to get out of the way of the posters.\n\nThat gives the system its density and its restraint. Controls are compact and familiar, borrowed wholesale from the shadcn base-nova vocabulary on Base UI primitives: a 32px control height, 12px corners, a three-pixel focus ring. There is exactly one serif line per page, the h1, set in Instrument Serif and applied by the base layer so no screen can decide otherwise. Everything else, headings included, is Manrope. The mono is kept for the things that are literally codes: job names, identifiers. Colour is used almost nowhere. The ochre marks the primary action, the current page and one state indicator, and that is the list.\n\nWhat this system rejects is the entire vocabulary of the media dashboard. No popularity counters, no server health gauges, no gamified progress, no wall of identical cards. Umbra shows what is new, what is coming and one decision to make. If a screen starts filling with metrics, the screen is wrong, not the system. The night theme is not an afterthought: the same page in near-black blues with the ochre opened up, because the server this fronts runs in a room that is usually dark.",
+    "keyCharacteristics": [
+      "Warm tinted neutrals in daylight, near-black blues at night, the same ochre in both.",
+      "One serif line per page, one grotesk for everything readable, one mono for codes.",
+      "Flat at rest. Depth comes from hairlines and tonal planes, not shadows.",
+      "Compact controls, 32px tall, 12px corners, consistent across member and admin screens.",
+      "Posters carry the visual weight. The chrome around them stays quiet.",
+      "Motion conveys state and nothing else, and disappears entirely under prefers-reduced-motion."
+    ],
+    "rules": [
+      {
+        "name": "The One Lamp Rule",
+        "body": "Messenger Ochre is the only lamp on the desk. It is permitted on primary actions, the current selection, and state indicators. Everywhere else it is prohibited, including headings, icon fills, dividers, badges that are not actions, and anything decorative. If a screen has two ochre areas competing for the eye, one is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tinted Neutral Rule",
+        "body": "No #000, no #fff, no untinted grey anywhere in the system. Warm neutrals carry hue 85, cold neutrals carry hue 262 to 265. The single exception is the daylight card surface, oklch(1 0 0), which is the sheet of paper and is deliberate.",
+        "section": "colors"
+      },
+      {
+        "name": "The Destructive Wash Rule",
+        "body": "Destructive intent is shown as a 10 percent wash with red text, never as a filled red button. Nothing a member can do in Umbra is irreversible enough to earn a solid red.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Serif Line Rule",
+        "body": "Instrument Serif appears exactly once per page, on the h1, and the base layer enforces it. It is forbidden on section headings, card titles, buttons, labels, data, and empty states. One voice for the mood, one for the information.",
+        "section": "typography"
+      },
+      {
+        "name": "The Uppercase Budget Rule",
+        "body": "Uppercase with wide tracking is reserved for the wordmark and for eyebrow labels above a page title. It is prohibited on buttons, badges, nav items, table headers, and section headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat. A shadow states that an element floats above the page, and in Umbra exactly one resting element does. If you are reaching for shadow-md on a card, you want a hairline or a tonal step instead.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Blur Licence Rule",
+        "body": "backdrop-blur is licensed only where content scrolls underneath: the sticky header and the nav pill. Glass cards, blurred panels, and frosted overlays are prohibited.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep Messenger Ochre to primary actions, the current selection, and state indicators. If two ochre areas compete on one screen, remove one.",
+      "Do tint every neutral: hue 85 for the warm family, hue 262 to 265 for the ink and the night. The daylight card at oklch(1 0 0) is the one sanctioned pure value.",
+      "Do reach for a hairline or a tonal step before a shadow. Cards get ring-1 ring-foreground/10 and nothing else.",
+      "Do give every interactive element its full state set: default, hover, focus-visible with the three-pixel ring, active, disabled, and where relevant loading and invalid.",
+      "Do use skeletons shaped like the content that is coming, never a spinner parked in the middle of a page.",
+      "Do import every icon from src/components/icons.tsx, never from @phosphor-icons/react directly.",
+      "Do add every new user-visible string to both dictionaries in src/lib/i18n/dictionaries.ts. French is typed against English, so a missing translation fails the build.",
+      "Do put tabular-nums on any number a reader compares vertically or that updates in place.",
+      "Do let a section remove itself when it has nothing to show, the way the week strip does, rather than rendering an empty container.",
+      "Do write empty states that name the next action: no request yet, search for a title."
+    ],
+    "donts": [
+      "Don't add a comment field, a chat, a review, a caption, or any other free-text input for members. No free text is the product, not a missing feature, and it is what removes moderation entirely.",
+      "Don't build an uptime indicator, a server online badge, an availability alert, or a maintenance banner. Umbra runs on the same machine as the media server: if Umbra answers, the server is up.",
+      "Don't introduce any payment affordance, donor name, contributor list, or wording that suggests contributing buys access. The funding goal is a number the administrator edits by hand.",
+      "Don't add a request counter, a me too control, a popularity ranking, or an upvote on a title. One request per title, and the administrator sees a list to consider, not a contest.",
+      "Don't build a library browser, a player, or a watch history. Umbra is not a second Plex.",
+      "Don't let any wording imply that an aired episode is a downloaded one. The vocabulary is scheduled, aired, to add, on the server.",
+      "Don't use border-left or border-right above one pixel as a coloured accent stripe on cards, list items, or alerts. Use a full ring, a background tint, or nothing.",
+      "Don't apply background-clip: text with a gradient. Emphasis comes from weight and size, never from gradient text.",
+      "Don't use backdrop-blur outside the sticky header and the nav pill. No glass cards, no frosted panels.",
+      "Don't build the big-number-plus-gradient hero metric block. The week strip is the answer, and it is three plain figures on hairlines.",
+      "Don't fill a screen with identically sized icon-heading-text cards. The home page grid is deliberately uneven.",
+      "Don't put Instrument Serif on anything but the h1, and don't put uppercase wide tracking on buttons, badges, or nav items.",
+      "Don't ship a solid red button. Destructive intent is a 10 percent wash with red text.",
+      "Don't reach for a modal before exhausting the inline alternative. The only dialogs in the system are the discovery result and genuine confirmations.",
+      "Don't animate anything that does not convey state, and never animate a layout property. Transitions run 150 to 250ms; the poster scale at 500ms is the outer limit.",
+      "Don't borrow the reserved chart hues (green 155, violet 300, gold 90) for interface colour. No chart component ships yet.",
+      "Don't use an em dash or an emoji anywhere: code, comments, documentation, or interface copy."
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "episode_task" DROP COLUMN "notified_at";

@@ -28,4 +28,13 @@ export function db() {
   return cachedDb;
 }
 
+/**
+ * The driver underneath Drizzle, for the one thing Drizzle does not model:
+ * `LISTEN` and `NOTIFY`. Used by `src/lib/realtime.ts` and nowhere else;
+ * everything that reads or writes rows goes through `db()`.
+ */
+export function dbClient() {
+  return client();
+}
+
 export { schema };
