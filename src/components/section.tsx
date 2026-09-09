@@ -38,7 +38,7 @@ export function SectionHeading({
       {href ? (
         <Link
           href={href}
-          className="hover:text-primary rounded-md transition-colors"
+          className="hover:text-primary focus-visible:ring-ring/50 rounded-md transition-colors outline-none focus-visible:ring-3"
         >
           {heading}
         </Link>

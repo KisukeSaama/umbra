@@ -18,24 +18,28 @@ const LINKS = [
   { href: "/admin/jobs", key: "admin.nav.jobs" },
 ] as const;
 
+function isCurrent(href: string, pathname: string) {
+  return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+}
+
 export function AdminNav() {
   const t = useTranslator();
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
+    <nav
+      aria-label={t("admin.title")}
+      className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:flex-col lg:overflow-visible lg:pb-0"
+    >
       {LINKS.map((link) => {
-        const active =
-          link.href === "/admin"
-            ? pathname === "/admin"
-            : pathname.startsWith(link.href);
+        const active = isCurrent(link.href, pathname);
         return (
           <Link
             key={link.href}
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors",
+              "focus-visible:ring-ring/50 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-3",
               active
                 ? "bg-secondary text-foreground font-medium"
                 : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
@@ -46,5 +50,29 @@ export function AdminNav() {
         );
       })}
     </nav>
+  );
+}
+
+/**
+ * The page title, named after the section rather than the whole area: on a
+ * phone the active nav item can be scrolled out of view, and the heading is
+ * what tells you where you are. The member pages use the same shape, an
+ * eyebrow and a serif line.
+ */
+export function AdminHeading() {
+  const t = useTranslator();
+  const pathname = usePathname();
+  const current =
+    LINKS.find((link) => isCurrent(link.href, pathname)) ?? LINKS[0];
+
+  return (
+    <div className="mb-8">
+      <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
+        {t("admin.title")}
+      </p>
+      <h1 className="mt-1 text-3xl tracking-tight sm:text-4xl">
+        {t(current.key)}
+      </h1>
+    </div>
   );
 }

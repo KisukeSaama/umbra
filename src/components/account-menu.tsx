@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  CheckIcon,
   DisplayIcon,
   MoonIcon,
   PersonIcon,
@@ -18,11 +17,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslator } from "@/lib/i18n/client";
-import { cn } from "@/lib/utils";
 
 /**
  * Everything about "you" lives here: who you are, how the site looks, and the
@@ -56,7 +56,7 @@ export function AccountMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="ring-offset-background focus-visible:ring-ring rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        className="focus-visible:ring-ring/50 rounded-full outline-none focus-visible:ring-3"
         aria-label={username}
       >
         <span className="border-border/70 bg-secondary text-secondary-foreground flex size-9 items-center justify-center rounded-full border text-sm font-medium">
@@ -65,7 +65,7 @@ export function AccountMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col gap-0.5">
+        <DropdownMenuLabel className="text-foreground flex flex-col gap-0.5 text-sm">
           <span className="truncate">{username}</span>
           {isAdmin ? (
             <span className="text-muted-foreground text-xs font-normal">
@@ -75,30 +75,27 @@ export function AccountMenu({
         </DropdownMenuLabel>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
-          {t("nav.theme")}
-        </DropdownMenuLabel>
-        {themes.map((option) => (
-          <DropdownMenuItem
-            key={option.value}
-            onSelect={(event) => {
-              event.preventDefault();
-              setTheme(option.value);
-            }}
-          >
-            <option.icon className="size-4" />
-            {option.label}
-            <CheckIcon
-              className={cn(
-                "ml-auto size-4",
-                theme === option.value ? "opacity-100" : "opacity-0",
-              )}
-            />
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuLabel>{t("nav.theme")}</DropdownMenuLabel>
+        {/* Picking a look keeps the menu open: the change is visible behind it,
+            and a second pick is one click away rather than three. */}
+        <DropdownMenuRadioGroup
+          value={theme ?? "system"}
+          onValueChange={(value) => setTheme(String(value))}
+        >
+          {themes.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              closeOnClick={false}
+            >
+              <option.icon />
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()}>
+        <DropdownMenuItem disabled={signingOut} onClick={() => void signOut()}>
           <SignOutIcon />
           {t("nav.signOut")}
         </DropdownMenuItem>

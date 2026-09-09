@@ -38,3 +38,19 @@ describe("series status", () => {
     expect(isRunning({ status: null, inProduction: false })).toBe(false);
   });
 });
+
+describe("dates", () => {
+  it("keeps a date-only value on its own day whatever the timezone", async () => {
+    const { formatDate, formatAirDate } = await import("@/lib/format");
+    expect(formatDate("2026-09-09", "en")).toContain("2026");
+    expect(formatDate("2026-09-09", "en")).toContain("9");
+    expect(formatAirDate("2026-09-09", "fr")).toMatch(/mer/i);
+  });
+
+  it("writes a moment with its time", async () => {
+    const { formatDateTime } = await import("@/lib/format");
+    const text = formatDateTime(new Date(2026, 8, 9, 10, 23), "fr");
+    expect(text).toContain("2026");
+    expect(text).toContain("10:23");
+  });
+});

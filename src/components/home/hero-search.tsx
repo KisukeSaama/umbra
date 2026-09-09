@@ -1,6 +1,6 @@
 "use client";
 
-import { DiceIcon, SearchIcon } from "@/components/icons";
+import { DiceIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -94,7 +94,7 @@ export function HeroSearch({ initialQuery = "" }: { initialQuery?: string }) {
             title={t("home.discoverHint")}
             className="h-11 flex-1 justify-start gap-2 rounded-full px-4 text-left sm:flex-none"
           >
-            <DiceIcon />
+            {rolling ? <SpinnerIcon /> : <DiceIcon />}
             <span className="text-sm leading-tight">{t("home.discover")}</span>
           </Button>
           <Button type="submit" className="h-11 rounded-full px-5 sm:px-6">
@@ -129,7 +129,7 @@ export function HeroSearch({ initialQuery = "" }: { initialQuery?: string }) {
                   {discovered.kind === "movie"
                     ? t("common.movie")
                     : t("common.series")}
-                  {discovered.year ? ` - ${discovered.year}` : ""}
+                  {discovered.year ? ` · ${discovered.year}` : ""}
                 </p>
                 <p className="text-primary pt-2 text-sm">
                   {t("status.available")}
@@ -142,7 +142,8 @@ export function HeroSearch({ initialQuery = "" }: { initialQuery?: string }) {
             onClick={() => void discover()}
             disabled={rolling}
           >
-            {t("common.retry")}
+            {rolling ? <SpinnerIcon /> : <DiceIcon />}
+            {t("home.discoverAgain")}
           </Button>
         </DialogContent>
       </Dialog>

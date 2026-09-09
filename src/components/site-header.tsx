@@ -13,7 +13,10 @@ export async function SiteHeader() {
   return (
     <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
       <div className="umbra-container flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="rounded-lg outline-none focus-visible:ring-2">
+        <Link
+          href="/"
+          className="focus-visible:ring-ring/50 rounded-lg outline-none focus-visible:ring-3"
+        >
           <UmbraWordmark forLabel={t("brand.for")} compact />
         </Link>
 

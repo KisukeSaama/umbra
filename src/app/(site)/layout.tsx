@@ -24,8 +24,8 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
         {account.status === "approved" ? (
           children
         ) : (
-          <div className="umbra-container flex min-h-[50vh] flex-col items-center justify-center gap-2 text-center">
-            <h1 className="text-xl font-semibold">
+          <div className="umbra-container flex min-h-[50vh] flex-col items-center justify-center gap-3 py-16 text-center">
+            <h1 className="text-2xl tracking-tight text-balance sm:text-3xl">
               {account.status === "blocked"
                 ? t("auth.blocked")
                 : t("auth.pending")}

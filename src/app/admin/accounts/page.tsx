@@ -1,6 +1,7 @@
 import { ActionButton } from "@/components/admin/action-button";
 import { Badge } from "@/components/ui/badge";
 import { listAccounts } from "@/lib/domain/accounts";
+import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -14,6 +15,10 @@ export default async function AdminAccountsPage() {
   const { t, locale } = await getI18n();
   const accounts = await listAccounts();
 
+  if (accounts.length === 0) {
+    return <p className="text-muted-foreground text-sm">{t("common.empty")}</p>;
+  }
+
   return (
     <ul className="divide-border/60 divide-y">
       {accounts.map((account) => (
@@ -21,15 +26,20 @@ export default async function AdminAccountsPage() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{account.username}</p>
             <p className="text-muted-foreground text-xs">
-              {t(`admin.accounts.role.${account.role}` as TranslationKey)} -{" "}
-              {account.createdAt.toLocaleDateString(
-                locale === "fr" ? "fr-FR" : "en-US",
-              )}
+              {t(`admin.accounts.role.${account.role}` as TranslationKey)}
+              {" · "}
+              {formatDate(account.createdAt, locale)}
             </p>
           </div>
 
           <Badge
-            variant={account.status === "approved" ? "secondary" : "default"}
+            variant={
+              account.status === "pending"
+                ? "default"
+                : account.status === "blocked"
+                  ? "destructive"
+                  : "secondary"
+            }
           >
             {t(`admin.accounts.status.${account.status}` as TranslationKey)}
           </Badge>

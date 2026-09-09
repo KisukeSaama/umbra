@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { publishedAnnouncements } from "@/lib/domain/announcements";
+import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -24,26 +31,25 @@ export default async function NewsPage() {
           {announcements.map((announcement) => (
             <li key={announcement.id}>
               <Card>
-                <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-                  <CardTitle className="text-base">
-                    {announcement.title}
-                  </CardTitle>
-                  <Badge variant="secondary">
-                    {t(
-                      `news.category.${announcement.category}` as TranslationKey,
-                    )}
-                  </Badge>
+                <CardHeader>
+                  <CardTitle>{announcement.title}</CardTitle>
+                  <CardAction>
+                    <Badge variant="secondary">
+                      {t(
+                        `news.category.${announcement.category}` as TranslationKey,
+                      )}
+                    </Badge>
+                  </CardAction>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-muted-foreground text-sm whitespace-pre-line">
+                  <p className="text-muted-foreground max-w-prose text-sm leading-relaxed whitespace-pre-line">
                     {announcement.content}
                   </p>
                   {announcement.publishedAt ? (
                     <p className="text-muted-foreground text-xs">
-                      {announcement.publishedAt.toLocaleDateString(
-                        locale === "fr" ? "fr-FR" : "en-US",
-                        { day: "numeric", month: "long", year: "numeric" },
-                      )}
+                      <time dateTime={announcement.publishedAt.toISOString()}>
+                        {formatDate(announcement.publishedAt, locale, "long")}
+                      </time>
                     </p>
                   ) : null}
                 </CardContent>

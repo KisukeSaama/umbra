@@ -164,3 +164,16 @@
     border-color: color-mix(in oklab, var(--foreground) 10%, transparent);
   }
 }
+
+/* Motion here only ever conveys state. Someone who asked for less of it loses
+   nothing by getting the end state straight away. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

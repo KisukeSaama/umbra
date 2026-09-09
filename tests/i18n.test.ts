@@ -51,3 +51,24 @@ describe("translation", () => {
     );
   });
 });
+
+describe("plurals", () => {
+  it("picks the singular form where the dictionary offers one", () => {
+    const en = createTranslator("en");
+    expect(en("poll.votes", { count: 1 })).toBe("1 vote");
+    expect(en("poll.votes", { count: 0 })).toBe("0 votes");
+    expect(en("poll.votes", { count: 2 })).toBe("2 votes");
+  });
+
+  it("follows the language's idea of one: French counts zero as singular", () => {
+    const fr = createTranslator("fr");
+    expect(fr("poll.votes", { count: 0 })).toBe("0 vote");
+    expect(fr("poll.votes", { count: 1 })).toBe("1 vote");
+    expect(fr("poll.votes", { count: 2 })).toBe("2 votes");
+  });
+
+  it("leaves keys without a singular variant untouched", () => {
+    const en = createTranslator("en");
+    expect(en("admin.inbox.polls", { count: 1 })).toBe("1 active poll");
+  });
+});

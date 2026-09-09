@@ -27,7 +27,7 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
             </p>
             <p className="text-muted-foreground text-xs">
               {item.kind === "movie" ? t("common.movie") : t("common.series")}
-              {item.year ? ` - ${item.year}` : ""}
+              {item.year ? ` · ${item.year}` : ""}
             </p>
           </li>
         ))}

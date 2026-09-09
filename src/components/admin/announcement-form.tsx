@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
 /**
  * Writing an announcement.
  *
- * Publishing is a checkbox on the same form rather than a second step: an
+ * Publishing is a second button on the same form rather than a second step: an
  * announcement is either a draft or out there, and both are one click away.
  */
 export function AnnouncementForm() {
@@ -72,69 +72,77 @@ export function AnnouncementForm() {
 
   const ready = title.trim().length > 1 && content.trim().length > 1;
 
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (ready && !busy) void submit(true);
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t("admin.announcements.new")}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-[1fr_12rem]">
+      <CardContent>
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
+            <div className="space-y-1.5">
+              <Label htmlFor="announcement-title">{t("common.title")}</Label>
+              <Input
+                id="announcement-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="announcement-category">
+                {t("admin.announcements.category")}
+              </Label>
+              <Select
+                value={category}
+                onValueChange={(value) =>
+                  setCategory(value as AnnouncementCategory)
+                }
+              >
+                <SelectTrigger id="announcement-category" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANNOUNCEMENT_CATEGORIES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {t(`news.category.${value}` as TranslationKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="announcement-title">{t("news.title")}</Label>
-            <Input
-              id="announcement-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
+            <Label htmlFor="announcement-content">
+              {t("admin.announcements.content")}
+            </Label>
+            <Textarea
+              id="announcement-content"
+              rows={5}
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="announcement-category">
-              {t("news.category.information")}
-            </Label>
-            <Select
-              value={category}
-              onValueChange={(value) =>
-                setCategory(value as AnnouncementCategory)
-              }
+
+          <div className="flex gap-2">
+            <Button type="submit" disabled={!ready || busy}>
+              {t("admin.announcements.publish")}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!ready || busy}
+              onClick={() => void submit(false)}
             >
-              <SelectTrigger id="announcement-category">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ANNOUNCEMENT_CATEGORIES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {t(`news.category.${value}` as TranslationKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {t("admin.announcements.draft")}
+            </Button>
           </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="announcement-content">
-            {t("section.announcement")}
-          </Label>
-          <Textarea
-            id="announcement-content"
-            rows={5}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-2">
-          <Button disabled={!ready || busy} onClick={() => void submit(true)}>
-            {t("admin.announcements.publish")}
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={!ready || busy}
-            onClick={() => void submit(false)}
-          >
-            {t("admin.announcements.draft")}
-          </Button>
-        </div>
+        </form>
       </CardContent>
     </Card>
   );

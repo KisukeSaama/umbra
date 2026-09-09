@@ -37,7 +37,7 @@ export function MainNav({ isAdmin }: { isAdmin: boolean }) {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative rounded-full px-3 py-1.5 text-sm transition-colors sm:px-4",
+              "focus-visible:ring-ring/50 relative rounded-full px-3 py-2 text-sm transition-colors outline-none focus-visible:ring-3 sm:px-4 md:py-1.5",
               active
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",

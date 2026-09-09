@@ -50,11 +50,23 @@ export function dictionaryFor(locale: Locale): Record<TranslationKey, string> {
   return dictionaries[locale];
 }
 
-/** `{count} results` with `{count}` replaced. Missing keys fall back to the key. */
+/**
+ * `{count} results` with `{count}` replaced. Missing keys fall back to the key.
+ *
+ * Plurals: when `count` is given and the dictionary carries a `<key>.one`
+ * variant, the singular form is used for the counts the language treats as
+ * one. English stops at 1; French includes 0.
+ */
 export function createTranslator(locale: Locale): Translator {
   const dictionary = dictionaryFor(locale);
+  const plurals = new Intl.PluralRules(locale);
   return (key, values) => {
-    const template = dictionary[key] ?? key;
+    let template = dictionary[key] ?? key;
+    if (values && typeof values.count === "number") {
+      const variant = `${key}.${plurals.select(values.count)}`;
+      if (variant in dictionary)
+        template = dictionary[variant as TranslationKey];
+    }
     if (!values) return template;
     return template.replace(/\{(\w+)\}/g, (match, name: string) =>
       name in values ? String(values[name]) : match,

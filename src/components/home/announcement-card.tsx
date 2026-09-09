@@ -1,5 +1,13 @@
+import Link from "next/link";
+
 import { AnnounceIcon } from "@/components/icons";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { AnnouncementView } from "@/lib/domain/announcements";
 import type { TranslationKey } from "@/lib/i18n";
 import { getTranslator } from "@/lib/i18n/server";
@@ -14,12 +22,17 @@ export async function AnnouncementCard({
 
   return (
     <Card className="h-full">
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+      <CardHeader>
         <CardTitle>{t("section.announcement")}</CardTitle>
         {announcement ? (
-          <span className="text-muted-foreground text-xs">
-            {t(`news.category.${announcement.category}` as TranslationKey)}
-          </span>
+          <CardAction>
+            <Link
+              href="/news"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 rounded-md text-xs transition-colors outline-none focus-visible:ring-3"
+            >
+              {t("common.viewAll")}
+            </Link>
+          </CardAction>
         ) : null}
       </CardHeader>
       <CardContent>
@@ -28,7 +41,10 @@ export async function AnnouncementCard({
             <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
               <AnnounceIcon />
             </span>
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
+              <p className="text-muted-foreground text-xs">
+                {t(`news.category.${announcement.category}` as TranslationKey)}
+              </p>
               <p className="font-medium">{announcement.title}</p>
               <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-line">
                 {announcement.content}

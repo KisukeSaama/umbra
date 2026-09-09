@@ -6,6 +6,7 @@ import { countRequestsByStatus } from "@/lib/domain/requests";
 import { listOpenEpisodeTasks } from "@/lib/domain/series";
 import { activePoll } from "@/lib/domain/polls";
 import { storageOverview } from "@/lib/domain/storage";
+import { formatDateTime } from "@/lib/format";
 import { jobStatus } from "@/lib/jobs";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -68,12 +69,12 @@ export default async function AdminOverviewPage() {
               {t("admin.inbox.clear")}
             </p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-1">
               {todo.map((entry) => (
                 <li key={entry.href}>
                   <Link
                     href={entry.href}
-                    className="hover:bg-secondary/60 -mx-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors"
+                    className="hover:bg-secondary/60 focus-visible:ring-ring/50 -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors outline-none focus-visible:ring-3"
                   >
                     <span
                       className="bg-primary size-1.5 rounded-full"
@@ -88,35 +89,33 @@ export default async function AdminOverviewPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label={t("admin.requests.status.requested")}
-          value={requests.requested}
-        />
-        <StatCard label={t("admin.episodes.tasks")} value={tasks.length} />
-        <StatCard
-          label={t("section.storage")}
-          value={storage ? `${Math.round(storage.usedRatio * 100)}%` : "-"}
-        />
-      </div>
-
-      <p className="text-muted-foreground text-xs">
-        {t("admin.jobs.lastSuccess")}:{" "}
-        {lastSync
-          ? lastSync.toLocaleString(locale === "fr" ? "fr-FR" : "en-US")
-          : t("admin.jobs.never")}
-      </p>
+      {/* Two glances, not three cards: the numbers that are decisions live in
+          the inbox above, and these are the only ones left worth a look. */}
+      <dl className="text-muted-foreground flex flex-wrap gap-x-8 gap-y-2 text-sm">
+        <div className="flex items-baseline gap-2">
+          <dt>{t("section.storage")}</dt>
+          <dd className="text-foreground tabular-nums">
+            {storage
+              ? t("storage.used", {
+                  percent: `${Math.round(storage.usedRatio * 100)}%`,
+                })
+              : t("storage.unknown")}
+          </dd>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <dt>{t("admin.jobs.lastSuccess")}</dt>
+          <dd>
+            <Link
+              href="/admin/jobs"
+              className="text-foreground hover:text-primary focus-visible:ring-ring/50 rounded-md tabular-nums transition-colors outline-none focus-visible:ring-3"
+            >
+              {lastSync
+                ? formatDateTime(lastSync, locale)
+                : t("admin.jobs.never")}
+            </Link>
+          </dd>
+        </div>
+      </dl>
     </>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <p className="text-muted-foreground text-sm">{label}</p>
-      </CardContent>
-    </Card>
   );
 }
