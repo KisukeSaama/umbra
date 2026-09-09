@@ -44,7 +44,10 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-5 sm:flex-row">
+      {/* The banner is positioned, so it would paint over anything static that
+          follows it: the row rises into its foot only if it is positioned too,
+          which is what the poster already did on its own. */}
+      <div className="relative flex flex-col gap-5 sm:flex-row">
         <div className="w-32 shrink-0 sm:w-40">
           <Poster src={detail.posterUrl} alt={detail.title} sizes="10rem" />
         </div>
