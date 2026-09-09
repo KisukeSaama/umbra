@@ -1,14 +1,17 @@
+import { FileExplorer } from "@/components/admin/file-explorer";
 import { StatStrip } from "@/components/admin/stat-strip";
 import { StorageScan } from "@/components/admin/storage-scan";
 import { StorageTreemap } from "@/components/admin/storage-treemap";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { requireStaffPage } from "@/lib/auth/session";
-import {
-  storageDetail,
-  storageHistory,
-  storageTree,
-} from "@/lib/domain/storage";
+import { storageDetail, storageTree } from "@/lib/domain/storage";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { runningJob } from "@/lib/jobs";
@@ -17,19 +20,19 @@ import { runningJob } from "@/lib/jobs";
  * Storage, in full.
  *
  * Three readings of the same disk, from the coarsest to the finest: how full it
- * is, what is on it, and where the room went since. The map is the reason this
- * page exists; the figures above it are what you check first.
+ * is, what is on it, and what exactly is there. The map says where the room
+ * went; the explorer under it is where it is taken back, by the administrator
+ * alone. The figures above are what you check first.
  *
  * Volume labels come from configuration, so what is on screen is what the
  * operator chose to name, never a raw device path.
  */
 export default async function AdminStoragePage() {
-  await requireStaffPage();
+  const account = await requireStaffPage();
   const { t, locale } = await getI18n();
-  const [detail, tree, history, running] = await Promise.all([
+  const [detail, tree, running] = await Promise.all([
     storageDetail(),
     storageTree(),
-    storageHistory(12),
     runningJob("storage-scan"),
   ]);
 
@@ -110,71 +113,26 @@ export default async function AdminStoragePage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("admin.storage.volumes")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {detail.volumes.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                {t("common.empty")}
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {detail.volumes.map((volume) => {
-                  const share =
-                    volume.totalBytes > 0
-                      ? Math.round((volume.usedBytes / volume.totalBytes) * 100)
-                      : 0;
-                  return (
-                    <li key={volume.label} className="space-y-1.5">
-                      <div className="flex items-baseline justify-between gap-4">
-                        <span className="min-w-0 truncate text-sm font-medium">
-                          {volume.label}
-                        </span>
-                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                          {formatBytes(volume.usedBytes, locale)} /{" "}
-                          {formatBytes(volume.totalBytes, locale)}
-                        </span>
-                      </div>
-                      <Progress value={share} aria-label={volume.label} />
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        {history.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("admin.storage.history")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="divide-border/60 -my-2 divide-y text-sm">
-                {history.map((point) => (
-                  <li
-                    key={point.recordedAt.toISOString()}
-                    className="flex items-center justify-between gap-4 py-2"
-                  >
-                    <time
-                      dateTime={point.recordedAt.toISOString()}
-                      className="text-muted-foreground tabular-nums"
-                    >
-                      {formatDateTime(point.recordedAt, locale)}
-                    </time>
-                    <span className="tabular-nums">
-                      {formatBytes(point.usedBytes, locale)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("admin.storage.explorer")}</CardTitle>
+          <CardDescription>{t("admin.storage.explorer.hint")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {detail.volumes.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{t("common.empty")}</p>
+          ) : (
+            <FileExplorer
+              volumes={detail.volumes.map((volume) => ({
+                label: volume.label,
+                usedBytes: volume.usedBytes,
+                totalBytes: volume.totalBytes,
+              }))}
+              canDelete={account.role === "admin"}
+            />
+          )}
+        </CardContent>
+      </Card>
     </>
   );
 }

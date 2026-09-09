@@ -20,7 +20,9 @@ import { env, parseStoragePaths } from "@/lib/env";
  *
  * Observed paths come from configuration, never from a request: there is no way
  * from outside to have an arbitrary path inspected, and nothing on the machine
- * is ever executed.
+ * is ever executed. The one place a request names something on the disk is
+ * the explorer, in `storage-files.ts`, and it names things below a configured
+ * volume only.
  *
  * The public side sees a percentage and free space. Per-volume detail stays in
  * the admin area.

@@ -200,8 +200,12 @@ work.
 - Content Security Policy, `Permissions-Policy` and HSTS on every response; the
   only external origin the browser may reach is the TMDB image CDN.
 - Errors return a stable code and a `messageKey`; internal detail stays in logs.
-- Storage paths come from configuration only. No endpoint takes a path, and
-  nothing on the machine is ever executed.
+- Storage paths come from configuration only. No endpoint takes a path outside
+  a configured volume: the file explorer takes a volume label and a list of
+  names, checked one by one and against the volume's real root, never through
+  a symbolic link (see `docs/adr/0012-files-are-deleted-from-the-storage-page.md`).
+  Nothing on the machine is ever executed. Deletion is the administrator's
+  alone, bounded per batch and rate limited.
 - The container runs unprivileged, read-only, with capabilities dropped.
 - `noindex` in the metadata, in `robots.txt`, in a Next response header and in a
   Traefik header: a private hub does not belong in an index.

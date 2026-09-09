@@ -160,6 +160,11 @@ export const en = {
     "A link must be a web address starting with http or https.",
   "error.scanRunning": "The disk is already being measured.",
   "error.syncRunning": "A synchronisation is already under way.",
+  "error.invalidPath": "Unknown path.",
+  "error.pathNotFound": "This no longer exists.",
+  "error.storageReadOnly":
+    "The volume is mounted read-only. Nothing was deleted.",
+  "error.notPlayable": "This file is not a video.",
 
   "admin.title": "Administration",
   "admin.backToSite": "Back to the site",
@@ -311,6 +316,39 @@ export const en = {
     "{count} entries too small to draw are counted but not shown.",
   "admin.storage.folded.one":
     "{count} entry too small to draw is counted but not shown.",
+  "admin.storage.explorer": "Files",
+  "admin.storage.explorer.hint":
+    "What is on the disk, one folder at a time. Deleting is the administrator's alone.",
+  "admin.storage.name": "Name",
+  "admin.storage.size": "Size",
+  "admin.storage.modified": "Modified",
+  "admin.storage.up": "Up one level",
+  "admin.storage.emptyDir": "This folder is empty.",
+  "admin.storage.selectAll": "Select everything here",
+  "admin.storage.select": "Select {name}",
+  "admin.storage.open": "Open {name}",
+  "admin.storage.play": "Play {name}",
+  "admin.storage.selected": "{count} selected",
+  "admin.storage.selected.one": "{count} selected",
+  "admin.storage.clearSelection": "Clear",
+  "admin.storage.deleteTitle": "Delete {count} entries",
+  "admin.storage.deleteTitle.one": "Delete {count} entry",
+  "admin.storage.deleteWarning":
+    "They are removed from the disk at once. There is no bin and no way back.",
+  "admin.storage.deleteFolders": "A folder goes with everything it contains.",
+  "admin.storage.weighing": "Weighing the selection",
+  "admin.storage.weight": "{bytes} across {count} files",
+  "admin.storage.weight.one": "{bytes} in {count} file",
+  "admin.storage.weightPartial": "at least {bytes}, counting stopped",
+  "admin.storage.deleted": "{count} entries deleted.",
+  "admin.storage.deleted.one": "{count} entry deleted.",
+  "admin.storage.deleteFailed": "{count} entries could not be deleted.",
+  "admin.storage.deleteFailed.one": "{count} entry could not be deleted.",
+  "admin.storage.player": "Preview",
+  "admin.storage.playerHint":
+    "Played as it is on disk, without transcoding. The browser decodes what it can.",
+  "admin.storage.playerFailed":
+    "The browser cannot play this format. Plex will, since it transcodes.",
 
   "nav.discover": "Discover",
   "nav.activity": "My follow-up",
@@ -633,6 +671,11 @@ export const fr: Record<TranslationKey, string> = {
     "Un lien doit être une adresse web commençant par http ou https.",
   "error.scanRunning": "Le disque est déjà en cours de mesure.",
   "error.syncRunning": "Une synchronisation est déjà en cours.",
+  "error.invalidPath": "Chemin inconnu.",
+  "error.pathNotFound": "Cela n'existe plus.",
+  "error.storageReadOnly":
+    "Le volume est monté en lecture seule. Rien n'a été supprimé.",
+  "error.notPlayable": "Ce fichier n'est pas une vidéo.",
 
   "admin.title": "Administration",
   "admin.backToSite": "Retour au site",
@@ -783,6 +826,39 @@ export const fr: Record<TranslationKey, string> = {
     "{count} entrées trop petites pour être dessinées sont comptées sans être montrées.",
   "admin.storage.folded.one":
     "{count} entrée trop petite pour être dessinée est comptée sans être montrée.",
+  "admin.storage.explorer": "Fichiers",
+  "admin.storage.explorer.hint":
+    "Ce qu'il y a sur le disque, dossier par dossier. Seul l'administrateur supprime.",
+  "admin.storage.name": "Nom",
+  "admin.storage.size": "Taille",
+  "admin.storage.modified": "Modifié",
+  "admin.storage.up": "Remonter d'un niveau",
+  "admin.storage.emptyDir": "Ce dossier est vide.",
+  "admin.storage.selectAll": "Tout sélectionner ici",
+  "admin.storage.select": "Sélectionner {name}",
+  "admin.storage.open": "Ouvrir {name}",
+  "admin.storage.play": "Lire {name}",
+  "admin.storage.selected": "{count} sélectionnés",
+  "admin.storage.selected.one": "{count} sélectionné",
+  "admin.storage.clearSelection": "Désélectionner",
+  "admin.storage.deleteTitle": "Supprimer {count} entrées",
+  "admin.storage.deleteTitle.one": "Supprimer {count} entrée",
+  "admin.storage.deleteWarning":
+    "Elles disparaissent du disque immédiatement. Pas de corbeille, pas de retour en arrière.",
+  "admin.storage.deleteFolders": "Un dossier part avec tout ce qu'il contient.",
+  "admin.storage.weighing": "Pesée de la sélection",
+  "admin.storage.weight": "{bytes} répartis sur {count} fichiers",
+  "admin.storage.weight.one": "{bytes} dans {count} fichier",
+  "admin.storage.weightPartial": "au moins {bytes}, comptage interrompu",
+  "admin.storage.deleted": "{count} entrées supprimées.",
+  "admin.storage.deleted.one": "{count} entrée supprimée.",
+  "admin.storage.deleteFailed": "{count} entrées n'ont pas pu être supprimées.",
+  "admin.storage.deleteFailed.one": "{count} entrée n'a pas pu être supprimée.",
+  "admin.storage.player": "Aperçu",
+  "admin.storage.playerHint":
+    "Lu tel quel depuis le disque, sans transcodage. Le navigateur décode ce qu'il sait décoder.",
+  "admin.storage.playerFailed":
+    "Le navigateur ne sait pas lire ce format. Plex le fera, lui transcode.",
 
   "nav.discover": "Découvrir",
   "nav.activity": "Mon suivi",

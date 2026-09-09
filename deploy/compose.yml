@@ -47,11 +47,14 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      # Read-only, and only so the storage gauge has something to measure.
+      # Read-write: the storage page lets the administrator delete files (see
+      # docs/adr/0012). The container still runs as uid 10001 with every
+      # capability dropped, so the media must be writable by that user or its
+      # group; otherwise a deletion answers "read-only" and changes nothing.
       # Mounted by absolute path: bulk data does not live under DATA_DIR. The
       # path comes from paths.env, which is also where STORAGE_PATHS takes its
       # default, so the mount and what the gauge measures cannot drift apart.
-      - ${MEDIA_ROOT}:${MEDIA_ROOT}:ro
+      - ${MEDIA_ROOT}:${MEDIA_ROOT}:rw
     # expose, never ports: Traefik reaches this over the docker network.
     expose:
       - "3000"

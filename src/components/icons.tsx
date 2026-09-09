@@ -26,6 +26,7 @@ import {
   Megaphone,
   Monitor,
   Moon,
+  Play,
   Plus,
   SignOut,
   Sparkle,
@@ -113,6 +114,7 @@ export const PlusIcon = icon(Plus, "bold");
 export const TrashIcon = icon(Trash, "regular");
 export const FolderIcon = icon(FolderSimple, "regular");
 export const FileIcon = icon(File, "regular");
+export const PlayIcon = icon(Play, "fill");
 export const ClockIcon = icon(Clock, "regular");
 
 /** Waiting. The only icon that carries motion. */
