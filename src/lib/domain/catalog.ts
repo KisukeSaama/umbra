@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -209,22 +209,35 @@ async function libraryIndex(
   const rows = await db()
     .select({
       tmdbId: libraryItems.tmdbId,
+      cutProviderId: libraryItems.cutProviderId,
       kind: libraryItems.kind,
       title: libraryItems.title,
     })
     .from(libraryItems)
     .where(
       and(
-        inArray(libraryItems.tmdbId, providerIds),
+        // A re-cut the media server matched to nothing carries the id Umbra
+        // worked out from its name instead. Without this the title is here and
+        // the search still offers to request it: see `linkUnmatchedCuts`.
+        or(
+          inArray(libraryItems.tmdbId, providerIds),
+          inArray(libraryItems.cutProviderId, providerIds),
+        ),
         inArray(libraryItems.kind, ["movie", "show"] as const),
       ),
-    );
+    )
+    // A server that matched the series itself answers before one Umbra had to
+    // work out, so a library holding both reads as the series, not the re-cut.
+    .orderBy(sql`${libraryItems.tmdbId} NULLS LAST`);
 
-  return new Map(
-    rows
-      .filter((row) => row.tmdbId)
-      .map((row) => [`${row.kind}:${row.tmdbId}`, row.title]),
-  );
+  const index = new Map<string, string>();
+  for (const row of rows) {
+    const providerId = row.tmdbId ?? row.cutProviderId;
+    if (!providerId) continue;
+    const key = `${row.kind}:${providerId}`;
+    if (!index.has(key)) index.set(key, row.title);
+  }
+  return index;
 }
 
 /** Keys `movie:335984` / `tv:209867` already requested (request not rejected). */
