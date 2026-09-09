@@ -218,10 +218,12 @@ export async function upcomingEpisodes(
   limit = 8,
   followedKeys: string[] = [],
 ): Promise<UpcomingEpisode[]> {
-  const followed =
-    followedKeys.length > 0
-      ? sql<boolean>`COALESCE(${inArray(trackedSeries.plexRatingKey, followedKeys)}, FALSE)`
-      : sql<boolean>`FALSE`;
+  const personalised = followedKeys.length > 0;
+  // A bare FALSE in ORDER BY reads as a column position in Postgres, so the
+  // plain calendar orders on the air date alone rather than on a constant.
+  const followed = personalised
+    ? sql<boolean>`COALESCE(${inArray(trackedSeries.plexRatingKey, followedKeys)}, FALSE)`
+    : sql<boolean>`FALSE::boolean`;
 
   return db()
     .select({
@@ -245,7 +247,10 @@ export async function upcomingEpisodes(
         sql`${episodes.airDate} >= CURRENT_DATE - INTERVAL '7 days'`,
       ),
     )
-    .orderBy(desc(followed), asc(episodes.airDate))
+    .orderBy(
+      ...(personalised ? [desc(followed)] : []),
+      asc(episodes.airDate),
+    )
     .limit(limit);
 }
 
