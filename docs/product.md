@@ -69,6 +69,13 @@ requested -> accepted -> processing -> available
   sync finds the title.
 - **rejected**: declined. The title can be requested again later.
 
+A request can be taken back by the person who opened it, from the title right
+after asking and from the follow-up page afterwards, but only while it is still
+`requested`. Once it is accepted the administrator has decided something, and a
+member undoing that would be erasing a decision rather than their own gesture.
+A cancelled request leaves no row: nothing happened to it, and the title has to
+be askable again.
+
 ## Reporting a problem
 
 A request says a title is missing. A report says a title is here and is wrong.
@@ -92,6 +99,12 @@ thing joins the existing one and is told what happens to it; the number of peopl
 waiting is never shown anywhere, the administration included, because that would
 be the popularity contest this project refuses.
 
+A report can be withdrawn while it is still live: the member leaves it and stops
+hearing about it. Leaving is not deleting, because a report can be shared. The
+report itself only disappears when it is still untouched and the person leaving
+was the last one waiting on it, which is the case of someone who has just
+reported something and changed their mind.
+
 Three reasons settle themselves. An episode that arrives closes "an episode is
 missing", a season complete closes "a season is missing", and a series caught up
 closes "the series is behind". Everything else describes a codec, a track or a
@@ -100,8 +113,10 @@ playback failure, which Umbra does not index and must never try to check.
 ## Following what you asked for
 
 A request used to end at "request sent". It no longer does. One page carries what
-you asked for, what you reported, and what has moved since you last looked, and
-the header carries a bell that says whether any of it changed.
+you asked for and what you reported, with where each of them has got to, and the
+header carries a bell that says whether any of it changed. The page does not
+repeat the bell: notifications are read where they arrive, and a second copy of
+the same feed only made the page longer.
 
 Notifications hold data, never a sentence: a kind, a subject and a little
 payload, resolved into words in the language of whoever opens them. The timelines

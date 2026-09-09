@@ -100,7 +100,14 @@ function ReportSteps({
       if (!response.ok)
         throw new Error(translateError(locale, body.messageKey));
 
-      toast.success(t(body.joined ? "report.joined" : "report.sent"));
+      // The undo is offered here rather than on the dialog: the flow closes on
+      // the last choice, so the moment right after it is the toast.
+      toast.success(t(body.joined ? "report.joined" : "report.sent"), {
+        action: {
+          label: t("report.withdraw"),
+          onClick: () => void withdraw(body.reportId as string),
+        },
+      });
       onDone();
     } catch (error) {
       toast.error(
@@ -110,6 +117,26 @@ function ReportSteps({
       );
     } finally {
       setSending(false);
+    }
+  }
+
+  /** Leaves the report just made, or just joined. */
+  async function withdraw(reportId: string) {
+    try {
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: "DELETE",
+      });
+      const body = await response.json();
+      if (!response.ok)
+        throw new Error(translateError(locale, body.messageKey));
+
+      toast.success(t("status.reportWithdrawn"));
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : translateError(locale, undefined),
+      );
     }
   }
 

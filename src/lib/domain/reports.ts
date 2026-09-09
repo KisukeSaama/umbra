@@ -21,6 +21,7 @@ import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 import {
   canTransition,
+  isLive,
   isReasonAllowed,
   LIVE_REPORT_STATUSES,
   targetOf,
@@ -150,6 +151,70 @@ async function serverKeyFor(kind: MediaKind, providerId: string) {
     )
     .limit(1);
   return row?.ratingKey ?? null;
+}
+
+/**
+ * Leaves a report, at the asking of someone following it.
+ *
+ * A report is shared: several members can be waiting on the same one, so
+ * withdrawing means leaving it, not destroying what other people are waiting
+ * for. The report itself only disappears when it is still untouched and the
+ * person leaving was the last one following it, which is exactly the case of
+ * the member who has just reported something and changed their mind.
+ *
+ * Written as one statement, and in that order on purpose: `unfollowed` reads
+ * `dropped`, which is what makes Postgres run the deletions one after the
+ * other rather than against the same snapshot. When the whole report goes, the
+ * follower row goes with it through the cascade instead of being deleted twice.
+ */
+export async function withdrawReport(reportId: string, accountId: string) {
+  const [current] = await db()
+    .select({ status: reports.status })
+    .from(reports)
+    .where(eq(reports.id, reportId))
+    .limit(1);
+  if (!current) throw new NotFoundError("error.reportNotFound");
+  if (!isLive(current.status)) throw new ConflictError("error.reportClosed");
+
+  const rows = await db().execute<{
+    dropped: boolean;
+    unfollowed: boolean;
+  }>(sql`
+    WITH dropped AS (
+      DELETE FROM report AS r
+       WHERE r.id = ${reportId}::uuid
+         AND r.status = 'open'
+         AND EXISTS (SELECT 1 FROM report_follower AS f
+                      WHERE f.report_id = r.id
+                        AND f.account_id = ${accountId}::uuid)
+         AND NOT EXISTS (SELECT 1 FROM report_follower AS f
+                          WHERE f.report_id = r.id
+                            AND f.account_id <> ${accountId}::uuid)
+      RETURNING r.id
+    ),
+    unfollowed AS (
+      DELETE FROM report_follower
+       WHERE report_id = ${reportId}::uuid
+         AND account_id = ${accountId}::uuid
+         AND NOT EXISTS (SELECT 1 FROM dropped)
+      RETURNING report_id
+    ),
+    forgotten AS (
+      DELETE FROM notification
+       WHERE account_id = ${accountId}::uuid
+         AND subject_id = ${reportId}::uuid
+      RETURNING id
+    )
+    SELECT EXISTS (SELECT 1 FROM dropped) AS dropped,
+           EXISTS (SELECT 1 FROM unfollowed) AS unfollowed
+  `);
+
+  const row = rows[0];
+  // Neither branch touched anything: this member was not following it.
+  if (!row?.dropped && !row?.unfollowed)
+    throw new NotFoundError("error.reportNotFound");
+
+  return { withdrawn: true, removed: Boolean(row.dropped) };
 }
 
 const REPORT_COLUMNS = {

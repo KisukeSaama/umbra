@@ -64,6 +64,10 @@ export async function Hero({ posters }: { posters: RecentItem[] }) {
         </h1>
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          {/* The same palette as the header, given a field you can read: on
+              arrival the question is usually "is this already here", and the
+              answer should not need a destination, so it comes first. */}
+          <CommandPalette variant="hero" />
           <Button
             size="lg"
             className="rounded-full px-6"
@@ -72,10 +76,6 @@ export async function Hero({ posters }: { posters: RecentItem[] }) {
             <SparkleIcon />
             {t("picker.open")}
           </Button>
-          {/* The same palette as the header, given a field you can read: on
-              arrival the question is usually "is this already here", and the
-              answer should not need a destination. */}
-          <CommandPalette variant="hero" />
         </div>
       </div>
     </section>

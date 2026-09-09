@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 import { Poster } from "@/components/poster";
 import { Timeline } from "@/components/timeline";
 import { Badge } from "@/components/ui/badge";
+import { WithdrawButton } from "@/components/withdraw-button";
 import { requireMemberPage } from "@/lib/auth/session";
-import { listNotifications } from "@/lib/domain/notifications";
 import { listReportsFollowedBy } from "@/lib/domain/reports";
 import { listRequestsBy } from "@/lib/domain/requests";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
-import { notificationLine } from "@/lib/i18n/notifications";
 import { getI18n } from "@/lib/i18n/server";
+import { isLive } from "@/lib/reports/reasons";
 
 export const metadata: Metadata = { title: "Follow-up" };
 
@@ -18,21 +18,21 @@ export const metadata: Metadata = { title: "Follow-up" };
  * Where a request stops disappearing.
  *
  * Asking for something used to end at "request sent". This page is the other
- * end of that: what you asked for, what you reported, and the notifications
- * you may have missed, on one screen.
+ * end of that: what you asked for and what you reported, on one screen. The
+ * notifications stay in the bell, which is where they are already read: a
+ * second copy of the same feed here only made the page longer.
  *
- * The timelines are drawn from the timestamps on the rows themselves, not from
- * the notification feed. Notifications are pruned; a follow-up must not quietly
- * shorten as it ages.
+ * It is also where a gesture can be taken back, as long as nobody has acted on
+ * it. What "nobody has acted on it" means is decided by the domain; the page
+ * only asks whether to draw the button.
  */
 export default async function ActivityPage() {
   const account = await requireMemberPage();
   const { t, locale } = await getI18n();
 
-  const [requests, reports, recent] = await Promise.all([
+  const [requests, reports] = await Promise.all([
     listRequestsBy(account.id),
     listReportsFollowedBy(account.id),
-    listNotifications(account.id, 20),
   ]);
 
   return (
@@ -80,11 +80,20 @@ export default async function ActivityPage() {
                     steps={["requested", "accepted", "processing", "available"]}
                     prefix="activity.timeline"
                   />
-                  <p className="text-muted-foreground text-xs">
-                    {t("activity.requestedOn", {
-                      date: formatDate(request.createdAt, locale),
-                    })}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="text-muted-foreground text-xs">
+                      {t("activity.requestedOn", {
+                        date: formatDate(request.createdAt, locale),
+                      })}
+                    </p>
+                    {request.status === "requested" ? (
+                      <WithdrawButton
+                        endpoint={`/api/requests/${request.id}`}
+                        label="title.cancelRequest"
+                        done="status.requestCancelled"
+                      />
+                    ) : null}
+                  </div>
                 </div>
               </li>
             ))}
@@ -130,38 +139,20 @@ export default async function ActivityPage() {
                 >
                   {t(`report.status.${report.status}` as TranslationKey)}
                 </Badge>
-                <p className="text-muted-foreground w-full text-xs">
-                  {t("report.reportedOn", {
-                    date: formatDate(report.createdAt, locale),
-                  })}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">
-          {t("section.notifications")}
-        </h2>
-        {recent.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("activity.noNotifications")}
-          </p>
-        ) : (
-          <ul className="divide-border/60 divide-y">
-            {recent.map((entry) => (
-              <li key={entry.id} className="flex items-baseline gap-3 py-2.5">
-                {/* The same sentence the bell shows, rather than the bare
-                    title: a list of names says nothing about what happened. */}
-                <span className="text-sm">{notificationLine(t, entry)}</span>
-                <time
-                  dateTime={entry.createdAt.toISOString()}
-                  className="text-muted-foreground ml-auto text-xs"
-                >
-                  {formatDate(entry.createdAt, locale)}
-                </time>
+                <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
+                  <p className="text-muted-foreground text-xs">
+                    {t("report.reportedOn", {
+                      date: formatDate(report.createdAt, locale),
+                    })}
+                  </p>
+                  {isLive(report.status) ? (
+                    <WithdrawButton
+                      endpoint={`/api/reports/${report.id}`}
+                      label="report.withdraw"
+                      done="status.reportWithdrawn"
+                    />
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

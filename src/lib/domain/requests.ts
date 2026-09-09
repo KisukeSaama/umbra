@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
@@ -14,7 +14,7 @@ import { bumpMetric } from "@/lib/domain/analytics";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
-import { ConflictError, NotFoundError } from "@/lib/errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 
@@ -73,6 +73,48 @@ export async function createRequest(
     }
     throw error;
   }
+}
+
+/**
+ * Withdraws a request, at the asking of the person who opened it.
+ *
+ * Only while nobody has acted on it: once the administrator has accepted it the
+ * work has started, and a member undoing it would erase a decision rather than
+ * their own gesture.
+ *
+ * The row is deleted rather than marked. Nothing has happened to it, so there
+ * is no history worth keeping, and the partial unique index that carries "one
+ * live request per title" excludes rejected rows alone: a cancelled request has
+ * to disappear for the title to be askable again.
+ */
+export async function cancelRequest(requestId: string, accountId: string) {
+  const [deleted] = await db()
+    .delete(mediaRequests)
+    .where(
+      and(
+        eq(mediaRequests.id, requestId),
+        eq(mediaRequests.requestedBy, accountId),
+        eq(mediaRequests.status, "requested"),
+      ),
+    )
+    .returning({ id: mediaRequests.id });
+
+  if (deleted) return { cancelled: true };
+
+  // Nothing was deleted: say which of the three guards refused, so the client
+  // can word it rather than showing a bare failure.
+  const [row] = await db()
+    .select({
+      status: mediaRequests.status,
+      requestedBy: mediaRequests.requestedBy,
+    })
+    .from(mediaRequests)
+    .where(eq(mediaRequests.id, requestId))
+    .limit(1);
+
+  if (!row) throw new NotFoundError("error.requestNotFound");
+  if (row.requestedBy !== accountId) throw new ForbiddenError();
+  throw new ConflictError("error.requestUnderway");
 }
 
 export async function listRequests(

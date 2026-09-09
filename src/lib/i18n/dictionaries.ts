@@ -62,6 +62,9 @@ export const en = {
   "status.requested": "Request already recorded",
   "status.request": "Request",
   "status.requestSent": "Request sent",
+  "status.requestCancelled": "Request cancelled",
+  "status.reportWithdrawn": "Report withdrawn",
+  "status.cancelling": "Cancelling",
   "status.requesting": "Sending",
   "search.subtitle":
     "Search, check whether it is already there, ask for it if not.",
@@ -153,6 +156,8 @@ export const en = {
   "error.invalidSection": "Unknown library section.",
   "error.titleNotFound": "Title not found.",
   "error.requestNotFound": "Request not found.",
+  "error.requestUnderway":
+    "This request has already been taken up and can no longer be cancelled.",
   "error.seriesNotFound": "Series not found.",
   "error.taskNotFound": "Task not found.",
   "error.goalNotFound": "Funding goal not found.",
@@ -264,7 +269,6 @@ export const en = {
   "section.ideas": "Worth asking for",
   "section.myRequests": "My requests",
   "section.myReports": "My reports",
-  "section.notifications": "Notifications",
 
   "discover.title": "Discover",
   "discover.subtitle":
@@ -298,6 +302,7 @@ export const en = {
   "title.report": "Report a problem",
   "title.onServer": "This is on the server",
   "title.requested": "Already requested",
+  "title.cancelRequest": "Cancel this request",
   "title.similar": "In the same vein",
 
   "season.heading": "Seasons",
@@ -329,6 +334,8 @@ export const en = {
   "report.sending": "Sending",
   "report.sent": "Report sent. You can follow it in your follow-up.",
   "report.joined": "Already reported. You will be told what happens next.",
+  "report.withdraw": "Withdraw",
+  "report.withdrawHint": "Only while nobody has taken it up.",
   "report.none": "No report yet.",
   "report.noneHint": "If something looks wrong, say so from the title.",
   "report.reportedOn": "Reported on {date}",
@@ -350,11 +357,9 @@ export const en = {
   "report.status.duplicate": "Already known",
 
   "activity.title": "My follow-up",
-  "activity.subtitle":
-    "What you asked for, what you reported, and your notifications.",
+  "activity.subtitle": "What you asked for, and what you reported.",
   "activity.noRequests": "No request yet.",
   "activity.noRequestsHint": "Search a title and ask for it.",
-  "activity.noNotifications": "No notification yet.",
   "activity.requestedOn": "Asked on {date}",
   "activity.timeline.requested": "Asked",
   "activity.timeline.accepted": "Accepted",
@@ -402,6 +407,7 @@ export const en = {
   "error.alreadyReported": "This has already been reported.",
   "error.reasonNotAllowed": "That reason does not apply here.",
   "error.reportNotFound": "Report not found.",
+  "error.reportClosed": "This report is closed.",
   "error.illegalTransition": "This report cannot move that way.",
 } as const;
 
@@ -462,6 +468,9 @@ export const fr: Record<TranslationKey, string> = {
   "status.requested": "Demande déjà enregistrée",
   "status.request": "Demander",
   "status.requestSent": "Demande envoyée",
+  "status.requestCancelled": "Demande annulée",
+  "status.reportWithdrawn": "Signalement retiré",
+  "status.cancelling": "Annulation",
   "status.requesting": "Envoi",
   "search.subtitle": "Cherche, vérifie si c'est déjà là, demande-le sinon.",
   "search.noResults": "Aucun résultat pour cette recherche.",
@@ -553,6 +562,8 @@ export const fr: Record<TranslationKey, string> = {
   "error.invalidSection": "Section de bibliothèque inconnue.",
   "error.titleNotFound": "Titre introuvable.",
   "error.requestNotFound": "Demande introuvable.",
+  "error.requestUnderway":
+    "Cette demande est déjà prise en charge et ne peut plus être annulée.",
   "error.seriesNotFound": "Série introuvable.",
   "error.taskNotFound": "Tâche introuvable.",
   "error.goalNotFound": "Objectif introuvable.",
@@ -664,7 +675,6 @@ export const fr: Record<TranslationKey, string> = {
   "section.ideas": "À demander",
   "section.myRequests": "Mes demandes",
   "section.myReports": "Mes signalements",
-  "section.notifications": "Notifications",
 
   "discover.title": "Découvrir",
   "discover.subtitle":
@@ -698,6 +708,7 @@ export const fr: Record<TranslationKey, string> = {
   "title.report": "Signaler un problème",
   "title.onServer": "C'est sur le serveur",
   "title.requested": "Déjà demandé",
+  "title.cancelRequest": "Annuler la demande",
   "title.similar": "Dans la même veine",
 
   "season.heading": "Saisons",
@@ -729,6 +740,8 @@ export const fr: Record<TranslationKey, string> = {
   "report.sending": "Envoi",
   "report.sent": "Signalement envoyé. Vous pouvez le suivre dans Mon suivi.",
   "report.joined": "Déjà signalé. Vous serez tenu au courant de la suite.",
+  "report.withdraw": "Retirer",
+  "report.withdrawHint": "Tant que personne ne s'en est occupé.",
   "report.none": "Aucun signalement pour l'instant.",
   "report.noneHint": "Si quelque chose cloche, dites-le depuis la fiche.",
   "report.reportedOn": "Signalé le {date}",
@@ -750,11 +763,9 @@ export const fr: Record<TranslationKey, string> = {
   "report.status.duplicate": "Déjà connu",
 
   "activity.title": "Mon suivi",
-  "activity.subtitle":
-    "Ce que vous avez demandé, ce que vous avez signalé, et vos notifications.",
+  "activity.subtitle": "Ce que vous avez demandé et ce que vous avez signalé.",
   "activity.noRequests": "Aucune demande pour l'instant.",
   "activity.noRequestsHint": "Cherchez un titre et demandez-le.",
-  "activity.noNotifications": "Aucune notification pour l'instant.",
   "activity.requestedOn": "Demandé le {date}",
   "activity.timeline.requested": "Demandé",
   "activity.timeline.accepted": "Accepté",
@@ -805,6 +816,7 @@ export const fr: Record<TranslationKey, string> = {
   "error.alreadyReported": "Cela a déjà été signalé.",
   "error.reasonNotAllowed": "Ce motif ne s'applique pas ici.",
   "error.reportNotFound": "Signalement introuvable.",
+  "error.reportClosed": "Ce signalement est clos.",
   "error.illegalTransition": "Ce signalement ne peut pas passer par là.",
 };
 
