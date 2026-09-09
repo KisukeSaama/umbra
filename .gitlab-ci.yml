@@ -128,17 +128,35 @@ variables:
           > "${target}/app.env")
       }
 
+      # Postgres 18 images run as the postgres user and no longer chown their
+      # data directory, so a root owned bind mount fails with "Permission
+      # denied" before the cluster is created. The owner is read from the image
+      # rather than hardcoded, so a change of base image stays correct.
+      postgres_owner() {
+        local ids
+        docker pull --quiet "${POSTGRES_IMAGE}" >/dev/null
+        ids="$(docker run --rm --entrypoint sh "${POSTGRES_IMAGE}" -c \
+          'printf "%s:%s" "$(id -u postgres)" "$(id -g postgres)"')"
+        case "${ids}" in
+          [0-9]*:[0-9]*) printf '%s' "${ids}" ;;
+          *) echo "Could not read the postgres user id from ${POSTGRES_IMAGE}." >&2; exit 1 ;;
+        esac
+      }
+
       # The runner mounts the host Docker socket but NOT /home/kisuke: files
       # written in this job live in a container that is about to be deleted.
       stage_on_host() {
         local source_dir="$1"
         local target_rel="${TARGET_DIR#/home/kisuke/}"
         local data_rel="${DATA_DIR#/home/kisuke/}"
+        local pg_owner
+        pg_owner="$(postgres_owner)"
 
         tar -C "${source_dir}" -cf - . | docker run --rm -i \
           -e TARGET_REL="${target_rel}" \
           -e DATA_REL="${data_rel}" \
           -e DEPLOY_ENV="${DEPLOY_ENV}" \
+          -e PG_OWNER="${pg_owner}" \
           -v /home/kisuke:/host-home \
           alpine:3.24 sh -euc '
             case "$TARGET_REL" in ""|/*|*..*) exit 1 ;; esac
@@ -150,6 +168,11 @@ variables:
             chmod 750 "$host_target" "$host_data" "$host_data/postgres"
             chmod 640 "$host_target/compose.yml" "$host_target/paths.env"
             chmod 600 "$host_target/app.env"
+            # Recursive only when the owner actually differs: an existing
+            # cluster can hold a lot of files.
+            if [ "$(stat -c %u:%g "$host_data/postgres")" != "$PG_OWNER" ]; then
+              chown -R "$PG_OWNER" "$host_data/postgres"
+            fi
           '
       }
 
