@@ -502,3 +502,13 @@ export async function notifyResolvedReports(): Promise<number> {
   `);
   return result.count ?? 0;
 }
+
+/** When the last report came in, whatever became of it. */
+export async function lastReportAt(): Promise<Date | null> {
+  const [row] = await db()
+    .select({ createdAt: reports.createdAt })
+    .from(reports)
+    .orderBy(desc(reports.createdAt))
+    .limit(1);
+  return row?.createdAt ?? null;
+}

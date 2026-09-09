@@ -6,14 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
 import { pendingAccountCount } from "@/lib/domain/accounts";
-import { listReports } from "@/lib/domain/reports";
-import { countRequestsByStatus, listRequests } from "@/lib/domain/requests";
+import { lastReportAt, listReports } from "@/lib/domain/reports";
+import {
+  countRequestsByStatus,
+  lastRequestAt,
+  listRequests,
+} from "@/lib/domain/requests";
 import { listOpenEpisodeTasks } from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
 import { formatDateTime, formatEpisodeCode } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
-import { jobStatus } from "@/lib/jobs";
 import { LIVE_REPORT_STATUSES } from "@/lib/reports/reasons";
 
 /**
@@ -37,16 +40,25 @@ export default async function AdminDashboardPage() {
   // queue they would be redirected away from.
   const isAdmin = viewer.role === "admin";
 
-  const [requests, reports, tasks, pendingAccounts, counts, storage, jobs] =
-    await Promise.all([
-      listRequests(["requested"]),
-      listReports([...LIVE_REPORT_STATUSES]),
-      listOpenEpisodeTasks(),
-      isAdmin ? pendingAccountCount() : 0,
-      countRequestsByStatus(),
-      storageOverview(),
-      jobStatus(),
-    ]);
+  const [
+    requests,
+    reports,
+    tasks,
+    pendingAccounts,
+    counts,
+    storage,
+    latestRequest,
+    latestReport,
+  ] = await Promise.all([
+    listRequests(["requested"]),
+    listReports([...LIVE_REPORT_STATUSES]),
+    listOpenEpisodeTasks(),
+    isAdmin ? pendingAccountCount() : 0,
+    countRequestsByStatus(),
+    storageOverview(),
+    lastRequestAt(),
+    lastReportAt(),
+  ]);
 
   const quiet =
     requests.length === 0 &&
@@ -54,8 +66,10 @@ export default async function AdminDashboardPage() {
     tasks.length === 0 &&
     pendingAccounts === 0;
 
-  const lastSync = jobs
-    .map((job) => job.lastSuccessAt)
+  // The last time a member asked for something, request or report alike. It
+  // tells the administration how warm the place is, which a job timestamp
+  // never did.
+  const lastSubmission = [latestRequest, latestReport]
     .filter((date): date is Date => date !== null)
     .sort((a, b) => b.getTime() - a.getTime())[0];
 
@@ -200,13 +214,16 @@ export default async function AdminDashboardPage() {
       </div>
 
       <p className="text-muted-foreground text-sm">
-        {t("admin.jobs.lastSuccess")}{" "}
-        <Link
-          href="/admin/sync"
-          className="text-foreground hover:text-primary focus-visible:ring-ring/50 rounded-md tabular-nums transition-colors outline-none focus-visible:ring-3"
-        >
-          {lastSync ? formatDateTime(lastSync, locale) : t("admin.jobs.never")}
-        </Link>
+        {lastSubmission ? (
+          <>
+            {t("admin.inbox.lastSubmission")}{" "}
+            <span className="text-foreground tabular-nums">
+              {formatDateTime(lastSubmission, locale)}
+            </span>
+          </>
+        ) : (
+          t("admin.inbox.noSubmission")
+        )}
       </p>
     </>
   );

@@ -326,3 +326,13 @@ export async function listRequestsBy(accountId: string): Promise<RequestRow[]> {
     },
   }));
 }
+
+/** When the last request came in, whatever became of it. */
+export async function lastRequestAt(): Promise<Date | null> {
+  const [row] = await db()
+    .select({ createdAt: mediaRequests.createdAt })
+    .from(mediaRequests)
+    .orderBy(desc(mediaRequests.createdAt))
+    .limit(1);
+  return row?.createdAt ?? null;
+}
