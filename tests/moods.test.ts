@@ -1,17 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ANIMATION_GENRE_ID,
+  ANIME_LANGUAGE,
+  ANIME_STANCES,
   DURATIONS,
   discoverQueriesFor,
   excludedGenresFor,
   FORMATS,
   genresFor,
+  isAnimeStance,
   isDuration,
   isFormat,
   isMood,
   kindsFor,
   MOODS,
-  originalLanguageFor,
   SHORT_RUNTIME_MINUTES,
 } from "@/lib/discovery/moods";
 
@@ -77,29 +80,91 @@ describe("mood mapping", () => {
   it("keeps the moods apart", () => {
     // Two moods asking the same thing is a question the picker did not need to
     // ask: the member chooses between them and gets the same shelf either way.
-    const fingerprints = MOODS.map(
-      (mood) =>
-        `${(["movie", "tv"] as const)
-          .map(
-            (kind) =>
-              `${genresFor(mood, kind).join(",")}!${excludedGenresFor(mood, kind).join(",")}`,
-          )
-          .join("|")}${originalLanguageFor(mood) ?? ""}`,
+    const fingerprints = MOODS.map((mood) =>
+      (["movie", "tv"] as const)
+        .map(
+          (kind) =>
+            `${genresFor(mood, kind).join(",")}!${excludedGenresFor(mood, kind).join(",")}`,
+        )
+        .join("|"),
     );
     expect(new Set(fingerprints).size).toBe(MOODS.length);
+  });
+
+  it("leaves animation entirely to the anime question", () => {
+    // A mood that also had an opinion about Animation would either contradict
+    // the answer to the fourth question or quietly narrow it.
+    for (const mood of MOODS)
+      for (const kind of ["movie", "tv"] as const) {
+        expect(genresFor(mood, kind)).not.toContain(ANIMATION_GENRE_ID);
+        expect(excludedGenresFor(mood, kind)).not.toContain(ANIMATION_GENRE_ID);
+      }
   });
 
   it("pins anime to where it is made, not to how it is drawn", () => {
     // Animation is a technique. Asked for the genre alone, the shelf comes
     // back led by Pixar and DC, which is a different request entirely.
-    expect(originalLanguageFor("anime")).toBe("ja");
-    for (const mood of MOODS)
-      if (mood !== "anime") expect(originalLanguageFor(mood)).toBeUndefined();
+    const [query] = discoverQueriesFor({
+      mood: "love",
+      anime: "only",
+      format: "movie",
+      duration: "any",
+    });
+    expect(query.originalLanguage).toBe(ANIME_LANGUAGE);
+    expect(query.requireGenreIds).toEqual([ANIMATION_GENRE_ID]);
+    // Required, never merged into the union: a romance asked for drawn is two
+    // conditions, and a union holding both would answer with either.
+    expect(query.genreIds).toEqual(genresFor("love", "movie"));
+  });
+
+  it("refuses animation when the answer was no anime", () => {
+    // The provider filters on a language it wants and not on one it refuses,
+    // so "no anime" is read as "nothing drawn".
+    const [query] = discoverQueriesFor({
+      mood: "comfort",
+      anime: "without",
+      format: "movie",
+      duration: "any",
+    });
+    expect(query.excludeGenreIds).toContain(ANIMATION_GENRE_ID);
+    expect(query.originalLanguage).toBeUndefined();
+    expect(query.requireGenreIds).toBeUndefined();
+  });
+
+  it("adds nothing at all when anime is merely welcome", () => {
+    // The middle answer is the one that has to stay empty: it means the mood
+    // decides on its own, drawn or filmed.
+    const [query] = discoverQueriesFor({
+      mood: "thrill",
+      anime: "with",
+      format: "movie",
+      duration: "any",
+    });
+    expect(query.excludeGenreIds).toEqual(excludedGenresFor("thrill", "movie"));
+    expect(query.originalLanguage).toBeUndefined();
+    expect(query.requireGenreIds).toBeUndefined();
+  });
+
+  it("offers every mood in all three ways", () => {
+    // Anime is an axis, not a shelf: each of the three answers has to give a
+    // different query for the same mood, otherwise the question is decoration.
+    const fingerprints = ANIME_STANCES.map((anime) =>
+      JSON.stringify(
+        discoverQueriesFor({
+          mood: "love",
+          anime,
+          format: "either",
+          duration: "any",
+        }),
+      ),
+    );
+    expect(new Set(fingerprints).size).toBe(ANIME_STANCES.length);
   });
 
   it("carries the refusals into the query", () => {
     const [query] = discoverQueriesFor({
       mood: "laugh",
+      anime: "with",
       format: "movie",
       duration: "any",
     });
@@ -120,6 +185,7 @@ describe("mood mapping", () => {
     // a different question and quietly empties the shelf.
     const film = discoverQueriesFor({
       mood: "laugh",
+      anime: "with",
       format: "movie",
       duration: "short",
     });
@@ -127,6 +193,7 @@ describe("mood mapping", () => {
 
     const show = discoverQueriesFor({
       mood: "laugh",
+      anime: "with",
       format: "series",
       duration: "short",
     });
@@ -137,6 +204,7 @@ describe("mood mapping", () => {
     expect(kindsFor("either")).toEqual(["movie", "tv"]);
     const queries = discoverQueriesFor({
       mood: "adventure",
+      anime: "with",
       format: "either",
       duration: "any",
     });
@@ -148,6 +216,8 @@ describe("mood mapping", () => {
     // a closed set is only closed if the boundary says so.
     expect(isMood("thrill")).toBe(true);
     expect(isMood("whatever")).toBe(false);
+    expect(isAnimeStance(ANIME_STANCES[0])).toBe(true);
+    expect(isAnimeStance("anime")).toBe(false);
     expect(isFormat(FORMATS[0])).toBe(true);
     expect(isFormat("")).toBe(false);
     expect(isDuration(DURATIONS[0])).toBe(true);

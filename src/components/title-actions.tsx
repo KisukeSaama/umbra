@@ -7,9 +7,7 @@ import { toast } from "sonner";
 import { CheckIcon, CircleHalfIcon, SpinnerIcon } from "@/components/icons";
 import { ReportFlow } from "@/components/report-flow";
 import { Button } from "@/components/ui/button";
-import { UpdateAsk } from "@/components/update-ask";
 import { isOnServer, type Availability } from "@/lib/domain/availability";
-import { askKey } from "@/lib/reports/reasons";
 import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import type { MediaKind } from "@/lib/providers/metadata";
@@ -20,23 +18,23 @@ import { cn } from "@/lib/utils";
  *
  * A title that is not here can be asked for. A title that is here can be
  * reported. A series that is here without being all there is the third case,
- * and it used to fall through the first two: the page said "on the server" and
- * offered nothing but a report three steps deep. It is now a state of its own,
- * carried all the way from search, and the ask for the rest sits next to it.
+ * and it says so here rather than passing for whole.
+ *
+ * What is missing is asked for one season down, on the line that shows the
+ * gap, and nowhere else: an ask for the series as a whole sat here too, saying
+ * the same thing in other words, and a member could send both for the very
+ * same shortfall.
  */
 export function TitleActions({
   kind,
   providerId,
   title,
   availability,
-  openAsks = [],
 }: {
   kind: MediaKind;
   providerId: string;
   title: string;
   availability: Availability;
-  /** Keys of the asks already open on this title, from `askKey`. */
-  openAsks?: string[];
 }) {
   const t = useTranslator();
   const locale = useLocale();
@@ -121,21 +119,7 @@ export function TitleActions({
           {partial ? <CircleHalfIcon /> : <CheckIcon />}
           {t(partial ? "title.onServerPartly" : "title.onServer")}
         </span>
-        {partial ? (
-          <UpdateAsk
-            kind={kind}
-            providerId={providerId}
-            reason="series_outdated"
-            label="update.askSeries"
-            asked={openAsks.includes(
-              askKey({ seasonNumber: null, reason: "series_outdated" }),
-            )}
-          />
-        ) : null}
-        <ReportFlow
-          variant={partial ? "ghost" : "outline"}
-          preset={{ kind, providerId, title }}
-        />
+        <ReportFlow variant="outline" preset={{ kind, providerId, title }} />
       </div>
     );
   }

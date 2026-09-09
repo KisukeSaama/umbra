@@ -25,6 +25,10 @@ import { cn } from "@/lib/utils";
  * address is a volume label and the names below it, which is exactly what the
  * explorer sends to the server, because the two are reading the same disk.
  *
+ * It draws in every folder, at any depth. The measurement keeps every
+ * directory, and the files of the folder being looked at come from the listing
+ * read beside it, so nothing is ever dropped for being too small.
+ *
  * The layout is computed in real pixels from the measured box rather than in a
  * normalised square, because a treemap laid out for one aspect ratio and
  * stretched into another is a treemap of splinters. That is also what makes it
@@ -42,11 +46,11 @@ const NEST_MIN_WIDTH = 96;
 const NEST_MIN_HEIGHT = 68;
 
 /**
- * The measured node at an address, or null when the walk did not keep it.
+ * The measured node at an address, or null when the walk never saw it.
  *
- * The snapshot is pruned so that it can be drawn and stored, so a folder that
- * exists on the disk may have no rectangle. Saying so is the honest answer; an
- * empty box pretending to be a measurement is not.
+ * Every directory the last walk found is kept, so this only comes back empty
+ * for a folder made since then. Saying so is the honest answer; an empty box
+ * pretending to be a measurement is not.
  */
 export function nodeAt(
   roots: StorageNode[],
@@ -71,6 +75,7 @@ export function StorageTreemap({
   roots,
   volume,
   path,
+  files,
   onOpen,
   hovered,
   onHover,
@@ -78,6 +83,12 @@ export function StorageTreemap({
   roots: StorageNode[];
   volume: string | null;
   path: string[];
+  /**
+   * The files of this very folder, as the listing beside the map read them.
+   * The measurement carries directories alone, so this is where the leaves of
+   * the picture come from, live rather than one scan old.
+   */
+  files: StorageNode[];
   /** A directory tile was clicked: its name is one step below the address. */
   onOpen: (name: string) => void;
   hovered: string | null;
@@ -105,7 +116,11 @@ export function StorageTreemap({
     () => nodeAt(roots, volume, path),
     [roots, volume, path],
   );
-  const children = useMemo(() => current?.children ?? [], [current]);
+  // Directories as they were measured, files as they are on the disk now.
+  const children = useMemo(
+    () => [...(current?.children ?? []), ...files],
+    [current, files],
+  );
 
   // The tint says which volume is being looked at, so a colour keeps its
   // meaning from one folder to the next.
@@ -135,7 +150,7 @@ export function StorageTreemap({
           <p className="text-muted-foreground absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-balance">
             {t("admin.storage.notScanned")}
           </p>
-        ) : current === null ? (
+        ) : current === null && children.length === 0 ? (
           <p className="text-muted-foreground absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-balance">
             {t("admin.storage.offMap")}
           </p>
@@ -161,12 +176,6 @@ export function StorageTreemap({
           />
         ))}
       </div>
-
-      {current?.truncated ? (
-        <p className="text-muted-foreground text-xs">
-          {t("admin.storage.folded", { count: current.truncated })}
-        </p>
-      ) : null}
     </div>
   );
 }

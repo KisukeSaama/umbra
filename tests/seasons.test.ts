@@ -5,6 +5,7 @@ import {
   isSeasonComplete,
   isSeasonMissing,
   isSeriesIncomplete,
+  isUnaired,
 } from "@/lib/domain/seasons";
 
 function season(partial: Partial<SeasonState>): SeasonState {
@@ -72,5 +73,25 @@ describe("series completeness", () => {
 
   it("says nothing about a series whose seasons are unknown", () => {
     expect(isSeriesIncomplete([])).toBe(false);
+  });
+});
+
+describe("unaired episodes", () => {
+  const now = new Date("2026-09-09T18:00:00Z");
+
+  it("counts a date still to come", () => {
+    expect(isUnaired("2026-09-16", now)).toBe(true);
+  });
+
+  it("does not count a date already past", () => {
+    expect(isUnaired("2026-09-02", now)).toBe(false);
+  });
+
+  it("does not count the day itself, whatever the timezone", () => {
+    expect(isUnaired("2026-09-09", now)).toBe(false);
+  });
+
+  it("says nothing about an episode the provider has not dated", () => {
+    expect(isUnaired(null, now)).toBe(false);
   });
 });

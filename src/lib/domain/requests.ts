@@ -182,6 +182,24 @@ export async function countRequestsByStatus(): Promise<
 }
 
 /**
+ * What an administrator leaves on a request, if anything.
+ *
+ * `undefined` means the note is not part of this move and stays as it is, an
+ * empty string erases it, and reaching the server erases it whatever was sent:
+ * a word explaining that something is being looked for has nothing left to say
+ * once it is there. That is also the only free text in the product, and it
+ * goes one way, from the administration to the person who asked.
+ */
+export function noteFor(
+  status: RequestStatus,
+  adminNote?: string | null,
+): string | null | undefined {
+  if (status === "available") return null;
+  if (adminNote === undefined) return undefined;
+  return adminNote?.trim() || null;
+}
+
+/**
  * Moves a request to another status.
  *
  * Accepting a series starts tracking it: this is where the Series Tracker takes
@@ -192,14 +210,21 @@ export async function updateRequestStatus(
   status: RequestStatus,
   adminNote?: string | null,
 ) {
+  const note = noteFor(status, adminNote);
+
   const [updated] = await db()
     .update(mediaRequests)
-    .set({ status, adminNote: adminNote ?? undefined, updatedAt: new Date() })
+    .set({
+      status,
+      ...(note === undefined ? {} : { adminNote: note }),
+      updatedAt: new Date(),
+    })
     .where(eq(mediaRequests.id, requestId))
     .returning({
       id: mediaRequests.id,
       mediaId: mediaRequests.mediaId,
       status: mediaRequests.status,
+      adminNote: mediaRequests.adminNote,
     });
 
   if (!updated) throw new NotFoundError("error.requestNotFound");
@@ -217,7 +242,7 @@ export async function updateRequestStatus(
   if (status === "accepted" && row?.mediaType === "tv")
     await trackSeries(row.providerId);
 
-  await notifyRequester(requestId, status, row?.title ?? "");
+  await notifyRequester(requestId, status, row?.title ?? "", updated.adminNote);
   return updated;
 }
 
@@ -232,6 +257,7 @@ export async function notifyRequester(
   requestId: string,
   status: RequestStatus,
   title: string,
+  note?: string | null,
 ) {
   const [row] = await db()
     .select({ requestedBy: mediaRequests.requestedBy })
@@ -244,18 +270,20 @@ export async function notifyRequester(
     kind: "request_status",
     subjectId: requestId,
     step: status,
-    payload: { title, status },
+    payload: note ? { title, status, note } : { title, status },
   });
 }
 
 /**
  * Closes requests whose title has appeared on the server. Called by the library
- * sync, so nothing has to be closed by hand.
+ * sync, so nothing has to be closed by hand, and it clears the administrator
+ * note on the way out for the same reason `updateRequestStatus` does.
  */
 export async function closeRequestsPresentInLibrary(): Promise<number> {
   const result = await db().execute(sql`
     UPDATE media_request AS r
        SET status = 'available',
+           admin_note = NULL,
            updated_at = now()
       FROM media AS m
       JOIN library_item AS l

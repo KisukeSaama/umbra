@@ -457,15 +457,15 @@ export const storageSnapshots = pgTable(
  * One node of the measured tree.
  *
  * `bytes` is the total the node accounts for, itself included, so a directory
- * can be drawn without walking its children. `children` is absent on a leaf and
- * on a directory the scan chose not to open, which is what `truncated` says.
+ * can be drawn without walking its children. The tree holds every directory
+ * and no file: files weigh in their parent, and the ones in the folder being
+ * looked at come from the listing the explorer reads live. `kind` stays,
+ * because the map draws both from the same shape.
  */
 export type StorageNode = {
   name: string;
   bytes: number;
   kind: "directory" | "file";
-  /** Entries the scan folded away because they were too small to draw. */
-  truncated?: number;
   children?: StorageNode[];
 };
 
@@ -680,6 +680,13 @@ export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 export type NotificationPayload = {
   title?: string;
   status?: string;
+  /**
+   * The one exception to the rule above: a word an administrator attached to a
+   * request when taking it in hand. It cannot be translated, because it is
+   * written rather than resolved, and it disappears with the request note the
+   * moment the title reaches the server.
+   */
+  note?: string;
   reason?: string;
   seasonNumber?: number;
   episodeNumber?: number;

@@ -39,8 +39,8 @@ import { cn } from "@/lib/utils";
  * The disk, one folder at a time.
  *
  * The map answers "what takes the room"; this answers "then take it back".
- * It lists what the server lists, live, because the measured tree is pruned
- * for drawing and a pruned tree is not something to delete from.
+ * It lists what the server lists, live, because a measurement is a moment ago
+ * and a moment ago is not something to delete from.
  *
  * Where it looks is not its own: the address comes from the browser around it
  * and every move is announced back, so the map stands in the same folder and
@@ -85,6 +85,7 @@ export function FileExplorer({
   sizes,
   parent,
   onNavigate,
+  onListing,
   canDelete,
   hovered,
   onHover,
@@ -102,6 +103,12 @@ export function FileExplorer({
   /** Where the way out leads, or null on the topmost floor. */
   parent: { volume: string | null; path: string[] } | null;
   onNavigate: (next: { volume: string | null; path: string[] }) => void;
+  /**
+   * What was just read here, handed up. The measurement holds directories
+   * alone, so the map next door draws its files from this listing rather than
+   * asking the server for the same folder a second time.
+   */
+  onListing?: (listing: StorageListing | null) => void;
   canDelete: boolean;
   hovered: string | null;
   onHover: (name: string | null) => void;
@@ -135,7 +142,10 @@ export function FileExplorer({
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    if (volume === null) return;
+    if (volume === null) {
+      onListing?.(null);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -147,6 +157,7 @@ export function FileExplorer({
         if (!response.ok)
           throw new Error(translateError(locale, body.messageKey));
         setListing(body as StorageListing);
+        onListing?.(body as StorageListing);
       } catch (error) {
         if (cancelled) return;
         toast.error(
@@ -161,7 +172,7 @@ export function FileExplorer({
     return () => {
       cancelled = true;
     };
-  }, [volume, path, locale, onNavigate, version]);
+  }, [volume, path, locale, onNavigate, onListing, version]);
 
   // The listing says where it was read; while that is not where the page is,
   // the page is on its way there. No flag to keep in step with the fetch.

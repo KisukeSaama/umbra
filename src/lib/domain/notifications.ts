@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -10,6 +10,7 @@ import {
   type NotificationKind,
   type NotificationPayload,
 } from "@/lib/db/schema";
+import { publishNotified } from "@/lib/realtime";
 
 /**
  * What a member is told.
@@ -73,7 +74,14 @@ export async function notify(
     .onConflictDoNothing({
       target: [notifications.accountId, notifications.dedupKey],
     })
-    .returning({ id: notifications.id });
+    .returning({
+      id: notifications.id,
+      accountId: notifications.accountId,
+    });
+
+  // Only what was actually inserted: a replayed job must stay silent on the
+  // wire exactly as it stays silent in the table.
+  await publishNotified(inserted.map((row) => row.accountId));
 
   return inserted.length;
 }
@@ -89,7 +97,7 @@ export async function notify(
 export async function notifyApprovedAccounts(
   entry: NotificationEntry,
 ): Promise<number> {
-  const result = await db().execute(sql`
+  const rows = await db().execute<{ account_id: string }>(sql`
     INSERT INTO notification (account_id, kind, subject_id, dedup_key, payload)
     SELECT a.id,
            ${entry.kind}::text,
@@ -99,8 +107,14 @@ export async function notifyApprovedAccounts(
       FROM account AS a
      WHERE a.status = 'approved'
     ON CONFLICT (account_id, dedup_key) DO NOTHING
+    RETURNING account_id
   `);
-  return result.count ?? 0;
+
+  // `RETURNING` names the rows the conflict clause let through, which is both
+  // the count and the set to nudge.
+  const accountIds = [...rows].map((row) => row.account_id);
+  await publishNotified(accountIds);
+  return accountIds.length;
 }
 
 /** Everyone approved, for a fan-out that needs the ids rather than a statement. */
@@ -115,6 +129,12 @@ export async function approvedAccountIds(): Promise<string[]> {
 export async function listNotifications(
   accountId: string,
   limit = 30,
+  /**
+   * Only what landed after this instant, for a live stream catching up on the
+   * entries it was nudged about. Rows come back newest first either way, so the
+   * caller advances its mark from the first one.
+   */
+  since?: Date,
 ): Promise<NotificationRow[]> {
   const rows = await db()
     .select({
@@ -126,7 +146,12 @@ export async function listNotifications(
       readAt: notifications.readAt,
     })
     .from(notifications)
-    .where(eq(notifications.accountId, accountId))
+    .where(
+      and(
+        eq(notifications.accountId, accountId),
+        since ? gt(notifications.createdAt, since) : undefined,
+      ),
+    )
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
 
@@ -144,13 +169,13 @@ export async function listNotifications(
 export const UNREAD_CAP = 9;
 
 /**
- * Memoised per render, not cached across requests: the header and the page both
- * ask for it in the same pass, and every page runs its own guard rather than
- * trusting the layout above it.
+ * The count, asked again every time.
+ *
+ * The live stream needs this one: it outlives the request that opened it, and a
+ * memoised count would hand it the same number for as long as the member kept
+ * the page open.
  */
-export const unreadCount = cache(async function unreadCount(
-  accountId: string,
-): Promise<number> {
+export async function unreadNow(accountId: string): Promise<number> {
   const rows = await db()
     .select({ id: notifications.id })
     .from(notifications)
@@ -159,7 +184,14 @@ export const unreadCount = cache(async function unreadCount(
     )
     .limit(UNREAD_CAP + 1);
   return rows.length;
-});
+}
+
+/**
+ * Memoised per render, not cached across requests: the header and the page both
+ * ask for it in the same pass, and every page runs its own guard rather than
+ * trusting the layout above it.
+ */
+export const unreadCount = cache(unreadNow);
 
 export async function markRead(
   accountId: string,

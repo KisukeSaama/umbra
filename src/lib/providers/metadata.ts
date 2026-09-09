@@ -41,7 +41,13 @@ export type DiscoverQuery = {
    * both Comedy and War answers "make me laugh" on the strength of the first.
    */
   excludeGenreIds?: number[];
-  /** ISO 639-1, for a mood defined by where a title was made rather than by genre. */
+  /**
+   * Every one of these must be carried by a title, on top of the union above.
+   * "A romance, and drawn" is two questions and they do not combine into one
+   * list: a union that also held Animation would answer with either.
+   */
+  requireGenreIds?: number[];
+  /** ISO 639-1, for an answer about where a title was made rather than its genre. */
   originalLanguage?: string;
   /** Minutes. Only meaningful for a film. */
   runtimeLte?: number;

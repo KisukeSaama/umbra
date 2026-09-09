@@ -17,6 +17,7 @@ import { StorageTreemap, nodeAt } from "@/components/admin/storage-treemap";
 import { EpisortLink } from "@/components/admin/episort-link";
 import { ChevronRightIcon } from "@/components/icons";
 import type { StorageNode } from "@/lib/db/schema";
+import type { StorageListing } from "@/lib/domain/storage-files";
 import { formatBytes } from "@/lib/format";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,9 @@ export function StorageBrowser({
     path: [],
   });
   const [hovered, setHovered] = useState<string | null>(null);
+  // What the explorer just read, so the map can draw the files of this very
+  // folder without asking the server for the same directory twice.
+  const [listing, setListing] = useState<StorageListing | null>(null);
 
   const { volume, path } = address;
   const container = useRef<HTMLDivElement>(null);
@@ -90,6 +94,26 @@ export function StorageBrowser({
 
   const measured = nodeAt(roots, volume, path);
   const current = volumes.find((entry) => entry.label === volume);
+
+  // The listing is only lent to the map while it stands in the same folder:
+  // between two addresses it is still the old one, and the old one belongs to
+  // a picture that is no longer being drawn.
+  const files = useMemo(() => {
+    if (
+      listing === null ||
+      listing.volume !== volume ||
+      listing.path.length !== path.length ||
+      listing.path.some((name, index) => name !== path[index])
+    )
+      return [];
+    return listing.entries
+      .filter((entry) => entry.kind === "file")
+      .map((entry) => ({
+        name: entry.name,
+        bytes: entry.bytes ?? 0,
+        kind: "file" as const,
+      }));
+  }, [listing, volume, path]);
 
   // A listing has no size for a folder, since sizing one means walking it. The
   // map has just walked them all, so it lends the list its figures.
@@ -185,6 +209,7 @@ export function StorageBrowser({
             roots={roots}
             volume={volume}
             path={path}
+            files={files}
             onOpen={(name) =>
               go(
                 volume === null
@@ -208,6 +233,7 @@ export function StorageBrowser({
           sizes={sizes}
           parent={parent}
           onNavigate={go}
+          onListing={setListing}
           canDelete={canDelete}
           hovered={hovered}
           onHover={setHovered}

@@ -26,6 +26,8 @@ export type PollView = {
   question: string;
   /** Whether the question is open. One poll is open at a time. */
   active: boolean;
+  /** Closed either by hand or by its own end date. Nothing left to vote on. */
+  closed: boolean;
   endsAt: Date | null;
   totalVotes: number;
   /** Option id the current visitor picked, when they voted. */
@@ -92,6 +94,7 @@ export async function pollView(
     id: poll.id,
     question: poll.question,
     active: poll.active,
+    closed: isClosed(poll),
     endsAt: poll.endsAt,
     totalVotes,
     votedOptionId,
@@ -102,11 +105,19 @@ export async function pollView(
   };
 }
 
+/** A question stops taking votes when it is closed by hand or runs out. */
+function isClosed(poll: { active: boolean; endsAt: Date | null }) {
+  return (
+    !poll.active ||
+    (poll.endsAt !== null && poll.endsAt.getTime() <= Date.now())
+  );
+}
+
 /**
- * Records a vote.
+ * Records a vote, or moves one already cast.
  *
- * The one vote per person rule is a unique index, so two simultaneous clicks
- * cannot both get through.
+ * The one vote per person rule is a unique index, so a person holds a single
+ * row and changing their mind moves that row rather than adding another.
  */
 export async function castVote(
   pollId: string,
@@ -126,20 +137,38 @@ export async function castVote(
     .where(eq(polls.id, pollId))
     .limit(1);
   if (!poll) throw new NotFoundError("error.pollNotFound");
-  if (!poll.active || (poll.endsAt && poll.endsAt.getTime() <= Date.now())) {
-    throw new ConflictError("error.pollClosed");
+  if (isClosed(poll)) throw new ConflictError("error.pollClosed");
+
+  const [existing] = await db()
+    .select({ id: votes.id, optionId: votes.optionId })
+    .from(votes)
+    .where(and(eq(votes.pollId, pollId), eq(votes.accountId, accountId)))
+    .limit(1);
+
+  if (existing) {
+    // Moving a vote is not a new vote: the tally counts people, and the
+    // metric counts the act of taking part, which already happened.
+    if (existing.optionId !== optionId)
+      await db()
+        .update(votes)
+        .set({ optionId })
+        .where(eq(votes.id, existing.id));
+    return pollView(pollId, accountId);
   }
 
   try {
     await db().insert(votes).values({ pollId, optionId, accountId });
+    await bumpMetric("votes_cast");
   } catch (error) {
-    // The unique index is what actually enforces one vote per person; two
-    // simultaneous clicks both reach here and only one gets through.
-    if (isUniqueViolation(error)) throw new ConflictError("error.alreadyVoted");
-    throw error;
+    // The unique index is what actually enforces one row per person; when two
+    // clicks race, the one that lost simply moves the row it did not write.
+    if (!isUniqueViolation(error)) throw error;
+    await db()
+      .update(votes)
+      .set({ optionId })
+      .where(and(eq(votes.pollId, pollId), eq(votes.accountId, accountId)));
   }
 
-  await bumpMetric("votes_cast");
   return pollView(pollId, accountId);
 }
 

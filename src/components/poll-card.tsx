@@ -22,7 +22,11 @@ import { cn } from "@/lib/utils";
  * A poll: pick one option, vote, see the split. No comments and no free text,
  * which is exactly why this needs no moderation.
  *
- * Results only show once you have voted, so the standings do not steer the vote.
+ * Results only show once you have voted, so the standings do not steer the
+ * vote. A closed poll shows them to everyone: there is no vote left to steer.
+ *
+ * A vote can be moved as long as the question is open. Changing your mind is
+ * part of a decision, and the tally counts people, not clicks.
  *
  * `bare` drops the card around it, for the news feed, where the question is
  * part of the announcement that carries it and a card inside a card would say
@@ -59,13 +63,17 @@ export function PollCard({
   }
 
   const hasVoted = poll.votedOptionId !== null;
+  const closed = poll.closed;
+  const showResults = hasVoted || closed;
+  const canChange = hasVoted && selected !== poll.votedOptionId;
   // The split is only revealed in motion when the vote just landed here; a
   // poll already voted on an earlier visit is simply read.
   const justVoted = poll !== initialPoll;
   const timeLeft = daysLeftLabel(poll, t);
 
   async function vote() {
-    if (!poll || !selected || hasVoted) return;
+    if (!poll || !selected || closed) return;
+    if (poll.votedOptionId === selected) return;
     setSubmitting(true);
     try {
       const response = await fetch(`/api/polls/${poll.id}/vote`, {
@@ -77,8 +85,10 @@ export function PollCard({
       if (!response.ok)
         throw new Error(translateError(locale, body.messageKey));
 
-      setPoll(body.poll as PollView);
-      toast.success(t("poll.voted"));
+      const next = body.poll as PollView;
+      setPoll(next);
+      setSelected(next.votedOptionId);
+      toast.success(t(hasVoted ? "poll.voteChanged" : "poll.voted"));
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -95,17 +105,27 @@ export function PollCard({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="font-medium">{poll.question}</p>
         {timeLeft && bare ? (
-          <span className="text-muted-foreground text-xs">{timeLeft}</span>
+          <span
+            className={cn(
+              "text-xs",
+              closed
+                ? "text-foreground/80 font-medium"
+                : "text-muted-foreground",
+            )}
+          >
+            {timeLeft}
+          </span>
         ) : null}
       </div>
 
-      {/* Once the vote is in, the options stop being controls: the split is
-            what is left to read, and it must stay readable, not greyed out. */}
+      {/* Once the question is closed, the options stop being controls: the
+            split is what is left to read, and it must stay readable, not
+            greyed out. While it is open, a vote already cast can still move. */}
       <div
         className="space-y-1"
         role="radiogroup"
         aria-label={poll.question}
-        aria-disabled={hasVoted || undefined}
+        aria-disabled={closed || undefined}
       >
         {poll.options.map((option) => {
           const chosen = selected === option.id;
@@ -117,14 +137,14 @@ export function PollCard({
               type="button"
               role="radio"
               aria-checked={chosen}
-              disabled={hasVoted || submitting}
+              disabled={closed || submitting}
               onClick={() => setSelected(option.id)}
               className={cn(
                 "focus-visible:ring-ring/50 w-full rounded-lg px-3 py-2 text-left transition-colors outline-none focus-visible:ring-3",
-                hasVoted
+                closed
                   ? "cursor-default"
                   : "hover:bg-secondary/60 active:bg-secondary",
-                chosen && !hasVoted ? "bg-secondary/60" : "",
+                chosen && !closed ? "bg-secondary/60" : "",
               )}
             >
               <span className="flex items-center gap-3">
@@ -141,14 +161,14 @@ export function PollCard({
                   ) : null}
                 </span>
                 <span className="flex-1 text-sm">{option.label}</span>
-                {hasVoted ? (
+                {showResults ? (
                   <span className="text-muted-foreground text-sm tabular-nums">
                     {share}%
                   </span>
                 ) : null}
               </span>
 
-              {hasVoted ? (
+              {showResults ? (
                 <span className="bg-secondary mt-2 block h-1.5 overflow-hidden rounded-full">
                   <span
                     className={cn(
@@ -169,14 +189,15 @@ export function PollCard({
         <span className="text-muted-foreground text-xs tabular-nums">
           {t("poll.votes", { count: poll.totalVotes })}
         </span>
-        {hasVoted ? (
+        {/* A closed question already says so next to the question itself. */}
+        {closed ? null : hasVoted && !canChange ? (
           <span className="text-primary text-sm">{t("poll.voted")}</span>
         ) : (
           <Button
             onClick={() => void vote()}
             disabled={!selected || submitting}
           >
-            {t("poll.vote")}
+            {t(hasVoted ? "poll.changeVote" : "poll.vote")}
           </Button>
         )}
       </div>
@@ -206,6 +227,7 @@ export function PollCard({
 }
 
 function daysLeftLabel(poll: PollView, t: ReturnType<typeof useTranslator>) {
+  if (poll.closed) return t("poll.closed");
   if (!poll.endsAt) return "";
   const days = Math.ceil(
     (new Date(poll.endsAt).getTime() - Date.now()) / 86_400_000,

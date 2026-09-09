@@ -69,6 +69,11 @@ export default async function AdminAnnouncementsPage() {
                             {t("poll.votes", { count: poll.totalVotes })}
                           </Badge>
                         ) : null}
+                        {poll?.closed ? (
+                          <Badge variant="outline">
+                            {t("admin.polls.closed")}
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
 
@@ -108,6 +113,11 @@ export default async function AdminAnnouncementsPage() {
                                   width: `${Math.round(option.share * 100)}%`,
                                 }}
                               />
+                            </span>
+                            {/* The count first: a share alone hides whether
+                                two people or forty made that split. */}
+                            <span className="text-muted-foreground w-8 shrink-0 text-right text-xs tabular-nums">
+                              {option.votes}
                             </span>
                             <span className="text-muted-foreground w-9 shrink-0 text-right text-xs tabular-nums">
                               {Math.round(option.share * 100)}%

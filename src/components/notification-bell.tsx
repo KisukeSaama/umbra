@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { BellIcon } from "@/components/icons";
 import { LoadingRegion, TextLine } from "@/components/skeletons";
@@ -29,13 +30,16 @@ type Item = {
  * The reason to come back.
  *
  * The count is rendered by the server with the page, so the header is truthful
- * on arrival without anything polling in the background. The list itself is
- * fetched when the panel is opened, which is the only moment it is worth
- * asking for.
+ * on arrival, and a stream keeps it that way afterwards: the panel is still
+ * fetched when it is opened, which is the only moment the list is worth asking
+ * for, while the server-sent events say what changed in between. Nothing polls,
+ * in either direction.
  *
  * Nothing here is a stored sentence: every line is a translation key resolved
  * against a little structured payload, so the same notification reads in the
- * language of whoever opens it.
+ * language of whoever opens it. The one exception is the word an administrator
+ * may attach to a request, which is written rather than resolved and is shown
+ * under the line it belongs to.
  */
 export function NotificationBell({ unread }: { unread: number }) {
   const t = useTranslator();
@@ -43,6 +47,58 @@ export function NotificationBell({ unread }: { unread: number }) {
   const [items, setItems] = useState<Item[] | null>(null);
   const [count, setCount] = useState(unread);
   const [loading, setLoading] = useState(false);
+
+  /**
+   * The live half.
+   *
+   * `EventSource` reconnects on its own, and a stream refused outright, a
+   * session that expired while the tab stayed open, is not retried at all,
+   * which is the behaviour we want: the next navigation lands on the sign-in
+   * page rather than a tab knocking every few seconds.
+   */
+  useEffect(() => {
+    const source = new EventSource("/api/notifications/stream");
+
+    source.addEventListener("notifications", (event) => {
+      let data: { unread?: number; entries?: Item[] };
+      try {
+        data = JSON.parse((event as MessageEvent<string>).data);
+      } catch {
+        return;
+      }
+
+      if (typeof data.unread === "number") setCount(data.unread);
+
+      const entries = data.entries ?? [];
+      if (entries.length === 0) return;
+
+      // Prepended rather than refetched: the panel may well be open when this
+      // lands, and a list that reorders under the cursor is worse than one that
+      // grows at the top.
+      setItems((current) =>
+        current === null
+          ? null
+          : [
+              ...entries,
+              ...current.filter(
+                (item) => !entries.some((entry) => entry.id === item.id),
+              ),
+            ],
+      );
+
+      for (const entry of entries) {
+        toast(notificationLine(t, entry), {
+          description: entry.payload.note,
+        });
+      }
+
+      // The follow-up page, and anything else the server drew from the same
+      // rows, catches up in the same breath.
+      router.refresh();
+    });
+
+    return () => source.close();
+  }, [router, t]);
 
   async function load(open: boolean) {
     if (!open) return;
@@ -128,6 +184,11 @@ export function NotificationBell({ unread }: { unread: number }) {
                 />
                 <span className="leading-snug">
                   {notificationLine(t, item)}
+                  {item.payload.note ? (
+                    <span className="text-muted-foreground block">
+                      {item.payload.note}
+                    </span>
+                  ) : null}
                 </span>
               </li>
             ))}

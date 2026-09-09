@@ -42,7 +42,7 @@ const LOCALE_TAGS: Record<DateLocale, string> = { en: "en-US", fr: "fr-FR" };
  * A date-only string (`2026-09-09`) is pinned to noon UTC before it becomes a
  * `Date`, so no timezone west or east of Greenwich shifts it to the wrong day.
  */
-function toDate(value: Date | string): Date {
+export function toDate(value: Date | string): Date {
   return typeof value === "string" ? new Date(`${value}T12:00:00Z`) : value;
 }
 

@@ -348,7 +348,9 @@ The box is 3:4 on a phone, 4:3 from the small breakpoint and 2:1 from the large
 one, and the layout is computed in the measured pixels of that box rather than
 in a normalised square: a treemap laid out for one aspect ratio and stretched
 into another is a treemap of splinters. A tile too small for a name does not get
-one, and entries too small to draw are folded away with a line saying how many.
+one, but nothing is ever dropped for being small: the map draws in every folder
+at any depth, its directories from the measurement, which keeps them all, and
+the files of the folder being looked at from the listing beside it.
 
 **Posters.** A 2:3 frame with a hairline border and a Quiet Sand ground, filled
 before the image arrives so nothing shifts. Inside a link, hover and keyboard focus

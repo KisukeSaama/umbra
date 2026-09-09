@@ -193,7 +193,7 @@ export type GuidedSelection = {
  *
  * Half of it is drawn from the server, so there is something to press play on
  * straight away, and half from the provider, so there is something to ask for.
- * Both halves come from the same three closed answers, and neither of them ever
+ * Both halves come from the same four closed answers, and neither of them ever
  * involved typing a word.
  */
 export async function guidedSelection(
@@ -210,6 +210,7 @@ export async function guidedSelection(
           query.genreIds ?? [],
           queries.length > 1 ? 2 : 3,
           query.excludeGenreIds ?? [],
+          query.requireGenreIds ?? [],
         ),
       ),
     )

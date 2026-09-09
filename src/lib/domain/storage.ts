@@ -184,12 +184,15 @@ type ScanCounter = {
   report?: ScanReport;
 };
 
-/** Deep enough for volume, library, series, season, episode, and one spare. */
-const MAX_DEPTH = 6;
-/** Below this share of its parent an entry is a pixel, so it is folded away. */
-const MIN_SHARE = 0.004;
-/** Hard ceiling per level, so one directory of ten thousand files cannot win. */
-const MAX_CHILDREN = 40;
+/**
+ * As deep as the explorer will go, so no folder is ever off the map.
+ *
+ * The tree keeps every directory it finds and no file at all. That is what
+ * makes it both complete and small: the directories of a media library number
+ * in the thousands, its files in the hundreds of thousands, and the files of
+ * the folder being looked at are already in the listing the explorer reads.
+ */
+const MAX_DEPTH = 32;
 /** Directories walked at once. Enough to hide the latency, not a thundering herd. */
 const CONCURRENCY = 8;
 
@@ -231,7 +234,7 @@ export async function scanStorageTree(
 
   roots.sort((a, b) => b.bytes - a.bytes);
   const tree: StorageTree = {
-    roots: roots.map((root) => prune(root)),
+    roots,
     totalBytes: roots.reduce((total, root) => total + root.bytes, 0),
     fileCount: counter.files,
     durationMs: Date.now() - startedAt,
@@ -297,6 +300,9 @@ async function walk(
   );
   const files = entries.filter((entry) => entry.isFile());
 
+  // Files weigh, but they are not kept: the map draws the ones in the folder
+  // being looked at from the listing beside it, which is read live and is
+  // therefore never one scan behind.
   for (const file of files) {
     try {
       const info = await stat(join(path, file.name));
@@ -308,8 +314,6 @@ async function walk(
         where: counter.where ?? undefined,
       });
       bytes += info.size;
-      if (depth < MAX_DEPTH)
-        children.push({ name: file.name, bytes: info.size, kind: "file" });
     } catch {
       // A file that vanished between the listing and the measurement.
     }
@@ -325,36 +329,8 @@ async function walk(
     if (depth < MAX_DEPTH) children.push(child);
   }
 
+  children.sort((a, b) => b.bytes - a.bytes);
   return { name, bytes, kind: "directory", children };
-}
-
-/**
- * Folds away what could not be drawn.
- *
- * A treemap cannot show a rectangle worth four tenths of a percent, and a
- * snapshot carrying a hundred thousand of them is a snapshot nobody can load.
- * What is folded is still counted, and the node says how many entries went.
- */
-function prune(node: StorageNode): StorageNode {
-  if (!node.children || node.children.length === 0) {
-    return node.kind === "file"
-      ? { name: node.name, bytes: node.bytes, kind: node.kind }
-      : { name: node.name, bytes: node.bytes, kind: node.kind, children: [] };
-  }
-
-  const sorted = [...node.children].sort((a, b) => b.bytes - a.bytes);
-  const kept = sorted
-    .slice(0, MAX_CHILDREN)
-    .filter((child) => child.bytes >= node.bytes * MIN_SHARE);
-  const folded = sorted.length - kept.length;
-
-  return {
-    name: node.name,
-    bytes: node.bytes,
-    kind: node.kind,
-    ...(folded > 0 ? { truncated: folded } : {}),
-    children: kept.map((child) => prune(child)),
-  };
 }
 
 /** Runs `work` over `items`, at most `limit` at a time, in order. */

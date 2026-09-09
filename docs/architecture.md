@@ -125,8 +125,11 @@ does not stop the others: a metadata outage must not prevent a storage snapshot.
 5. **storage-scan**: walk those volumes directory by directory and record the
    tree the administration draws as a treemap. Slow, so it is due on a clock of
    its own (six hours) rather than on every pass, asked of `job_state` and
-   therefore caught up after downtime like everything else here. The walk never
-   follows a symbolic link and never takes a path from a request.
+   therefore caught up after downtime like everything else here. It keeps every
+   directory and no file, which is what makes the tree complete and still small
+   enough to load: the files of the folder being drawn come from the live
+   listing. The walk never follows a symbolic link and never takes a path from
+   a request.
 6. **taste-profile**: rebuild each opted-in account profile from a rolling window
    of the media server history, replacing the rows rather than adding to them.
 7. **housekeeping**: delete what nothing else deletes, bounded per run so a
@@ -154,6 +157,35 @@ nothing is missed after downtime, and `ON CONFLICT DO NOTHING` on the task means
 rerun never duplicates work. A large catch-up lands as a batch of tasks rather
 than being lost. The worker holds no state: it calls the endpoint, and the
 endpoint knows what is left to do.
+
+## Notifications
+
+A notification is data, never a sentence: a kind, the subject it is about and a
+small payload the client turns into words in its own language. That is what lets
+the bell, the follow-up page and a toast read the same entry the same way.
+
+The count is rendered on the server with the page, so the header is truthful on
+arrival. It is kept truthful afterwards by a stream rather than by a poll:
+`/api/notifications/stream` is a server-sent event stream, opened by the bell for
+the signed-in member and held for as long as the tab is. It carries the unread
+count and the entries that landed, and sends a heartbeat every twenty-five
+seconds so no proxy calls it idle. Server-sent events rather than a socket
+because everything here travels one way, and because the deployment serves Next
+itself with no custom server to hang an HTTP upgrade on. The browser owns the
+reconnection, and a stream refused outright, a session that expired while the tab
+stayed open, is not retried at all.
+
+What joins the write to the stream is Postgres `LISTEN`/`NOTIFY`, in
+`src/lib/realtime.ts`. `notify()` and `notifyApprovedAccounts()` publish the
+account ids their `RETURNING` clause actually inserted, so a replayed job stays
+as silent on the wire as it stays in the table, and one `LISTEN` per process
+dispatches to the streams that are open. The channel carries account ids and
+nothing else: a stream then reads its own rows through the same domain functions
+as every other reader, so no authorisation check is duplicated and nothing can be
+learned about an account that is not one's own. A fan-out to everyone is sliced,
+because Postgres refuses a payload over eight thousand bytes, and publishing
+never throws: a nudge that goes missing costs a stale count until the next one or
+the next navigation, which is exactly where the bell was before.
 
 ## Authentication
 

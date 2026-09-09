@@ -89,9 +89,10 @@ answers `{ "results": [...] }`; with `?providerId=` it answers
 `{ "seasons": [1, 2] }`; with `?providerId=&season=` it answers
 `{ "episodes": [{ "episodeNumber", "title" }] }`. Never reaches the gateway.
 
-**`GET /api/discover/picks?mood=&format=&duration=`** (member). The guided
-picker. All three are closed enums, validated here and not only offered in the
-interface. Answers `{ "tonight": [...], "ideas": [...] }`: what is already on the
+**`GET /api/discover/picks?mood=&anime=&format=&duration=`** (member). The guided
+picker. All four are closed enums, validated here and not only offered in the
+interface. `anime` is `without`, `with` or `only`: a mood says what a title is
+about, this says whether it is drawn and made in Japan. Answers `{ "tonight": [...], "ideas": [...] }`: what is already on the
 server, and what can be asked for.
 
 **`GET /api/notifications`** (member): `{ "items": [...], "unread": 3 }`. A
@@ -110,7 +111,7 @@ All of these are open to the administrator and to the assistants, except
 
 | Route                                  | Body                                                    | Effect                                                                                                                                        |
 | -------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PATCH /api/admin/requests/{id}`       | `{ status, adminNote? }`                                | Moves a request. `accepted` on a series also starts tracking it                                                                               |
+| `PATCH /api/admin/requests/{id}`       | `{ status, adminNote? }`                                | Moves a request. `accepted` on a series also starts tracking it, `adminNote` is an optional word shown to the requester and cleared on `available`                                                                               |
 | `PATCH /api/admin/reports/{id}`        | `{ status }`                                            | Moves a report along its state machine. `acknowledged` on a series also starts tracking it. An illegal move is a 409                          |
 | `POST /api/admin/series`               | `{ providerId }`                                        | Tracks a series and pulls its calendar                                                                                                        |
 | `PATCH /api/admin/series/{id}`         | `{ enabled }`                                           | Pauses or resumes tracking                                                                                                                    |

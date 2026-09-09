@@ -89,6 +89,14 @@ requested -> accepted -> processing -> available
   sync finds the title.
 - **rejected**: declined. The title can be requested again later.
 
+Accepting a request may carry an optional word from the administration: why it
+will take a while, which season is missing, what is being looked for. It reaches
+the member in the notification of that step and stays on their follow-up page,
+and it is erased the moment the title is on the server, by hand or by the
+library sync, because it has nothing left to say then. It goes one way and
+expects no answer: it is the administration speaking, not a conversation, so
+the rule that members never write free text holds.
+
 A request can be taken back by the person who opened it, from the title right
 after asking and from the follow-up page afterwards, but only while it is still
 `requested`. Once it is accepted the administrator has decided something, and a
@@ -135,14 +143,22 @@ playback failure, which Umbra does not index and must never try to check.
 A series that is on the server without being all there used to have no answer:
 the state said "available", so the request button was gone, and the only way to
 say "there are six episodes missing" was the report flow, three steps away from
-the line that shows the gap. So the shortfall now carries its own press: on the
-series, "ask for the update"; on a season with nothing in it, "ask for this
-season"; on a season that falls short, "ask for the missing episodes".
+the line that shows the gap. So the shortfall now carries its own press, on the
+season it belongs to: with nothing of it here, "ask for this season"; with part
+of it here, "ask for the missing episodes".
+
+On the season and nowhere else. The series carried the same press for a while,
+worded "ask for the update", and it said the same thing twice: the same missing
+episodes could be asked for once at the top of the page and once on the season
+that lacked them, as two asks the administrator then had to read as one.
 
 It is not a fourth kind of thing. Each of them sends the report the three
 questions would have produced, with the reason taken from what the panel already
 knows rather than asked again: still a choice out of a list, still one queue for
-the administrator, still withdrawable in the moment that follows.
+the administrator, still withdrawable in the moment that follows. An ask that is
+already open shows as asked instead of offering itself again, for everybody and
+not only for whoever pressed first, because the report they would send is one
+and the same.
 
 ## Following what you asked for
 
@@ -166,11 +182,13 @@ provider suggests from something you asked for yourself, and one shelf shaped by
 an aggregated taste profile. Every card carries its state, so "is this already
 here" is answered by looking rather than by searching.
 
-The guided picker, for the evenings where even a shelf is too much. Three closed
+The guided picker, for the evenings where even a shelf is too much. Four closed
 questions, then a small selection in two halves: what is already on the server,
 so the evening can start now, and what is not, so there is something to ask for.
 It replaced a die that returned one random title, which was a shrug rather than
-an answer.
+an answer. Anime is one of those four questions and not one of the moods: a mood
+is what a title is about, anime is how it is made, so a romance can be asked for
+without anime, with anime, or only in anime.
 
 Search left its page and became a key you press. Checking whether a title is
 already here is the gesture members repeat most, and it should not need a

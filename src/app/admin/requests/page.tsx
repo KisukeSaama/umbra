@@ -13,6 +13,10 @@ import { getI18n } from "@/lib/i18n/server";
  *
  * Accepting a series is also what starts its tracking, so the buttons here are
  * the entry point of the whole episode pipeline.
+ *
+ * Accepting may carry an optional word for the person who asked, which reaches
+ * them in their notification and on their follow-up page and is erased the day
+ * the title lands on the server.
  */
 export default async function AdminRequestsPage() {
   await requireStaffPage();
@@ -61,6 +65,12 @@ export default async function AdminRequestsPage() {
               {request.requestedBy ? ` · ${request.requestedBy}` : ""}
             </p>
 
+            {request.adminNote ? (
+              <p className="border-border/60 text-muted-foreground border-l-2 pl-3 text-sm">
+                {request.adminNote}
+              </p>
+            ) : null}
+
             {nextActions(request.status).length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {nextActions(request.status).map((action) => (
@@ -70,6 +80,15 @@ export default async function AdminRequestsPage() {
                     body={{ status: action.status }}
                     size="sm"
                     variant={action.variant}
+                    noteField={
+                      action.note
+                        ? {
+                            name: "adminNote",
+                            label: t("admin.requests.note"),
+                            placeholder: t("admin.requests.notePlaceholder"),
+                          }
+                        : undefined
+                    }
                   >
                     {t(action.labelKey)}
                   </ActionButton>
@@ -100,6 +119,8 @@ function nextActions(status: RequestStatus): {
   status: RequestStatus;
   labelKey: TranslationKey;
   variant: "default" | "secondary" | "ghost";
+  /** Taking an ask in hand is the one move that may carry a word back. */
+  note?: boolean;
 }[] {
   switch (status) {
     case "requested":
@@ -108,6 +129,7 @@ function nextActions(status: RequestStatus): {
           status: "accepted",
           labelKey: "admin.requests.accept",
           variant: "default",
+          note: true,
         },
         {
           status: "rejected",

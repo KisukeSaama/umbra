@@ -400,6 +400,7 @@ export async function randomAvailableByGenres(
   genreIds: number[],
   limit: number,
   excludeGenreIds: number[] = [],
+  requireGenreIds: number[] = [],
 ): Promise<RecentItem[]> {
   if (genreIds.length === 0) return [];
   const rows = await db()
@@ -417,6 +418,15 @@ export async function randomAvailableByGenres(
           ? [
               sql`NOT (${libraryItems.genreIds} && ${intArray(excludeGenreIds)})`,
             ]
+          : []),
+        // Contains, not overlaps: these are the genres a title has to carry on
+        // top of the mood, which is how "a romance, and drawn" stays two
+        // conditions rather than widening into either of them. The index holds
+        // no original language, so on this side "only anime" reads as
+        // Animation alone: the shelf is what the server has, and it is small
+        // enough that the difference is not what empties it.
+        ...(requireGenreIds.length
+          ? [sql`${libraryItems.genreIds} @> ${intArray(requireGenreIds)}`]
           : []),
       ),
     )

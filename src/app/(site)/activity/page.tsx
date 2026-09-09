@@ -25,6 +25,10 @@ export const metadata: Metadata = { title: "Follow-up" };
  * It is also where a gesture can be taken back, as long as nobody has acted on
  * it. What "nobody has acted on it" means is decided by the domain; the page
  * only asks whether to draw the button.
+ *
+ * A request taken in hand may carry a word from the administration. It is the
+ * only sentence on this page nobody translated, it goes one way, and it is
+ * gone once the title is on the server, where it has nothing left to say.
  */
 export default async function ActivityPage() {
   const account = await requireMemberPage();
@@ -80,6 +84,14 @@ export default async function ActivityPage() {
                     steps={["requested", "accepted", "processing", "available"]}
                     prefix="activity.timeline"
                   />
+                  {request.adminNote ? (
+                    <p className="border-border/60 border-l-2 pl-3 text-sm">
+                      <span className="text-muted-foreground">
+                        {t("activity.note")}
+                      </span>{" "}
+                      {request.adminNote}
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <p className="text-muted-foreground text-xs">
                       {t("activity.requestedOn", {

@@ -7,15 +7,21 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CircleIcon,
+  ClockIcon,
 } from "@/components/icons";
 import { LoadingRegion, TextLine } from "@/components/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { UpdateAsk } from "@/components/update-ask";
 import { isOnServer, type Availability } from "@/lib/domain/availability";
 import type { EpisodeState, SeasonState } from "@/lib/domain/catalog";
-import { isSeasonComplete, isSeasonMissing } from "@/lib/domain/seasons";
+import {
+  isSeasonComplete,
+  isSeasonMissing,
+  isUnaired,
+} from "@/lib/domain/seasons";
+import { formatDate } from "@/lib/format";
 import { askKey } from "@/lib/reports/reasons";
-import { useTranslator } from "@/lib/i18n/client";
+import { useLocale, useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
@@ -223,10 +229,17 @@ export function SeasonList({
  * server" out at 360 pixels would leave a third of the line for the title and
  * cut every one of them short. The word stays for anyone reading with a screen
  * reader either way.
+ *
+ * An episode the provider has dated in the future is the exception: it is
+ * absent because it has not been broadcast, so the line states the date instead
+ * of a shortfall, on every screen width. The date is a broadcast, never a
+ * promise that the server will hold it that day.
  */
 function EpisodeRow({ episode }: { episode: EpisodeState }) {
   const t = useTranslator();
+  const locale = useLocale();
   const number = t("season.episodeShort", { number: episode.episodeNumber });
+  const upcoming = !episode.onServer && isUnaired(episode.airDate);
 
   return (
     <li className="flex items-center gap-3 py-2 text-sm">
@@ -238,6 +251,14 @@ function EpisodeRow({ episode }: { episode: EpisodeState }) {
         <span className="text-primary flex shrink-0 items-center gap-1.5 text-xs">
           <CheckIcon />
           <span className="sr-only sm:not-sr-only">{t("season.onServer")}</span>
+        </span>
+      ) : upcoming && episode.airDate ? (
+        <span className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
+          <ClockIcon />
+          <span className="sr-only">{t("season.airsOn")}</span>
+          <time dateTime={episode.airDate} className="tabular-nums">
+            {formatDate(episode.airDate, locale)}
+          </time>
         </span>
       ) : (
         <span className="text-muted-foreground/70 flex shrink-0 items-center gap-1.5 text-xs">

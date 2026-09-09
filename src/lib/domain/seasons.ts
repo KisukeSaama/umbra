@@ -1,4 +1,5 @@
 import type { SeasonState } from "@/lib/domain/catalog";
+import { toDate } from "@/lib/format";
 
 /**
  * "Is it all there", in one place.
@@ -28,4 +29,18 @@ export function isSeasonMissing(season: SeasonState): boolean {
  */
 export function isSeriesIncomplete(seasons: SeasonState[]): boolean {
   return seasons.length > 0 && !seasons.every(isSeasonComplete);
+}
+
+/**
+ * An episode the provider has dated in the future has not been broadcast yet.
+ *
+ * Its absence from the server is a schedule, not a shortfall: the list says
+ * when it is due rather than marking it as something the server is late on.
+ */
+export function isUnaired(
+  airDate: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (!airDate) return false;
+  return toDate(airDate).getTime() > now.getTime();
 }

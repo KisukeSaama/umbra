@@ -10,6 +10,8 @@ import { LoadingRegion, TextLine } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ANIME_STANCES,
+  type AnimeStance,
   DURATIONS,
   type Duration,
   FORMATS,
@@ -34,7 +36,7 @@ type Selection = {
 /**
  * "I do not know what to watch", answered properly.
  *
- * It used to be a die: one random title, take it or roll again. Three closed
+ * It used to be a die: one random title, take it or roll again. Four closed
  * questions turn that into an actual suggestion, and the answer comes back in
  * two halves on purpose. What is already on the server can be watched tonight;
  * what is not can be asked for. Both are useful, and they are useful for
@@ -47,6 +49,9 @@ export function MoodPicker() {
   const locale = useLocale();
 
   const [mood, setMood] = useState<Mood | null>(null);
+  // Second, and not last: what a title is about and whether it is drawn are two
+  // questions, and this one narrows the mood rather than the evening.
+  const [anime, setAnime] = useState<AnimeStance | null>(null);
   const [format, setFormat] = useState<Format | null>(null);
   const [duration, setDuration] = useState<Duration | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -54,6 +59,7 @@ export function MoodPicker() {
 
   async function roll(next: {
     mood: Mood;
+    anime: AnimeStance;
     format: Format;
     duration: Duration;
   }) {
@@ -78,6 +84,7 @@ export function MoodPicker() {
 
   function restart() {
     setMood(null);
+    setAnime(null);
     setFormat(null);
     setDuration(null);
     setSelection(null);
@@ -94,12 +101,13 @@ export function MoodPicker() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={loading || !mood || !format || !duration}
+              disabled={loading || !mood || !anime || !format || !duration}
               onClick={() =>
                 mood &&
+                anime &&
                 format &&
                 duration &&
-                void roll({ mood, format, duration })
+                void roll({ mood, anime, format, duration })
               }
             >
               {loading ? <SpinnerIcon /> : <SparkleIcon />}
@@ -166,7 +174,7 @@ export function MoodPicker() {
       </div>
     );
 
-  // The third answer is the ask itself, so the questions have done their job:
+  // The last answer is the ask itself, so the questions have done their job:
   // what stands here now is the shape of the selection about to land.
   if (loading) return <SelectionSkeleton label={t("common.loading")} />;
 
@@ -185,6 +193,19 @@ export function MoodPicker() {
 
       {mood ? (
         <Question
+          label={t("picker.anime")}
+          answered={anime !== null}
+          options={ANIME_STANCES.map((value) => ({
+            value,
+            label: t(`picker.anime.${value}` as TranslationKey),
+          }))}
+          selected={anime}
+          onPick={(value) => setAnime(value as AnimeStance)}
+        />
+      ) : null}
+
+      {mood && anime ? (
+        <Question
           label={t("picker.format")}
           answered={format !== null}
           options={FORMATS.map((value) => ({
@@ -196,7 +217,7 @@ export function MoodPicker() {
         />
       ) : null}
 
-      {mood && format ? (
+      {mood && anime && format ? (
         <Question
           label={t("picker.duration")}
           answered={duration !== null}
@@ -208,7 +229,7 @@ export function MoodPicker() {
           onPick={(value) => {
             const picked = value as Duration;
             setDuration(picked);
-            void roll({ mood, format, duration: picked });
+            void roll({ mood, anime, format, duration: picked });
           }}
         />
       ) : null}

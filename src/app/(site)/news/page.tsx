@@ -26,20 +26,15 @@ export const metadata: Metadata = { title: "News" };
  * now part of the note that asked the question, which is what it always was:
  * something the administration said, that happens to expect an answer back.
  *
- * The notes that ask something come first, because they are the only ones here
- * that are waiting on the reader. The rest is read and left.
+ * The feed is chronological, newest first, questions included: a reader opens
+ * the page to find out what is new, and a note that asks something is not
+ * newer than one that does not.
  */
 export default async function NewsPage() {
   const account = await requireMemberPage();
   const { t, locale } = await getI18n();
 
   const announcements = await publishedAnnouncements(30, account.id);
-  const asking = announcements.filter(
-    (announcement) => announcement.poll?.active,
-  );
-  const rest = announcements.filter(
-    (announcement) => !announcement.poll?.active,
-  );
 
   return (
     <div className="umbra-container max-w-3xl py-12">
@@ -50,7 +45,7 @@ export default async function NewsPage() {
         <p className="text-muted-foreground text-sm">{t("news.none")}</p>
       ) : (
         <div className="space-y-4">
-          {[...asking, ...rest].map((announcement) => (
+          {announcements.map((announcement) => (
             <Card key={announcement.id}>
               <CardHeader>
                 <CardTitle>{announcement.title}</CardTitle>
