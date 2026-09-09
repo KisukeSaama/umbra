@@ -309,9 +309,9 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
   /*
    * Taste profiles.
    *
-   * Rebuilt from a rolling window on every run rather than accumulated, and
-   * skipped entirely for anyone who turned personalisation off. One account
-   * failing does not stop the others: a profile is a nicety, not a record.
+   * Rebuilt from a rolling window on every run rather than accumulated. One
+   * account failing does not stop the others: a profile is a nicety, not a
+   * record.
    */
   outcomes.push(
     await runJob("taste-profile", async () => {

@@ -34,9 +34,10 @@ before changing behaviour and `docs/architecture.md` before changing structure.
 5. **Collect the minimum.** A Plex account id and a display name. No e-mail, no
    Plex token, and never a list of what a person watched. The one exception is
    `taste_profile`: a handful of weighted genre ids per account, rebuilt from a
-   rolling window on every sync and therefore replaced rather than accumulated,
-   deleted the moment a member turns personalisation off. See
-   `docs/adr/0007-aggregated-taste-profile.md`. Public statistics are aggregates.
+   rolling window on every sync and therefore replaced rather than accumulated.
+   It has no switch: see `docs/adr/0007-aggregated-taste-profile.md` and
+   `docs/adr/0013-personalisation-is-not-optional.md`. Public statistics are
+   aggregates.
 6. **Code and documentation in English.** The interface is bilingual and detected
    from `Accept-Language`; every user-visible string lives in
    `src/lib/i18n/dictionaries.ts`.

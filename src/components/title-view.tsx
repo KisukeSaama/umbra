@@ -4,7 +4,9 @@ import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
 import { openAsksFor } from "@/lib/domain/reports";
+import { settledAsksFor } from "@/lib/domain/settled";
 import { getTranslator } from "@/lib/i18n/server";
+import { NOTHING_SETTLED } from "@/lib/reports/reasons";
 
 /**
  * One title, given the room to be looked at.
@@ -20,13 +22,18 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
   const t = await getTranslator();
   /*
    * What has already been asked about this series, so a season never offers an
-   * ask a second time. Read here rather than in `titleDetail`, because it says
-   * what the buttons may do and not what the title is.
+   * ask a second time, and what the administration has just answered, which the
+   * index will only show at the next scan. Read here rather than in
+   * `titleDetail`, because they say what the buttons may do and not what the
+   * title is.
    */
-  const openAsks =
+  const [openAsks, settled] =
     detail.kind === "tv"
-      ? await openAsksFor(detail.kind, detail.providerId)
-      : [];
+      ? await Promise.all([
+          openAsksFor(detail.kind, detail.providerId),
+          settledAsksFor(detail.kind, detail.providerId),
+        ])
+      : [[], NOTHING_SETTLED];
 
   return (
     <article className="space-y-6">
@@ -44,7 +51,10 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-5 sm:flex-row">
+      {/* The banner is positioned, so it would paint over anything static that
+          follows it: the row rises into its foot only if it is positioned too,
+          which is what the poster already did on its own. */}
+      <div className="relative flex flex-col gap-5 sm:flex-row">
         <div className="w-32 shrink-0 sm:w-40">
           <Poster src={detail.posterUrl} alt={detail.title} sizes="10rem" />
         </div>
@@ -94,6 +104,7 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
           seasons={detail.seasons}
           availability={detail.availability}
           openAsks={openAsks}
+          settled={settled}
         />
       ) : null}
     </article>

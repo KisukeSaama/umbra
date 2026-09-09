@@ -50,6 +50,13 @@
       "when": 1788976108278,
       "tag": "0006_report_admin_note",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788980526445,
+      "tag": "0007_drop_personalisation_enabled",
+      "breakpoints": true
     }
   ]
 }

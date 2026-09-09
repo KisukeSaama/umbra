@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  mergePage,
+  mergeWindow,
   pageHref,
   paginate,
   parsePage,
@@ -68,5 +70,59 @@ describe("the address of another page", () => {
     expect(pageHref("/news", params, "page", 2)).toBe(
       "/news?tag=a&tag=b&page=2",
     );
+  });
+});
+
+describe("a page of two lists", () => {
+  const at = (row: { at: string }) => new Date(row.at);
+  const a1 = { id: "a1", at: "2026-09-01T10:00:00Z" };
+  const a2 = { id: "a2", at: "2026-09-03T10:00:00Z" };
+  const b1 = { id: "b1", at: "2026-09-02T10:00:00Z" };
+  const b2 = { id: "b2", at: "2026-09-04T10:00:00Z" };
+
+  it("reads each side up to the end of the wanted page", () => {
+    // Neither table can be offset on its own: the tenth line of the merged
+    // list may be the tenth of one side or the first of the other.
+    expect(mergeWindow(paginate(40, 1, 10))).toEqual({ limit: 10, offset: 0 });
+    expect(mergeWindow(paginate(40, 3, 10))).toEqual({ limit: 30, offset: 0 });
+  });
+
+  it("interleaves by date, newest first", () => {
+    expect(
+      mergePage(
+        paginate(4, 1, 10),
+        [
+          [a2, a1],
+          [b2, b1],
+        ],
+        at,
+      ).map((r) => r.id),
+    ).toEqual(["b2", "a2", "b1", "a1"]);
+  });
+
+  it("cuts the asked page out of the merged list", () => {
+    const page = paginate(4, 2, 2);
+    expect(
+      mergePage(
+        page,
+        [
+          [a2, a1],
+          [b2, b1],
+        ],
+        at,
+      ).map((r) => r.id),
+    ).toEqual(["b1", "a1"]);
+  });
+
+  it("keeps the order the lists were given in on a tie", () => {
+    const first = { id: "first", at: "2026-09-01T10:00:00Z" };
+    const second = { id: "second", at: "2026-09-01T10:00:00Z" };
+    expect(
+      mergePage(paginate(2, 1, 10), [[first], [second]], at).map((r) => r.id),
+    ).toEqual(["first", "second"]);
+  });
+
+  it("hands back nothing rather than throwing past the end", () => {
+    expect(mergePage(paginate(0, 1, 10), [[], []], at)).toEqual([]);
   });
 });

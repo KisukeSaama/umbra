@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { REPORT_REASONS, REPORT_STATUSES } from "@/lib/db/schema";
 import {
+  ASK_REASONS,
   askKey,
   canTransition,
+  isAsk,
   isAutoClosable,
   isLive,
   isReasonAllowed,
+  isSettled,
   nextStatuses,
+  NOTHING_SETTLED,
   reasonsFor,
   REPORT_TARGETS,
   targetOf,
@@ -102,5 +106,56 @@ describe("ask keys", () => {
     expect(askKey({ seasonNumber: 2, reason: "missing_episode" })).toBe(
       askKey({ seasonNumber: 2, reason: "missing_episode" }),
     );
+  });
+});
+
+describe("asks against faults", () => {
+  it("counts what is missing as an ask, not as a report", () => {
+    // The gesture behind these is "ask for this season", and the follow-up
+    // page lists them among the requests. Calling one a report there is the
+    // bug this exists to prevent.
+    expect(isAsk("missing_season")).toBe(true);
+    expect(isAsk("missing_episode")).toBe(true);
+    expect(isAsk("series_outdated")).toBe(true);
+  });
+
+  it("leaves everything about a title that is here as a fault", () => {
+    expect(isAsk("bad_quality")).toBe(false);
+    expect(isAsk("missing_audio_track")).toBe(false);
+    expect(isAsk("missing_subtitles")).toBe(false);
+    expect(isAsk("playback_error")).toBe(false);
+    expect(isAsk("wrong_content")).toBe(false);
+    expect(isAsk("wrong_order")).toBe(false);
+    expect(isAsk("duplicate_entry")).toBe(false);
+  });
+
+  it("splits the reasons the database knows in two, with nothing left over", () => {
+    const asks = REPORT_REASONS.filter(isAsk);
+    const faults = REPORT_REASONS.filter((reason) => !isAsk(reason));
+    expect(asks.length + faults.length).toBe(REPORT_REASONS.length);
+    expect([...asks].sort()).toEqual([...ASK_REASONS].sort());
+  });
+});
+
+describe("asks the administration has just answered", () => {
+  it("settles nothing until something has been answered", () => {
+    expect(isSettled(NOTHING_SETTLED, null)).toBe(false);
+    expect(isSettled(NOTHING_SETTLED, 3)).toBe(false);
+  });
+
+  it("settles the season that was answered, and only that one", () => {
+    const settled = { series: false, seasons: [2] };
+    expect(isSettled(settled, 2)).toBe(true);
+    expect(isSettled(settled, 3)).toBe(false);
+    // The series as a whole is still short: one season answered says nothing
+    // about the rest of the ladder.
+    expect(isSettled(settled, null)).toBe(false);
+  });
+
+  it("lets a series answered whole cover every season under it", () => {
+    const settled = { series: true, seasons: [] };
+    expect(isSettled(settled, null)).toBe(true);
+    expect(isSettled(settled, 1)).toBe(true);
+    expect(isSettled(settled, 12)).toBe(true);
   });
 });

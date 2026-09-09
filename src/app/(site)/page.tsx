@@ -38,9 +38,7 @@ export default async function HomePage() {
       // The week is read through this member: the shows they are on, then the
       // rest of what is due. The history behind that is read live and dropped
       // with the render, never stored.
-      followedSeriesKeys(account.id, account.personalisationEnabled).then(
-        (keys) => upcomingEpisodes(5, keys),
-      ),
+      followedSeriesKeys(account.id).then((keys) => upcomingEpisodes(5, keys)),
       activePoll(account?.id),
       latestAnnouncement(),
       storageOverview(),

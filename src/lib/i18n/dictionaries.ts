@@ -15,6 +15,7 @@ export const en = {
     "The Umbra messenger: a wolf sitting with a letter held in its jaws.",
 
   "nav.home": "Home",
+  "nav.openPlex": "Open Plex",
   "nav.news": "News",
   "nav.admin": "Admin",
   "nav.signOut": "Sign out",
@@ -250,6 +251,12 @@ export const en = {
   "admin.announcements.new": "New announcement",
   "admin.announcements.category": "Category",
   "admin.announcements.content": "Content",
+  "admin.announcements.write": "Write",
+  "admin.announcements.preview": "Preview",
+  "admin.announcements.preview.empty":
+    "Write something and it will be set here as members will read it.",
+  "admin.announcements.markdown":
+    "Markdown: **bold**, *italic*, # heading, - list, > quote, [wording](https://address).",
   "admin.announcements.publish": "Publish",
   "admin.announcements.draft": "Draft",
   "admin.announcements.published": "Published",
@@ -310,7 +317,7 @@ export const en = {
     "Walks the directories to find out what is taking the room. A few times a day, since it is slow.",
   "admin.job.taste-profile": "Taste profiles",
   "admin.job.taste-profile.hint":
-    "Rebuilds the favourite genres of the members who turned personalisation on. Replaced every time, never accumulated.",
+    "Rebuilds the favourite genres of the approved members. Replaced every time, never accumulated.",
   "admin.job.housekeeping": "Housekeeping",
   "admin.job.housekeeping.hint":
     "Deletes what nothing else deletes: expired sessions and codes, old run history, notifications long read.",
@@ -505,6 +512,17 @@ export const en = {
   "activity.timeline.processing": "Being fetched",
   "activity.timeline.available": "On the server",
   "activity.timeline.rejected": "Declined",
+  /**
+   * An ask for a missing season is a report row, and the follow-up page lists
+   * it among the requests, so it says the steps of a request rather than the
+   * steps of a fix: nobody asked for a season to be repaired.
+   */
+  "ask.timeline.open": "Asked",
+  "ask.timeline.acknowledged": "Accepted",
+  "ask.timeline.in_progress": "Being fetched",
+  "ask.timeline.resolved": "On the server",
+  "ask.timeline.rejected": "Declined",
+  "ask.timeline.duplicate": "Already asked for",
 
   "notifications.title": "Notifications",
   "notifications.open": "Notifications",
@@ -526,10 +544,6 @@ export const en = {
   "notifications.poll": "A poll is open: {title}",
   "notifications.episode": "{title} has a new episode.",
 
-  "account.personalisation": "Personalised suggestions",
-  "account.personalisationHint":
-    "A few favourite genres, rebuilt each day. No watch list is kept.",
-
   "admin.nav.reports": "Reports",
   "admin.inbox.reports": "{count} reports to handle",
   "admin.inbox.reports.one": "{count} report to handle",
@@ -548,6 +562,13 @@ export const en = {
 
   "error.notOnServer": "This title is not on the server.",
   "error.alreadyReported": "This has already been reported.",
+  /**
+   * The gap was answered and the index has not caught up: the ask would be for
+   * something that is already there, so it says so rather than joining a queue
+   * the next scan is about to empty.
+   */
+  "error.askSettled":
+    "This has just been handled. It will show as soon as the server is scanned again.",
   "error.reasonNotAllowed": "That reason does not apply here.",
   "error.reportNotFound": "Report not found.",
   "error.reportClosed": "This report is closed.",
@@ -565,6 +586,7 @@ export const fr: Record<TranslationKey, string> = {
     "Le messager d'Umbra : un loup assis, une lettre serrée entre les crocs.",
 
   "nav.home": "Accueil",
+  "nav.openPlex": "Ouvrir Plex",
   "nav.news": "Actualités",
   "nav.admin": "Admin",
   "nav.signOut": "Se déconnecter",
@@ -799,6 +821,12 @@ export const fr: Record<TranslationKey, string> = {
   "admin.announcements.new": "Nouvelle annonce",
   "admin.announcements.category": "Catégorie",
   "admin.announcements.content": "Contenu",
+  "admin.announcements.write": "Rédiger",
+  "admin.announcements.preview": "Aperçu",
+  "admin.announcements.preview.empty":
+    "Écrivez quelque chose et il apparaîtra ici tel que les membres le liront.",
+  "admin.announcements.markdown":
+    "Markdown : **gras**, *italique*, # titre, - liste, > citation, [texte](https://adresse).",
   "admin.announcements.publish": "Publier",
   "admin.announcements.draft": "Brouillon",
   "admin.announcements.published": "Publiée",
@@ -859,7 +887,7 @@ export const fr: Record<TranslationKey, string> = {
     "Parcourt les dossiers pour savoir ce qui prend la place. Quelques fois par jour, parce que c'est lent.",
   "admin.job.taste-profile": "Profils de goût",
   "admin.job.taste-profile.hint":
-    "Recalcule les genres préférés des membres qui ont activé la personnalisation. Remplacés à chaque fois, jamais accumulés.",
+    "Recalcule les genres préférés des membres approuvés. Remplacés à chaque fois, jamais accumulés.",
   "admin.job.housekeeping": "Ménage",
   "admin.job.housekeeping.hint":
     "Supprime ce que rien d'autre ne supprime : sessions et codes expirés, vieux historiques d'exécution, notifications lues depuis longtemps.",
@@ -1054,6 +1082,12 @@ export const fr: Record<TranslationKey, string> = {
   "activity.timeline.processing": "En récupération",
   "activity.timeline.available": "Sur le serveur",
   "activity.timeline.rejected": "Refusé",
+  "ask.timeline.open": "Demandé",
+  "ask.timeline.acknowledged": "Accepté",
+  "ask.timeline.in_progress": "En récupération",
+  "ask.timeline.resolved": "Sur le serveur",
+  "ask.timeline.rejected": "Refusé",
+  "ask.timeline.duplicate": "Déjà demandé",
 
   "notifications.title": "Notifications",
   "notifications.open": "Notifications",
@@ -1078,10 +1112,6 @@ export const fr: Record<TranslationKey, string> = {
   "notifications.poll": "Un sondage est ouvert : {title}",
   "notifications.episode": "{title} a un nouvel épisode.",
 
-  "account.personalisation": "Suggestions personnalisées",
-  "account.personalisationHint":
-    "Quelques genres favoris, recalculés chaque jour. Aucune liste de visionnage n'est conservée.",
-
   "admin.nav.reports": "Signalements",
   "admin.inbox.reports": "{count} signalements à traiter",
   "admin.inbox.reports.one": "{count} signalement à traiter",
@@ -1100,6 +1130,8 @@ export const fr: Record<TranslationKey, string> = {
 
   "error.notOnServer": "Ce titre n'est pas sur le serveur.",
   "error.alreadyReported": "Cela a déjà été signalé.",
+  "error.askSettled":
+    "Cela vient d'être traité. Ce sera visible dès la prochaine analyse du serveur.",
   "error.reasonNotAllowed": "Ce motif ne s'applique pas ici.",
   "error.reportNotFound": "Signalement introuvable.",
   "error.reportClosed": "Ce signalement est clos.",

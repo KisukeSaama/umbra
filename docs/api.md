@@ -101,9 +101,6 @@ payload holds data, never a sentence: the client resolves the wording.
 **`POST /api/notifications`** (member), body `{ "ids"?: ["uuid"] }`. Marks those
 read, or everything unread when `ids` is absent.
 
-**`POST /api/account/personalisation`** (member), body `{ "enabled": false }`.
-Turning it off deletes the taste profile rather than hiding it.
-
 ## Administration
 
 All of these are open to the administrator and to the assistants, except

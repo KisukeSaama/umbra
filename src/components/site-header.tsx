@@ -5,6 +5,7 @@ import { UmbraWordmark } from "@/components/brand";
 import { CommandPalette } from "@/components/command-palette";
 import { MainNav } from "@/components/main-nav";
 import { NotificationBell } from "@/components/notification-bell";
+import { OpenPlex } from "@/components/open-plex";
 import { currentAccount } from "@/lib/auth/session";
 import { unreadCount } from "@/lib/domain/notifications";
 import { getLocaleOverride, getTranslator } from "@/lib/i18n/server";
@@ -65,12 +66,12 @@ export async function SiteHeader({
                   whether a title is already on the server is the thing members
                   do most, and it should not need a destination. */}
               <CommandPalette />
+              <OpenPlex />
               <NotificationBell unread={unread} />
               <AccountMenu
                 username={account.username}
                 role={account.role}
                 localeOverride={localeOverride}
-                personalisationEnabled={account.personalisationEnabled}
               />
             </>
           ) : (

@@ -169,8 +169,8 @@ export function NotificationBell({ unread }: { unread: number }) {
         </span>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center justify-between gap-2">
+      <DropdownMenuContent align="end" className="w-88 p-1.5">
+        <DropdownMenuLabel className="flex items-center justify-between gap-2 px-2 py-1.5">
           <span>{t("notifications.title")}</span>
           <span aria-live="polite" className="text-muted-foreground text-xs">
             {count > 0 ? t("notifications.unread", { count }) : null}
@@ -181,8 +181,8 @@ export function NotificationBell({ unread }: { unread: number }) {
         {loading && items === null ? (
           <LoadingRegion label={t("common.loading")}>
             {[0, 1, 2].map((index) => (
-              <div key={index} className="flex items-start gap-2 px-2 py-2">
-                <span className="mt-1.5 size-1.5 shrink-0" aria-hidden />
+              <div key={index} className="flex items-start gap-2.5 px-2 py-3">
+                <span className="mt-2 size-1.5 shrink-0" aria-hidden />
                 <TextLine
                   size="sm"
                   className={index === 1 ? "w-3/4" : "w-full"}
@@ -191,11 +191,11 @@ export function NotificationBell({ unread }: { unread: number }) {
             ))}
           </LoadingRegion>
         ) : (items?.length ?? 0) === 0 ? (
-          <p className="text-muted-foreground px-2 py-3 text-sm">
+          <p className="text-muted-foreground px-2 py-4 text-sm">
             {t("notifications.none")}
           </p>
         ) : (
-          <div className="max-h-80 overflow-y-auto">
+          <div className="divide-foreground/5 max-h-96 divide-y overflow-y-auto">
             {items?.map((item) => {
               const href = notificationHref(item);
               const body = (
@@ -203,15 +203,15 @@ export function NotificationBell({ unread }: { unread: number }) {
                   <span
                     className={
                       item.read
-                        ? "mt-1.5 size-1.5 shrink-0 rounded-full"
-                        : "bg-primary mt-1.5 size-1.5 shrink-0 rounded-full"
+                        ? "mt-2 size-1.5 shrink-0 rounded-full"
+                        : "bg-primary mt-2 size-1.5 shrink-0 rounded-full"
                     }
                     aria-hidden
                   />
-                  <span className="leading-snug">
+                  <span className="leading-relaxed">
                     {notificationLine(t, item)}
                     {item.payload.note ? (
-                      <span className="text-muted-foreground block">
+                      <span className="text-muted-foreground mt-1 block">
                         {item.payload.note}
                       </span>
                     ) : null}
@@ -227,7 +227,7 @@ export function NotificationBell({ unread }: { unread: number }) {
                 <DropdownMenuItem
                   key={item.id}
                   render={<Link href={href} />}
-                  className="items-start gap-2 px-2 py-2 text-sm"
+                  className="items-start gap-2.5 px-2 py-3 text-sm"
                   onClick={() => openEntry(item)}
                 >
                   {body}
@@ -235,7 +235,7 @@ export function NotificationBell({ unread }: { unread: number }) {
               ) : (
                 <div
                   key={item.id}
-                  className="flex items-start gap-2 px-2 py-2 text-sm"
+                  className="flex items-start gap-2.5 px-2 py-3 text-sm"
                 >
                   {body}
                 </div>
@@ -245,7 +245,10 @@ export function NotificationBell({ unread }: { unread: number }) {
         )}
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void markAllRead()}>
+        <DropdownMenuItem
+          className="px-2 py-2"
+          onClick={() => void markAllRead()}
+        >
           {t("notifications.markRead")}
         </DropdownMenuItem>
       </DropdownMenuContent>

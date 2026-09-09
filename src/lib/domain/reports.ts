@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -17,14 +17,18 @@ import { isOnServer } from "@/lib/domain/availability";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
+import { settledAsksFor } from "@/lib/domain/settled";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 import {
+  ASK_REASONS,
   askKey,
   canTransition,
+  isAsk,
   isLive,
   isReasonAllowed,
+  isSettled,
   LIVE_REPORT_STATUSES,
   targetOf,
 } from "@/lib/reports/reasons";
@@ -84,6 +88,21 @@ export async function createReport(input: {
   // that is not there is a request, and saying so is more useful than refusing.
   const availability = await availabilityFor(input.kind, input.providerId);
   if (!isOnServer(availability)) throw new ConflictError("error.notOnServer");
+
+  /*
+   * Asking again for what has just been answered.
+   *
+   * The pages already hide the ask, but they read a page that may be a minute
+   * old and the button is one request away from anybody. The rule lives here as
+   * well, so the queue never takes in a second ask for a gap the administration
+   * has closed and the next scan is about to confirm. A fault is a different
+   * matter: something on the server being wrong has nothing to do with a scan.
+   */
+  if (isAsk(input.reason) && input.episodeNumber === null) {
+    const settled = await settledAsksFor(input.kind, input.providerId);
+    if (isSettled(settled, input.seasonNumber))
+      throw new ConflictError("error.askSettled");
+  }
 
   const summary = await tmdbProvider.details(
     input.kind,
@@ -324,10 +343,28 @@ export async function listReports(
   return rows.map(toRow);
 }
 
+/**
+ * Reading a member's rows by the nature of the gesture that made them.
+ *
+ * Asking for a missing season and reporting a broken track are one table, one
+ * queue and one lifecycle, but they are not one gesture, and the follow-up page
+ * lists them under two different headings. The split is a reason filter rather
+ * than a column, so nothing is written twice and an ask stays exactly the
+ * report the administration already works on.
+ */
+export type ReportNature = "ask" | "fault";
+
+function natureFilter(nature?: ReportNature) {
+  if (!nature) return undefined;
+  return nature === "ask"
+    ? inArray(reports.reason, [...ASK_REASONS])
+    : notInArray(reports.reason, [...ASK_REASONS]);
+}
+
 /** The reports one member is waiting on, whether they opened them or joined. */
 export async function listReportsFollowedBy(
   accountId: string,
-  window?: { limit: number; offset: number },
+  options?: { limit: number; offset: number; nature?: ReportNature },
 ): Promise<ReportRow[]> {
   const query = db()
     .select(REPORT_COLUMNS)
@@ -335,12 +372,17 @@ export async function listReportsFollowedBy(
     .innerJoin(reports, eq(reports.id, reportFollowers.reportId))
     .innerJoin(media, eq(media.id, reports.mediaId))
     .leftJoin(accounts, eq(accounts.id, reports.reportedBy))
-    .where(eq(reportFollowers.accountId, accountId))
+    .where(
+      and(
+        eq(reportFollowers.accountId, accountId),
+        natureFilter(options?.nature),
+      ),
+    )
     .orderBy(desc(reports.createdAt))
     .$dynamic();
 
-  const rows = await (window
-    ? query.limit(window.limit).offset(window.offset)
+  const rows = await (options
+    ? query.limit(options.limit).offset(options.offset)
     : query);
   return rows.map(toRow);
 }
@@ -348,11 +390,13 @@ export async function listReportsFollowedBy(
 /** How many reports this account follows, open or long since settled. */
 export async function countReportsFollowedBy(
   accountId: string,
+  nature?: ReportNature,
 ): Promise<number> {
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(reportFollowers)
-    .where(eq(reportFollowers.accountId, accountId));
+    .innerJoin(reports, eq(reports.id, reportFollowers.reportId))
+    .where(and(eq(reportFollowers.accountId, accountId), natureFilter(nature)));
   return row?.count ?? 0;
 }
 

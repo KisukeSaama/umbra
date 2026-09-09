@@ -94,3 +94,35 @@ export function toSearchParams(
   }
   return result;
 }
+
+/**
+ * Reading enough of one table to page a list made of two.
+ *
+ * A member's follow-up mixes requests and asks, which live in two tables and
+ * cannot be paged by a single offset. The answer is to read every row up to the
+ * end of the wanted page from each side, merge them, and cut the page out of
+ * that: the slice is exact at any depth, and depth stays small because a page
+ * holds ten lines and nobody walks to page fifty.
+ */
+export function mergeWindow(page: Page): { limit: number; offset: number } {
+  return { limit: page.offset + page.perPage, offset: 0 };
+}
+
+/**
+ * The wanted page of several lists that are read separately and shown as one.
+ *
+ * Each list arrives newest first, as its own query ordered it; the result is
+ * every list interleaved by date and cut to the page. Ties keep the order the
+ * lists were given in, so two rows made in the same second do not swap places
+ * between two loads.
+ */
+export function mergePage<T>(
+  page: Page,
+  lists: readonly (readonly T[])[],
+  at: (row: T) => Date,
+): T[] {
+  return lists
+    .flat()
+    .sort((left, right) => at(right).getTime() - at(left).getTime())
+    .slice(page.offset, page.offset + page.perPage);
+}

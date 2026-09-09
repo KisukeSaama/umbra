@@ -1,6 +1,7 @@
 # 0007 - A taste profile that is an aggregate, not a history
 
-Status: accepted
+Status: accepted, amended by `docs/adr/0013-personalisation-is-not-optional.md`
+(the opt-out is gone; everything else stands)
 
 ## Context
 
@@ -19,15 +20,12 @@ future feature is tempted to read it.
 
 Umbra reads the watch history and does not keep it.
 
-On every sync cycle, for each approved account that has not opted out, the job
+On every sync cycle, for each approved account, the job
 reads a rolling ninety day window from the media server, resolves each entry to
 the genres of its title, and **replaces** that account's rows in
 `taste_profile`. What is stored is a handful of weighted genre ids per account
 and a kind, and nothing else: no title, no date, no count of anything a person
 could be recognised by.
-
-Members can turn it off in the account menu. Turning it off deletes the profile
-in the same call rather than hiding it.
 
 This amends rule 5 in `AGENTS.md` and the privacy section of `docs/product.md`.
 The list of watched titles remains something Umbra must never store.

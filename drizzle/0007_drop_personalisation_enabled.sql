@@ -1,0 +1,1 @@
+ALTER TABLE "account" DROP COLUMN "personalisation_enabled";

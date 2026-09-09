@@ -73,7 +73,9 @@ to fall short of and keeps saying "available", which its own page then details
 season by season. See "Asking for the rest" below.
 
 Presence is what the rules read: a partial title cannot be requested again, and
-it can be reported, exactly like a title held whole.
+it can be reported, exactly like a title held whole. The one thing that can take
+a shortfall away without a scan is the administration answering the ask that
+named it: see "Asking for the rest".
 
 ## The request lifecycle
 
@@ -172,6 +174,27 @@ already open shows as asked instead of offering itself again, for everybody and
 not only for whoever pressed first, because the report they would send is one
 and the same.
 
+An ask that has been answered stops being offered before the scan says so.
+Presence is read from the index the library sync fills, so between the moment
+the season lands on the server and the next pass a series still reads as short:
+the search calls it partial, the season carries its gap, and the ask that has
+just been answered offers itself again. So a resolved ask speaks for the index
+in the meantime. The claim lasts exactly as long as it takes both passes that
+decide a shortfall to run, the library sync for what is on the server and the
+reconciliation for what the calendar says is late; once both have had their say,
+the index takes over again whichever way it goes. An ask closed too early is
+corrected by the next cycle rather than believed forever, and the queue refuses
+the same ask twice in the meantime rather than trusting the page it came from.
+
+It is not a fourth kind of thing for the administrator, and it is not a report
+for the member. The row is a report, so there is one queue and one lifecycle;
+the gesture was "ask for this season", so the follow-up page lists it among the
+requests, with the steps a request has and the words a request uses. Listing it
+under "my reports" was the same row told in the wrong voice: nobody who pressed
+that button had reported anything. What stays under "my reports" is what is
+actually a fault, meaning the title is on the server and something about it is
+wrong.
+
 ## Following what you asked for
 
 A request used to end at "request sent". It no longer does. One page carries what
@@ -179,6 +202,10 @@ you asked for and what you reported, with where each of them has got to, and the
 header carries a bell that says whether any of it changed. The page does not
 repeat the bell: notifications are read where they arrive, and a second copy of
 the same feed only made the page longer.
+
+What you asked for is one list of two kinds of row, a request for a title and an
+ask for a missing season, interleaved by date. They are counted and paged
+together, so a page of ten is ten lines whichever side they came from.
 
 Notifications hold data, never a sentence: a kind, a subject and a little
 payload, resolved into words in the language of whoever opens them. The timelines
@@ -230,8 +257,10 @@ what, anything at all about who contributed to a fundraiser.
 One aggregate is kept per account and nothing more: a handful of weighted genre
 ids, rebuilt from a rolling ninety day window on every sync and therefore
 replaced rather than accumulated. No title, no date, nothing a person could be
-recognised by. It is switched off in the account menu, and switching it off
-deletes it rather than hiding it. See `docs/adr/0007-aggregated-taste-profile.md`.
+recognised by. It has no switch: the aggregate is what makes personalisation
+possible without a history, so it is part of the product rather than a setting.
+See `docs/adr/0007-aggregated-taste-profile.md` and
+`docs/adr/0013-personalisation-is-not-optional.md`.
 
 Public statistics are aggregates over the community as a whole (titles added this
 week, requests handled, episodes added) and nothing traceable to a person.
