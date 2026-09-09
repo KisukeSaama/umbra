@@ -40,6 +40,7 @@ So: no cache layer, no retry or backoff wrapper, no circuit breaker, no token st
 ## APIs this service may call
 
 - **Kisuflix**: `/gateway/kisuflix/…` (**JSON**)
+- **plex.tv**: `/gateway/plex-tv/…`
 - **TMDB v3**: `/gateway/tmdb-v3/…`
 
 Unless a line above narrows it, any path and any method under a slug is forwarded, and what the API
@@ -51,6 +52,7 @@ APIs marked **JSON** reach you as JSON whatever their own documentation shows: J
 form-encoded and NDJSON responses on the way back. Parse JSON, add no XML parser and no new
 dependency for it. `X-Janus-Transform` names the conversion that ran, or says why none did — and
 sending `Accept: application/xml` returns the untouched original if you ever need it.
+
 
 ## Errors
 
