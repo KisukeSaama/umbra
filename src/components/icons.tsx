@@ -19,6 +19,7 @@ import {
   FilmSlate,
   Flag,
   FolderSimple,
+  HandHeart,
   HardDrives,
   Info,
   List,
@@ -39,6 +40,7 @@ import {
   UserCircle,
   Users,
   Warning,
+  Wrench,
   X,
   XCircle,
 } from "@phosphor-icons/react/dist/ssr";
@@ -118,6 +120,8 @@ export const FolderIcon = icon(FolderSimple, "regular");
 export const FileIcon = icon(File, "regular");
 export const PlayIcon = icon(Play, "fill");
 export const ClockIcon = icon(Clock, "regular");
+export const WrenchIcon = icon(Wrench);
+export const HandHeartIcon = icon(HandHeart);
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

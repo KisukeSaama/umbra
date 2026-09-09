@@ -12,7 +12,12 @@ import {
 } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { isOnServer } from "@/lib/domain/availability";
-import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
+import {
+  availabilityFor,
+  ensureMedia,
+  isInLibrary,
+  yearOf,
+} from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
@@ -26,6 +31,8 @@ export type RequestRow = {
   updatedAt: Date;
   adminNote: string | null;
   requestedBy: string | null;
+  /** The server holds the title, so the request may be declared fulfilled. */
+  inLibrary: boolean;
   media: {
     providerId: string;
     kind: MediaKind;
@@ -120,6 +127,19 @@ export async function cancelRequest(requestId: string, accountId: string) {
   throw new ConflictError("error.requestUnderway");
 }
 
+/**
+ * Whether the server holds the title of the request being read.
+ *
+ * Asked as an existence rather than as a join: one library row is enough, and a
+ * join would repeat the request once per matching row.
+ */
+const inLibraryColumn = sql<boolean>`exists (
+  select 1
+    from library_item as l
+   where l.tmdb_id = ${media.providerId}
+     and l.kind = case ${media.mediaType} when 'movie' then 'movie' else 'show' end
+)`;
+
 export async function listRequests(
   statuses?: RequestStatus[],
 ): Promise<RequestRow[]> {
@@ -136,6 +156,7 @@ export async function listRequests(
       title: media.title,
       releaseDate: media.releaseDate,
       posterPath: media.posterPath,
+      inLibrary: inLibraryColumn,
     })
     .from(mediaRequests)
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
@@ -152,6 +173,7 @@ export async function listRequests(
     updatedAt: row.updatedAt,
     adminNote: row.adminNote,
     requestedBy: row.requestedBy,
+    inLibrary: row.inLibrary,
     media: {
       providerId: row.providerId,
       kind: row.mediaType,
@@ -200,10 +222,60 @@ export function noteFor(
 }
 
 /**
+ * Rewrites the note alone, without moving the request.
+ *
+ * A word left when taking an ask in hand ages: what was being looked for is
+ * found, the season that was missing has a date. Saying so used to mean moving
+ * the request somewhere it does not belong, so the note is editable for as long
+ * as it is displayed, which is until the title reaches the server.
+ *
+ * Nothing is announced: the step already told the member, and the notification
+ * key carries that step, so a second one about the same move would be swallowed
+ * anyway. The new wording is on their follow-up page, where they read it.
+ */
+export async function setRequestNote(
+  requestId: string,
+  adminNote: string | null,
+) {
+  const [current] = await db()
+    .select({ status: mediaRequests.status })
+    .from(mediaRequests)
+    .where(eq(mediaRequests.id, requestId))
+    .limit(1);
+  if (!current) throw new NotFoundError("error.requestNotFound");
+  if (!canCarryNote(current.status))
+    throw new ConflictError("error.noteNotEditable");
+
+  const [updated] = await db()
+    .update(mediaRequests)
+    .set({ adminNote: adminNote?.trim() || null, updatedAt: new Date() })
+    .where(eq(mediaRequests.id, requestId))
+    .returning({
+      id: mediaRequests.id,
+      status: mediaRequests.status,
+      adminNote: mediaRequests.adminNote,
+    });
+
+  return updated;
+}
+
+/** The note lives as long as it is shown, and arriving is what erases it. */
+export function canCarryNote(status: RequestStatus): boolean {
+  return status !== "available";
+}
+
+/**
  * Moves a request to another status.
  *
  * Accepting a series starts tracking it: this is where the Series Tracker takes
  * over (see `docs/product.md`).
+ *
+ * One move is not the administration's to make on its own: `available` says the
+ * title is on the server, and it is the only status the search reads as "stop
+ * offering this ask". Marking it by hand on a title the sync has never seen
+ * closes the request, empties the follow-up page and hands the title straight
+ * back to search, where the next member asks for it again. So the state comes
+ * from `library_item`, and the button is refused until the sync agrees.
  */
 export async function updateRequestStatus(
   requestId: string,
@@ -211,6 +283,25 @@ export async function updateRequestStatus(
   adminNote?: string | null,
 ) {
   const note = noteFor(status, adminNote);
+
+  const [subject] = await db()
+    .select({
+      providerId: media.providerId,
+      mediaType: media.mediaType,
+      title: media.title,
+    })
+    .from(mediaRequests)
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .where(eq(mediaRequests.id, requestId))
+    .limit(1);
+
+  if (!subject) throw new NotFoundError("error.requestNotFound");
+
+  if (
+    status === "available" &&
+    !(await isInLibrary(subject.mediaType, subject.providerId))
+  )
+    throw new ConflictError("error.notOnServerYet");
 
   const [updated] = await db()
     .update(mediaRequests)
@@ -229,20 +320,10 @@ export async function updateRequestStatus(
 
   if (!updated) throw new NotFoundError("error.requestNotFound");
 
-  const [row] = await db()
-    .select({
-      providerId: media.providerId,
-      mediaType: media.mediaType,
-      title: media.title,
-    })
-    .from(media)
-    .where(eq(media.id, updated.mediaId))
-    .limit(1);
+  if (status === "accepted" && subject.mediaType === "tv")
+    await trackSeries(subject.providerId);
 
-  if (status === "accepted" && row?.mediaType === "tv")
-    await trackSeries(row.providerId);
-
-  await notifyRequester(requestId, status, row?.title ?? "", updated.adminNote);
+  await notifyRequester(requestId, status, subject.title, updated.adminNote);
   return updated;
 }
 
@@ -334,6 +415,7 @@ export async function listRequestsBy(accountId: string): Promise<RequestRow[]> {
       title: media.title,
       releaseDate: media.releaseDate,
       posterPath: media.posterPath,
+      inLibrary: inLibraryColumn,
     })
     .from(mediaRequests)
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
@@ -348,6 +430,7 @@ export async function listRequestsBy(accountId: string): Promise<RequestRow[]> {
     updatedAt: row.updatedAt,
     adminNote: row.adminNote,
     requestedBy: row.requestedBy,
+    inLibrary: row.inLibrary,
     media: {
       providerId: row.providerId,
       kind: row.mediaType,

@@ -76,6 +76,7 @@ export const en = {
   "week.upcoming": "Scheduled",
   "week.missing": "To add",
   "week.available": "On the server",
+  "week.following": "You are watching",
   "week.noEpisodes": "No episode scheduled in the coming days.",
 
   "poll.vote": "Vote now",
@@ -143,6 +144,8 @@ export const en = {
   "notFound.hint": "The link may be out of date.",
   "error.accountPending": "Your account is waiting for approval.",
   "error.alreadyAvailable": "This title is already on the server.",
+  "error.notOnServerYet":
+    "The sync has not seen this title on the server yet.",
   "error.alreadyRequested": "This title has already been requested.",
   "error.pollClosed": "This poll is closed.",
   "error.pollNotFound": "Poll not found.",
@@ -221,6 +224,10 @@ export const en = {
   "admin.requests.note": "Word for the member (optional)",
   "admin.requests.notePlaceholder":
     "Shown until the title is on the server, then erased.",
+  "admin.requests.addNote": "Leave a word",
+  "admin.requests.editNote": "Edit the word",
+  "admin.requests.awaitingLibrary":
+    "Closes on its own once the sync finds the title on the server.",
   "admin.series.tracked": "Tracked series",
   "admin.series.missing": "{count} missing",
   "admin.series.missing.one": "{count} missing",
@@ -527,6 +534,11 @@ export const en = {
   "admin.reports.resolve": "Mark fixed",
   "admin.reports.reject": "Decline",
   "admin.reports.duplicate": "Already known",
+  "admin.reports.note": "Word for the members (optional)",
+  "admin.reports.notePlaceholder":
+    "Shown until the report is marked fixed, then erased.",
+  "admin.reports.addNote": "Leave a word",
+  "admin.reports.editNote": "Edit the word",
 
   "error.notOnServer": "This title is not on the server.",
   "error.alreadyReported": "This has already been reported.",
@@ -534,6 +546,7 @@ export const en = {
   "error.reportNotFound": "Report not found.",
   "error.reportClosed": "This report is closed.",
   "error.illegalTransition": "This report cannot move that way.",
+  "error.noteNotEditable": "There is nothing left to say here.",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -606,6 +619,7 @@ export const fr: Record<TranslationKey, string> = {
   "week.upcoming": "Diffusion prévue",
   "week.missing": "À ajouter",
   "week.available": "Sur le serveur",
+  "week.following": "Vous regardez",
   "week.noEpisodes": "Aucun épisode prévu dans les prochains jours.",
 
   "poll.vote": "Voter",
@@ -673,6 +687,8 @@ export const fr: Record<TranslationKey, string> = {
   "notFound.hint": "Le lien est peut-être périmé.",
   "error.accountPending": "Ton compte attend une approbation.",
   "error.alreadyAvailable": "Ce titre est déjà sur le serveur.",
+  "error.notOnServerYet":
+    "La synchronisation n'a pas encore vu ce titre sur le serveur.",
   "error.alreadyRequested": "Ce titre a déjà été demandé.",
   "error.pollClosed": "Ce sondage est clos.",
   "error.pollNotFound": "Sondage introuvable.",
@@ -750,6 +766,10 @@ export const fr: Record<TranslationKey, string> = {
   "admin.requests.note": "Mot pour le membre (facultatif)",
   "admin.requests.notePlaceholder":
     "Affiché jusqu'à ce que le titre soit sur le serveur, puis effacé.",
+  "admin.requests.addNote": "Laisser un mot",
+  "admin.requests.editNote": "Modifier le mot",
+  "admin.requests.awaitingLibrary":
+    "Se ferme seule dès que la synchronisation trouve le titre sur le serveur.",
   "admin.series.tracked": "Séries suivies",
   "admin.series.missing": "{count} manquants",
   "admin.series.missing.one": "{count} manquant",
@@ -1059,6 +1079,11 @@ export const fr: Record<TranslationKey, string> = {
   "admin.reports.resolve": "Marquer corrigé",
   "admin.reports.reject": "Écarter",
   "admin.reports.duplicate": "Déjà connu",
+  "admin.reports.note": "Mot pour les membres (facultatif)",
+  "admin.reports.notePlaceholder":
+    "Affiché jusqu'à ce que le signalement soit corrigé, puis effacé.",
+  "admin.reports.addNote": "Laisser un mot",
+  "admin.reports.editNote": "Modifier le mot",
 
   "error.notOnServer": "Ce titre n'est pas sur le serveur.",
   "error.alreadyReported": "Cela a déjà été signalé.",
@@ -1066,6 +1091,7 @@ export const fr: Record<TranslationKey, string> = {
   "error.reportNotFound": "Signalement introuvable.",
   "error.reportClosed": "Ce signalement est clos.",
   "error.illegalTransition": "Ce signalement ne peut pas passer par là.",
+  "error.noteNotEditable": "Il n'y a plus rien à dire ici.",
 };
 
 export const dictionaries = { en, fr } as const;

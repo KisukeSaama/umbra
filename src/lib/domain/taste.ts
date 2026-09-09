@@ -183,3 +183,57 @@ export async function hasTasteProfile(accountId: string): Promise<boolean> {
     .limit(1);
   return (row?.count ?? 0) > 0;
 }
+
+/* ------------------------------------------------------- followed shows -- */
+
+/** How far back the home page looks to know which shows a member is on. */
+export const FOLLOWED_WINDOW_DAYS = 45;
+/** A ceiling on that read: the page needs a handful of shows, not a history. */
+export const FOLLOWED_HISTORY_LIMIT = 120;
+
+/**
+ * The shows a member is currently watching, as server keys.
+ *
+ * Same contract as the profile above, and for the same reason: the history is
+ * read live, lives for the length of one render, and is never written down. It
+ * obeys the same switch, so turning personalisation off also stops the week
+ * from being read through what somebody watched.
+ *
+ * A server that does not answer costs the personalisation, not the page.
+ */
+export const followedSeriesKeys = cache(async function followedSeriesKeys(
+  accountId: string,
+  personalisationEnabled: boolean,
+): Promise<string[]> {
+  if (!personalisationEnabled) return [];
+
+  const [account] = await db()
+    .select({ plexAccountId: accounts.plexAccountId })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  if (!account) return [];
+
+  const since = new Date(
+    Date.now() - FOLLOWED_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  try {
+    const events = await plexLibrary.watchHistory({
+      plexAccountId: account.plexAccountId,
+      since,
+      limit: FOLLOWED_HISTORY_LIMIT,
+    });
+    return [
+      ...new Set(
+        events
+          .filter((event) => event.kind === "episode")
+          .map((event) => event.grandparentRatingKey)
+          .filter((key): key is string => key !== null),
+      ),
+    ];
+  } catch (error) {
+    console.warn("[taste] watch history unavailable", error);
+    return [];
+  }
+});

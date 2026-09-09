@@ -3,7 +3,7 @@ import { Poster } from "@/components/poster";
 import { Badge } from "@/components/ui/badge";
 import { requireStaffPage } from "@/lib/auth/session";
 import type { ReportStatus } from "@/lib/db/schema";
-import { listReports } from "@/lib/domain/reports";
+import { canCarryReportNote, listReports } from "@/lib/domain/reports";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
@@ -18,6 +18,11 @@ import { nextStatuses } from "@/lib/reports/reasons";
  *
  * Taking up a report about a series is also what starts tracking it, which is
  * what lets the sync close it by itself later.
+ *
+ * Taking one up may carry a word for the members waiting on it, which reaches
+ * them in their notification and on their follow-up page and is erased once the
+ * report is resolved. That word can be rewritten afterwards from the same
+ * dialog, for as long as it is still displayed.
  */
 export default async function AdminReportsPage() {
   await requireStaffPage();
@@ -67,21 +72,56 @@ export default async function AdminReportsPage() {
               ) : null}
             </p>
 
-            {nextStatuses(report.status).length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {nextStatuses(report.status).map((status) => (
-                  <ActionButton
-                    key={status}
-                    url={`/api/admin/reports/${report.id}`}
-                    body={{ status }}
-                    size="sm"
-                    variant={actionVariant(status)}
-                  >
-                    {t(actionLabel(status))}
-                  </ActionButton>
-                ))}
-              </div>
+            {report.adminNote ? (
+              <p className="border-border/60 text-muted-foreground border-l-2 pl-3 text-sm">
+                {report.adminNote}
+              </p>
             ) : null}
+
+            <div className="flex flex-wrap gap-2 empty:hidden">
+              {nextStatuses(report.status).map((status) => (
+                <ActionButton
+                  key={status}
+                  url={`/api/admin/reports/${report.id}`}
+                  body={{ status }}
+                  size="sm"
+                  variant={actionVariant(status)}
+                  noteField={
+                    status === "acknowledged"
+                      ? {
+                          name: "adminNote",
+                          label: t("admin.reports.note"),
+                          placeholder: t("admin.reports.notePlaceholder"),
+                          defaultValue: report.adminNote,
+                        }
+                      : undefined
+                  }
+                >
+                  {t(actionLabel(status))}
+                </ActionButton>
+              ))}
+
+              {canEditNote(report.status) ? (
+                <ActionButton
+                  url={`/api/admin/reports/${report.id}`}
+                  body={{}}
+                  size="sm"
+                  variant="ghost"
+                  noteField={{
+                    name: "adminNote",
+                    label: t("admin.reports.note"),
+                    placeholder: t("admin.reports.notePlaceholder"),
+                    defaultValue: report.adminNote,
+                  }}
+                >
+                  {t(
+                    report.adminNote
+                      ? "admin.reports.editNote"
+                      : "admin.reports.addNote",
+                  )}
+                </ActionButton>
+              ) : null}
+            </div>
           </div>
         </li>
       ))}
@@ -100,6 +140,17 @@ function place(
   if (seasonNumber !== null)
     return t("report.season", { number: seasonNumber });
   return t("report.wholeSeries");
+}
+
+/**
+ * A note can be written on its own once the report has been taken up.
+ *
+ * Not while it is open: there the word belongs to the take-up dialog, and a
+ * second button offering the same box before any decision is made would say
+ * something to the members without answering them.
+ */
+function canEditNote(status: ReportStatus) {
+  return status !== "open" && canCarryReportNote(status);
 }
 
 /** Open asks for attention; a settled state is quiet, and a refusal is not an error. */

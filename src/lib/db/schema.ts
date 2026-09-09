@@ -593,6 +593,14 @@ export const reports = pgTable(
     libraryRatingKey: text("library_rating_key"),
     reason: text("reason").$type<ReportReason>().notNull(),
     status: text("status").$type<ReportStatus>().notNull().default("open"),
+    /**
+     * A word from the administration to the members waiting on this report.
+     *
+     * The same one-way exception as `media_request.admin_note`: nothing is
+     * typed by a member, and this is erased once the report is resolved, where
+     * it has nothing left to say.
+     */
+    adminNote: text("admin_note"),
     createdAt,
     updatedAt,
     /** Taken up by the administrator. */

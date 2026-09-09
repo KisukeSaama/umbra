@@ -269,18 +269,14 @@
   }
 
   /*
-   * A rail that fades at both ends instead of being cut off, so it reads as
-   * continuing rather than as broken.
+   * A rail hides its scrollbar and lets its cards be cut cleanly by the edge of
+   * the layout. No gradient mask: a mask dims the first and last card and the
+   * labels under them even when there is nothing more to scroll to, which reads
+   * as a rendering fault rather than as an invitation. What is beyond the edge
+   * is told by the arrows, which only exist while there is somewhere to go.
    */
   .umbra-rail {
     scrollbar-width: none;
-    mask-image: linear-gradient(
-      to right,
-      transparent,
-      black 1.25rem,
-      black calc(100% - 1.25rem),
-      transparent
-    );
   }
   .umbra-rail::-webkit-scrollbar {
     display: none;

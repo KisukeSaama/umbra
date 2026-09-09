@@ -13,7 +13,8 @@ import { useTranslator } from "@/lib/i18n/client";
  * breakpoint up. The buttons are not decoration: the rails hide their scrollbar,
  * and a hidden scrollbar with no other affordance leaves a keyboard or a
  * trackpad-less mouse with nowhere to go. They disappear at the ends rather than
- * sitting there disabled.
+ * sitting there disabled, which is also what tells the eye there is more to the
+ * side: the cards themselves are cut cleanly by the edge, never faded out.
  */
 export function Rail({ children }: { children: React.ReactNode }) {
   const track = useRef<HTMLDivElement>(null);
@@ -65,7 +66,7 @@ export function Rail({ children }: { children: React.ReactNode }) {
           size="icon-sm"
           aria-label={t("common.back")}
           onClick={() => nudge(-1)}
-          className="absolute top-1/3 -left-3 hidden rounded-full shadow-sm md:flex"
+          className="absolute top-1/3 -left-3 hidden rounded-full shadow-md ring-1 ring-black/10 md:flex"
         >
           <ChevronLeftIcon />
         </Button>
@@ -77,7 +78,7 @@ export function Rail({ children }: { children: React.ReactNode }) {
           size="icon-sm"
           aria-label={t("common.viewAll")}
           onClick={() => nudge(1)}
-          className="absolute top-1/3 -right-3 hidden rounded-full shadow-sm md:flex"
+          className="absolute top-1/3 -right-3 hidden rounded-full shadow-md ring-1 ring-black/10 md:flex"
         >
           <ChevronRightIcon />
         </Button>

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -198,10 +198,31 @@ export type UpcomingEpisode = {
   episodeTitle: string | null;
   airDate: string | null;
   status: EpisodeStatus;
+  /** The member is on this show: that is why the entry sits where it sits. */
+  followed: boolean;
 };
 
-/** Next broadcasts of tracked shows, for the home page and the calendar. */
-export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
+/**
+ * Next broadcasts of tracked shows, for the home page and the calendar.
+ *
+ * The week is read through the member first: the shows they are actually on
+ * come at the top, whatever else is due follows. Passing no key gives the plain
+ * calendar, which is what the shared views and a member who turned
+ * personalisation off get.
+ *
+ * The list is never cut down to the followed shows alone. A week the server is
+ * preparing for everybody is still news, and a member who watched nothing this
+ * month would otherwise be shown an empty card.
+ */
+export async function upcomingEpisodes(
+  limit = 8,
+  followedKeys: string[] = [],
+): Promise<UpcomingEpisode[]> {
+  const followed =
+    followedKeys.length > 0
+      ? sql<boolean>`COALESCE(${inArray(trackedSeries.plexRatingKey, followedKeys)}, FALSE)`
+      : sql<boolean>`FALSE`;
+
   return db()
     .select({
       seriesTitle: media.title,
@@ -211,6 +232,7 @@ export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
       episodeTitle: episodes.title,
       airDate: episodes.airDate,
       status: episodes.status,
+      followed,
     })
     .from(episodes)
     .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
@@ -223,7 +245,7 @@ export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
         sql`${episodes.airDate} >= CURRENT_DATE - INTERVAL '7 days'`,
       ),
     )
-    .orderBy(asc(episodes.airDate))
+    .orderBy(desc(followed), asc(episodes.airDate))
     .limit(limit);
 }
 

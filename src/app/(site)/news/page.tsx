@@ -1,17 +1,23 @@
 import type { Metadata } from "next";
+import type { ComponentType } from "react";
 
-import { ExternalLinkIcon } from "@/components/icons";
-import { PollCard } from "@/components/poll-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { EmptyNote } from "@/components/empty-note";
+import { GlyphTile } from "@/components/glyph-tile";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AnnounceIcon,
+  DiskIcon,
+  ExternalLinkIcon,
+  HandHeartIcon,
+  InfoIcon,
+  MovieIcon,
+  SparkleIcon,
+  WrenchIcon,
+  type IconProps,
+} from "@/components/icons";
+import { PollCard } from "@/components/poll-card";
+import { Button } from "@/components/ui/button";
 import { requireMemberPage } from "@/lib/auth/session";
+import type { AnnouncementCategory } from "@/lib/db/schema";
 import { publishedAnnouncements } from "@/lib/domain/announcements";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
@@ -29,6 +35,13 @@ export const metadata: Metadata = { title: "News" };
  * The feed is chronological, newest first, questions included: a reader opens
  * the page to find out what is new, and a note that asks something is not
  * newer than one that does not.
+ *
+ * It is set as a column of entries divided by hairlines rather than a stack of
+ * identical cards. A card says "one object among many of the same size"; these
+ * notes are of wildly different lengths, some carry a question and some three
+ * lines, and a wall of boxes flattened all of that into the same rectangle. The
+ * left gutter carries what the note is and when it landed, so the eye can skim
+ * the column of dates without reading a single body.
  */
 export default async function NewsPage() {
   const account = await requireMemberPage();
@@ -38,63 +51,106 @@ export default async function NewsPage() {
 
   return (
     <div className="umbra-container max-w-3xl py-12">
-      <h1 className="text-3xl tracking-tight sm:text-4xl">{t("news.title")}</h1>
-      <p className="text-muted-foreground mt-1 mb-8">{t("news.subtitle")}</p>
+      <header className="mb-10">
+        <h1 className="text-3xl tracking-tight sm:text-4xl">
+          {t("news.title")}
+        </h1>
+        <p className="text-muted-foreground mt-1">{t("news.subtitle")}</p>
+      </header>
 
       {announcements.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{t("news.none")}</p>
+        <EmptyNote icon={AnnounceIcon}>{t("news.none")}</EmptyNote>
       ) : (
-        <div className="space-y-4">
+        <ol className="border-border/60 border-t">
           {announcements.map((announcement) => (
-            <Card key={announcement.id}>
-              <CardHeader>
-                <CardTitle>{announcement.title}</CardTitle>
-                <CardAction>
-                  <Badge variant="secondary">
-                    {t(
-                      `news.category.${announcement.category}` as TranslationKey,
-                    )}
-                  </Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground max-w-prose text-sm leading-relaxed whitespace-pre-line">
-                  {announcement.content}
-                </p>
+            /* The id is the anchor a notification points at, so a line in the
+               bell lands on the note it is about rather than on the top of the
+               feed. */
+            <li
+              key={announcement.id}
+              id={announcement.id}
+              className="border-border/60 scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] border-b"
+            >
+              <article className="grid gap-x-8 gap-y-4 py-8 sm:grid-cols-[7.5rem_minmax(0,1fr)]">
+                {/* What it is and when, kept out of the reading column so a
+                    long note is never introduced by two lines of metadata. */}
+                <div className="flex items-center gap-3 sm:block">
+                  <GlyphTile
+                    icon={CATEGORY_ICONS[announcement.category]}
+                    className="size-9"
+                  />
+                  <div className="min-w-0 sm:mt-3">
+                    <p className="text-sm leading-snug font-medium">
+                      {t(
+                        `news.category.${announcement.category}` as TranslationKey,
+                      )}
+                    </p>
+                    {announcement.publishedAt ? (
+                      <time
+                        dateTime={announcement.publishedAt.toISOString()}
+                        className="text-muted-foreground mt-0.5 block text-xs tabular-nums"
+                      >
+                        {formatDate(announcement.publishedAt, locale)}
+                      </time>
+                    ) : null}
+                  </div>
+                </div>
 
-                {announcement.link ? (
-                  <Button
-                    render={
-                      <a
-                        href={announcement.link.url}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                      />
-                    }
-                    variant="secondary"
-                    size="sm"
-                  >
-                    {announcement.link.label ?? t("news.openLink")}
-                    <ExternalLinkIcon data-icon="inline-end" />
-                  </Button>
-                ) : null}
+                <div className="min-w-0 space-y-4">
+                  <h2 className="text-lg font-semibold tracking-tight text-balance">
+                    {announcement.title}
+                  </h2>
 
-                {announcement.poll ? (
-                  <PollCard poll={announcement.poll} bare />
-                ) : null}
-
-                {announcement.publishedAt ? (
-                  <p className="text-muted-foreground text-xs">
-                    <time dateTime={announcement.publishedAt.toISOString()}>
-                      {formatDate(announcement.publishedAt, locale, "long")}
-                    </time>
+                  <p className="max-w-prose text-sm leading-relaxed whitespace-pre-line">
+                    {announcement.content}
                   </p>
-                ) : null}
-              </CardContent>
-            </Card>
+
+                  {announcement.link ? (
+                    <Button
+                      render={
+                        <a
+                          href={announcement.link.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                        />
+                      }
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {announcement.link.label ?? t("news.openLink")}
+                      <ExternalLinkIcon data-icon="inline-end" />
+                    </Button>
+                  ) : null}
+
+                  {announcement.poll ? (
+                    /* A poll is announced on its own, and its notification
+                       carries the poll id rather than the note's. */
+                    <div
+                      id={announcement.poll.id}
+                      className="scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)]"
+                    >
+                      <PollCard poll={announcement.poll} bare />
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            </li>
           ))}
-        </div>
+        </ol>
       )}
     </div>
   );
 }
+
+/**
+ * A glyph per category, drawn in Quiet Sand like every other glance tile: the
+ * lamp on this page belongs to the poll, never to a label.
+ */
+const CATEGORY_ICONS: Record<AnnouncementCategory, ComponentType<IconProps>> = {
+  information: InfoIcon,
+  infrastructure: WrenchIcon,
+  content: MovieIcon,
+  update: SparkleIcon,
+  storage: DiskIcon,
+  funding: HandHeartIcon,
+};

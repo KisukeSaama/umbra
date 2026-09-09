@@ -43,6 +43,13 @@
       "when": 1788960763032,
       "tag": "0005_storage_tree",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788976108278,
+      "tag": "0006_report_admin_note",
+      "breakpoints": true
     }
   ]
 }

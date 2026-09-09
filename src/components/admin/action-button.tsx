@@ -31,9 +31,12 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
  * cannot be reached the same way on every platform.
  *
  * The same dialog carries `noteField`, the only place in the product where
- * something is typed rather than chosen. It stays optional: sending nothing
- * leaves the request as it is, which is why the confirm button is never
- * disabled on an empty box.
+ * something is typed rather than chosen. It stays optional, which is why the
+ * confirm button is never disabled on an empty box: an empty one sends no note,
+ * and emptying an existing one is how a word is taken back.
+ *
+ * It opens on `defaultValue` rather than on nothing, so the same button both
+ * writes a word and corrects the one already there.
  */
 export function ActionButton({
   url,
@@ -52,14 +55,20 @@ export function ActionButton({
   successMessage?: string;
   confirmMessage?: string;
   /** Asks for an optional line of text and sends it under `name`. */
-  noteField?: { name: string; label: string; placeholder?: string };
+  noteField?: {
+    name: string;
+    label: string;
+    placeholder?: string;
+    /** What is already written, so correcting a word starts from that word. */
+    defaultValue?: string | null;
+  };
 } & Omit<ComponentProps<typeof Button>, "onClick" | "children">) {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslator();
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(noteField?.defaultValue ?? "");
 
   const asking = confirmMessage !== undefined || noteField !== undefined;
 
@@ -93,7 +102,8 @@ export function ActionButton({
     } finally {
       setBusy(false);
       setConfirming(false);
-      setNote("");
+      // Back to what the server now holds, which is what was just sent.
+      setNote((current) => current.trim());
     }
   }
 
@@ -102,7 +112,11 @@ export function ActionButton({
       <Button
         {...buttonProps}
         disabled={busy || buttonProps.disabled}
-        onClick={() => (asking ? setConfirming(true) : void run())}
+        onClick={() => {
+          if (!asking) return void run();
+          setNote(noteField?.defaultValue ?? "");
+          setConfirming(true);
+        }}
       >
         {busy ? <SpinnerIcon /> : null}
         {children}

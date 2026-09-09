@@ -48,6 +48,7 @@ export type ReportRow = {
   closedAt: Date | null;
   reportedBy: string | null;
   libraryRatingKey: string | null;
+  adminNote: string | null;
   media: {
     providerId: string;
     kind: MediaKind;
@@ -261,6 +262,7 @@ const REPORT_COLUMNS = {
   acknowledgedAt: reports.acknowledgedAt,
   closedAt: reports.closedAt,
   libraryRatingKey: reports.libraryRatingKey,
+  adminNote: reports.adminNote,
   reportedBy: accounts.username,
   providerId: media.providerId,
   mediaType: media.mediaType,
@@ -279,6 +281,7 @@ function toRow(row: {
   acknowledgedAt: Date | null;
   closedAt: Date | null;
   libraryRatingKey: string | null;
+  adminNote: string | null;
   reportedBy: string | null;
   providerId: string;
   mediaType: MediaKind;
@@ -297,6 +300,7 @@ function toRow(row: {
     closedAt: row.closedAt,
     reportedBy: row.reportedBy,
     libraryRatingKey: row.libraryRatingKey,
+    adminNote: row.adminNote,
     media: {
       providerId: row.providerId,
       kind: row.mediaType,
@@ -344,15 +348,76 @@ export async function countOpenReports(): Promise<number> {
 }
 
 /**
+ * What an administrator leaves on a report, if anything.
+ *
+ * Mirrors `noteFor` on requests: `undefined` means the note is not part of this
+ * move and stays as it is, an empty string erases it, and resolving erases it
+ * whatever was sent, because a word saying what is being looked into has
+ * nothing left to say once the problem is gone. A refusal keeps its note, which
+ * is the one place the reason for it can be read.
+ */
+export function reportNoteFor(
+  status: ReportStatus,
+  adminNote?: string | null,
+): string | null | undefined {
+  if (status === "resolved") return null;
+  if (adminNote === undefined) return undefined;
+  return adminNote?.trim() || null;
+}
+
+/** The note lives as long as it is shown, and resolving is what erases it. */
+export function canCarryReportNote(status: ReportStatus): boolean {
+  return status !== "resolved";
+}
+
+/**
+ * Rewrites the note alone, without moving the report.
+ *
+ * The same second gesture as `setRequestNote`, and for the same reason: a word
+ * written while taking a report up ages, and correcting it should not mean
+ * pushing the report into a status it does not belong in. Nothing is announced,
+ * since the notification key carries the step and the step has not changed.
+ */
+export async function setReportNote(
+  reportId: string,
+  adminNote: string | null,
+) {
+  const [current] = await db()
+    .select({ status: reports.status })
+    .from(reports)
+    .where(eq(reports.id, reportId))
+    .limit(1);
+  if (!current) throw new NotFoundError("error.reportNotFound");
+  if (!canCarryReportNote(current.status))
+    throw new ConflictError("error.noteNotEditable");
+
+  const [updated] = await db()
+    .update(reports)
+    .set({ adminNote: adminNote?.trim() || null, updatedAt: new Date() })
+    .where(eq(reports.id, reportId))
+    .returning({
+      id: reports.id,
+      status: reports.status,
+      adminNote: reports.adminNote,
+    });
+
+  return updated;
+}
+
+/**
  * Moves a report.
  *
  * Taking up a series report starts tracking it, the way accepting a request
  * does: without a calendar the two reasons that could settle themselves never
  * would, and the report would sit open for nothing.
+ *
+ * Taking one up may carry a word for everyone waiting on it, which reaches them
+ * in their notification and on their follow-up page.
  */
 export async function updateReportStatus(
   reportId: string,
   status: ReportStatus,
+  adminNote?: string | null,
 ) {
   const [current] = await db()
     .select({ status: reports.status, mediaId: reports.mediaId })
@@ -363,6 +428,7 @@ export async function updateReportStatus(
   if (!canTransition(current.status, status))
     throw new ConflictError("error.illegalTransition");
 
+  const note = reportNoteFor(status, adminNote);
   const now = new Date();
   const closing =
     status === "resolved" || status === "rejected" || status === "duplicate";
@@ -370,12 +436,17 @@ export async function updateReportStatus(
     .update(reports)
     .set({
       status,
+      ...(note === undefined ? {} : { adminNote: note }),
       updatedAt: now,
       acknowledgedAt: status === "acknowledged" ? now : undefined,
       closedAt: closing ? now : undefined,
     })
     .where(eq(reports.id, reportId))
-    .returning({ id: reports.id, status: reports.status });
+    .returning({
+      id: reports.id,
+      status: reports.status,
+      adminNote: reports.adminNote,
+    });
 
   if (status === "acknowledged") {
     const [row] = await db()
@@ -402,6 +473,7 @@ export async function notifyReportFollowers(
       reason: reports.reason,
       seasonNumber: reports.seasonNumber,
       episodeNumber: reports.episodeNumber,
+      adminNote: reports.adminNote,
     })
     .from(reportFollowers)
     .innerJoin(reports, eq(reports.id, reportFollowers.reportId))
@@ -423,6 +495,7 @@ export async function notifyReportFollowers(
         reason: first.reason,
         seasonNumber: first.seasonNumber ?? undefined,
         episodeNumber: first.episodeNumber ?? undefined,
+        ...(first.adminNote ? { note: first.adminNote } : {}),
       },
     },
   );

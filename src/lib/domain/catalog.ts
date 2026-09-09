@@ -107,6 +107,22 @@ function stateOf(
   });
 }
 
+/**
+ * Does the server hold this title, as the last sync saw it.
+ *
+ * The one question asked before a request may be declared fulfilled. The answer
+ * comes from `library_item`, filled by the sync, never from a claim made in the
+ * administration: a title said to be there while it is not is a title the
+ * search offers again, and the same ask comes back.
+ */
+export async function isInLibrary(
+  kind: MediaKind,
+  providerId: string,
+): Promise<boolean> {
+  const index = await libraryIndex([providerId]);
+  return index.has(`${libraryKindOf(kind)}:${providerId}`);
+}
+
 /** Keys `movie:335984` / `show:209867` present on the server. */
 async function libraryIndex(providerIds: string[]): Promise<Set<string>> {
   const rows = await db()

@@ -28,9 +28,11 @@ import { cn } from "@/lib/utils";
  * A vote can be moved as long as the question is open. Changing your mind is
  * part of a decision, and the tally counts people, not clicks.
  *
- * `bare` drops the card around it, for the news feed, where the question is
- * part of the announcement that carries it and a card inside a card would say
- * they were two separate things.
+ * `bare` drops the section header around it, for the news feed, where the
+ * question is part of the announcement that carries it rather than a second
+ * object with a title of its own. What is left is a sheet panel inside an entry
+ * that is otherwise plain text: on that page it is the one thing asking to be
+ * touched, and it should look like it.
  */
 export function PollCard({
   poll: initialPoll,
@@ -206,7 +208,7 @@ export function PollCard({
 
   if (bare)
     return (
-      <div className="border-border/60 space-y-4 rounded-xl border p-4">
+      <div className="bg-card ring-foreground/10 space-y-4 rounded-xl p-4 ring-1">
         {question}
       </div>
     );

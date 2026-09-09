@@ -4,10 +4,18 @@ import { z } from "zod";
 import { jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
 import { REQUEST_STATUSES } from "@/lib/db/schema";
-import { updateRequestStatus } from "@/lib/domain/requests";
+import { setRequestNote, updateRequestStatus } from "@/lib/domain/requests";
 
+/**
+ * Moves a request, or rewrites the word left on it.
+ *
+ * Both live on the same route because they are the same edit seen from the
+ * administration: a body without a status changes nothing but the note, which
+ * is what lets a word written when taking the ask in hand be corrected later
+ * without pretending the request moved.
+ */
 const schema = z.object({
-  status: z.enum(REQUEST_STATUSES),
+  status: z.enum(REQUEST_STATUSES).optional(),
   adminNote: z.string().max(500).nullish(),
 });
 
@@ -19,6 +27,8 @@ export async function PATCH(
     await requireStaff();
     const { id } = await params;
     const { status, adminNote } = await jsonBody(request, schema);
-    return updateRequestStatus(id, status, adminNote);
+    return status === undefined
+      ? setRequestNote(id, adminNote ?? null)
+      : updateRequestStatus(id, status, adminNote);
   });
 }

@@ -97,6 +97,12 @@ library sync, because it has nothing left to say then. It goes one way and
 expects no answer: it is the administration speaking, not a conversation, so
 the rule that members never write free text holds.
 
+That word can be rewritten, or taken back, for as long as it is displayed, and
+without moving the request: what is being looked for changes, and correcting it
+should not mean pretending the request advanced. Rewriting announces nothing,
+since the member was already told about the step; the new wording is simply
+what their follow-up page shows from then on.
+
 A request can be taken back by the person who opened it, from the title right
 after asking and from the follow-up page afterwards, but only while it is still
 `requested`. Once it is accepted the administrator has decided something, and a
@@ -121,6 +127,12 @@ open -> acknowledged -> in_progress -> resolved
                      \-> rejected
                      \-> duplicate
 ```
+
+Taking a report up may carry the same optional word, for everyone waiting on it,
+under the same rules: it reaches them in the notification and on their follow-up
+page, it can be rewritten or taken back afterwards without moving the report,
+and it is erased when the report is marked fixed. A refusal keeps its word,
+which is the one place the reason for it can be read.
 
 One live report per title, place and reason. A second member reporting the same
 thing joins the existing one and is told what happens to it; the number of people

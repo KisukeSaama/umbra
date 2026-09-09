@@ -17,6 +17,10 @@ export const metadata: Metadata = { title: "Follow-up" };
 /**
  * Where a request stops disappearing.
  *
+ * Every entry carries its own id, because that is what a notification points
+ * at: following a line in the bell lands on the request or the report it is
+ * about rather than at the top of the page.
+ *
  * Asking for something used to end at "request sent". This page is the other
  * end of that: what you asked for and what you reported, on one screen. The
  * notifications stay in the bell, which is where they are already read: a
@@ -26,9 +30,10 @@ export const metadata: Metadata = { title: "Follow-up" };
  * it. What "nobody has acted on it" means is decided by the domain; the page
  * only asks whether to draw the button.
  *
- * A request taken in hand may carry a word from the administration. It is the
- * only sentence on this page nobody translated, it goes one way, and it is
- * gone once the title is on the server, where it has nothing left to say.
+ * A request taken in hand, or a report taken up, may carry a word from the
+ * administration. It is the only sentence on this page nobody translated, it
+ * goes one way, and it is gone once the title is on the server or the problem
+ * is fixed, where it has nothing left to say.
  */
 export default async function ActivityPage() {
   const account = await requireMemberPage();
@@ -61,7 +66,8 @@ export default async function ActivityPage() {
             {requests.map((request) => (
               <li
                 key={request.id}
-                className="border-border/60 bg-card/40 flex gap-4 rounded-xl border p-3 sm:p-4"
+                id={request.id}
+                className="border-border/60 bg-card/40 flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] gap-4 rounded-xl border p-3 sm:p-4"
               >
                 <div className="w-16 shrink-0 sm:w-20">
                   <Poster
@@ -126,7 +132,8 @@ export default async function ActivityPage() {
             {reports.map((report) => (
               <li
                 key={report.id}
-                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3"
+                id={report.id}
+                className="flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] flex-wrap items-baseline gap-x-3 gap-y-1 py-3"
               >
                 <p className="font-medium">{report.media.title}</p>
                 <span className="text-muted-foreground text-sm">
@@ -151,6 +158,14 @@ export default async function ActivityPage() {
                 >
                   {t(`report.status.${report.status}` as TranslationKey)}
                 </Badge>
+                {report.adminNote ? (
+                  <p className="border-border/60 w-full border-l-2 pl-3 text-sm">
+                    <span className="text-muted-foreground">
+                      {t("activity.note")}
+                    </span>{" "}
+                    {report.adminNote}
+                  </p>
+                ) : null}
                 <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
                   <p className="text-muted-foreground text-xs">
                     {t("report.reportedOn", {

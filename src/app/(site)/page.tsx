@@ -17,6 +17,7 @@ import { recentlyAdded } from "@/lib/domain/library";
 import { activePoll } from "@/lib/domain/polls";
 import { upcomingEpisodes } from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
+import { followedSeriesKeys } from "@/lib/domain/taste";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -34,7 +35,12 @@ export default async function HomePage() {
   const [recent, upcoming, poll, announcement, storage, stats] =
     await Promise.all([
       recentlyAdded(14),
-      upcomingEpisodes(5),
+      // The week is read through this member: the shows they are on, then the
+      // rest of what is due. The history behind that is read live and dropped
+      // with the render, never stored.
+      followedSeriesKeys(account.id, account.personalisationEnabled).then(
+        (keys) => upcomingEpisodes(5, keys),
+      ),
       activePoll(account?.id),
       latestAnnouncement(),
       storageOverview(),
