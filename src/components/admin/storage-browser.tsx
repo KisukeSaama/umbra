@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -13,6 +14,7 @@ import {
   type ExplorerVolume,
 } from "@/components/admin/file-explorer";
 import { StorageTreemap, nodeAt } from "@/components/admin/storage-treemap";
+import { EpisortLink } from "@/components/admin/episort-link";
 import { ChevronRightIcon } from "@/components/icons";
 import type { StorageNode } from "@/lib/db/schema";
 import { formatBytes } from "@/lib/format";
@@ -33,10 +35,12 @@ import { cn } from "@/lib/utils";
  * server takes. Above the volumes sits one more floor, where the volumes are
  * the entries, so the whole disk still has a picture of its own.
  *
- * On a narrow screen the map is pinned to the top and the list runs under it,
- * a frozen pane: what fills the disk stays in sight while the folder is read.
- * On a wide one the same pinning puts the map beside the list, which is the
- * shape a map and a list of results have always taken.
+ * The map is pinned either way and never scrolls: on a narrow screen to the
+ * top, with the list running under it as a frozen pane, and on a wide one to
+ * the right of the list, which is the shape a list of results and a map have
+ * always taken. The order in the document is the narrow one, the map first
+ * where it has to be seen first; the wide layout swaps the two columns rather
+ * than the markup, so the reading order stays what it is on a phone.
  */
 
 export type StorageAddress = { volume: string | null; path: string[] };
@@ -87,6 +91,25 @@ export function StorageBrowser({
   const measured = nodeAt(roots, volume, path);
   const current = volumes.find((entry) => entry.label === volume);
 
+  // A listing has no size for a folder, since sizing one means walking it. The
+  // map has just walked them all, so it lends the list its figures.
+  const sizes = useMemo(() => {
+    const found = new Map<string, number>();
+    for (const child of measured?.children ?? [])
+      if (child.kind === "directory") found.set(child.name, child.bytes);
+    return found;
+  }, [measured]);
+
+  // The way out of the current folder, which is the trail read backwards.
+  const parent: StorageAddress | null =
+    volume === null
+      ? null
+      : path.length > 0
+        ? { volume, path: path.slice(0, -1) }
+        : single === null
+          ? { volume: null, path: [] }
+          : null;
+
   const crumbs: { label: string; to: StorageAddress }[] = [
     ...(single === null
       ? [
@@ -110,7 +133,7 @@ export function StorageBrowser({
       ref={container}
       className="scroll-mt-28 lg:scroll-mt-20 grid items-start gap-4 lg:grid-cols-2 lg:gap-6"
     >
-      <div className="bg-card sticky top-28 z-20 space-y-2 pt-1 pb-3 lg:top-20">
+      <div className="bg-card sticky top-28 z-20 space-y-2 pt-1 pb-3 lg:top-20 lg:order-2">
         <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
           {crumbs.map((crumb, index) => {
             const last = index === crumbs.length - 1;
@@ -135,12 +158,20 @@ export function StorageBrowser({
               </span>
             );
           })}
-          <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-            {measured
-              ? formatBytes(measured.bytes, locale)
-              : current
-                ? `${formatBytes(current.usedBytes, locale)} / ${formatBytes(current.totalBytes, locale)}`
-                : null}
+          <span className="ml-auto flex items-center gap-2">
+            {volume !== null ? (
+              <EpisortLink
+                target={{ volume, path }}
+                title={t("admin.storage.openInEpisort.hint")}
+              />
+            ) : null}
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {measured
+                ? formatBytes(measured.bytes, locale)
+                : current
+                  ? `${formatBytes(current.usedBytes, locale)} / ${formatBytes(current.totalBytes, locale)}`
+                  : null}
+            </span>
           </span>
         </div>
 
@@ -162,11 +193,13 @@ export function StorageBrowser({
         {note ? <div className="pt-1">{note}</div> : null}
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 lg:order-1">
         <FileExplorer
           volumes={volumes}
           volume={volume}
           path={path}
+          sizes={sizes}
+          parent={parent}
           onNavigate={go}
           canDelete={canDelete}
           hovered={hovered}

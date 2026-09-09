@@ -24,7 +24,8 @@ reports, episodes to add and accounts waiting for approval, each with its action
 on the row. A series tracker: broadcast calendar from the metadata provider,
 compared against the server, a task raised for every aired episode still missing
 and closed by itself when it arrives. Announcements, polls, storage detail and
-history, funding goal with a manual history, job status.
+history with an "Open in Episort" link that hands a folder to the desktop sorter,
+funding goal with a manual history, job status.
 
 **Deliberately absent.** Comments, chat, reviews, profiles, uptime monitoring,
 browser push, payments, a stored list of what anyone watched, a second copy of the

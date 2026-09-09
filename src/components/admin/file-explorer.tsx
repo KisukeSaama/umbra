@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import {
+  ChevronUpIcon,
   DiskIcon,
   FileIcon,
   FolderIcon,
@@ -12,6 +13,7 @@ import {
   SpinnerIcon,
   TrashIcon,
 } from "@/components/icons";
+import { EpisortLink } from "@/components/admin/episort-link";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -70,6 +72,8 @@ type Row = {
   name: string;
   kind: "directory" | "file";
   bytes: number | null;
+  /** The size is the last measurement's, not a figure read just now. */
+  measured: boolean;
   modifiedAt: string | null;
   entry: StorageEntry | null;
 };
@@ -78,6 +82,8 @@ export function FileExplorer({
   volumes,
   volume,
   path,
+  sizes,
+  parent,
   onNavigate,
   canDelete,
   hovered,
@@ -87,6 +93,14 @@ export function FileExplorer({
   /** Null is the floor above the volumes, where they are the entries. */
   volume: string | null;
   path: string[];
+  /**
+   * What the last walk found under each name here, for the folders the
+   * listing cannot size: a directory is only weighed by walking it, and a
+   * walk per row would be the page measuring the disk for a living.
+   */
+  sizes: ReadonlyMap<string, number>;
+  /** Where the way out leads, or null on the topmost floor. */
+  parent: { volume: string | null; path: string[] } | null;
   onNavigate: (next: { volume: string | null; path: string[] }) => void;
   canDelete: boolean;
   hovered: string | null;
@@ -164,6 +178,7 @@ export function FileExplorer({
         name: entry.label,
         kind: "directory" as const,
         bytes: entry.usedBytes,
+        measured: false,
         modifiedAt: null,
         entry: null,
       }));
@@ -171,11 +186,15 @@ export function FileExplorer({
     return (listing?.entries ?? []).map((entry) => ({
       name: entry.name,
       kind: entry.kind,
-      bytes: entry.bytes,
+      // A folder has no size in a listing, so the map lends it the one it
+      // draws. Nothing was measured for it when the walk folded it away or
+      // stopped above it, and then the column stays empty rather than lying.
+      bytes: entry.bytes ?? sizes.get(entry.name) ?? null,
+      measured: entry.bytes === null && sizes.has(entry.name),
       modifiedAt: entry.modifiedAt,
       entry,
     }));
-  }, [volume, volumes, listing, stale]);
+  }, [volume, volumes, listing, stale, sizes]);
 
   const allSelected = rows.length > 0 && selected.size === rows.length;
   // The libraries at the root are not deletable, so they are not tickable:
@@ -248,6 +267,25 @@ export function FileExplorer({
             </tr>
           </thead>
           <tbody className="divide-border/60 divide-y">
+            {/* The way out, where a file manager has always put it: the first
+                line of the folder, before anything the folder holds. */}
+            {parent ? (
+              <tr className="hover:bg-muted/40">
+                {selectable ? <td className="px-2 py-1" /> : null}
+                <td className="px-2 py-1" colSpan={4}>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-left"
+                    onClick={() => onNavigate(parent)}
+                  >
+                    <ChevronUpIcon className="size-4 shrink-0" />
+                    <span className="font-medium">..</span>
+                    <span className="sr-only">{t("admin.storage.up")}</span>
+                  </button>
+                </td>
+              </tr>
+            ) : null}
+
             {loading && listing === null ? (
               <tr>
                 <td
@@ -321,7 +359,18 @@ export function FileExplorer({
                       )}
                     </td>
                     <td className="text-muted-foreground px-2 py-1 text-right text-xs tabular-nums">
-                      {row.bytes === null ? "" : formatBytes(row.bytes, locale)}
+                      {row.bytes === null ? (
+                        ""
+                      ) : row.measured ? (
+                        <span
+                          className="opacity-80"
+                          title={t("admin.storage.measuredSize")}
+                        >
+                          {`~ ${formatBytes(row.bytes, locale)}`}
+                        </span>
+                      ) : (
+                        formatBytes(row.bytes, locale)
+                      )}
                     </td>
                     <td className="text-muted-foreground hidden px-2 py-1 text-right text-xs tabular-nums sm:table-cell">
                       {row.modifiedAt === null
@@ -372,6 +421,22 @@ export function FileExplorer({
             </span>
           ) : null}
           <span className="ml-auto flex items-center gap-2">
+            {volume !== null ? (
+              <EpisortLink
+                target={{
+                  volume,
+                  path,
+                  // Folders in the selection are left to the folder link: a
+                  // scan takes files, and Episort lists what it was given.
+                  files: rows
+                    .filter(
+                      (row) => selected.has(row.name) && row.kind === "file",
+                    )
+                    .map((row) => row.name),
+                }}
+                title={t("admin.storage.openInEpisort.selection")}
+              />
+            ) : null}
             <Button variant="ghost" size="sm" onClick={clearSelection}>
               {t("admin.storage.clearSelection")}
             </Button>

@@ -326,6 +326,7 @@ export const en = {
     "The map and the list stand in the same folder: open one and the other follows. Deleting is the administrator's alone.",
   "admin.storage.name": "Name",
   "admin.storage.size": "Size",
+  "admin.storage.measuredSize": "Size from the last measurement.",
   "admin.storage.modified": "Modified",
   "admin.storage.up": "Up one level",
   "admin.storage.emptyDir": "This folder is empty.",
@@ -338,6 +339,11 @@ export const en = {
   "admin.storage.selected": "{count} selected",
   "admin.storage.selected.one": "{count} selected",
   "admin.storage.clearSelection": "Clear",
+  "admin.storage.openInEpisort": "Open in Episort",
+  "admin.storage.openInEpisort.hint":
+    "Opens this folder in Episort on this computer. Episort must be installed and connected to this server.",
+  "admin.storage.openInEpisort.selection":
+    "Opens the selected files in Episort on this computer.",
   "admin.storage.deleteTitle": "Delete {count} entries",
   "admin.storage.deleteTitle.one": "Delete {count} entry",
   "admin.storage.deleteWarning":
@@ -843,6 +849,7 @@ export const fr: Record<TranslationKey, string> = {
     "La carte et la liste sont dans le même dossier : ouvrez l'une, l'autre suit. Seul l'administrateur supprime.",
   "admin.storage.name": "Nom",
   "admin.storage.size": "Taille",
+  "admin.storage.measuredSize": "Taille issue de la dernière mesure.",
   "admin.storage.modified": "Modifié",
   "admin.storage.up": "Remonter d'un niveau",
   "admin.storage.emptyDir": "Ce dossier est vide.",
@@ -855,6 +862,11 @@ export const fr: Record<TranslationKey, string> = {
   "admin.storage.selected": "{count} sélectionnés",
   "admin.storage.selected.one": "{count} sélectionné",
   "admin.storage.clearSelection": "Désélectionner",
+  "admin.storage.openInEpisort": "Ouvrir dans Episort",
+  "admin.storage.openInEpisort.hint":
+    "Ouvre ce dossier dans Episort sur cet ordinateur. Episort doit être installé et connecté à ce serveur.",
+  "admin.storage.openInEpisort.selection":
+    "Ouvre les fichiers sélectionnés dans Episort sur cet ordinateur.",
   "admin.storage.deleteTitle": "Supprimer {count} entrées",
   "admin.storage.deleteTitle.one": "Supprimer {count} entrée",
   "admin.storage.deleteWarning":
