@@ -63,6 +63,31 @@ authorisation are applied.
 - New user-visible text means a new key in both dictionaries; `fr` is typed
   against `en`, so a missing translation fails the build.
 
+## Remotes: GitLab and GitHub stay in sync
+
+The repository lives in two places and both must always carry the same refs.
+
+- `origin` (fetch) is GitLab, `https://gitlab.kisukesaama.com/devops/apps/umbra.git`.
+  It is the deployment remote: CI/CD and the server pull from it.
+- `gh` is GitHub, `git@github.com:KisukeSaama/umbra.git`. It is the source
+  mirror, used for code hosting, issues and review.
+
+`origin` is configured with two push URLs, so a single `git push` sends the same
+refs to GitLab and to GitHub. Never push to only one of them: they must stay
+aligned commit for commit.
+
+On a fresh clone, restore that configuration once:
+
+```bash
+git remote add gh git@github.com:KisukeSaama/umbra.git
+git remote set-url --add --push origin https://gitlab.kisukesaama.com/devops/apps/umbra.git
+git remote set-url --add --push origin git@github.com:KisukeSaama/umbra.git
+```
+
+Verify with `git remote -v`: `origin` must list two `(push)` lines. If GitHub
+rejects the push while GitLab accepted it, the two sides have drifted; fix it
+with `git push gh <branch>` before doing anything else.
+
 ## Before you finish
 
 ```bash
