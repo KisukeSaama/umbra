@@ -4,7 +4,11 @@ import { and, desc, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { jobRuns, jobState } from "@/lib/db/schema";
-import { enrichLibraryPosters, syncLibrary } from "@/lib/domain/library";
+import {
+  enrichLibraryPosters,
+  linkUnmatchedCuts,
+  syncLibrary,
+} from "@/lib/domain/library";
 import { purgeNotifications } from "@/lib/domain/notifications";
 import {
   closeReportsSolvedByCalendar,
@@ -250,6 +254,9 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
   outcomes.push(
     await runJob("library-sync", async () => {
       const { items, episodes } = await syncLibrary();
+      // Before anything reads presence: a re-cut the media server matched to
+      // nothing is not on the server as far as every rule below is concerned.
+      await linkUnmatchedCuts();
       await linkSeriesToLibrary();
       await closeRequestsPresentInLibrary();
       await notifyArrivedRequests();

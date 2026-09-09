@@ -110,6 +110,29 @@ numbering of its own gives nothing to point at. The rule is in
 `src/lib/reports/reasons.ts` and it is enforced on the route, not only in the
 dialog.
 
+#### Re-cuts the media server matched to nothing
+
+Some of them are filed as personal media and carry no identifier at all, not
+even a TVDB one. Presence is read on the provider id, so those titles were
+invisible: a server holding "Naruto Kai" still offered to request Naruto.
+
+Their name is the only thing left, and for these it is enough, because they are
+filed as the original name with the marker stuck on the end. So a pass after
+each sync takes the marker off and looks the rest up, under two rules that both
+refuse rather than guess: the name must match a series exactly, accents and
+punctuation aside, or failing that be the beginning of exactly one series the
+provider knows. That is what links "Boruto" to "Boruto: Naruto Next
+Generations" without linking "Dragon Ball" to any of the four series whose name
+starts that way. The year never refuses a match, since the server files a
+re-cut under the year it was made rather than the year the series first aired;
+it only separates two candidates that matched equally well.
+
+What the pass finds is kept in a column of its own rather than in the provider
+id the sync fills, so the next sync does not wipe it and the tracker does not
+pick these series up: a re-cut has no calendar to be late on. A name it cannot
+resolve stays unlinked and is looked at again a week later. See
+`linkUnmatchedCuts` in `src/lib/domain/library.ts`.
+
 ## The request lifecycle
 
 ```

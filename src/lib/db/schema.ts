@@ -187,6 +187,23 @@ export const libraryItems = pgTable(
      */
     voteAverage: real("vote_average"),
     voteCount: integer("vote_count"),
+    /**
+     * The provider id of a re-cut the media server matched to nothing.
+     *
+     * A re-cut filed as personal media carries no guid at all, so the sync
+     * leaves `tmdb_id` empty and the title is invisible to everything that
+     * reads presence. This is what a later pass works out from the name, and
+     * it is kept apart from `tmdb_id` on purpose: the sync overwrites that
+     * column from what the server says on every run, the tracker links its
+     * series on it, and neither should be handed a link Umbra inferred.
+     */
+    cutProviderId: text("cut_provider_id"),
+    /**
+     * When that pass last looked at this row. A name it could not resolve is
+     * retried later rather than on every run, and a row it never reached is
+     * told apart from one it gave up on.
+     */
+    cutCheckedAt: timestamp("cut_checked_at", { withTimezone: true }),
     addedAt: timestamp("added_at", { withTimezone: true }),
     syncedAt: timestamp("synced_at", { withTimezone: true })
       .notNull()
@@ -194,6 +211,7 @@ export const libraryItems = pgTable(
   },
   (t) => [
     index("library_item_tmdb_idx").on(t.tmdbId, t.kind),
+    index("library_item_cut_idx").on(t.cutProviderId, t.kind),
     index("library_item_added_idx").on(t.addedAt),
     index("library_item_episode_idx").on(
       t.grandparentRatingKey,

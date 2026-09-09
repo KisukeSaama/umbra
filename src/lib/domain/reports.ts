@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -191,10 +191,16 @@ async function serverKeyFor(kind: MediaKind, providerId: string) {
     .from(libraryItems)
     .where(
       and(
-        eq(libraryItems.tmdbId, providerId),
         eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
+        // A re-cut is reachable by the id Umbra worked out from its name, and
+        // the administration has to be able to find the entry it points at.
+        or(
+          eq(libraryItems.tmdbId, providerId),
+          eq(libraryItems.cutProviderId, providerId),
+        ),
       ),
     )
+    .orderBy(sql`${libraryItems.tmdbId} NULLS LAST`)
     .limit(1);
   return row?.ratingKey ?? null;
 }

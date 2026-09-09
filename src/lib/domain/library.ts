@@ -17,7 +17,10 @@ import { db } from "@/lib/db";
 import { libraryItems } from "@/lib/db/schema";
 import {
   alternateCutOf,
+  beginsWithTitle,
   hasCutMarker,
+  sameTitle,
+  titleWithoutCut,
   type AlternateCut,
 } from "@/lib/domain/cuts";
 import type { LibraryItem } from "@/lib/providers/library";
@@ -231,6 +234,7 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
       id: libraryItems.id,
       kind: libraryItems.kind,
       tmdbId: libraryItems.tmdbId,
+      cutProviderId: libraryItems.cutProviderId,
     })
     .from(libraryItems)
     .where(
@@ -240,7 +244,12 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
           isNull(libraryItems.genreIds),
           isNull(libraryItems.voteAverage),
         ),
-        isNotNull(libraryItems.tmdbId),
+        // A re-cut wears the poster, the genres and the score of the series it
+        // is a re-cut of, which is the only picture there is for it.
+        or(
+          isNotNull(libraryItems.tmdbId),
+          isNotNull(libraryItems.cutProviderId),
+        ),
         inArray(libraryItems.kind, ["movie", "show"]),
       ),
     )
@@ -250,11 +259,12 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
 
   let filled = 0;
   for (const row of rows) {
-    if (!row.tmdbId) continue;
+    const providerId = row.tmdbId ?? row.cutProviderId;
+    if (!providerId) continue;
     try {
       const summary = await tmdbProvider.details(
         row.kind === "movie" ? "movie" : "tv",
-        row.tmdbId,
+        providerId,
       );
       await db()
         .update(libraryItems)
@@ -272,7 +282,7 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
         .where(eq(libraryItems.id, row.id));
       filled += 1;
     } catch (error) {
-      console.warn(`[library] lookup failed tmdbId=${row.tmdbId}`, error);
+      console.warn(`[library] lookup failed tmdbId=${providerId}`, error);
     }
   }
   return filled;
@@ -301,13 +311,17 @@ export async function searchLibrary(
       title: libraryItems.title,
       year: libraryItems.year,
       tmdbId: libraryItems.tmdbId,
+      cutProviderId: libraryItems.cutProviderId,
       posterPath: libraryItems.posterPath,
     })
     .from(libraryItems)
     .where(
       and(
         inArray(libraryItems.kind, ["movie", "show"]),
-        isNotNull(libraryItems.tmdbId),
+        or(
+          isNotNull(libraryItems.tmdbId),
+          isNotNull(libraryItems.cutProviderId),
+        ),
         ilike(libraryItems.title, `%${trimmed}%`),
       ),
     )
@@ -317,14 +331,15 @@ export async function searchLibrary(
   return Promise.all(
     rows.map(async (row) => {
       const kind = row.kind === "movie" ? ("movie" as const) : ("tv" as const);
+      const providerId = row.tmdbId ?? row.cutProviderId ?? "";
       return {
         ratingKey: row.ratingKey,
         kind,
-        providerId: row.tmdbId ?? "",
+        providerId,
         title: row.title,
         year: row.year,
         posterUrl: posterUrl(row.posterPath),
-        alternateCut: await alternateCutFor(kind, row.tmdbId ?? "", row.title),
+        alternateCut: await alternateCutFor(kind, providerId, row.title),
       };
     }),
   );
@@ -370,10 +385,135 @@ async function libraryTitleOf(providerId: string): Promise<string | null> {
     .select({ title: libraryItems.title })
     .from(libraryItems)
     .where(
-      and(eq(libraryItems.tmdbId, providerId), eq(libraryItems.kind, "show")),
+      and(
+        eq(libraryItems.kind, "show"),
+        or(
+          eq(libraryItems.tmdbId, providerId),
+          eq(libraryItems.cutProviderId, providerId),
+        ),
+      ),
     )
+    // A server that matched the series itself answers before one Umbra had to
+    // work out, so a library holding both never reads as the re-cut.
+    .orderBy(sql`${libraryItems.tmdbId} NULLS LAST`)
     .limit(1);
   return row?.title ?? null;
+}
+
+/**
+ * Links re-cuts the media server matched to nothing.
+ *
+ * A re-cut filed as personal media carries no guid at all: no TMDB id, no TVDB
+ * id, nothing. The sync therefore files it with an empty `tmdb_id` and every
+ * rule about presence walks straight past it, which is why a server holding
+ * "Naruto Kai" still offered to request Naruto.
+ *
+ * The name is the only thing left to go on, and for these it is enough: they
+ * are filed as the original name with the marker stuck on the end. So the
+ * marker comes off and the rest is looked up, under two rules that both refuse
+ * rather than guess. The name must match a series exactly, accents and
+ * punctuation aside; failing that, it must be the beginning of exactly one
+ * series the provider knows, which is what links "Boruto" to "Boruto: Naruto
+ * Next Generations" without linking "Dragon Ball" to any of the four series
+ * whose name starts that way.
+ *
+ * The year is never a reason to refuse. The server files a re-cut under the
+ * year the re-cut was made, not the year the series first aired, so it only
+ * ever separates two candidates that matched equally well.
+ *
+ * What it finds goes in a column of its own, so the next sync does not wipe it
+ * and the tracker does not pick these series up: a re-cut has no calendar to
+ * be late on. A name it cannot resolve is stamped as looked at and left alone
+ * until the next run, so a library of unmatched titles does not cost a search
+ * per pass forever.
+ */
+export async function linkUnmatchedCuts(limit = 20): Promise<number> {
+  const rows = await db()
+    .select({
+      id: libraryItems.id,
+      title: libraryItems.title,
+      year: libraryItems.year,
+    })
+    .from(libraryItems)
+    .where(
+      and(
+        eq(libraryItems.kind, "show"),
+        isNull(libraryItems.tmdbId),
+        isNull(libraryItems.cutProviderId),
+        or(
+          isNull(libraryItems.cutCheckedAt),
+          lt(libraryItems.cutCheckedAt, sql`now() - INTERVAL '7 days'`),
+        ),
+      ),
+    )
+    .orderBy(sql`${libraryItems.cutCheckedAt} NULLS FIRST`)
+    .limit(limit);
+
+  let linked = 0;
+  for (const row of rows) {
+    const base = titleWithoutCut(row.title);
+    // Not a re-cut, just a title the server could not match. Stamped all the
+    // same, so it is not looked at again on every run.
+    const providerId = base ? await lookUpSeries(base, row.year) : null;
+
+    await db()
+      .update(libraryItems)
+      .set({ cutProviderId: providerId, cutCheckedAt: new Date() })
+      .where(eq(libraryItems.id, row.id));
+    if (providerId) linked += 1;
+  }
+  return linked;
+}
+
+/** The one series that answers to this name, or nothing. */
+async function lookUpSeries(
+  base: string,
+  year: number | null,
+): Promise<string | null> {
+  let results;
+  try {
+    results = await tmdbProvider.search(base);
+  } catch (error) {
+    console.warn(`[library] cut lookup failed for ${base}`, error);
+    return null;
+  }
+
+  const series = results.filter((result) => result.kind === "tv");
+  const exact = series.filter(
+    (result) =>
+      sameTitle(result.title, base) || sameTitle(result.originalTitle, base),
+  );
+  const chosen =
+    pickOne(exact, year) ??
+    pickOne(
+      series.filter(
+        (result) =>
+          beginsWithTitle(result.title, base) ||
+          beginsWithTitle(result.originalTitle, base),
+      ),
+      year,
+    );
+
+  return chosen?.providerId ?? null;
+}
+
+/**
+ * One candidate, or none.
+ *
+ * Several names matching equally well is not a match, so the year is asked
+ * before giving up; it decides only when it singles one out.
+ */
+function pickOne<T extends { releaseDate: string | null }>(
+  candidates: T[],
+  year: number | null,
+): T | null {
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 0 || year === null) return null;
+
+  const dated = candidates.filter(
+    (candidate) => candidate.releaseDate?.slice(0, 4) === String(year),
+  );
+  return dated.length === 1 ? dated[0] : null;
 }
 
 /**
