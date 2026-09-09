@@ -159,6 +159,12 @@ export function CommandPalette({
           <SearchIcon className="text-muted-foreground size-5" />
           <Input
             autoFocus
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("home.searchPlaceholder")}

@@ -9,6 +9,7 @@ import { ReportFlow } from "@/components/report-flow";
 import { Button } from "@/components/ui/button";
 import { UpdateAsk } from "@/components/update-ask";
 import { isOnServer, type Availability } from "@/lib/domain/availability";
+import { askKey } from "@/lib/reports/reasons";
 import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import type { MediaKind } from "@/lib/providers/metadata";
@@ -28,11 +29,14 @@ export function TitleActions({
   providerId,
   title,
   availability,
+  openAsks = [],
 }: {
   kind: MediaKind;
   providerId: string;
   title: string;
   availability: Availability;
+  /** Keys of the asks already open on this title, from `askKey`. */
+  openAsks?: string[];
 }) {
   const t = useTranslator();
   const locale = useLocale();
@@ -123,6 +127,9 @@ export function TitleActions({
             providerId={providerId}
             reason="series_outdated"
             label="update.askSeries"
+            asked={openAsks.includes(
+              askKey({ seasonNumber: null, reason: "series_outdated" }),
+            )}
           />
         ) : null}
         <ReportFlow

@@ -21,6 +21,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 import {
+  askKey,
   canTransition,
   isLive,
   isReasonAllowed,
@@ -151,6 +152,39 @@ async function serverKeyFor(kind: MediaKind, providerId: string) {
     )
     .limit(1);
   return row?.ratingKey ?? null;
+}
+
+/**
+ * What is already being asked about one title.
+ *
+ * The page has to know, or it offers the same ask again on every visit: the
+ * press was answered once, the report was joined rather than duplicated, and
+ * the button came back on the next load as though nothing had been said.
+ *
+ * Read for everybody, not for the person looking: one report carries every
+ * member waiting on it, so once it exists the answer is "already asked" no
+ * matter who pressed first.
+ */
+export async function openAsksFor(
+  kind: MediaKind,
+  providerId: string,
+): Promise<string[]> {
+  const rows = await db()
+    .select({
+      seasonNumber: reports.seasonNumber,
+      reason: reports.reason,
+    })
+    .from(reports)
+    .innerJoin(media, eq(media.id, reports.mediaId))
+    .where(
+      and(
+        eq(media.providerId, providerId),
+        eq(media.mediaType, kind),
+        inArray(reports.status, [...LIVE_REPORT_STATUSES]),
+      ),
+    );
+
+  return [...new Set(rows.map(askKey))];
 }
 
 /**

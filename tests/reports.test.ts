@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { REPORT_REASONS, REPORT_STATUSES } from "@/lib/db/schema";
 import {
+  askKey,
   canTransition,
   isAutoClosable,
   isLive,
@@ -85,5 +86,21 @@ describe("report lifecycle", () => {
     expect(isAutoClosable("missing_subtitles")).toBe(false);
     expect(isAutoClosable("playback_error")).toBe(false);
     expect(isAutoClosable("wrong_content")).toBe(false);
+  });
+});
+
+describe("ask keys", () => {
+  it("tells the series apart from its seasons", () => {
+    // The page reads these to know an ask is already open. A series and a
+    // season colliding here would hide the button that has never been pressed.
+    expect(askKey({ seasonNumber: null, reason: "series_outdated" })).not.toBe(
+      askKey({ seasonNumber: 1, reason: "series_outdated" }),
+    );
+    expect(askKey({ seasonNumber: 1, reason: "missing_season" })).not.toBe(
+      askKey({ seasonNumber: 1, reason: "missing_episode" }),
+    );
+    expect(askKey({ seasonNumber: 2, reason: "missing_episode" })).toBe(
+      askKey({ seasonNumber: 2, reason: "missing_episode" }),
+    );
   });
 });

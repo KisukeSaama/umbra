@@ -78,6 +78,20 @@ export function isReasonAllowed(
 }
 
 /** Still waiting on someone. Mirrors the partial unique index on `report`. */
+/**
+ * Key of one ask: the place it points at and the reason it gives.
+ *
+ * The pair the database makes unique among live reports, spelled the same way
+ * on the server that reads them and in the component that has to know whether
+ * the ask it is about to offer has already been made.
+ */
+export function askKey(ask: {
+  seasonNumber: number | null;
+  reason: ReportReason;
+}): string {
+  return `${ask.seasonNumber ?? "series"}:${ask.reason}`;
+}
+
 export const LIVE_REPORT_STATUSES = [
   "open",
   "acknowledged",

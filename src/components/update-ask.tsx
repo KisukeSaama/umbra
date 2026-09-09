@@ -28,6 +28,7 @@ export function UpdateAsk({
   seasonNumber = null,
   reason,
   label,
+  asked = false,
   variant = "outline",
 }: {
   kind: MediaKind;
@@ -36,12 +37,19 @@ export function UpdateAsk({
   seasonNumber?: number | null;
   reason: ReportReason;
   label: TranslationKey;
+  /**
+   * Already open, said by the page rather than by this session. Without it the
+   * ask offered itself again on every load: the report was joined instead of
+   * duplicated, so nothing was broken, but the member was asked to say a thing
+   * that had already been heard.
+   */
+  asked?: boolean;
   variant?: "outline" | "secondary" | "ghost";
 }) {
   const t = useTranslator();
   const locale = useLocale();
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState(asked);
 
   async function send() {
     setSending(true);

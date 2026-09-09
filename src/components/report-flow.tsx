@@ -228,6 +228,12 @@ function TitleStep({ onPick }: { onPick: (match: Target) => void }) {
         <SearchIcon className="text-muted-foreground" />
         <Input
           autoFocus
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-1p-ignore
+          data-lpignore="true"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t("report.searchPlaceholder")}

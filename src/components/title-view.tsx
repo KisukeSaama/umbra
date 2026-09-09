@@ -3,6 +3,7 @@ import { Poster } from "@/components/poster";
 import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
+import { openAsksFor } from "@/lib/domain/reports";
 import { getTranslator } from "@/lib/i18n/server";
 
 /**
@@ -16,6 +17,12 @@ import { getTranslator } from "@/lib/i18n/server";
  */
 export async function TitleView({ detail }: { detail: TitleDetail }) {
   const t = await getTranslator();
+  /*
+   * What has already been asked about this title, so the page never offers an
+   * ask a second time. Read here rather than in `titleDetail`, because it says
+   * what the buttons may do and not what the title is.
+   */
+  const openAsks = await openAsksFor(detail.kind, detail.providerId);
 
   return (
     <article className="space-y-6">
@@ -71,6 +78,7 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
             providerId={detail.providerId}
             title={detail.title}
             availability={detail.availability}
+            openAsks={openAsks}
           />
         </div>
       </div>
@@ -82,6 +90,7 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
           providerId={detail.providerId}
           seasons={detail.seasons}
           availability={detail.availability}
+          openAsks={openAsks}
         />
       ) : null}
     </article>

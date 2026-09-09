@@ -12,11 +12,7 @@ import {
   trackedSeries,
   type MediaType,
 } from "@/lib/db/schema";
-import {
-  availabilityOf,
-  isOnServer,
-  type Availability,
-} from "@/lib/domain/availability";
+import { availabilityOf, type Availability } from "@/lib/domain/availability";
 import { episodeCountsBySeason, episodesOnServer } from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
@@ -61,11 +57,12 @@ export async function decorate(
   const providerIds = [
     ...new Set(summaries.map((summary) => summary.providerId)),
   ];
-  const [inLibrary, requested, incomplete] = await Promise.all([
+  const [inLibrary, requested, tracked] = await Promise.all([
     libraryIndex(providerIds),
     requestedIndex(providerIds),
-    incompleteIndex(providerIds),
+    trackerGapIndex(providerIds),
   ]);
+  const incomplete = await incompleteIndex(summaries, inLibrary, tracked);
 
   return summaries.map((summary) => ({
     providerId: summary.providerId,
@@ -84,12 +81,14 @@ export async function availabilityFor(
   kind: MediaKind,
   providerId: string,
 ): Promise<Availability> {
-  const [inLibrary, requested, incomplete] = await Promise.all([
+  const summary = { providerId, kind };
+  const [inLibrary, requested, tracked] = await Promise.all([
     libraryIndex([providerId]),
     requestedIndex([providerId]),
-    incompleteIndex([providerId]),
+    trackerGapIndex([providerId]),
   ]);
-  return stateOf({ providerId, kind }, inLibrary, requested, incomplete);
+  const incomplete = await incompleteIndex([summary], inLibrary, tracked);
+  return stateOf(summary, inLibrary, requested, incomplete);
 }
 
 /** The three indexes, read against one title. */
@@ -142,18 +141,17 @@ async function requestedIndex(providerIds: string[]): Promise<Set<string>> {
 }
 
 /**
- * Series the server holds without holding whole, by provider id.
+ * Series the tracker knows to be short, by provider id.
  *
  * Read from the tracker, which already keeps the broadcast calendar of the
  * shows it follows next to what the server answered: an episode that has aired
  * and has not arrived is exactly the gap a member must not be told is filled.
- * One join, no provider call, so search stays a single round trip.
+ * One join, no provider call, so it costs a search nothing.
  *
- * A series nobody tracks has no calendar to fall short of, and unknown is not
- * incomplete: it keeps saying "on the server", which is what the page it links
- * to will confirm season by season.
+ * It only covers followed series, which is why the season count answers for
+ * the others: see `incompleteIndex`.
  */
-async function incompleteIndex(providerIds: string[]): Promise<Set<string>> {
+async function trackerGapIndex(providerIds: string[]): Promise<Set<string>> {
   const rows = await db()
     .selectDistinct({
       providerId: media.providerId,
@@ -172,6 +170,49 @@ async function incompleteIndex(providerIds: string[]): Promise<Set<string>> {
 
   // Keyed by kind as well: a movie and a series can carry the same id.
   return new Set(rows.map((row) => `${row.mediaType}:${row.providerId}`));
+}
+
+/**
+ * Series on the server that are missing something, from both things that know.
+ *
+ * Counting seasons is the truth a title page shows, so search reads it too:
+ * it said "available on the server" for a series holding three episodes out of
+ * eight as long as no tracker followed it, and the page it led to then took
+ * that back season by season. The tracker still answers alongside, because a
+ * provider that cannot be reached leaves nothing to count and its calendar
+ * remains.
+ *
+ * Only series already on the server are counted, so the extra provider calls
+ * are as many as there are shelved shows among the results, usually none or
+ * one, and every one of them goes through the cache Janus already keeps.
+ */
+async function incompleteIndex(
+  summaries: Pick<MediaSummary, "providerId" | "kind">[],
+  inLibrary: Set<string>,
+  tracked: Set<string>,
+): Promise<Set<string>> {
+  const shelved = [
+    ...new Set(
+      summaries
+        .filter(
+          (summary) =>
+            summary.kind === "tv" && inLibrary.has(`show:${summary.providerId}`),
+        )
+        .map((summary) => summary.providerId),
+    ),
+  ];
+  if (shelved.length === 0) return tracked;
+
+  const counted = await Promise.all(
+    shelved.map(async (providerId) =>
+      isSeriesIncomplete(await seasonStates(providerId)) ? providerId : null,
+    ),
+  );
+
+  const incomplete = new Set(tracked);
+  for (const providerId of counted)
+    if (providerId) incomplete.add(`tv:${providerId}`);
+  return incomplete;
 }
 
 /**
@@ -198,6 +239,44 @@ export type EpisodeState = {
   onServer: boolean;
 };
 
+/**
+ * The seasons of a series, said by the provider and by the server at once.
+ *
+ * The one answer to "is it all there", used by the page that shows the ladder
+ * and by the search that must not promise more than the page will confirm.
+ * Cached per request, so a title page costs one call rather than two.
+ *
+ * Language is left out on purpose: only counts and dates are read here, they
+ * are the same in every language, and one cache key serves every visitor.
+ *
+ * A provider that cannot be reached leaves the list empty, which reads as
+ * unknown rather than as a shortfall.
+ */
+export const seasonStates = cache(async function seasonStates(
+  providerId: string,
+): Promise<SeasonState[]> {
+  try {
+    const [details, held] = await Promise.all([
+      tmdbProvider.seriesDetails(providerId),
+      episodeCountsBySeason(providerId),
+    ]);
+    return (
+      details.seasons
+        // Specials are numbered zero and are not what anyone means by a season.
+        .filter((season) => season.seasonNumber > 0)
+        .map((season) => ({
+          seasonNumber: season.seasonNumber,
+          episodeCount: season.episodeCount,
+          airDate: season.airDate,
+          onServer: held.get(season.seasonNumber) ?? 0,
+        }))
+    );
+  } catch (error) {
+    console.warn("[catalog] season list unavailable", error);
+    return [];
+  }
+});
+
 /** A backdrop, for the one place a title gets a whole screen to itself. */
 export type TitleDetail = CatalogResult & {
   backdropUrl: string | null;
@@ -219,45 +298,14 @@ export const titleDetail = cache(async function titleDetail(
   const summary = await tmdbProvider.details(kind, providerId, language);
   const [decorated] = await decorate([summary]);
 
-  let seasons: SeasonState[] = [];
-  if (kind === "tv") {
-    try {
-      const [details, held] = await Promise.all([
-        tmdbProvider.seriesDetails(providerId, language),
-        episodeCountsBySeason(providerId),
-      ]);
-      seasons = details.seasons
-        // Specials are numbered zero and are not what anyone means by a season.
-        .filter((season) => season.seasonNumber > 0)
-        .map((season) => ({
-          seasonNumber: season.seasonNumber,
-          episodeCount: season.episodeCount,
-          airDate: season.airDate,
-          onServer: held.get(season.seasonNumber) ?? 0,
-        }));
-    } catch (error) {
-      console.warn("[catalog] season list unavailable", error);
-    }
-  }
+  const seasons = kind === "tv" ? await seasonStates(providerId) : [];
 
   /*
-   * The seasons know better than the index does: they carry what the provider
-   * lists against what the server holds, for every season rather than for the
-   * ones a tracker follows. So the page settles the state it was handed, and
-   * the wording, the season badges and the update ask can never disagree.
+   * No second opinion here: the state was decided from these very seasons, so
+   * the wording, the season badges and the update ask cannot disagree.
    */
-  const availability =
-    kind === "tv" && isOnServer(decorated.availability)
-      ? availabilityOf({
-          inLibrary: true,
-          incomplete:
-            isSeriesIncomplete(seasons) || decorated.availability === "partial",
-        })
-      : decorated.availability;
-
   return {
     ...decorated,
-    availability,
     backdropUrl: summary.backdropPath
       ? `https://image.tmdb.org/t/p/w780${summary.backdropPath}`
       : null,

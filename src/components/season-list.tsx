@@ -14,6 +14,7 @@ import { UpdateAsk } from "@/components/update-ask";
 import { isOnServer, type Availability } from "@/lib/domain/availability";
 import type { EpisodeState, SeasonState } from "@/lib/domain/catalog";
 import { isSeasonComplete, isSeasonMissing } from "@/lib/domain/seasons";
+import { askKey } from "@/lib/reports/reasons";
 import { useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -34,10 +35,13 @@ export function SeasonList({
   providerId,
   seasons,
   availability,
+  openAsks = [],
 }: {
   providerId: string;
   seasons: SeasonState[];
   availability: Availability;
+  /** Keys of the asks already open on this series, from `askKey`. */
+  openAsks?: string[];
 }) {
   const t = useTranslator();
   const [open, setOpen] = useState<number | null>(null);
@@ -96,12 +100,21 @@ export function SeasonList({
       </h2>
 
       <ul className="divide-border/60 border-border/60 divide-y rounded-xl border">
-        {seasons.map((season) => {
+        {seasons.map((season, index) => {
           const expanded = open === season.seasonNumber;
+          // The row fills a corner of the list, so its hover has to take the
+          // same curve or it paints a square over it.
+          const first = index === 0;
+          const last = index === seasons.length - 1;
           const listed = episodes[season.seasonNumber];
           // A report is about something the server is supposed to hold, so the
           // ask only exists once the series itself is there.
           const canAsk = isOnServer(availability) && !isSeasonComplete(season);
+          // Nothing of it here is a missing season; some of it here is missing
+          // episodes. The reason decides the wording and the key alike.
+          const askReason = isSeasonMissing(season)
+            ? ("missing_season" as const)
+            : ("missing_episode" as const);
 
           return (
             <li
@@ -117,6 +130,8 @@ export function SeasonList({
                 aria-expanded={expanded}
                 className={cn(
                   "focus-visible:ring-ring/50 hover:bg-muted/40 flex w-full items-center gap-3 px-3 py-3 text-left transition-colors outline-none focus-visible:ring-3",
+                  first && "rounded-t-xl",
+                  last && !expanded && "rounded-b-xl",
                   // Kept in sight while its own episodes scroll under it: a
                   // list of twenty lines otherwise loses the season it belongs
                   // to on the first swipe.
@@ -176,11 +191,13 @@ export function SeasonList({
                         kind="tv"
                         providerId={providerId}
                         seasonNumber={season.seasonNumber}
-                        reason={
-                          isSeasonMissing(season)
-                            ? "missing_season"
-                            : "missing_episode"
-                        }
+                        reason={askReason}
+                        asked={openAsks.includes(
+                          askKey({
+                            seasonNumber: season.seasonNumber,
+                            reason: askReason,
+                          }),
+                        )}
                         label={
                           isSeasonMissing(season)
                             ? "update.askSeason"
