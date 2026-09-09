@@ -9,7 +9,7 @@ import {
 } from "@/components/icons";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LOCALES, type Locale } from "@/lib/i18n";
 import { useTranslator } from "@/lib/i18n/client";
 
 /**
@@ -32,20 +33,57 @@ import { useTranslator } from "@/lib/i18n/client";
 export function AccountMenu({
   username,
   isAdmin,
+  localeOverride,
 }: {
   username: string;
   isAdmin: boolean;
+  /** The language picked by hand, or `null` while the browser decides. */
+  localeOverride: Locale | null;
 }) {
   const t = useTranslator();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
+  const [language, setLanguage] = useState<Locale | "auto">(
+    localeOverride ?? "auto",
+  );
+  const [, startRefresh] = useTransition();
 
   const themes = [
     { value: "system", label: t("nav.theme.system"), icon: DisplayIcon },
     { value: "light", label: t("nav.theme.light"), icon: SunIcon },
     { value: "dark", label: t("nav.theme.dark"), icon: MoonIcon },
   ];
+
+  const languages: { value: Locale | "auto"; label: string }[] = [
+    { value: "auto", label: t("nav.language.auto") },
+    ...LOCALES.map((locale) => ({
+      value: locale,
+      label: t(`nav.language.${locale}`),
+    })),
+  ];
+
+  /**
+   * The choice is a cookie, so the server re-renders in the new language on
+   * the refresh that follows. The menu updates first: waiting for the round
+   * trip would make the click feel ignored.
+   */
+  function chooseLanguage(value: Locale | "auto") {
+    const previous = language;
+    setLanguage(value);
+    startRefresh(async () => {
+      const response = await fetch("/api/locale", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ locale: value }),
+      });
+      if (!response.ok) {
+        setLanguage(previous);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   async function signOut() {
     setSigningOut(true);
@@ -90,6 +128,25 @@ export function AccountMenu({
               closeOnClick={false}
             >
               <option.icon />
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+
+        <DropdownMenuSeparator />
+        {/* Detection reads the browser, and a browser set up in the wrong
+            language would otherwise leave no way out. */}
+        <DropdownMenuRadioGroup
+          value={language}
+          onValueChange={(value) => chooseLanguage(value as Locale | "auto")}
+        >
+          <DropdownMenuGroupLabel>{t("nav.language")}</DropdownMenuGroupLabel>
+          {languages.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              closeOnClick={false}
+            >
               {option.label}
             </DropdownMenuRadioItem>
           ))}

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { createTranslator, detectLocale, translateError } from "@/lib/i18n";
+import {
+  createTranslator,
+  detectLocale,
+  resolveLocale,
+  translateError,
+} from "@/lib/i18n";
 import { en, fr } from "@/lib/i18n/dictionaries";
 
 describe("language detection", () => {
@@ -17,6 +22,17 @@ describe("language detection", () => {
     expect(detectLocale("de-DE,de;q=0.9")).toBe("en");
     expect(detectLocale(null)).toBe("en");
     expect(detectLocale("")).toBe("en");
+  });
+
+  it("lets a chosen language override the header", () => {
+    expect(resolveLocale("en", "fr-FR,fr;q=0.9")).toBe("en");
+    expect(resolveLocale("fr", "en-GB,en;q=0.9")).toBe("fr");
+  });
+
+  it("ignores an unknown or missing choice", () => {
+    expect(resolveLocale("de", "fr-FR,fr;q=0.9")).toBe("fr");
+    expect(resolveLocale(null, "fr-FR,fr;q=0.9")).toBe("fr");
+    expect(resolveLocale(undefined, null)).toBe("en");
   });
 });
 

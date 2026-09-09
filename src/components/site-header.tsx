@@ -4,10 +4,14 @@ import { AccountMenu, SignInButton } from "@/components/account-menu";
 import { UmbraWordmark } from "@/components/brand";
 import { MainNav } from "@/components/main-nav";
 import { currentAccount } from "@/lib/auth/session";
-import { getTranslator } from "@/lib/i18n/server";
+import { getLocaleOverride, getTranslator } from "@/lib/i18n/server";
 
 export async function SiteHeader() {
-  const [account, t] = await Promise.all([currentAccount(), getTranslator()]);
+  const [account, t, localeOverride] = await Promise.all([
+    currentAccount(),
+    getTranslator(),
+    getLocaleOverride(),
+  ]);
   const isAdmin = account?.role === "admin";
 
   return (
@@ -26,7 +30,11 @@ export async function SiteHeader() {
 
         <div className="flex items-center gap-2">
           {account ? (
-            <AccountMenu username={account.username} isAdmin={isAdmin} />
+            <AccountMenu
+              username={account.username}
+              isAdmin={isAdmin}
+              localeOverride={localeOverride}
+            />
           ) : (
             <SignInButton />
           )}

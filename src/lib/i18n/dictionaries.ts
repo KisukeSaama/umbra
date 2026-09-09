@@ -24,6 +24,10 @@ export const en = {
   "nav.theme.system": "System",
   "nav.theme.light": "Light",
   "nav.theme.dark": "Dark",
+  "nav.language": "Language",
+  "nav.language.auto": "Browser setting",
+  "nav.language.en": "English",
+  "nav.language.fr": "Français",
 
   "home.greeting": "Good to see you again.",
   "home.title": "What will you discover tonight?",
@@ -271,6 +275,10 @@ export const fr: Record<TranslationKey, string> = {
   "nav.theme.system": "Système",
   "nav.theme.light": "Clair",
   "nav.theme.dark": "Sombre",
+  "nav.language": "Langue",
+  "nav.language.auto": "Réglage du navigateur",
+  "nav.language.en": "English",
+  "nav.language.fr": "Français",
 
   "home.greeting": "Content de te revoir.",
   "home.title": "Que vas-tu découvrir ce soir ?",

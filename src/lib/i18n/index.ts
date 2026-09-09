@@ -15,9 +15,28 @@ export type Translator = (
 ) => string;
 
 /**
- * Language is detected, never chosen from a switch in the header: the visitor
- * already told their browser which language they read.
+ * Language is detected first: the visitor already told their browser which
+ * language they read. A cookie can still override it from the account menu,
+ * for the day the browser is set up in a language the visitor does not read.
  */
+export const LOCALE_COOKIE = "umbra_locale";
+
+/** A year: a preference, not a session. */
+export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+export function isLocale(value: unknown): value is Locale {
+  return typeof value === "string" && LOCALES.includes(value as Locale);
+}
+
+/** The cookie wins when it names a known language; the header decides otherwise. */
+export function resolveLocale(
+  override: string | null | undefined,
+  acceptLanguage: string | null | undefined,
+): Locale {
+  if (isLocale(override)) return override;
+  return detectLocale(acceptLanguage);
+}
+
 export function detectLocale(
   acceptLanguage: string | null | undefined,
 ): Locale {

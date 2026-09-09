@@ -168,9 +168,10 @@ route is refused by the gateway, which is the expected behaviour, and
 
 Server components by default; client components only where there is interaction
 (search, vote, sign-in, admin writes). The language is detected from
-`Accept-Language` and passed down through a provider, with no switch in the
-header. Appearance follows the operating system, with an override in the account
-menu.
+`Accept-Language` and passed down through a provider. Appearance follows the
+operating system and language follows the browser, each with an override in the
+account menu: the language one is a plain cookie set through `/api/locale`, for
+the visitor whose browser speaks a language they do not.
 
 Wording lives in `src/lib/i18n/dictionaries.ts`, where `fr` is typed against
 `en`, so a missing translation is a compile error rather than a blank label.
