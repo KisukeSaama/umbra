@@ -259,9 +259,12 @@ async function rolledPage(
   if (first.length >= THIN) return first;
 
   // Still thin. The narrow moods stack their filters, and a runtime ceiling on
-  // top of an origin and a vote floor leaves a shelf of one card. The floor is
-  // the filter to give up first: it is there to keep the noise out, not to
-  // decide what counts as good, and the answers the member gave are not.
+  // top of an origin and a vote floor leaves a shelf of one card. The vote
+  // count is the filter to give up first: it is there to keep the noise out,
+  // not to decide what counts as good, and the answers the member gave are not.
+  // What is given up is how widely a title was seen, never how well it was
+  // received: the provider holds a score floor under every listing, and a
+  // shelf that came back thin is exactly where a suggestion must not slip.
   return quietly(() =>
     tmdbProvider.discoverBy({
       ...query,

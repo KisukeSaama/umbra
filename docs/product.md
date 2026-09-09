@@ -77,6 +77,39 @@ it can be reported, exactly like a title held whole. The one thing that can take
 a shortfall away without a scan is the administration answering the ask that
 named it: see "Asking for the rest".
 
+### Re-cuts
+
+Some series sit on the server under a name the provider never gave them: "Kai",
+"Yabai" and the like are re-cuts that drop the filler and renumber what is left.
+The media server still matches them to the original series, so the index answers
+with a hundred episodes where the provider lists a thousand, and every rule
+above read that as a shortfall it could never fill.
+
+A re-cut is not short, so it is stated instead of counted. Its page says which
+cut it is, next to the year and the kind, and says in one line what such a cut
+is; it reads available; and it carries no season ladder at all, because a
+numbering of its own has nothing to line up against the broadcast order and the
+ask for a missing episode would be an ask for something removed on purpose.
+
+The word in the name is only a re-cut when the provider does not use it too: a
+series the provider itself calls "Dragon Ball Z Kai" is called that, and keeps
+its ladder. See `src/lib/domain/cuts.ts`.
+
+It reads available, so it cannot be requested: the only thing left to do with
+it is report it, exactly like any title on the server. But the list of what can
+be said about it is its own. A re-cut is a fan edit: its picture, its tracks and
+its numbering are the ones whoever made it chose, and nobody on this side can
+put another audio track into it or fix its order, so offering "the quality is
+poor" or "subtitles are missing" would build the administration a queue it can
+only close. What is left is the one thing that can be acted on, there is not all
+of it here yet: "an episode is missing" and "the series is behind". Both are
+asks, so they close themselves when the rest arrives.
+
+There is no "where" step either. The report is about the series, since a
+numbering of its own gives nothing to point at. The rule is in
+`src/lib/reports/reasons.ts` and it is enforced on the route, not only in the
+dialog.
+
 ## The request lifecycle
 
 ```
@@ -228,6 +261,13 @@ It replaced a die that returned one random title, which was a shrug rather than
 an answer. Anime is one of those four questions and not one of the moods: a mood
 is what a title is about, anime is how it is made, so a romance can be asked for
 without anime, with anime, or only in anime.
+
+Everything Umbra puts forward on its own has to be worth the evening. A shelf and
+a picker are recommendations, not results, so both halves of a selection sit
+above a score floor: on the provider side it is a condition of the query, on the
+server side it is read from the score stored next to each title by the pass that
+fetches its poster. What is browsed and what is searched for is untouched, since
+there the member named what they wanted.
 
 Search left its page and became a key you press. Checking whether a title is
 already here is the gesture members repeat most, and it should not need a

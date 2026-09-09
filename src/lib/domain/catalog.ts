@@ -13,7 +13,12 @@ import {
   type MediaType,
 } from "@/lib/db/schema";
 import { availabilityOf, type Availability } from "@/lib/domain/availability";
-import { episodeCountsBySeason, episodesOnServer } from "@/lib/domain/library";
+import { alternateCutOf, type AlternateCut } from "@/lib/domain/cuts";
+import {
+  alternateCutFor,
+  episodeCountsBySeason,
+  episodesOnServer,
+} from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
 import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
@@ -31,11 +36,26 @@ export type CatalogResult = {
   year: number | null;
   posterUrl: string | null;
   availability: Availability;
+  /**
+   * The re-cut the server holds this series in, when it is not the series
+   * itself. Nothing to ask for and no ladder to draw: see `@/lib/domain/cuts`.
+   */
+  alternateCut: AlternateCut | null;
 };
 
 /** Library kind matching a media kind. */
 function libraryKindOf(kind: MediaKind) {
   return kind === "movie" ? "movie" : "show";
+}
+
+/** `movie:335984` / `tv:209867`: a movie and a series can carry the same id. */
+function keyOf(summary: Pick<MediaSummary, "providerId" | "kind">) {
+  return `${summary.kind}:${summary.providerId}`;
+}
+
+/** The same title as the server files it. */
+function libraryKeyOf(summary: Pick<MediaSummary, "providerId" | "kind">) {
+  return `${libraryKindOf(summary.kind)}:${summary.providerId}`;
 }
 
 export async function searchCatalog(
@@ -64,7 +84,8 @@ export async function decorate(
     trackerGapIndex(providerIds),
     settledIndex(providerIds),
   ]);
-  const incomplete = await incompleteIndex(summaries, inLibrary, tracked);
+  const cuts = cutIndex(summaries, inLibrary);
+  const incomplete = await incompleteIndex(summaries, inLibrary, tracked, cuts);
 
   return summaries.map((summary) => ({
     providerId: summary.providerId,
@@ -75,6 +96,7 @@ export async function decorate(
     year: yearOf(summary.releaseDate),
     posterUrl: posterUrl(summary.posterPath),
     availability: stateOf(summary, inLibrary, requested, incomplete, settled),
+    alternateCut: cuts.get(keyOf(summary)) ?? null,
   }));
 }
 
@@ -90,7 +112,22 @@ export async function availabilityFor(
     trackerGapIndex([providerId]),
     settledIndex([providerId]),
   ]);
-  const incomplete = await incompleteIndex([summary], inLibrary, tracked);
+  /*
+   * The write guards come through here, and they have no provider summary to
+   * compare a re-cut marker against, so the library layer fetches one. It only
+   * does so for the handful of titles the server files under such a name, and
+   * Janus answers that call from its cache. Skipping it would let the page call
+   * a series whole while this refused the ask its ladder no longer offers.
+   */
+  const cut = await alternateCutFor(
+    kind,
+    providerId,
+    inLibrary.get(libraryKeyOf(summary)) ?? null,
+  );
+  const cuts = new Map<string, AlternateCut>(
+    cut ? [[keyOf(summary), cut]] : [],
+  );
+  const incomplete = await incompleteIndex([summary], inLibrary, tracked, cuts);
   return stateOf(summary, inLibrary, requested, incomplete, settled);
 }
 
@@ -103,19 +140,42 @@ export async function availabilityFor(
  */
 function stateOf(
   summary: Pick<MediaSummary, "providerId" | "kind">,
-  inLibrary: Set<string>,
+  inLibrary: Map<string, string>,
   requested: Set<string>,
   incomplete: Set<string>,
   settled: Set<string>,
 ): Availability {
-  const key = `${summary.kind}:${summary.providerId}`;
+  const key = keyOf(summary);
   return availabilityOf({
-    inLibrary: inLibrary.has(
-      `${libraryKindOf(summary.kind)}:${summary.providerId}`,
-    ),
+    inLibrary: inLibrary.has(libraryKeyOf(summary)),
     incomplete: incomplete.has(key) && !settled.has(key),
     requested: requested.has(key),
   });
+}
+
+/**
+ * The re-cut each result is held in, when it is one.
+ *
+ * Read from the name the server files the show under, against the names the
+ * provider gives it. No query and no call: both sides are already in hand.
+ */
+function cutIndex(
+  summaries: Pick<
+    MediaSummary,
+    "providerId" | "kind" | "title" | "originalTitle"
+  >[],
+  inLibrary: Map<string, string>,
+): Map<string, AlternateCut> {
+  const cuts = new Map<string, AlternateCut>();
+  for (const summary of summaries) {
+    if (summary.kind !== "tv") continue;
+    const cut = alternateCutOf(inLibrary.get(libraryKeyOf(summary)), [
+      summary.title,
+      summary.originalTitle,
+    ]);
+    if (cut) cuts.set(keyOf(summary), cut);
+  }
+  return cuts;
 }
 
 /**
@@ -134,10 +194,24 @@ export async function isInLibrary(
   return index.has(`${libraryKindOf(kind)}:${providerId}`);
 }
 
-/** Keys `movie:335984` / `show:209867` present on the server. */
-async function libraryIndex(providerIds: string[]): Promise<Set<string>> {
+/**
+ * Keys `movie:335984` / `show:209867` present on the server, and the name the
+ * server files each of them under.
+ *
+ * The name rides along because presence is not always the whole answer: a show
+ * the server holds under a re-cut name is here whole while its numbering will
+ * never match the provider. One column more on a query that was happening
+ * anyway.
+ */
+async function libraryIndex(
+  providerIds: string[],
+): Promise<Map<string, string>> {
   const rows = await db()
-    .select({ tmdbId: libraryItems.tmdbId, kind: libraryItems.kind })
+    .select({
+      tmdbId: libraryItems.tmdbId,
+      kind: libraryItems.kind,
+      title: libraryItems.title,
+    })
     .from(libraryItems)
     .where(
       and(
@@ -146,8 +220,10 @@ async function libraryIndex(providerIds: string[]): Promise<Set<string>> {
       ),
     );
 
-  return new Set(
-    rows.filter((row) => row.tmdbId).map((row) => `${row.kind}:${row.tmdbId}`),
+  return new Map(
+    rows
+      .filter((row) => row.tmdbId)
+      .map((row) => [`${row.kind}:${row.tmdbId}`, row.title]),
   );
 }
 
@@ -215,12 +291,21 @@ async function trackerGapIndex(providerIds: string[]): Promise<Set<string>> {
  */
 async function incompleteIndex(
   summaries: Pick<MediaSummary, "providerId" | "kind">[],
-  inLibrary: Set<string>,
+  inLibrary: Map<string, string>,
   tracked: Set<string>,
+  cuts: Map<string, AlternateCut> = new Map(),
 ): Promise<Set<string>> {
+  /*
+   * A re-cut is never short. It drops episodes on purpose and renumbers what
+   * is left, so counting it against the provider calendar invents a shortfall
+   * that nothing can ever fill: the tracker would keep the series partial
+   * forever and the page would keep offering to ask for episodes that were
+   * removed deliberately.
+   */
+  const whole = summaries.filter((summary) => !cuts.has(keyOf(summary)));
   const shelved = [
     ...new Set(
-      summaries
+      whole
         .filter(
           (summary) =>
             summary.kind === "tv" &&
@@ -229,7 +314,7 @@ async function incompleteIndex(
         .map((summary) => summary.providerId),
     ),
   ];
-  if (shelved.length === 0) return tracked;
+  if (shelved.length === 0) return withoutCuts(tracked, cuts);
 
   const counted = await Promise.all(
     shelved.map(async (providerId) =>
@@ -237,10 +322,18 @@ async function incompleteIndex(
     ),
   );
 
-  const incomplete = new Set(tracked);
+  const incomplete = withoutCuts(tracked, cuts);
   for (const providerId of counted)
     if (providerId) incomplete.add(`tv:${providerId}`);
   return incomplete;
+}
+
+/** The tracker calendar has the same blind spot, so it is filtered the same. */
+function withoutCuts(
+  tracked: Set<string>,
+  cuts: Map<string, AlternateCut>,
+): Set<string> {
+  return new Set([...tracked].filter((key) => !cuts.has(key)));
 }
 
 /**
@@ -308,7 +401,11 @@ export const seasonStates = cache(async function seasonStates(
 /** A backdrop, for the one place a title gets a whole screen to itself. */
 export type TitleDetail = CatalogResult & {
   backdropUrl: string | null;
-  /** Seasons the provider knows about, for a series. */
+  /**
+   * Seasons the provider knows about, for a series. Empty for a re-cut: its
+   * numbering is its own, so a ladder built on the provider calendar would
+   * mark every season short and offer to ask for what was cut on purpose.
+   */
   seasons: SeasonState[];
 };
 
@@ -326,7 +423,10 @@ export const titleDetail = cache(async function titleDetail(
   const summary = await tmdbProvider.details(kind, providerId, language);
   const [decorated] = await decorate([summary]);
 
-  const seasons = kind === "tv" ? await seasonStates(providerId) : [];
+  const seasons =
+    kind === "tv" && !decorated.alternateCut
+      ? await seasonStates(providerId)
+      : [];
 
   /*
    * No second opinion here: the state was decided from these very seasons, so

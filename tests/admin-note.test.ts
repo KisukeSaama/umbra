@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { canCarryNote, noteFor } from "@/lib/domain/requests";
-import { canCarryReportNote, reportNoteFor } from "@/lib/domain/reports";
+import { reportNoteFor } from "@/lib/domain/reports";
 
 /**
  * The only free text in the product, and the rule that keeps it from lingering:
@@ -38,7 +38,12 @@ describe("the note left on a request", () => {
   });
 });
 
-/** The same rule on a report, where being fixed is what ends the sentence. */
+/**
+ * Nearly the same rule on a report, which parts ways with a request at the end:
+ * an ask that arrives has answered itself, a report that closes has not, so the
+ * last word stays as the outcome. One note per report, replaced rather than
+ * added to.
+ */
 describe("the note left on a report", () => {
   it("keeps the note when a move does not carry one", () => {
     expect(reportNoteFor("in_progress", undefined)).toBeUndefined();
@@ -55,17 +60,26 @@ describe("the note left on a report", () => {
     expect(reportNoteFor("acknowledged", null)).toBeNull();
   });
 
-  it("erases the note once the problem is fixed", () => {
-    expect(reportNoteFor("resolved", "still looking")).toBeNull();
-    expect(reportNoteFor("resolved", undefined)).toBeNull();
+  it("keeps the outcome readable once the problem is fixed", () => {
+    expect(reportNoteFor("resolved", "re-encoded and back")).toBe(
+      "re-encoded and back",
+    );
+    expect(reportNoteFor("resolved", undefined)).toBeUndefined();
+  });
+
+  it("replaces the ageing word rather than adding to it", () => {
+    expect(reportNoteFor("resolved", "  the season is complete  ")).toBe(
+      "the season is complete",
+    );
+    expect(reportNoteFor("resolved", "")).toBeNull();
   });
 
   it("keeps a refusal explained", () => {
     expect(reportNoteFor("rejected", "not something we index")).toBe(
       "not something we index",
     );
-    expect(canCarryReportNote("rejected")).toBe(true);
-    expect(canCarryReportNote("duplicate")).toBe(true);
-    expect(canCarryReportNote("resolved")).toBe(false);
+    expect(reportNoteFor("duplicate", "already reported elsewhere")).toBe(
+      "already reported elsewhere",
+    );
   });
 });

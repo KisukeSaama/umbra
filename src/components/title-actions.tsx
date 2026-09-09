@@ -8,6 +8,7 @@ import { CheckIcon, CircleHalfIcon, SpinnerIcon } from "@/components/icons";
 import { ReportFlow } from "@/components/report-flow";
 import { Button } from "@/components/ui/button";
 import { isOnServer, type Availability } from "@/lib/domain/availability";
+import type { AlternateCut } from "@/lib/domain/cuts";
 import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import type { MediaKind } from "@/lib/providers/metadata";
@@ -30,11 +31,14 @@ export function TitleActions({
   providerId,
   title,
   availability,
+  alternateCut = null,
 }: {
   kind: MediaKind;
   providerId: string;
   title: string;
   availability: Availability;
+  /** The re-cut the server holds it in, so the report says only what applies. */
+  alternateCut?: AlternateCut | null;
 }) {
   const t = useTranslator();
   const locale = useLocale();
@@ -119,7 +123,10 @@ export function TitleActions({
           {partial ? <CircleHalfIcon /> : <CheckIcon />}
           {t(partial ? "title.onServerPartly" : "title.onServer")}
         </span>
-        <ReportFlow variant="outline" preset={{ kind, providerId, title }} />
+        <ReportFlow
+          variant="outline"
+          preset={{ kind, providerId, title, alternateCut }}
+        />
       </div>
     );
   }

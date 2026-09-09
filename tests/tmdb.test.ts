@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  discoverParams,
   episodeFromJson,
   numericId,
   summaryFromJson,
@@ -39,6 +40,28 @@ describe("tmdb parsing", () => {
     expect(summary?.originalTitle).toBe("Sousou no Frieren");
   });
 
+  it("reads the score, and tells a missing one from a zero", () => {
+    const rated = summaryFromJson({
+      id: 1,
+      media_type: "movie",
+      title: "Seven",
+      vote_average: 8.4,
+      vote_count: 20000,
+    });
+    const unrated = summaryFromJson({
+      id: 2,
+      media_type: "movie",
+      title: "Unseen",
+    });
+
+    expect(rated?.voteAverage).toBe(8.4);
+    expect(rated?.voteCount).toBe(20000);
+    // Null, not zero: the library index leans on that difference to know the
+    // row has not been looked at yet.
+    expect(unrated?.voteAverage).toBeNull();
+    expect(unrated?.voteCount).toBe(0);
+  });
+
   it("ignores rows that are not media", () => {
     expect(
       summaryFromJson({ id: 1, media_type: "person", name: "Denis" }),
@@ -67,5 +90,45 @@ describe("tmdb parsing", () => {
   it("refuses an identifier that is not numeric", () => {
     expect(() => numericId("../secret")).toThrow();
     expect(numericId("42")).toBe(42);
+  });
+});
+
+describe("discover filters", () => {
+  it("holds a score floor under every listing", () => {
+    const movie = discoverParams({ kind: "movie", sortBy: "rating" });
+    const show = discoverParams({ kind: "tv", sortBy: "popularity" });
+
+    // The floor is a property of the query, not of the sort: a shelf ordered
+    // by popularity is a suggestion too.
+    expect(movie["vote_average.gte"]).toBe(6.5);
+    expect(show["vote_average.gte"]).toBe(6.5);
+  });
+
+  it("keeps the score floor when the vote count is given up", () => {
+    const relaxed = discoverParams({
+      kind: "tv",
+      sortBy: "rating",
+      voteCountGte: 100,
+    });
+
+    expect(relaxed["vote_count.gte"]).toBe(100);
+    expect(relaxed["vote_average.gte"]).toBe(6.5);
+  });
+
+  it("lets a caller ask for more than the floor", () => {
+    expect(
+      discoverParams({ kind: "movie", voteAverageGte: 7.5 })[
+        "vote_average.gte"
+      ],
+    ).toBe(7.5);
+  });
+
+  it("counts votes differently on each side", () => {
+    expect(
+      discoverParams({ kind: "movie", sortBy: "rating" })["vote_count.gte"],
+    ).toBe(1000);
+    expect(
+      discoverParams({ kind: "tv", sortBy: "rating" })["vote_count.gte"],
+    ).toBe(600);
   });
 });

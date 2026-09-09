@@ -15,6 +15,7 @@ import {
 import { bumpMetric } from "@/lib/domain/analytics";
 import { isOnServer } from "@/lib/domain/availability";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
+import { alternateCutFor } from "@/lib/domain/library";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
 import { settledAsksFor } from "@/lib/domain/settled";
@@ -26,6 +27,7 @@ import {
   askKey,
   canTransition,
   isAsk,
+  isCutReasonAllowed,
   isLive,
   isReasonAllowed,
   isSettled,
@@ -80,9 +82,32 @@ export async function createReport(input: {
   accountId: string;
   language?: string;
 }): Promise<{ reportId: string; title: string; joined: boolean }> {
-  const target = targetOf(input.kind, input.seasonNumber, input.episodeNumber);
-  if (!isReasonAllowed(target, input.reason))
-    throw new BadRequestError("error.reasonNotAllowed");
+  /*
+   * A re-cut answers for a shorter list of things, and for the series alone.
+   *
+   * Its picture, its tracks and its numbering are the ones whoever made the
+   * edit chose, and nothing on this side can put them right; there is no season
+   * to point at either, since the page draws no ladder over a numbering of its
+   * own. So the rules it is judged by are its own rather than the ones the
+   * shape of the report would give it: "an episode is missing" is not a thing
+   * one says about a whole series anywhere else, and here it is the whole
+   * point. The dialog already offers no more than this, but the route is one
+   * request away from anybody.
+   */
+  const cut = await alternateCutFor(input.kind, input.providerId);
+  if (cut) {
+    const placed = input.seasonNumber !== null || input.episodeNumber !== null;
+    if (placed || !isCutReasonAllowed(input.reason))
+      throw new BadRequestError("error.reasonNotAllowed");
+  } else {
+    const target = targetOf(
+      input.kind,
+      input.seasonNumber,
+      input.episodeNumber,
+    );
+    if (!isReasonAllowed(target, input.reason))
+      throw new BadRequestError("error.reasonNotAllowed");
+  }
 
   // A report is about something that is supposed to be on the server. A title
   // that is not there is a request, and saying so is more useful than refusing.
@@ -411,47 +436,37 @@ export async function countOpenReports(): Promise<number> {
 /**
  * What an administrator leaves on a report, if anything.
  *
- * Mirrors `noteFor` on requests: `undefined` means the note is not part of this
- * move and stays as it is, an empty string erases it, and resolving erases it
- * whatever was sent, because a word saying what is being looked into has
- * nothing left to say once the problem is gone. A refusal keeps its note, which
- * is the one place the reason for it can be read.
+ * Almost `noteFor` on requests: `undefined` means the note is not part of this
+ * move and stays as it is, and an empty string erases it. Where the two part
+ * ways is the end. A request that arrives has answered itself, so its note goes
+ * with it; a report that closes has not, and the last word is the only place
+ * the outcome can be read, whether the problem was fixed, refused or already
+ * known. So closing carries a note like any other move, and the way to correct
+ * an ageing one is to replace it: there is one note per report, never a thread.
  */
 export function reportNoteFor(
   status: ReportStatus,
   adminNote?: string | null,
 ): string | null | undefined {
-  if (status === "resolved") return null;
   if (adminNote === undefined) return undefined;
   return adminNote?.trim() || null;
 }
 
-/** The note lives as long as it is shown, and resolving is what erases it. */
-export function canCarryReportNote(status: ReportStatus): boolean {
-  return status !== "resolved";
-}
 
 /**
  * Rewrites the note alone, without moving the report.
  *
  * The same second gesture as `setRequestNote`, and for the same reason: a word
  * written while taking a report up ages, and correcting it should not mean
- * pushing the report into a status it does not belong in. Nothing is announced,
- * since the notification key carries the step and the step has not changed.
+ * pushing the report into a status it does not belong in. Rewriting drops what
+ * was there, since a report carries one note and not a history. Nothing is
+ * announced, since the notification key carries the step and the step has not
+ * changed.
  */
 export async function setReportNote(
   reportId: string,
   adminNote: string | null,
 ) {
-  const [current] = await db()
-    .select({ status: reports.status })
-    .from(reports)
-    .where(eq(reports.id, reportId))
-    .limit(1);
-  if (!current) throw new NotFoundError("error.reportNotFound");
-  if (!canCarryReportNote(current.status))
-    throw new ConflictError("error.noteNotEditable");
-
   const [updated] = await db()
     .update(reports)
     .set({ adminNote: adminNote?.trim() || null, updatedAt: new Date() })
@@ -461,6 +476,7 @@ export async function setReportNote(
       status: reports.status,
       adminNote: reports.adminNote,
     });
+  if (!updated) throw new NotFoundError("error.reportNotFound");
 
   return updated;
 }
