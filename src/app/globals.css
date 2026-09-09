@@ -49,26 +49,26 @@
 }
 
 :root {
-  /* Umbra, daylight. Warm paper, ink, and the same lantern accent as at night. */
+  /* Umbra, daylight. Warm paper, ink, and the ochre the messenger wears. */
   --background: oklch(0.972 0.004 85);
   --foreground: oklch(0.24 0.012 265);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.24 0.012 265);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.24 0.012 265);
-  --primary: oklch(0.63 0.155 52);
+  --primary: oklch(0.565 0.125 57);
   --primary-foreground: oklch(0.99 0.004 85);
   --secondary: oklch(0.945 0.006 85);
   --secondary-foreground: oklch(0.28 0.012 265);
   --muted: oklch(0.945 0.006 85);
   --muted-foreground: oklch(0.52 0.012 265);
-  --accent: oklch(0.93 0.02 60);
+  --accent: oklch(0.935 0.022 57);
   --accent-foreground: oklch(0.28 0.012 265);
   --destructive: oklch(0.58 0.2 25);
   --border: oklch(0.9 0.006 85);
   --input: oklch(0.9 0.006 85);
-  --ring: oklch(0.63 0.155 52);
-  --chart-1: oklch(0.63 0.155 52);
+  --ring: oklch(0.565 0.125 57);
+  --chart-1: oklch(0.565 0.125 57);
   --chart-2: oklch(0.55 0.09 245);
   --chart-3: oklch(0.62 0.1 155);
   --chart-4: oklch(0.55 0.13 300);
@@ -76,47 +76,47 @@
   --radius: 0.75rem;
   --sidebar: oklch(0.985 0.004 85);
   --sidebar-foreground: oklch(0.24 0.012 265);
-  --sidebar-primary: oklch(0.63 0.155 52);
+  --sidebar-primary: oklch(0.565 0.125 57);
   --sidebar-primary-foreground: oklch(0.99 0.004 85);
   --sidebar-accent: oklch(0.945 0.006 85);
   --sidebar-accent-foreground: oklch(0.28 0.012 265);
   --sidebar-border: oklch(0.9 0.006 85);
-  --sidebar-ring: oklch(0.63 0.155 52);
+  --sidebar-ring: oklch(0.565 0.125 57);
 }
 
 .dark {
-  /* Umbra at night. Near-black blues, off-white ink, one warm lantern accent. */
+  /* Umbra at night. Near-black blues, off-white ink, the same ochre opened up. */
   --background: oklch(0.16 0.008 262);
   --foreground: oklch(0.95 0.008 85);
   --card: oklch(0.205 0.009 262);
   --card-foreground: oklch(0.95 0.008 85);
   --popover: oklch(0.205 0.009 262);
   --popover-foreground: oklch(0.95 0.008 85);
-  --primary: oklch(0.73 0.145 55);
-  --primary-foreground: oklch(0.17 0.02 55);
+  --primary: oklch(0.735 0.13 57);
+  --primary-foreground: oklch(0.175 0.02 57);
   --secondary: oklch(0.26 0.009 262);
   --secondary-foreground: oklch(0.95 0.008 85);
   --muted: oklch(0.26 0.009 262);
   --muted-foreground: oklch(0.7 0.012 262);
-  --accent: oklch(0.28 0.02 55);
+  --accent: oklch(0.285 0.022 57);
   --accent-foreground: oklch(0.95 0.008 85);
   --destructive: oklch(0.65 0.17 25);
   --border: oklch(1 0 0 / 9%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.73 0.145 55);
-  --chart-1: oklch(0.73 0.145 55);
+  --ring: oklch(0.735 0.13 57);
+  --chart-1: oklch(0.735 0.13 57);
   --chart-2: oklch(0.66 0.09 245);
   --chart-3: oklch(0.7 0.1 155);
   --chart-4: oklch(0.66 0.13 300);
   --chart-5: oklch(0.8 0.12 90);
   --sidebar: oklch(0.185 0.009 262);
   --sidebar-foreground: oklch(0.95 0.008 85);
-  --sidebar-primary: oklch(0.73 0.145 55);
-  --sidebar-primary-foreground: oklch(0.17 0.02 55);
+  --sidebar-primary: oklch(0.735 0.13 57);
+  --sidebar-primary-foreground: oklch(0.175 0.02 57);
   --sidebar-accent: oklch(0.26 0.009 262);
   --sidebar-accent-foreground: oklch(0.95 0.008 85);
   --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.73 0.145 55);
+  --sidebar-ring: oklch(0.735 0.13 57);
 }
 
 @layer base {
@@ -125,9 +125,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    /*
+     * What a sticky heading has to clear, and what scrolling to an anchor has
+     * to leave above it: the site header, which floats over every page. A
+     * dialog scrolls inside itself with nothing above it, so it sets this back
+     * to zero for everything it contains.
+     */
+    --umbra-sticky-top: 4rem;
   }
   html {
     @apply font-sans;
+    /* Always reserve the scrollbar track, so a short page and a long one line up
+       on the same gutter instead of jumping sideways when the bar appears. */
+    scrollbar-gutter: stable;
   }
   /* The serif carries the page titles only. Everywhere else stays in the grotesk:
      one voice for the mood, one for the information. */
@@ -160,7 +170,141 @@
       );
   }
 
+  /*
+   * The picture at the top of a title.
+   *
+   * Nothing is read over it, unlike the hero, so it is not washed flat: it
+   * stays a picture and only dissolves where it meets the surface below, which
+   * is the page normally and the panel inside a dialog.
+   */
+  .umbra-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    /* The surface is inherited, never set here: a default on the banner itself
+       would win over the value a dialog passes down. */
+    background: linear-gradient(
+      to bottom,
+      color-mix(
+        in oklab,
+        var(--umbra-surface, var(--background)) 10%,
+        transparent
+      ),
+      color-mix(
+          in oklab,
+          var(--umbra-surface, var(--background)) 45%,
+          transparent
+        )
+        60%,
+      var(--umbra-surface, var(--background))
+    );
+  }
+
+  /*
+   * Whatever the content is sitting on: the page normally, the panel inside a
+   * dialog, which sets the variable for everything under it. Sticky headings
+   * need it, since anything scrolling beneath them must not show through.
+   */
+  .umbra-surface {
+    background-color: var(--umbra-surface, var(--background));
+  }
+
   .umbra-hairline {
     border-color: color-mix(in oklab, var(--foreground) 10%, transparent);
+  }
+
+  /*
+   * The posters behind the hero.
+   *
+   * Not a glass panel: a picture, already blurred and dimmed, sitting under the
+   * paper. That distinction is the whole reason it is allowed, and it is why
+   * the rule against frosted surfaces still stands everywhere else.
+   */
+  .umbra-backdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--background) 72%, transparent),
+      var(--background) 88%
+    );
+  }
+
+  /*
+   * A fine grain over the hero, so a wall of digital posters reads as printed
+   * matter rather than as a shop window. Generated, not a file: it costs one
+   * data URL and no request.
+   */
+  .umbra-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+    mix-blend-mode: soft-light;
+  }
+
+  /*
+   * A rail that fades at both ends instead of being cut off, so it reads as
+   * continuing rather than as broken.
+   */
+  .umbra-rail {
+    scrollbar-width: none;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 1.25rem,
+      black calc(100% - 1.25rem),
+      transparent
+    );
+  }
+  .umbra-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * Shelves arrive one after another rather than all at once. Opacity and
+   * transform only: nothing here moves a layout.
+   */
+  .umbra-rise {
+    animation: umbra-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes umbra-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Keyboard users get past the header without walking every nav item. */
+.umbra-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 60;
+}
+.umbra-skip:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+}
+
+/* Motion here only ever conveys state. Someone who asked for less of it loses
+   nothing by getting the end state straight away. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

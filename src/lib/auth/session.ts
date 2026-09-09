@@ -1,11 +1,13 @@
 import "server-only";
 
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, eq, gt, lt, ne } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { safeEquals } from "@/lib/auth/compare";
 import { db } from "@/lib/db";
 import {
   accounts,
@@ -24,6 +26,8 @@ export type CurrentAccount = {
   username: string;
   role: AccountRole;
   status: AccountStatus;
+  /** Whether suggestions may be shaped by an aggregated taste profile. */
+  personalisationEnabled: boolean;
 };
 
 /**
@@ -85,6 +89,7 @@ export const currentAccount = cache(
         username: accounts.username,
         role: accounts.role,
         status: accounts.status,
+        personalisationEnabled: accounts.personalisationEnabled,
       })
       .from(sessions)
       .innerJoin(accounts, eq(accounts.id, sessions.accountId))
@@ -109,6 +114,18 @@ export async function requireMember(): Promise<CurrentAccount> {
   return account;
 }
 
+/**
+ * The administration side, which the administrator shares with the assistants
+ * they named. Everything under `/admin` goes through this, except the pages and
+ * routes that hand out access: those are the administrator's alone.
+ */
+export async function requireStaff(): Promise<CurrentAccount> {
+  const account = await requireMember();
+  if (account.role === "member") throw new ForbiddenError();
+  return account;
+}
+
+/** The single administrator. Naming an assistant is not delegated. */
 export async function requireAdmin(): Promise<CurrentAccount> {
   const account = await requireMember();
   if (account.role !== "admin") throw new ForbiddenError();
@@ -116,10 +133,47 @@ export async function requireAdmin(): Promise<CurrentAccount> {
 }
 
 /**
+ * Page-side guards.
+ *
+ * A layout does not stop the page under it from rendering, and it is not
+ * re-run on a client-side navigation between sibling pages. Every page
+ * therefore checks for itself, and answers with a redirect rather than an
+ * error: on a page, "not signed in" is a place to go, not a fault.
+ */
+export async function requireMemberPage(): Promise<CurrentAccount> {
+  const account = await currentAccount();
+  if (!account) redirect("/sign-in");
+  if (account.status !== "approved") redirect("/pending");
+  return account;
+}
+
+export async function requireStaffPage(): Promise<CurrentAccount> {
+  const account = await requireMemberPage();
+  if (account.role === "member") redirect("/");
+  return account;
+}
+
+export async function requireAdminPage(): Promise<CurrentAccount> {
+  const account = await requireMemberPage();
+  if (account.role !== "admin") redirect("/admin");
+  return account;
+}
+
+/**
+ * Ends every session of an account. Called when access is withdrawn, so a
+ * blocked or demoted account does not keep a working cookie until it expires.
+ */
+export async function revokeSessions(accountId: string) {
+  await db().delete(sessions).where(eq(sessions.accountId, accountId));
+}
+
+/**
  * Creates or refreshes the local account matching a Plex account.
  *
- * The account named by `ADMIN_PLEX_ACCOUNT_ID` becomes an administrator. Others
- * land as pending unless `AUTO_APPROVE_MEMBERS` is set.
+ * The account named by `ADMIN_PLEX_ACCOUNT_ID` becomes the administrator, and
+ * any previous one steps down to assistant. Others land as pending unless
+ * `AUTO_APPROVE_MEMBERS` is set, and keep the role they already had: an
+ * assistant stays an assistant across sign-ins.
  */
 export async function upsertAccountFromPlex(
   plexAccount: PlexAccount,
@@ -128,6 +182,21 @@ export async function upsertAccountFromPlex(
   const isDesignatedAdmin =
     config.ADMIN_PLEX_ACCOUNT_ID !== undefined &&
     safeEquals(config.ADMIN_PLEX_ACCOUNT_ID, plexAccount.id);
+
+  // There is room for one administrator only, and the database says so. If the
+  // configuration now names someone else, the previous administrator steps down
+  // to assistant instead of every sign-in failing on the unique index.
+  if (isDesignatedAdmin) {
+    await db()
+      .update(accounts)
+      .set({ role: "assistant" })
+      .where(
+        and(
+          eq(accounts.role, "admin"),
+          ne(accounts.plexAccountId, plexAccount.id),
+        ),
+      );
+  }
 
   const [existing] = await db()
     .select()
@@ -140,6 +209,7 @@ export async function upsertAccountFromPlex(
     username: accounts.username,
     role: accounts.role,
     status: accounts.status,
+    personalisationEnabled: accounts.personalisationEnabled,
   };
 
   if (existing) {
@@ -178,12 +248,4 @@ export async function upsertAccountFromPlex(
     })
     .returning(columns);
   return created;
-}
-
-/** Constant-time comparison, so response timing reveals nothing. */
-function safeEquals(a: string, b: string) {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
 }

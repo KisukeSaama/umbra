@@ -21,6 +21,39 @@ export type MediaSummary = {
   backdropPath: string | null;
   /** Only used to rank search results. */
   popularity: number;
+  /**
+   * Provider genre ids. Present on list rows and on details, which is what
+   * lets the library index be stamped without a second call.
+   */
+  genreIds: number[];
+};
+
+export type Genre = { id: number; name: string };
+
+/** How a shelf or the guided picker asks for titles it cannot name. */
+export type DiscoverQuery = {
+  kind: MediaKind;
+  /** Any one of these is enough. Absent means every genre. */
+  genreIds?: number[];
+  /**
+   * Any one of these disqualifies a title. Genres are a union, so without a
+   * way to say no a mood widens until it means nothing: a film filed under
+   * both Comedy and War answers "make me laugh" on the strength of the first.
+   */
+  excludeGenreIds?: number[];
+  /** ISO 639-1, for a mood defined by where a title was made rather than by genre. */
+  originalLanguage?: string;
+  /** Minutes. Only meaningful for a film. */
+  runtimeLte?: number;
+  sortBy?: "popularity" | "rating" | "recent";
+  /**
+   * Minimum number of votes. Left out, the provider picks a floor that suits
+   * the sort; a caller lowers it when the query is already narrow enough that
+   * the floor is what empties it rather than what cleans it up.
+   */
+  voteCountGte?: number;
+  page?: number;
+  language?: string;
 };
 
 export type SeasonSummary = {
@@ -66,6 +99,19 @@ export interface MediaMetadataProvider {
     season: number,
     language?: string,
   ): Promise<EpisodeInfo[]>;
+  /** What everyone is watching right now, both kinds mixed. */
+  trending(language?: string): Promise<MediaSummary[]>;
+  /** Titles matching a shape rather than a name. */
+  discoverBy(query: DiscoverQuery): Promise<MediaSummary[]>;
+  /** Films not out yet, or shows currently airing. */
+  upcoming(kind: MediaKind, language?: string): Promise<MediaSummary[]>;
+  /** Titles the provider considers close to this one. */
+  recommendations(
+    kind: MediaKind,
+    providerId: string,
+    language?: string,
+  ): Promise<MediaSummary[]>;
+  genres(kind: MediaKind, language?: string): Promise<Genre[]>;
 }
 
 /** A finished show no longer needs a daily sync. */

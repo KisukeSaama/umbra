@@ -4,7 +4,9 @@ import { env } from "@/lib/env";
 import { BadRequestError, NotFoundError, UpstreamError } from "@/lib/errors";
 import { janus } from "@/lib/janus";
 import {
+  type DiscoverQuery,
   type EpisodeInfo,
+  type Genre,
   type MediaKind,
   type MediaMetadataProvider,
   type MediaSummary,
@@ -35,6 +37,46 @@ export function posterUrl(
  */
 export function tmdbLanguage(language?: string) {
   return language === "fr" ? "fr-FR" : "en-US";
+}
+
+/**
+ * Release dates are regional. Without this, "in cinemas soon" is answered with
+ * United States dates, which are weeks off for this audience.
+ */
+export function tmdbRegion(language?: string) {
+  return language === "fr" ? "FR" : "US";
+}
+
+/** TMDB refuses anything past page 500. */
+function safePage(page: number | undefined) {
+  return Math.min(500, Math.max(1, Math.trunc(page ?? 1)));
+}
+
+/**
+ * The sort field is not the same on both sides: a film has a release date, a
+ * show has a first air date. The domain asks for an intent and the provider
+ * decides how to spell it.
+ */
+function sortFor(kind: MediaKind, sortBy: DiscoverQuery["sortBy"]) {
+  if (sortBy === "recent")
+    return kind === "movie"
+      ? "primary_release_date.desc"
+      : "first_air_date.desc";
+  if (sortBy === "rating") return "vote_average.desc";
+  return "popularity.desc";
+}
+
+/**
+ * The floor under "sort by rating".
+ *
+ * Sorting by average with a low floor does not return the best titles, it
+ * returns the least voted ones: a film released last month with four hundred
+ * votes outranks Seven. The threshold is not the same on both sides because a
+ * show collects far fewer votes than a film of the same standing.
+ */
+function voteFloor(kind: MediaKind, sortBy: DiscoverQuery["sortBy"]) {
+  if (sortBy !== "rating") return 50;
+  return kind === "movie" ? 1000 : 600;
 }
 
 type Json = Record<string, unknown>;
@@ -114,7 +156,107 @@ export const tmdbProvider: MediaMetadataProvider = {
       .map(episodeFromJson)
       .filter((episode): episode is EpisodeInfo => episode !== null);
   },
+
+  async trending(language) {
+    // `/trending/all` is the one listing that names its own kinds, and it also
+    // returns people, which `parseMediaKind` drops.
+    const body = await get<{ results?: unknown[] }>(
+      "/trending/all/week",
+      language,
+    );
+    return (body.results ?? [])
+      .map((row) => summaryFromJson(row))
+      .filter((row): row is MediaSummary => row !== null);
+  },
+
+  async discoverBy({
+    kind,
+    genreIds,
+    excludeGenreIds,
+    originalLanguage,
+    runtimeLte,
+    sortBy,
+    voteCountGte,
+    page,
+    language,
+  }) {
+    const query: Record<string, string | number> = {
+      include_adult: "false",
+      page: safePage(page),
+      sort_by: sortFor(kind, sortBy),
+      "vote_count.gte": voteCountGte ?? voteFloor(kind, sortBy),
+    };
+    // A pipe is "any of these", a comma would demand all of them at once.
+    if (genreIds?.length) query.with_genres = genreIds.join("|");
+    if (excludeGenreIds?.length)
+      query.without_genres = excludeGenreIds.join("|");
+    if (originalLanguage) query.with_original_language = originalLanguage;
+    // On a show this parameter filters the length of one episode, which is a
+    // different question, so it is only ever sent for a film.
+    if (runtimeLte && kind === "movie") query["with_runtime.lte"] = runtimeLte;
+
+    const body = await get<{ results?: unknown[] }>(
+      `/discover/${kind}`,
+      language,
+      query,
+    );
+    return summariesOfKind(body.results, kind);
+  },
+
+  async upcoming(kind, language) {
+    if (kind === "movie") {
+      const body = await get<{ results?: unknown[] }>(
+        "/movie/upcoming",
+        language,
+        { region: tmdbRegion(language), page: 1 },
+      );
+      return summariesOfKind(body.results, "movie");
+    }
+    // There is no `/tv/upcoming`. `on_the_air` answers "airing right now",
+    // which is the useful question for a server that follows series.
+    const body = await get<{ results?: unknown[] }>(
+      "/tv/on_the_air",
+      language,
+      {
+        page: 1,
+      },
+    );
+    return summariesOfKind(body.results, "tv");
+  },
+
+  async recommendations(kind, providerId, language) {
+    const body = await get<{ results?: unknown[] }>(
+      `/${kind}/${numericId(providerId)}/recommendations`,
+      language,
+    );
+    // This listing sometimes carries `media_type` and sometimes does not, so
+    // the kind is imposed rather than read.
+    return summariesOfKind(body.results, kind);
+  },
+
+  async genres(kind, language) {
+    const body = await get<{ genres?: unknown[] }>(
+      `/genre/${kind}/list`,
+      language,
+    );
+    return (body.genres ?? [])
+      .map(genreFromJson)
+      .filter((genre): genre is Genre => genre !== null);
+  },
 };
+
+function summariesOfKind(rows: unknown[] | undefined, kind: MediaKind) {
+  return (rows ?? [])
+    .map((row) => summaryFromJsonWithKind(row, kind))
+    .filter((row): row is MediaSummary => row !== null);
+}
+
+export function genreFromJson(row: unknown): Genre | null {
+  if (!isJson(row)) return null;
+  const id = int(row, "id");
+  const name = str(row, "name");
+  return id !== null && name ? { id, name } : null;
+}
 
 /**
  * TMDB ids are numeric, so anything else is refused before a path is built: a
@@ -164,7 +306,26 @@ export function summaryFromJsonWithKind(
     posterPath: str(row, "poster_path"),
     backdropPath: str(row, "backdrop_path"),
     popularity: typeof row.popularity === "number" ? row.popularity : 0,
+    genreIds: genreIdsFrom(row),
   };
+}
+
+/**
+ * A listing row carries `genre_ids`, a details payload carries `genres` as
+ * objects. Reading both means the library index can be stamped with genres by
+ * the pass that already asks for the details, at no extra call.
+ */
+export function genreIdsFrom(row: unknown): number[] {
+  if (!isJson(row)) return [];
+  if (Array.isArray(row.genre_ids))
+    return row.genre_ids.filter(
+      (id): id is number => typeof id === "number" && Number.isFinite(id),
+    );
+  if (Array.isArray(row.genres))
+    return row.genres
+      .map((genre) => (isJson(genre) ? int(genre, "id") : null))
+      .filter((id): id is number => id !== null);
+  return [];
 }
 
 export function episodeFromJson(row: unknown): EpisodeInfo | null {

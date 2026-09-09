@@ -1,5 +1,12 @@
+import { GlyphTile } from "@/components/glyph-tile";
 import { GoalIcon } from "@/components/icons";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { FundingView } from "@/lib/domain/funding";
 import { formatAmount } from "@/lib/format";
@@ -20,22 +27,20 @@ export async function FundingCard({ goal }: { goal: FundingView | null }) {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+      <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-            <GoalIcon />
-          </span>
-          {goal.title}
+          <GlyphTile icon={GoalIcon} />
+          <span className="truncate">{goal.title}</span>
         </CardTitle>
-        <span className="text-sm font-medium">
+        <CardAction className="self-center text-sm font-medium tabular-nums">
           {reached
             ? t("funding.reached")
             : t("funding.progress", { percent: `${percent}%` })}
-        </span>
+        </CardAction>
       </CardHeader>
       <CardContent className="space-y-2">
         <Progress value={percent} aria-label={goal.title} />
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-sm tabular-nums">
           {formatAmount(goal.currentAmountCents, goal.currency, locale)}
           {" / "}
           {formatAmount(goal.targetAmountCents, goal.currency, locale)}

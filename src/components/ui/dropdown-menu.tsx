@@ -55,7 +55,34 @@ function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />;
 }
 
+/**
+ * A heading for a stretch of the menu that is not a group. Base UI's
+ * `GroupLabel` reads the context of a surrounding `Group` or `RadioGroup` and
+ * throws without one, so a standalone label stays a plain element; naming an
+ * actual group goes through `DropdownMenuGroupLabel`, which keeps the
+ * accessible association.
+ */
 function DropdownMenuLabel({
+  className,
+  inset,
+  ...props
+}: React.ComponentProps<"div"> & {
+  inset?: boolean;
+}) {
+  return (
+    <div
+      data-slot="dropdown-menu-label"
+      data-inset={inset}
+      className={cn(
+        "px-1.5 py-1 text-xs font-medium text-muted-foreground data-inset:pl-7",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function DropdownMenuGroupLabel({
   className,
   inset,
   ...props
@@ -64,7 +91,7 @@ function DropdownMenuLabel({
 }) {
   return (
     <MenuPrimitive.GroupLabel
-      data-slot="dropdown-menu-label"
+      data-slot="dropdown-menu-group-label"
       data-inset={inset}
       className={cn(
         "px-1.5 py-1 text-xs font-medium text-muted-foreground data-inset:pl-7",
@@ -258,6 +285,7 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuGroupLabel,
   DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuCheckboxItem,

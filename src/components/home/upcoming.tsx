@@ -1,8 +1,9 @@
+import { EmptyNote } from "@/components/empty-note";
+import { SeriesIcon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { UpcomingEpisode } from "@/lib/domain/series";
-import { formatEpisodeCode } from "@/lib/format";
-import type { Locale } from "@/lib/i18n";
+import { formatAirDate, formatEpisodeCode } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -19,15 +20,13 @@ export async function UpcomingEpisodes({
   const { t, locale } = await getI18n();
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader>
         <CardTitle>{t("section.comingThisWeek")}</CardTitle>
       </CardHeader>
       <CardContent>
         {episodes.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("week.noEpisodes")}
-          </p>
+          <EmptyNote icon={SeriesIcon}>{t("week.noEpisodes")}</EmptyNote>
         ) : (
           <ul className="divide-border/60 -my-2 divide-y">
             {episodes.map((episode) => (
@@ -44,13 +43,18 @@ export async function UpcomingEpisodes({
                       episode.seasonNumber,
                       episode.episodeNumber,
                     )}
-                    {episode.episodeTitle ? ` - ${episode.episodeTitle}` : ""}
+                    {episode.episodeTitle ? ` · ${episode.episodeTitle}` : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-muted-foreground text-xs">
-                    {formatAirDate(episode.airDate, locale)}
-                  </span>
+                  {episode.airDate ? (
+                    <time
+                      dateTime={episode.airDate}
+                      className="text-muted-foreground text-xs"
+                    >
+                      {formatAirDate(episode.airDate, locale)}
+                    </time>
+                  ) : null}
                   <Badge
                     variant={
                       episode.status === "aired_missing"
@@ -69,17 +73,5 @@ export async function UpcomingEpisodes({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-function formatAirDate(airDate: string | null, locale: Locale) {
-  if (!airDate) return "";
-  return new Date(`${airDate}T12:00:00Z`).toLocaleDateString(
-    locale === "fr" ? "fr-FR" : "en-US",
-    {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    },
   );
 }

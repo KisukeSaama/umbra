@@ -3,8 +3,16 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { EmptyNote } from "@/components/empty-note";
+import { PollIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { PollView } from "@/lib/domain/polls";
 import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
@@ -28,18 +36,19 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
 
   if (!poll) {
     return (
-      <Card className="h-full">
+      <Card>
         <CardHeader>
           <CardTitle>{t("section.poll")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">{t("poll.none")}</p>
+          <EmptyNote icon={PollIcon}>{t("poll.none")}</EmptyNote>
         </CardContent>
       </Card>
     );
   }
 
   const hasVoted = poll.votedOptionId !== null;
+  const timeLeft = daysLeftLabel(poll, t);
 
   async function vote() {
     if (!poll || !selected || hasVoted) return;
@@ -68,75 +77,86 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
   }
 
   return (
-    <Card className="h-full">
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+    <Card>
+      <CardHeader>
         <CardTitle>{t("section.poll")}</CardTitle>
-        <span className="text-muted-foreground text-xs">
-          {daysLeftLabel(poll, t)}
-        </span>
+        {timeLeft ? (
+          <CardAction className="text-muted-foreground text-xs">
+            {timeLeft}
+          </CardAction>
+        ) : null}
       </CardHeader>
 
       <CardContent className="space-y-4">
         <p className="font-medium">{poll.question}</p>
 
-        <ul className="space-y-2" role="radiogroup" aria-label={poll.question}>
+        {/* Once the vote is in, the options stop being controls: the split is
+            what is left to read, and it must stay readable, not greyed out. */}
+        <div
+          className="space-y-1"
+          role="radiogroup"
+          aria-label={poll.question}
+          aria-disabled={hasVoted || undefined}
+        >
           {poll.options.map((option) => {
             const chosen = selected === option.id;
             const isOwnVote = poll.votedOptionId === option.id;
+            const share = Math.round(option.share * 100);
             return (
-              <li key={option.id}>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={chosen}
-                  disabled={hasVoted || submitting}
-                  onClick={() => setSelected(option.id)}
-                  className={cn(
-                    "group w-full rounded-lg px-3 py-2 text-left transition-colors",
-                    hasVoted ? "cursor-default" : "hover:bg-secondary/60",
-                    chosen && !hasVoted ? "bg-secondary/60" : "",
-                  )}
-                >
-                  <span className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        "flex size-4 shrink-0 items-center justify-center rounded-full border",
-                        chosen || isOwnVote
-                          ? "border-primary"
-                          : "border-muted-foreground/50",
-                      )}
-                    >
-                      {chosen || isOwnVote ? (
-                        <span className="bg-primary size-2 rounded-full" />
-                      ) : null}
-                    </span>
-                    <span className="flex-1 text-sm">{option.label}</span>
-                    {hasVoted ? (
-                      <span className="text-muted-foreground text-sm tabular-nums">
-                        {Math.round(option.share * 100)}%
-                      </span>
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={chosen}
+                disabled={hasVoted || submitting}
+                onClick={() => setSelected(option.id)}
+                className={cn(
+                  "focus-visible:ring-ring/50 w-full rounded-lg px-3 py-2 text-left transition-colors outline-none focus-visible:ring-3",
+                  hasVoted
+                    ? "cursor-default"
+                    : "hover:bg-secondary/60 active:bg-secondary",
+                  chosen && !hasVoted ? "bg-secondary/60" : "",
+                )}
+              >
+                <span className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
+                      chosen || isOwnVote
+                        ? "border-primary"
+                        : "border-muted-foreground/50",
+                    )}
+                  >
+                    {chosen || isOwnVote ? (
+                      <span className="bg-primary size-2 rounded-full" />
                     ) : null}
                   </span>
-
+                  <span className="flex-1 text-sm">{option.label}</span>
                   {hasVoted ? (
-                    <span className="bg-secondary mt-2 block h-1.5 overflow-hidden rounded-full">
-                      <span
-                        className={cn(
-                          "block h-full rounded-full transition-[width] duration-700",
-                          isOwnVote ? "bg-primary" : "bg-muted-foreground/40",
-                        )}
-                        style={{ width: `${Math.round(option.share * 100)}%` }}
-                      />
+                    <span className="text-muted-foreground text-sm tabular-nums">
+                      {share}%
                     </span>
                   ) : null}
-                </button>
-              </li>
+                </span>
+
+                {hasVoted ? (
+                  <span className="bg-secondary mt-2 block h-1.5 overflow-hidden rounded-full">
+                    <span
+                      className={cn(
+                        "block h-full rounded-full transition-[width] duration-700 ease-out",
+                        isOwnVote ? "bg-primary" : "bg-muted-foreground/40",
+                      )}
+                      style={{ width: `${share}%` }}
+                    />
+                  </span>
+                ) : null}
+              </button>
             );
           })}
-        </ul>
+        </div>
 
         <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-xs tabular-nums">
             {t("poll.votes", { count: poll.totalVotes })}
           </span>
           {hasVoted ? (

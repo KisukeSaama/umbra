@@ -2,7 +2,8 @@ import { ActionButton } from "@/components/admin/action-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listOpenEpisodeTasks, listTrackedSeries } from "@/lib/domain/series";
-import { formatEpisodeCode } from "@/lib/format";
+import { formatDate, formatEpisodeCode } from "@/lib/format";
+import { requireStaffPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -13,15 +14,12 @@ import { getI18n } from "@/lib/i18n/server";
  * for the cases automation cannot settle.
  */
 export default async function AdminSeriesPage() {
+  await requireStaffPage();
   const { t, locale } = await getI18n();
   const [series, tasks] = await Promise.all([
     listTrackedSeries(),
     listOpenEpisodeTasks(),
   ]);
-  const formatDate = (value: Date | string) =>
-    new Date(
-      typeof value === "string" ? `${value}T12:00:00Z` : value,
-    ).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US");
 
   return (
     <>
@@ -42,15 +40,24 @@ export default async function AdminSeriesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
                       {task.seriesTitle}{" "}
-                      {formatEpisodeCode(task.seasonNumber, task.episodeNumber)}
+                      <span className="text-muted-foreground font-mono text-xs font-normal">
+                        {formatEpisodeCode(
+                          task.seasonNumber,
+                          task.episodeNumber,
+                        )}
+                      </span>
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {task.airDate
-                        ? t("admin.episodes.aired", {
-                            date: formatDate(task.airDate),
-                          })
-                        : ""}
-                      {task.episodeTitle ? ` - ${task.episodeTitle}` : ""}
+                      {[
+                        task.airDate
+                          ? t("admin.episodes.aired", {
+                              date: formatDate(task.airDate, locale),
+                            })
+                          : null,
+                        task.episodeTitle,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -94,11 +101,16 @@ export default async function AdminSeriesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{show.title}</p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {show.providerStatus ?? ""} - {t("admin.series.lastSync")}
-                      :{" "}
-                      {show.lastSyncedAt
-                        ? formatDate(show.lastSyncedAt)
-                        : t("admin.series.never")}
+                      {[
+                        show.providerStatus,
+                        `${t("admin.series.lastSync")}: ${
+                          show.lastSyncedAt
+                            ? formatDate(show.lastSyncedAt, locale)
+                            : t("admin.series.never")
+                        }`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   {show.missing > 0 ? (
@@ -106,15 +118,18 @@ export default async function AdminSeriesPage() {
                       {t("admin.series.missing", { count: show.missing })}
                     </Badge>
                   ) : null}
+                  {show.enabled ? null : (
+                    <Badge variant="outline">{t("admin.series.paused")}</Badge>
+                  )}
                   <ActionButton
                     url={`/api/admin/series/${show.id}`}
                     body={{ enabled: !show.enabled }}
                     size="sm"
-                    variant={show.enabled ? "secondary" : "ghost"}
+                    variant={show.enabled ? "ghost" : "secondary"}
                   >
                     {show.enabled
-                      ? t("admin.polls.deactivate")
-                      : t("admin.polls.activate")}
+                      ? t("admin.series.pause")
+                      : t("admin.series.resume")}
                   </ActionButton>
                 </li>
               ))}

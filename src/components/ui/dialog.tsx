@@ -6,6 +6,7 @@ import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
 import { CloseIcon } from "@/components/icons";
+import { useTranslator } from "@/lib/i18n/client";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -47,31 +48,48 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
 }) {
+  const t = useTranslator();
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none [--umbra-sticky-top:0px] [--umbra-surface:var(--popover)] sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
         {...props}
       >
-        {children}
+        {/* The panel itself never scrolls: the content does, inside it. That is
+            what keeps the close button reachable at the bottom of a long
+            title, and what lets the rounded corners clip a full-width
+            backdrop.
+
+            One explicit column, because an implicit one is sized on the
+            content: a single line of clipped text is wider than the phone it
+            is read on before the ellipsis ever applies, and the whole panel
+            then drifts sideways under the finger. The column is capped at the
+            panel instead, and anything still wider is clipped rather than
+            turned into a second axis to scroll. */}
+        <div
+          data-slot="dialog-body"
+          className="grid min-h-0 grid-cols-1 gap-4 overflow-x-hidden overflow-y-auto overscroll-contain p-4 sm:p-6"
+        >
+          {children}
+        </div>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
+                className="absolute top-2 right-2 z-10 bg-popover/80 supports-backdrop-filter:backdrop-blur-sm"
                 size="icon-sm"
               />
             }
           >
             <CloseIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t("common.close")}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>
@@ -97,11 +115,12 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean;
 }) {
+  const t = useTranslator();
   return (
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:p-6",
         className,
       )}
       {...props}
@@ -109,7 +128,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close render={<Button variant="outline" />}>
-          Close
+          {t("common.close")}
         </DialogPrimitive.Close>
       )}
     </div>
@@ -121,7 +140,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "text-base leading-none font-semibold tracking-tight",
         className,
       )}
       {...props}

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireStaff } from "@/lib/auth/session";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/db/schema";
 import {
   deleteAnnouncement,
@@ -21,7 +21,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return route(async () => {
-    await requireAdmin();
+    await requireStaff();
     const { id } = await params;
     return updateAnnouncement(id, await jsonBody(request, schema));
   });
@@ -32,7 +32,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return route(async () => {
-    await requireAdmin();
+    await requireStaff();
     const { id } = await params;
     return deleteAnnouncement(id);
   });

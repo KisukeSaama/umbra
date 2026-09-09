@@ -39,7 +39,6 @@ One image, three containers:
    | `UMBRA_JANUS_API_KEY`         | yes         | Shown once when issued                 |
    | `UMBRA_CRON_SECRET`           | yes         | At least 16 characters                 |
    | `UMBRA_ADMIN_PLEX_ACCOUNT_ID` | recommended | The account that becomes admin         |
-   | `UMBRA_DISCORD_WEBHOOK_URL`   | no          | Admin notifications                    |
    | `UMBRA_STORAGE_PATHS`         | no          | Defaults to `Media:/mnt/plex`          |
    | `UMBRA_AUTO_APPROVE_MEMBERS`  | no          | `true` skips manual approval           |
 

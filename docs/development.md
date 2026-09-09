@@ -14,7 +14,9 @@ npm run dev`, is the faster loop when you are editing constantly. Migrations are
 applied at server start either way.
 
 Sign in through the development entry on `/sign-in` (`DEV_LOGIN=true`): it
-creates an approved administrator with no external call. Then fill the site:
+creates an approved administrator with no external call. To see the
+administration side as an assistant, post to the same route by hand with
+`{ "username": "helper", "role": "assistant" }`. Then fill the site:
 
 ```bash
 curl -X POST localhost:3000/api/cron/sync -H "Authorization: Bearer $CRON_SECRET"

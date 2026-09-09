@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ export function FundingForm() {
       setTitle("");
       setDescription("");
       setTarget("");
+      toast.success(t("admin.funding.created"));
       router.refresh();
     } catch (error) {
       toast.error(
@@ -61,57 +62,68 @@ export function FundingForm() {
     }
   }
 
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (ready && !busy) void submit(true);
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t("admin.funding.new")}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-[1fr_10rem]">
+      <CardContent>
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
+            <div className="space-y-1.5">
+              <Label htmlFor="goal-title">{t("common.title")}</Label>
+              <Input
+                id="goal-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="goal-target">{t("admin.funding.target")}</Label>
+              <Input
+                id="goal-target"
+                inputMode="decimal"
+                value={target}
+                placeholder="220"
+                onChange={(event) => setTarget(event.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="goal-title">{t("news.title")}</Label>
-            <Input
-              id="goal-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+            <Label htmlFor="goal-description">
+              {t("common.description")}{" "}
+              <span className="text-muted-foreground font-normal">
+                ({t("common.optional")})
+              </span>
+            </Label>
+            <Textarea
+              id="goal-description"
+              rows={3}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="goal-target">{t("admin.funding.target")}</Label>
-            <Input
-              id="goal-target"
-              inputMode="decimal"
-              value={target}
-              placeholder="220"
-              onChange={(e) => setTarget(e.target.value)}
-            />
+
+          <div className="flex gap-2">
+            <Button type="submit" disabled={!ready || busy}>
+              {t("admin.funding.activate")}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!ready || busy}
+              onClick={() => void submit(false)}
+            >
+              {t("admin.announcements.draft")}
+            </Button>
           </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="goal-description">
-            {t("section.announcement")} ({t("common.optional")})
-          </Label>
-          <Textarea
-            id="goal-description"
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-2">
-          <Button disabled={!ready || busy} onClick={() => void submit(true)}>
-            {t("admin.funding.activate")}
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={!ready || busy}
-            onClick={() => void submit(false)}
-          >
-            {t("admin.announcements.draft")}
-          </Button>
-        </div>
+        </form>
       </CardContent>
     </Card>
   );

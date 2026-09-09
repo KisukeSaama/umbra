@@ -5,14 +5,21 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ActionButton } from "@/components/admin/action-button";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import type { FundingView } from "@/lib/domain/funding";
 import { formatAmount } from "@/lib/format";
-import { translateError } from "@/lib/i18n";
+import { translateError, type TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 
 /**
@@ -36,6 +43,8 @@ export function FundingPanel({ goal }: { goal: FundingView | null }) {
   if (!goal) return null;
 
   const percent = Math.round(goal.progress * 100);
+  const customAmount = Number(custom.replace(",", "."));
+  const customReady = Number.isFinite(customAmount) && customAmount !== 0;
 
   async function adjust(euros: number) {
     if (!goal || !Number.isFinite(euros) || euros === 0) return;
@@ -58,6 +67,7 @@ export function FundingPanel({ goal }: { goal: FundingView | null }) {
 
       setCustom("");
       setNote("");
+      toast.success(t("admin.funding.recorded"));
       router.refresh();
     } catch (error) {
       toast.error(
@@ -72,14 +82,18 @@ export function FundingPanel({ goal }: { goal: FundingView | null }) {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle>{goal.title}</CardTitle>
-        <span className="text-muted-foreground text-sm">{goal.status}</span>
+      <CardHeader>
+        <CardTitle className="truncate">{goal.title}</CardTitle>
+        <CardAction>
+          <Badge variant={goal.status === "active" ? "default" : "outline"}>
+            {t(`admin.funding.status.${goal.status}` as TranslationKey)}
+          </Badge>
+        </CardAction>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <Progress value={percent} />
-        <p className="text-muted-foreground text-sm">
+        <Progress value={percent} aria-label={goal.title} />
+        <p className="text-muted-foreground text-sm tabular-nums">
           {formatAmount(goal.currentAmountCents, goal.currency, locale)} /{" "}
           {formatAmount(goal.targetAmountCents, goal.currency, locale)} (
           {percent}%)
@@ -99,7 +113,13 @@ export function FundingPanel({ goal }: { goal: FundingView | null }) {
           ))}
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-[8rem_1fr_auto] sm:items-end">
+        <form
+          className="grid gap-2 sm:grid-cols-[9rem_1fr_auto] sm:items-end"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void adjust(customAmount);
+          }}
+        >
           <div className="space-y-1.5">
             <Label htmlFor="funding-custom">{t("admin.funding.custom")}</Label>
             <Input
@@ -112,7 +132,10 @@ export function FundingPanel({ goal }: { goal: FundingView | null }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="funding-note">
-              {t("admin.funding.note")} ({t("common.optional")})
+              {t("admin.funding.note")}{" "}
+              <span className="text-muted-foreground font-normal">
+                ({t("common.optional")})
+              </span>
             </Label>
             <Input
               id="funding-note"
@@ -120,13 +143,10 @@ export function FundingPanel({ goal }: { goal: FundingView | null }) {
               onChange={(event) => setNote(event.target.value)}
             />
           </div>
-          <Button
-            disabled={busy || custom.trim().length === 0}
-            onClick={() => void adjust(Number(custom.replace(",", ".")))}
-          >
+          <Button type="submit" disabled={busy || !customReady}>
             {t("admin.funding.add")}
           </Button>
-        </div>
+        </form>
 
         {goal.status !== "active" ? (
           <ActionButton

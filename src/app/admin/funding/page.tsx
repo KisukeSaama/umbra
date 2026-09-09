@@ -2,7 +2,8 @@ import { FundingForm } from "@/components/admin/funding-form";
 import { FundingPanel } from "@/components/admin/funding-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { goalHistory, listGoals } from "@/lib/domain/funding";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatDateTime } from "@/lib/format";
+import { requireStaffPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -12,6 +13,7 @@ import { getI18n } from "@/lib/i18n/server";
  * leave behind. No payment provider is involved anywhere in this page.
  */
 export default async function AdminFundingPage() {
+  await requireStaffPage();
   const { t, locale } = await getI18n();
   const goals = await listGoals();
   const active =
@@ -35,15 +37,20 @@ export default async function AdminFundingPage() {
                   key={entry.id}
                   className="flex items-center justify-between gap-4 py-2"
                 >
-                  <span className="text-muted-foreground">
-                    {entry.createdAt.toLocaleString(
-                      locale === "fr" ? "fr-FR" : "en-US",
-                    )}
-                    {entry.note ? ` - ${entry.note}` : ""}
+                  <span className="text-muted-foreground min-w-0 truncate">
+                    <time
+                      dateTime={entry.createdAt.toISOString()}
+                      className="tabular-nums"
+                    >
+                      {formatDateTime(entry.createdAt, locale)}
+                    </time>
+                    {entry.note ? ` · ${entry.note}` : ""}
                   </span>
                   <span
                     className={
-                      entry.deltaCents < 0 ? "text-destructive" : "text-primary"
+                      entry.deltaCents < 0
+                        ? "text-destructive shrink-0 tabular-nums"
+                        : "text-primary shrink-0 tabular-nums"
                     }
                   >
                     {entry.deltaCents > 0 ? "+" : ""}

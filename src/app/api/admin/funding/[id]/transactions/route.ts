@@ -2,11 +2,11 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
-import { requireAdmin } from "@/lib/auth/session";
-import { addTransaction } from "@/lib/domain/funding";
+import { requireStaff } from "@/lib/auth/session";
+import { MAX_AMOUNT_CENTS, addTransaction } from "@/lib/domain/funding";
 
 const schema = z.object({
-  deltaCents: z.number().int(),
+  deltaCents: z.number().int().min(-MAX_AMOUNT_CENTS).max(MAX_AMOUNT_CENTS),
   note: z.string().max(200).nullish(),
 });
 
@@ -21,7 +21,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return route(async () => {
-    await requireAdmin();
+    await requireStaff();
     const { id } = await params;
     const { deltaCents, note } = await jsonBody(request, schema);
     return addTransaction(id, deltaCents, note);

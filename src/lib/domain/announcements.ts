@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { announcements, type AnnouncementCategory } from "@/lib/db/schema";
+import { notifyApprovedAccounts } from "@/lib/domain/notifications";
 import { NotFoundError } from "@/lib/errors";
 
 /**
@@ -68,6 +69,8 @@ export async function createAnnouncement(input: {
       publishedAt: input.published ? new Date() : null,
     })
     .returning({ id: announcements.id });
+  if (input.published)
+    await announceToEveryone(row.id, input.title, input.category);
   return row;
 }
 
@@ -101,7 +104,34 @@ export async function updateAnnouncement(
     .set({ ...input, publishedAt, updatedAt: new Date() })
     .where(eq(announcements.id, id))
     .returning({ id: announcements.id });
+  // Publishing is the moment worth telling people about, and only the first
+  // one: editing a published note is not news.
+  if (input.published && !existing.published)
+    await announceToEveryone(
+      id,
+      input.title ?? "",
+      input.category ?? "information",
+    );
   return row;
+}
+
+/**
+ * Everyone approved hears about a new note.
+ *
+ * The entry carries the title and the category, never the body: the body can be
+ * long, it can be edited, and the bell is a pointer rather than a copy.
+ */
+async function announceToEveryone(
+  id: string,
+  title: string,
+  category: AnnouncementCategory,
+) {
+  return notifyApprovedAccounts({
+    kind: "announcement",
+    subjectId: id,
+    step: "published",
+    payload: { title, category },
+  });
 }
 
 export async function deleteAnnouncement(id: string) {

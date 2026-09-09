@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { pollOptions, polls, votes } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
+import { notifyApprovedAccounts } from "@/lib/domain/notifications";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 
 /**
@@ -134,6 +135,27 @@ export async function castVote(
   return pollView(pollId, accountId);
 }
 
+/**
+ * The polls a member can still see, newest first.
+ *
+ * Polls live in the news feed rather than on a page of their own: a poll is
+ * news you can answer, and a page that holds one card at a time was never worth
+ * a nav entry. Closed ones stay so the answer does not vanish with the question.
+ */
+export async function recentPolls(
+  accountId?: string,
+  limit = 6,
+): Promise<PollView[]> {
+  const rows = await db()
+    .select({ id: polls.id })
+    .from(polls)
+    .where(sql`(${polls.startsAt} IS NULL OR ${polls.startsAt} <= now())`)
+    .orderBy(desc(polls.createdAt))
+    .limit(limit);
+
+  return Promise.all(rows.map((row) => pollView(row.id, accountId)));
+}
+
 export async function listPolls() {
   return db()
     .select({
@@ -194,8 +216,23 @@ export async function setPollActive(pollId: string, active: boolean) {
     .update(polls)
     .set({ active })
     .where(eq(polls.id, pollId))
-    .returning({ id: polls.id, active: polls.active });
+    .returning({
+      id: polls.id,
+      active: polls.active,
+      question: polls.question,
+    });
   if (!row) throw new NotFoundError("error.pollNotFound");
+
+  // Opening a poll is worth an entry; closing one is not, since there is
+  // nothing left to do about it.
+  if (active)
+    await notifyApprovedAccounts({
+      kind: "poll_open",
+      subjectId: row.id,
+      step: "open",
+      payload: { title: row.question },
+    });
+
   return row;
 }
 

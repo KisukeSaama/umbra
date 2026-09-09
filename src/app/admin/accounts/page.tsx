@@ -1,7 +1,9 @@
 import { ActionButton } from "@/components/admin/action-button";
 import { Badge } from "@/components/ui/badge";
 import { listAccounts } from "@/lib/domain/accounts";
+import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
+import { requireAdminPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -9,10 +11,20 @@ import { getI18n } from "@/lib/i18n/server";
  *
  * A Plex identity, a status, and nothing else: no e-mail, no profile, no
  * activity trail. Approving is the only gate into the community.
+ *
+ * This is also where help is handed out. An approved member can be named an
+ * assistant, which opens the workspace to them, and unnamed again. The
+ * administrator is not on that list: there is one, decided by configuration,
+ * and their own row carries no action at all.
  */
 export default async function AdminAccountsPage() {
+  await requireAdminPage();
   const { t, locale } = await getI18n();
   const accounts = await listAccounts();
+
+  if (accounts.length === 0) {
+    return <p className="text-muted-foreground text-sm">{t("common.empty")}</p>;
+  }
 
   return (
     <ul className="divide-border/60 divide-y">
@@ -21,20 +33,25 @@ export default async function AdminAccountsPage() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{account.username}</p>
             <p className="text-muted-foreground text-xs">
-              {t(`admin.accounts.role.${account.role}` as TranslationKey)} -{" "}
-              {account.createdAt.toLocaleDateString(
-                locale === "fr" ? "fr-FR" : "en-US",
-              )}
+              {t(`admin.accounts.role.${account.role}` as TranslationKey)}
+              {" · "}
+              {formatDate(account.createdAt, locale)}
             </p>
           </div>
 
           <Badge
-            variant={account.status === "approved" ? "secondary" : "default"}
+            variant={
+              account.status === "pending"
+                ? "default"
+                : account.status === "blocked"
+                  ? "destructive"
+                  : "secondary"
+            }
           >
             {t(`admin.accounts.status.${account.status}` as TranslationKey)}
           </Badge>
 
-          {account.status !== "approved" ? (
+          {account.status !== "approved" && account.role !== "admin" ? (
             <ActionButton
               url={`/api/admin/accounts/${account.id}`}
               body={{ status: "approved" }}
@@ -44,7 +61,7 @@ export default async function AdminAccountsPage() {
             </ActionButton>
           ) : null}
 
-          {account.status !== "blocked" ? (
+          {account.status !== "blocked" && account.role !== "admin" ? (
             <ActionButton
               url={`/api/admin/accounts/${account.id}`}
               body={{ status: "blocked" }}
@@ -52,6 +69,28 @@ export default async function AdminAccountsPage() {
               variant="ghost"
             >
               {t("admin.accounts.block")}
+            </ActionButton>
+          ) : null}
+
+          {account.status === "approved" && account.role === "member" ? (
+            <ActionButton
+              url={`/api/admin/accounts/${account.id}`}
+              body={{ role: "assistant" }}
+              size="sm"
+              variant="secondary"
+            >
+              {t("admin.accounts.promote")}
+            </ActionButton>
+          ) : null}
+
+          {account.role === "assistant" ? (
+            <ActionButton
+              url={`/api/admin/accounts/${account.id}`}
+              body={{ role: "member" }}
+              size="sm"
+              variant="ghost"
+            >
+              {t("admin.accounts.demote")}
             </ActionButton>
           ) : null}
         </li>

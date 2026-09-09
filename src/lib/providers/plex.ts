@@ -9,6 +9,7 @@ import {
   type LibrarySection,
   type MediaLibraryProvider,
   parseLibraryKind,
+  type WatchEvent,
 } from "@/lib/providers/library";
 
 /**
@@ -63,6 +64,39 @@ export const plexLibrary: MediaLibraryProvider = {
       includeGuids: 1,
     });
     return itemsFrom(body, null);
+  },
+
+  /**
+   * What one account watched recently.
+   *
+   * This is the only call in Umbra that is about a person rather than about the
+   * library, and it is why it returns keys and a kind and nothing else: the
+   * caller turns it into genre weights immediately and keeps no trace of it.
+   */
+  async watchHistory({ plexAccountId, since, limit }) {
+    if (!/^\d+$/.test(plexAccountId)) return [];
+
+    const body = await get("/status/sessions/history/all", {
+      accountID: Number(plexAccountId),
+      // Plex spells a comparison into the parameter name itself.
+      "viewedAt>": Math.floor(since.getTime() / 1000),
+      sort: "viewedAt:desc",
+      "X-Plex-Container-Start": 0,
+      "X-Plex-Container-Size": Math.max(1, Math.trunc(limit)),
+    });
+
+    return containerRows(body, "Metadata")
+      .map((row): WatchEvent | null => {
+        const ratingKey = attr(row, "ratingKey");
+        const kind = parseLibraryKind(attr(row, "type"));
+        if (!ratingKey || !kind) return null;
+        return {
+          ratingKey,
+          grandparentRatingKey: attr(row, "grandparentRatingKey"),
+          kind,
+        };
+      })
+      .filter((event): event is WatchEvent => event !== null);
   },
 };
 

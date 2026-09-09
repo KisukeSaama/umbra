@@ -21,6 +21,13 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
  * must never suggest otherwise.
  */
 
+/**
+ * Ceiling on any amount, in cents. Far above any real goal, and far below what
+ * a `bigint` column or a JavaScript number can carry without losing precision,
+ * so a typo can never overflow the total.
+ */
+export const MAX_AMOUNT_CENTS = 1_000_000_000_000;
+
 export type FundingView = {
   id: string;
   title: string;
@@ -70,7 +77,7 @@ export async function createGoal(input: {
   currency?: string;
   status?: FundingStatus;
 }) {
-  if (input.targetAmountCents <= 0)
+  if (!isValidAmount(input.targetAmountCents))
     throw new BadRequestError("error.invalidAmount");
 
   // A single active goal at a time (V1): the database enforces it, we give a
@@ -99,6 +106,11 @@ export async function updateGoal(
     status: FundingStatus;
   }>,
 ) {
+  if (
+    input.targetAmountCents !== undefined &&
+    !isValidAmount(input.targetAmountCents)
+  )
+    throw new BadRequestError("error.invalidAmount");
   if (input.status === "active") await ensureNoActiveGoal(goalId);
 
   const [row] = await db()
@@ -125,7 +137,11 @@ export async function addTransaction(
   deltaCents: number,
   note?: string | null,
 ) {
-  if (!Number.isInteger(deltaCents) || deltaCents === 0) {
+  if (
+    !Number.isInteger(deltaCents) ||
+    deltaCents === 0 ||
+    Math.abs(deltaCents) > MAX_AMOUNT_CENTS
+  ) {
     throw new BadRequestError("error.invalidAmount");
   }
 
@@ -137,8 +153,12 @@ export async function addTransaction(
       .limit(1);
     if (!goal) throw new NotFoundError("error.goalNotFound");
 
-    // The total never goes below zero, whatever correction is entered.
-    const current = Math.max(0, goal.currentAmountCents + deltaCents);
+    // The total never goes below zero, whatever correction is entered, and
+    // never above the ceiling either.
+    const current = Math.min(
+      MAX_AMOUNT_CENTS,
+      Math.max(0, goal.currentAmountCents + deltaCents),
+    );
     const reached = current >= goal.targetAmountCents;
 
     await tx
@@ -157,6 +177,10 @@ export async function addTransaction(
 
     return { currentAmountCents: current, reached };
   });
+}
+
+function isValidAmount(cents: number) {
+  return Number.isInteger(cents) && cents > 0 && cents <= MAX_AMOUNT_CENTS;
 }
 
 async function ensureNoActiveGoal(exceptId?: string) {

@@ -12,7 +12,6 @@
 #   UMBRA_CRON_SECRET              shared by the worker and the sync endpoint
 # Optional:
 #   UMBRA_ADMIN_PLEX_ACCOUNT_ID    Plex account promoted to admin on first sign-in
-#   UMBRA_DISCORD_WEBHOOK_URL      admin notifications
 #   UMBRA_STORAGE_PATHS            published volumes, `Label:/path` comma separated
 #   UMBRA_AUTO_APPROVE_MEMBERS     "true" to skip manual approval
 #   UMBRA_JANUS_URL                overrides the gateway address
@@ -121,11 +120,25 @@ variables:
           "JANUS_PLEX_TV_SLUG=${UMBRA_JANUS_PLEX_TV_SLUG:-plex-tv}" \
           "ADMIN_PLEX_ACCOUNT_ID=${UMBRA_ADMIN_PLEX_ACCOUNT_ID:-}" \
           "AUTO_APPROVE_MEMBERS=${UMBRA_AUTO_APPROVE_MEMBERS:-false}" \
-          "DISCORD_WEBHOOK_URL=${UMBRA_DISCORD_WEBHOOK_URL:-}" \
-          "STORAGE_PATHS=${UMBRA_STORAGE_PATHS:-Media:/mnt/plex}" \
+          "STORAGE_PATHS=${UMBRA_STORAGE_PATHS:-Media:${MEDIA_ROOT}}" \
           "CRON_SECRET=${UMBRA_CRON_SECRET}" \
           "SYNC_INTERVAL_MINUTES=${UMBRA_SYNC_INTERVAL_MINUTES:-30}" \
           > "${target}/app.env")
+      }
+
+      # Postgres 18 images run as the postgres user and no longer chown their
+      # data directory, so a root owned bind mount fails with "Permission
+      # denied" before the cluster is created. The owner is read from the image
+      # rather than hardcoded, so a change of base image stays correct.
+      postgres_owner() {
+        local ids
+        docker pull --quiet "${POSTGRES_IMAGE}" >/dev/null
+        ids="$(docker run --rm --entrypoint sh "${POSTGRES_IMAGE}" -c \
+          'printf "%s:%s" "$(id -u postgres)" "$(id -g postgres)"')"
+        case "${ids}" in
+          [0-9]*:[0-9]*) printf '%s' "${ids}" ;;
+          *) echo "Could not read the postgres user id from ${POSTGRES_IMAGE}." >&2; exit 1 ;;
+        esac
       }
 
       # The runner mounts the host Docker socket but NOT /home/kisuke: files
@@ -134,11 +147,14 @@ variables:
         local source_dir="$1"
         local target_rel="${TARGET_DIR#/home/kisuke/}"
         local data_rel="${DATA_DIR#/home/kisuke/}"
+        local pg_owner
+        pg_owner="$(postgres_owner)"
 
         tar -C "${source_dir}" -cf - . | docker run --rm -i \
           -e TARGET_REL="${target_rel}" \
           -e DATA_REL="${data_rel}" \
           -e DEPLOY_ENV="${DEPLOY_ENV}" \
+          -e PG_OWNER="${pg_owner}" \
           -v /home/kisuke:/host-home \
           alpine:3.24 sh -euc '
             case "$TARGET_REL" in ""|/*|*..*) exit 1 ;; esac
@@ -150,6 +166,11 @@ variables:
             chmod 750 "$host_target" "$host_data" "$host_data/postgres"
             chmod 640 "$host_target/compose.yml" "$host_target/paths.env"
             chmod 600 "$host_target/app.env"
+            # Recursive only when the owner actually differs: an existing
+            # cluster can hold a lot of files.
+            if [ "$(stat -c %u:%g "$host_data/postgres")" != "$PG_OWNER" ]; then
+              chown -R "$PG_OWNER" "$host_data/postgres"
+            fi
           '
       }
 

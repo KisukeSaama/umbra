@@ -5,15 +5,24 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { jobRuns, jobState } from "@/lib/db/schema";
 import { enrichLibraryPosters, syncLibrary } from "@/lib/domain/library";
-import { closeRequestsPresentInLibrary } from "@/lib/domain/requests";
+import { purgeNotifications } from "@/lib/domain/notifications";
+import {
+  closeReportsSolvedByCalendar,
+  closeReportsSolvedByLibrary,
+  notifyResolvedReports,
+} from "@/lib/domain/reports";
+import {
+  closeRequestsPresentInLibrary,
+  notifyArrivedRequests,
+} from "@/lib/domain/requests";
 import {
   linkSeriesToLibrary,
-  notifyOpenEpisodeTasks,
   reconcileEpisodes,
   seriesDueForSync,
   syncSeriesEpisodes,
 } from "@/lib/domain/series";
 import { recordStorageSnapshot } from "@/lib/domain/storage";
+import { accountsForTaste, refreshTasteProfile } from "@/lib/domain/taste";
 
 /**
  * Scheduled work.
@@ -29,6 +38,8 @@ export const JOB_NAMES = [
   "series-sync",
   "episode-reconcile",
   "storage-snapshot",
+  "taste-profile",
+  "housekeeping",
 ] as const;
 export type JobName = (typeof JOB_NAMES)[number];
 
@@ -88,6 +99,10 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
       const { items, episodes } = await syncLibrary();
       await linkSeriesToLibrary();
       await closeRequestsPresentInLibrary();
+      await notifyArrivedRequests();
+      // A missing episode is answered by the index, so this is the pass that
+      // can watch it arrive.
+      await closeReportsSolvedByLibrary();
       await enrichLibraryPosters();
       return items + episodes;
     }),
@@ -107,7 +122,10 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
   outcomes.push(
     await runJob("episode-reconcile", async () => {
       const result = await reconcileEpisodes();
-      await notifyOpenEpisodeTasks();
+      // Season and series reports read the calendar, so they can only settle
+      // once reconciliation has just refreshed it.
+      await closeReportsSolvedByCalendar();
+      await notifyResolvedReports();
       return result.tasksOpened;
     }),
   );
@@ -119,7 +137,67 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
     }),
   );
 
+  /*
+   * Taste profiles.
+   *
+   * Rebuilt from a rolling window on every run rather than accumulated, and
+   * skipped entirely for anyone who turned personalisation off. One account
+   * failing does not stop the others: a profile is a nicety, not a record.
+   */
+  outcomes.push(
+    await runJob("taste-profile", async () => {
+      const people = await accountsForTaste();
+      let refreshed = 0;
+      for (const person of people) {
+        try {
+          await refreshTasteProfile(person);
+          refreshed += 1;
+        } catch (error) {
+          console.warn("[jobs] taste profile skipped", error);
+        }
+      }
+      return refreshed;
+    }),
+  );
+
+  /*
+   * Housekeeping.
+   *
+   * Everything that grows without bound, and nothing else. It has its own step
+   * so a failed deletion shows up as a failed deletion, instead of hiding
+   * inside a run that was about something entirely different.
+   */
+  outcomes.push(
+    await runJob("housekeeping", async () => {
+      let removed = await purgeNotifications();
+      removed += await purgeExpired();
+      return removed;
+    }),
+  );
+
   return outcomes;
+}
+
+/**
+ * Rows nothing else ever deletes.
+ *
+ * Sessions and pins expire but were never swept, and the run history grew
+ * forever. Bounded by date rather than by a cursor, so a long backlog drains
+ * over successive runs and a missed schedule costs nothing.
+ */
+async function purgeExpired(): Promise<number> {
+  const statements = [
+    sql`DELETE FROM session WHERE expires_at < now()`,
+    sql`DELETE FROM auth_pin WHERE expires_at < now() OR consumed_at IS NOT NULL`,
+    sql`DELETE FROM job_run WHERE started_at < now() - interval '30 days'`,
+  ];
+
+  let removed = 0;
+  for (const statement of statements) {
+    const result = await db().execute(statement);
+    removed += result.count ?? 0;
+  }
+  return removed;
 }
 
 export type JobStatusRow = {

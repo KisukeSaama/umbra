@@ -32,6 +32,20 @@ export type LibraryItem = {
   sectionKey: string | null;
 };
 
+/**
+ * One thing a person watched, reduced to what a taste profile needs.
+ *
+ * Deliberately not a title and not a date beyond the timestamp used to bound
+ * the window: nothing here is stored, it is aggregated into genre weights and
+ * dropped. See `docs/adr/0007-aggregated-taste-profile.md`.
+ */
+export type WatchEvent = {
+  ratingKey: string;
+  /** The show, when the entry is an episode. */
+  grandparentRatingKey: string | null;
+  kind: LibraryKind;
+};
+
 export interface MediaLibraryProvider {
   readonly name: string;
   sections(): Promise<LibrarySection[]>;
@@ -40,6 +54,12 @@ export interface MediaLibraryProvider {
   /** Every episode of a show section. */
   sectionEpisodes(sectionKey: string): Promise<LibraryItem[]>;
   recentlyAdded(limit: number): Promise<LibraryItem[]>;
+  /** What one account watched since a date, keys only. */
+  watchHistory(options: {
+    plexAccountId: string;
+    since: Date;
+    limit: number;
+  }): Promise<WatchEvent[]>;
 }
 
 export function parseLibraryKind(
