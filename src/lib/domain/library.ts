@@ -149,15 +149,30 @@ export async function recentEpisodes(limit = 12): Promise<RecentItem[]> {
 
 /**
  * "I do not know what to watch": one random title among what is on the server.
- * V1 is a plain random pick, filters can come later.
+ *
+ * Posters are filled in by a capped backfill, so a plain random pick lands on a
+ * poster-less row most of the time and the suggestion shows as a bare title.
+ * Titles that already have a poster are drawn first; the unfiltered draw is
+ * only there so a library with no poster at all still answers.
  */
 export async function randomAvailableItem(): Promise<RecentItem | null> {
-  const [row] = await db()
-    .select()
-    .from(libraryItems)
-    .where(inArray(libraryItems.kind, ["movie", "show"]))
-    .orderBy(sql`random()`)
-    .limit(1);
+  const draw = (withPoster: boolean) =>
+    db()
+      .select()
+      .from(libraryItems)
+      .where(
+        withPoster
+          ? and(
+              inArray(libraryItems.kind, ["movie", "show"]),
+              isNotNull(libraryItems.posterPath),
+            )
+          : inArray(libraryItems.kind, ["movie", "show"]),
+      )
+      .orderBy(sql`random()`)
+      .limit(1);
+
+  const [preferred] = await draw(true);
+  const row = preferred ?? (await draw(false))[0];
 
   if (!row) return null;
   await bumpMetric("discovery_rolls");
