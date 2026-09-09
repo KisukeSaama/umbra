@@ -11,6 +11,8 @@ export const en = {
   "brand.name": "Umbra",
   "brand.for": "for Kisuflix",
   "brand.tagline": "The link between the Kisuflix server and its community.",
+  "brand.alt":
+    "The Umbra messenger: a wolf sitting with a letter held in its jaws.",
 
   "nav.home": "Home",
   "nav.request": "Request",
@@ -223,6 +225,8 @@ export const fr: Record<TranslationKey, string> = {
   "brand.name": "Umbra",
   "brand.for": "pour Kisuflix",
   "brand.tagline": "Le lien entre le serveur Kisuflix et sa communauté.",
+  "brand.alt":
+    "Le messager d'Umbra : un loup assis, une lettre serrée entre les crocs.",
 
   "nav.home": "Accueil",
   "nav.request": "Demander",

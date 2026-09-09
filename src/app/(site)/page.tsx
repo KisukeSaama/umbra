@@ -1,3 +1,4 @@
+import { UmbraFigure } from "@/components/brand";
 import { AnnouncementCard } from "@/components/home/announcement-card";
 import { FundingCard } from "@/components/home/funding-card";
 import { HeroSearch } from "@/components/home/hero-search";
@@ -38,7 +39,15 @@ export default async function HomePage() {
   return (
     <>
       <section className="umbra-glow border-border/60 border-b">
-        <div className="umbra-container py-16 text-center sm:py-24">
+        <div className="umbra-container flex flex-col items-center py-16 text-center sm:py-24">
+          {/* The messenger opens the page, then gets out of the way of the one
+              input that matters. */}
+          <UmbraFigure
+            alt={t("brand.alt")}
+            preload
+            sizes="(min-width: 640px) 9rem, 7rem"
+            className="mb-6 w-28 sm:w-36"
+          />
           <p className="text-muted-foreground text-sm">{t("home.greeting")}</p>
           <h1 className="mt-3 mb-9 text-4xl tracking-tight text-balance sm:text-6xl">
             {t("home.title")}

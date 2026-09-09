@@ -8,7 +8,7 @@ export async function SiteFooter() {
     <footer className="border-border/60 mt-20 border-t py-10">
       <div className="umbra-container flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <UmbraMark className="size-6" />
+          <UmbraMark className="size-8" />
           <div className="space-y-1">
             <p className="text-sm font-medium tracking-[0.18em] uppercase">
               Umbra{" "}
