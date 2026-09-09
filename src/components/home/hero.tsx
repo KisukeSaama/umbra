@@ -27,7 +27,10 @@ export async function Hero({ posters }: { posters: RecentItem[] }) {
   const wall = posters.filter((item) => item.posterUrl).slice(0, 10);
 
   return (
-    <section className="border-border/60 relative isolate overflow-hidden border-b">
+    <section
+      data-umbra-hero
+      className="border-border/60 relative isolate overflow-hidden border-b"
+    >
       {wall.length > 0 ? (
         <div className="umbra-backdrop absolute inset-0 -z-10" aria-hidden>
           <div className="flex h-full scale-110 gap-2 opacity-45 blur-2xl">

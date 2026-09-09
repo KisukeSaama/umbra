@@ -58,6 +58,13 @@ export const en = {
   "common.confirmDelete": "Delete this? It cannot be undone.",
   "common.skipToContent": "Skip to content",
 
+  "pagination.previous": "Newer",
+  "pagination.next": "Older",
+  "pagination.position": "Page {page} of {pages}",
+  "pagination.news": "News pages",
+  "pagination.requests": "Request pages",
+  "pagination.reports": "Report pages",
+
   "status.available": "Available on the server",
   "status.partial": "On the server, partly",
   "status.requested": "Request already recorded",
@@ -144,8 +151,7 @@ export const en = {
   "notFound.hint": "The link may be out of date.",
   "error.accountPending": "Your account is waiting for approval.",
   "error.alreadyAvailable": "This title is already on the server.",
-  "error.notOnServerYet":
-    "The sync has not seen this title on the server yet.",
+  "error.notOnServerYet": "The sync has not seen this title on the server yet.",
   "error.alreadyRequested": "This title has already been requested.",
   "error.pollClosed": "This poll is closed.",
   "error.pollNotFound": "Poll not found.",
@@ -601,6 +607,13 @@ export const fr: Record<TranslationKey, string> = {
   "common.home": "Retour à l'accueil",
   "common.confirmDelete": "Supprimer ceci ? L'action est définitive.",
   "common.skipToContent": "Aller au contenu",
+
+  "pagination.previous": "Plus récentes",
+  "pagination.next": "Plus anciennes",
+  "pagination.position": "Page {page} sur {pages}",
+  "pagination.news": "Pages des actualités",
+  "pagination.requests": "Pages des demandes",
+  "pagination.reports": "Pages des signalements",
 
   "status.available": "Disponible sur le serveur",
   "status.partial": "Sur le serveur, en partie",

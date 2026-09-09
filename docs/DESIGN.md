@@ -260,7 +260,7 @@ dropdowns, toasts) keep the elevation their primitives ship with.
 
 - **Card ring**: `ring-1 ring-foreground/10`, that is `0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent)`. Every card, at rest and on hover. A contour, not a shadow.
 - **Hero lift**: `shadow-lg`, the home search field only.
-- **Moon glow**: `.umbra-glow`, two radial gradients (22 percent primary at 78 percent horizontal, 14 percent moon blue at 12 percent, both bleeding off the top edge). The hero band background: atmosphere, not elevation, once per site.
+- **Moon glow**: `.umbra-glow`, two radial gradients (primary at 78 percent horizontal, moon blue at 12 percent, both bleeding off the top edge). Atmosphere, not elevation. Full strength (22 and 14 percent) on the home hero, on sign-in and on the not-found screen; `.umbra-dawn` drops it to 7 and 5 percent for the band the site layout hangs at the top of every other page, and the band steps aside wherever a hero already carries the full one. The point is continuity: the top of a page is never flat paper on one screen and weather on the next, so moving between them changes the brightness of the sky rather than swapping one background for another.
 
 **The Flat-By-Default Rule.** Reaching for `shadow-md` on a card means you want a
 hairline or a tonal step instead.

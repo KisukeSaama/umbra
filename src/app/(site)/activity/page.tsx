@@ -1,18 +1,29 @@
 import type { Metadata } from "next";
 
+import { Pagination } from "@/components/pagination";
 import { Poster } from "@/components/poster";
 import { Timeline } from "@/components/timeline";
 import { Badge } from "@/components/ui/badge";
 import { WithdrawButton } from "@/components/withdraw-button";
 import { requireMemberPage } from "@/lib/auth/session";
-import { listReportsFollowedBy } from "@/lib/domain/reports";
-import { listRequestsBy } from "@/lib/domain/requests";
+import {
+  countReportsFollowedBy,
+  listReportsFollowedBy,
+} from "@/lib/domain/reports";
+import { countRequestsBy, listRequestsBy } from "@/lib/domain/requests";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
+import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
 import { isLive } from "@/lib/reports/reasons";
 
 export const metadata: Metadata = { title: "Follow-up" };
+
+/**
+ * Entries per section. The two lists page on their own parameter, so stepping
+ * back through old requests does not scroll the reports away underneath.
+ */
+const PER_PAGE = 10;
 
 /**
  * Where a request stops disappearing.
@@ -34,14 +45,43 @@ export const metadata: Metadata = { title: "Follow-up" };
  * administration. It is the only sentence on this page nobody translated, it
  * goes one way, and it is gone once the title is on the server or the problem
  * is fixed, where it has nothing left to say.
+ *
+ * Both lists only grow: a member who has been here a year has a page of
+ * requests nobody rereads. They are cut into pages rather than trimmed, since
+ * an old request is exactly what a member comes back to look up.
  */
-export default async function ActivityPage() {
+export default async function ActivityPage({
+  searchParams,
+}: PageProps<"/activity">) {
   const account = await requireMemberPage();
   const { t, locale } = await getI18n();
 
+  const params = toSearchParams(await searchParams);
+  const [requestCount, reportCount] = await Promise.all([
+    countRequestsBy(account.id),
+    countReportsFollowedBy(account.id),
+  ]);
+
+  const requestPage = paginate(
+    requestCount,
+    parsePage(params.get("requests")),
+    PER_PAGE,
+  );
+  const reportPage = paginate(
+    reportCount,
+    parsePage(params.get("reports")),
+    PER_PAGE,
+  );
+
   const [requests, reports] = await Promise.all([
-    listRequestsBy(account.id),
-    listReportsFollowedBy(account.id),
+    listRequestsBy(account.id, {
+      limit: requestPage.perPage,
+      offset: requestPage.offset,
+    }),
+    listReportsFollowedBy(account.id, {
+      limit: reportPage.perPage,
+      offset: reportPage.offset,
+    }),
   ]);
 
   return (
@@ -53,7 +93,7 @@ export default async function ActivityPage() {
         <p className="text-muted-foreground mt-1">{t("activity.subtitle")}</p>
       </header>
 
-      <section>
+      <section id="requests" className="scroll-mt-[var(--umbra-sticky-top)]">
         <h2 className="mb-4 text-lg font-semibold tracking-tight">
           {t("section.myRequests")}
         </h2>
@@ -117,9 +157,18 @@ export default async function ActivityPage() {
             ))}
           </ul>
         )}
+
+        <Pagination
+          page={requestPage}
+          pathname="/activity"
+          params={params}
+          paramKey="requests"
+          hash="requests"
+          label={t("pagination.requests")}
+        />
       </section>
 
-      <section>
+      <section id="reports" className="scroll-mt-[var(--umbra-sticky-top)]">
         <h2 className="mb-4 text-lg font-semibold tracking-tight">
           {t("section.myReports")}
         </h2>
@@ -184,6 +233,15 @@ export default async function ActivityPage() {
             ))}
           </ul>
         )}
+
+        <Pagination
+          page={reportPage}
+          pathname="/activity"
+          params={params}
+          paramKey="reports"
+          hash="reports"
+          label={t("pagination.reports")}
+        />
       </section>
     </div>
   );

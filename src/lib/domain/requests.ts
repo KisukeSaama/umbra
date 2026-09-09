@@ -401,8 +401,11 @@ export async function notifyArrivedRequests(): Promise<number> {
 }
 
 /** The requests one member opened, for their own follow-up page. */
-export async function listRequestsBy(accountId: string): Promise<RequestRow[]> {
-  const rows = await db()
+export async function listRequestsBy(
+  accountId: string,
+  window?: { limit: number; offset: number },
+): Promise<RequestRow[]> {
+  const query = db()
     .select({
       id: mediaRequests.id,
       status: mediaRequests.status,
@@ -421,7 +424,12 @@ export async function listRequestsBy(accountId: string): Promise<RequestRow[]> {
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
     .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
     .where(eq(mediaRequests.requestedBy, accountId))
-    .orderBy(desc(mediaRequests.createdAt));
+    .orderBy(desc(mediaRequests.createdAt))
+    .$dynamic();
+
+  const rows = await (window
+    ? query.limit(window.limit).offset(window.offset)
+    : query);
 
   return rows.map((row) => ({
     id: row.id,
@@ -439,6 +447,15 @@ export async function listRequestsBy(accountId: string): Promise<RequestRow[]> {
       posterUrl: posterUrl(row.posterPath),
     },
   }));
+}
+
+/** How many requests this account has ever sent, whatever became of them. */
+export async function countRequestsBy(accountId: string): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(mediaRequests)
+    .where(eq(mediaRequests.requestedBy, accountId));
+  return row?.count ?? 0;
 }
 
 /** When the last request came in, whatever became of it. */

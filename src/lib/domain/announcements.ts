@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -56,15 +56,26 @@ const listedColumns = {
 export async function publishedAnnouncements(
   limit = 20,
   accountId?: string,
+  offset = 0,
 ): Promise<AnnouncementView[]> {
   const rows = await db()
     .select(listedColumns)
     .from(announcements)
     .where(eq(announcements.published, true))
     .orderBy(desc(announcements.publishedAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 
   return withPolls(rows, accountId);
+}
+
+/** How many notes the feed holds, so a page knows where it ends. */
+export async function countPublishedAnnouncements(): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(announcements)
+    .where(eq(announcements.published, true));
+  return row?.count ?? 0;
 }
 
 export async function latestAnnouncement(

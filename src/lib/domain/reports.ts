@@ -327,16 +327,33 @@ export async function listReports(
 /** The reports one member is waiting on, whether they opened them or joined. */
 export async function listReportsFollowedBy(
   accountId: string,
+  window?: { limit: number; offset: number },
 ): Promise<ReportRow[]> {
-  const rows = await db()
+  const query = db()
     .select(REPORT_COLUMNS)
     .from(reportFollowers)
     .innerJoin(reports, eq(reports.id, reportFollowers.reportId))
     .innerJoin(media, eq(media.id, reports.mediaId))
     .leftJoin(accounts, eq(accounts.id, reports.reportedBy))
     .where(eq(reportFollowers.accountId, accountId))
-    .orderBy(desc(reports.createdAt));
+    .orderBy(desc(reports.createdAt))
+    .$dynamic();
+
+  const rows = await (window
+    ? query.limit(window.limit).offset(window.offset)
+    : query);
   return rows.map(toRow);
+}
+
+/** How many reports this account follows, open or long since settled. */
+export async function countReportsFollowedBy(
+  accountId: string,
+): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(reportFollowers)
+    .where(eq(reportFollowers.accountId, accountId));
+  return row?.count ?? 0;
 }
 
 export async function countOpenReports(): Promise<number> {

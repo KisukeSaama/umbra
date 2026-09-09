@@ -183,19 +183,47 @@
 }
 
 @layer utilities {
-  /* The night sky behind the hero: a low moon glow, nothing more. */
+  /*
+   * The night sky behind the hero: a low moon glow, nothing more.
+   *
+   * The two mixes are named rather than written in, because the same sky is
+   * hung over every other page at a fraction of the strength. See
+   * `.umbra-dawn`.
+   */
   .umbra-glow {
     background:
       radial-gradient(
         60rem 32rem at 78% -18%,
-        color-mix(in oklab, var(--primary) 22%, transparent),
+        color-mix(
+          in oklab,
+          var(--primary) var(--umbra-glow-warm, 22%),
+          transparent
+        ),
         transparent 65%
       ),
       radial-gradient(
         48rem 28rem at 12% -12%,
-        color-mix(in oklab, var(--chart-2) 14%, transparent),
+        color-mix(
+          in oklab,
+          var(--chart-2) var(--umbra-glow-cool, 14%),
+          transparent
+        ),
         transparent 70%
       );
+  }
+
+  /*
+   * The same sky, barely lit, at the top of every page that is not the home.
+   *
+   * Without it the arrival was the only screen with weather and every other one
+   * opened on flat paper, so moving between them read as two different sites
+   * rather than as two rooms of one. Going home now changes how bright the top
+   * of the page is, not whether it exists, and the sticky header keeps the same
+   * tint under it wherever you land.
+   */
+  .umbra-dawn {
+    --umbra-glow-warm: 7%;
+    --umbra-glow-cool: 5%;
   }
 
   /*

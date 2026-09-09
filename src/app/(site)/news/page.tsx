@@ -14,16 +14,24 @@ import {
   WrenchIcon,
   type IconProps,
 } from "@/components/icons";
+import { Pagination } from "@/components/pagination";
 import { PollCard } from "@/components/poll-card";
 import { Button } from "@/components/ui/button";
 import { requireMemberPage } from "@/lib/auth/session";
 import type { AnnouncementCategory } from "@/lib/db/schema";
-import { publishedAnnouncements } from "@/lib/domain/announcements";
+import {
+  countPublishedAnnouncements,
+  publishedAnnouncements,
+} from "@/lib/domain/announcements";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
+import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
 
 export const metadata: Metadata = { title: "News" };
+
+/** Notes per page: about a screenful of a feed nobody scrolls for hours. */
+const PER_PAGE = 10;
 
 /**
  * One feed, and one kind of thing in it.
@@ -42,12 +50,23 @@ export const metadata: Metadata = { title: "News" };
  * lines, and a wall of boxes flattened all of that into the same rectangle. The
  * left gutter carries what the note is and when it landed, so the eye can skim
  * the column of dates without reading a single body.
+ *
+ * The feed is cut into pages once it outgrows a screenful. A note stays worth
+ * reading long after it landed, so nothing is dropped off the end: the older
+ * ones move one step further back, at an address that can be shared.
  */
-export default async function NewsPage() {
+export default async function NewsPage({ searchParams }: PageProps<"/news">) {
   const account = await requireMemberPage();
   const { t, locale } = await getI18n();
 
-  const announcements = await publishedAnnouncements(30, account.id);
+  const params = toSearchParams(await searchParams);
+  const total = await countPublishedAnnouncements();
+  const page = paginate(total, parsePage(params.get("page")), PER_PAGE);
+  const announcements = await publishedAnnouncements(
+    page.perPage,
+    account.id,
+    page.offset,
+  );
 
   return (
     <div className="umbra-container max-w-3xl py-12">
@@ -138,6 +157,13 @@ export default async function NewsPage() {
           ))}
         </ol>
       )}
+
+      <Pagination
+        page={page}
+        pathname="/news"
+        params={params}
+        label={t("pagination.news")}
+      />
     </div>
   );
 }
