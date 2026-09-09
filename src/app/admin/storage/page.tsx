@@ -1,7 +1,6 @@
-import { FileExplorer } from "@/components/admin/file-explorer";
 import { StatStrip } from "@/components/admin/stat-strip";
+import { StorageBrowser } from "@/components/admin/storage-browser";
 import { StorageScan } from "@/components/admin/storage-scan";
-import { StorageTreemap } from "@/components/admin/storage-treemap";
 import {
   Card,
   CardContent,
@@ -19,10 +18,9 @@ import { runningJob } from "@/lib/jobs";
 /**
  * Storage, in full.
  *
- * Three readings of the same disk, from the coarsest to the finest: how full it
- * is, what is on it, and what exactly is there. The map says where the room
- * went; the explorer under it is where it is taken back, by the administrator
- * alone. The figures above are what you check first.
+ * Two readings of the same disk, side by side under one trail: the map says
+ * where the room went, the list is where it is taken back, by the
+ * administrator alone. The figures above are what you check first.
  *
  * Volume labels come from configuration, so what is on screen is what the
  * operator chose to name, never a raw device path.
@@ -83,38 +81,6 @@ export default async function AdminStoragePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("admin.storage.map")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {tree ? (
-            <>
-              <StorageTreemap roots={tree.roots} />
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-muted-foreground text-xs tabular-nums">
-                  {t("admin.storage.scannedAt", {
-                    date: formatDateTime(tree.scannedAt, locale),
-                  })}
-                  {" · "}
-                  {t("admin.storage.files", { count: tree.fileCount })}
-                </p>
-                <StorageScan initial={scan} variant="secondary" />
-              </div>
-            </>
-          ) : (
-            <div className="space-y-4 py-6 text-center">
-              <p className="text-muted-foreground text-sm">
-                {t("admin.storage.notScanned")}
-              </p>
-              <div className="flex justify-center">
-                <StorageScan initial={scan} />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>{t("admin.storage.explorer")}</CardTitle>
           <CardDescription>{t("admin.storage.explorer.hint")}</CardDescription>
         </CardHeader>
@@ -122,13 +88,28 @@ export default async function AdminStoragePage() {
           {detail.volumes.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("common.empty")}</p>
           ) : (
-            <FileExplorer
+            <StorageBrowser
               volumes={detail.volumes.map((volume) => ({
                 label: volume.label,
                 usedBytes: volume.usedBytes,
                 totalBytes: volume.totalBytes,
               }))}
+              roots={tree?.roots ?? []}
               canDelete={account.role === "admin"}
+              note={
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-muted-foreground text-xs tabular-nums">
+                    {tree
+                      ? `${t("admin.storage.scannedAt", {
+                          date: formatDateTime(tree.scannedAt, locale),
+                        })} · ${t("admin.storage.files", {
+                          count: tree.fileCount,
+                        })}`
+                      : t("admin.storage.notScanned")}
+                  </p>
+                  <StorageScan initial={scan} variant="secondary" />
+                </div>
+              }
             />
           )}
         </CardContent>

@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ChevronRightIcon, FileIcon, FolderIcon } from "@/components/icons";
-import { Button } from "@/components/ui/button";
+import { FileIcon, FolderIcon } from "@/components/icons";
 import type { StorageNode } from "@/lib/db/schema";
 import { formatBytes } from "@/lib/format";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
@@ -19,8 +18,12 @@ import { cn } from "@/lib/utils";
  *
  * Rectangles are squarified, so they come out closer to squares than to
  * splinters and stay readable. One level of children is drawn inside each tile,
- * which is what makes the shape of a library legible at a glance; clicking a
- * directory descends into it, and the trail above walks back out.
+ * which is what makes the shape of a library legible at a glance.
+ *
+ * The map does not own where it is: it is told, and it says when a tile is
+ * opened, so the list of files beside it always stands in the same folder. The
+ * address is a volume label and the names below it, which is exactly what the
+ * explorer sends to the server, because the two are reading the same disk.
  *
  * The layout is computed in real pixels from the measured box rather than in a
  * normalised square, because a treemap laid out for one aspect ratio and
@@ -38,13 +41,52 @@ const LABEL_MIN_HEIGHT = 26;
 const NEST_MIN_WIDTH = 96;
 const NEST_MIN_HEIGHT = 68;
 
-export function StorageTreemap({ roots }: { roots: StorageNode[] }) {
+/**
+ * The measured node at an address, or null when the walk did not keep it.
+ *
+ * The snapshot is pruned so that it can be drawn and stored, so a folder that
+ * exists on the disk may have no rectangle. Saying so is the honest answer; an
+ * empty box pretending to be a measurement is not.
+ */
+export function nodeAt(
+  roots: StorageNode[],
+  volume: string | null,
+  path: string[],
+): StorageNode | null {
+  if (volume === null)
+    return {
+      name: "",
+      kind: "directory",
+      bytes: roots.reduce((total, root) => total + root.bytes, 0),
+      children: roots,
+    };
+
+  let node = roots.find((root) => root.name === volume) ?? null;
+  for (const name of path)
+    node = node?.children?.find((child) => child.name === name) ?? null;
+  return node;
+}
+
+export function StorageTreemap({
+  roots,
+  volume,
+  path,
+  onOpen,
+  hovered,
+  onHover,
+}: {
+  roots: StorageNode[];
+  volume: string | null;
+  path: string[];
+  /** A directory tile was clicked: its name is one step below the address. */
+  onOpen: (name: string) => void;
+  hovered: string | null;
+  onHover: (name: string | null) => void;
+}) {
   const t = useTranslator();
   const locale = useLocale();
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
-  /** Indices from the roots down to what is currently drawn. */
-  const [trail, setTrail] = useState<number[]>([]);
 
   // The box is sized by CSS; the layout follows it, and follows it again when
   // the window changes or the sidebar drawer opens over it.
@@ -59,83 +101,45 @@ export function StorageTreemap({ roots }: { roots: StorageNode[] }) {
     return () => observer.disconnect();
   }, []);
 
-  const virtualRoot: StorageNode = useMemo(
-    () => ({
-      name: "",
-      kind: "directory",
-      bytes: roots.reduce((total, root) => total + root.bytes, 0),
-      children: roots,
-    }),
-    [roots],
+  const current = useMemo(
+    () => nodeAt(roots, volume, path),
+    [roots, volume, path],
   );
+  const children = useMemo(() => current?.children ?? [], [current]);
 
-  // A trail that no longer matches the tree (a rescan moved things) simply
-  // stops where it stops, rather than throwing on a missing child.
-  const path: StorageNode[] = useMemo(() => {
-    const nodes = [virtualRoot];
-    for (const index of trail) {
-      const child = nodes[nodes.length - 1].children?.[index];
-      if (!child) break;
-      nodes.push(child);
-    }
-    return nodes;
-  }, [virtualRoot, trail]);
-
-  const current = path[path.length - 1];
-  const children = useMemo(() => current.children ?? [], [current]);
+  // The tint says which volume is being looked at, so a colour keeps its
+  // meaning from one folder to the next.
+  const volumeHue = useMemo(() => {
+    const index = roots.findIndex((root) => root.name === volume);
+    return hueOf(index >= 0 ? index : 0);
+  }, [roots, volume]);
 
   const placed = useMemo(
     () =>
       size.width > 0 && size.height > 0
-        ? squarify(children, {
-            x: 0,
-            y: 0,
-            w: size.width,
-            h: size.height,
-          })
+        ? squarify(children, { x: 0, y: 0, w: size.width, h: size.height })
         : [],
     [children, size],
   );
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
-        <button
-          type="button"
-          onClick={() => setTrail([])}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 rounded-md px-1 py-0.5 transition-colors outline-none focus-visible:ring-3"
-        >
-          {t("admin.storage.everything")}
-        </button>
-        {path.slice(1).map((node, index) => (
-          <span key={index} className="flex min-w-0 items-center gap-1">
-            <ChevronRightIcon className="text-muted-foreground size-3 shrink-0" />
-            <button
-              type="button"
-              onClick={() => setTrail(trail.slice(0, index + 1))}
-              className={cn(
-                "focus-visible:ring-ring/50 max-w-[12rem] truncate rounded-md px-1 py-0.5 transition-colors outline-none focus-visible:ring-3",
-                index === path.length - 2
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {node.name}
-            </button>
-          </span>
-        ))}
-        <span className="text-muted-foreground ml-auto tabular-nums">
-          {formatBytes(current.bytes, locale)}
-        </span>
-      </div>
-
+    <div className="space-y-2">
       {/* Tall on a phone, wide on a desk: a treemap wants the room the screen
           actually has, not a fixed shape it has to be squeezed into. */}
       <div
         ref={box}
-        className="border-border/60 bg-card relative aspect-[3/4] w-full overflow-hidden rounded-xl border sm:aspect-[4/3] lg:aspect-[2/1]"
+        onMouseLeave={() => onHover(null)}
+        className="border-border/60 bg-card relative h-56 w-full overflow-hidden rounded-xl border sm:h-72 lg:h-[min(60svh,32rem)]"
       >
-        {children.length === 0 ? (
+        {roots.length === 0 ? (
+          <p className="text-muted-foreground absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-balance">
+            {t("admin.storage.notScanned")}
+          </p>
+        ) : current === null ? (
+          <p className="text-muted-foreground absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-balance">
+            {t("admin.storage.offMap")}
+          </p>
+        ) : children.length === 0 ? (
           <p className="text-muted-foreground absolute inset-0 flex items-center justify-center text-sm">
             {t("admin.storage.leaf")}
           </p>
@@ -146,27 +150,22 @@ export function StorageTreemap({ roots }: { roots: StorageNode[] }) {
             key={`${node.name}-${index}`}
             node={node}
             depth={0}
-            hue={hueOf(trail.length === 0 ? index : trail[0])}
+            hue={volume === null ? hueOf(index) : volumeHue}
             locale={locale}
-            onOpen={() => setTrail([...trail, indexIn(children, node)])}
+            highlighted={hovered === node.name}
+            dimmed={hovered !== null && hovered !== node.name}
+            onHover={onHover}
+            onOpen={
+              node.kind === "directory" ? () => onOpen(node.name) : undefined
+            }
           />
         ))}
       </div>
 
-      {current.truncated ? (
+      {current?.truncated ? (
         <p className="text-muted-foreground text-xs">
           {t("admin.storage.folded", { count: current.truncated })}
         </p>
-      ) : null}
-
-      {trail.length > 0 ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setTrail(trail.slice(0, -1))}
-        >
-          {t("common.back")}
-        </Button>
       ) : null}
     </div>
   );
@@ -177,20 +176,29 @@ export function StorageTreemap({ roots }: { roots: StorageNode[] }) {
  *
  * A directory is a button, because it goes somewhere. A file is not: there is
  * nothing under it, and a control that does nothing when pressed is worse than
- * no control. The children are drawn inside when there is room for them,
- * inert, since the tile itself is what takes the click.
+ * no control. Both answer to the pointer, though, since the row carrying the
+ * same name lights up next to them.
+ *
+ * The children are drawn inside when there is room for them, inert, since the
+ * tile itself is what takes the click.
  */
 function Tile({
   node,
   depth,
   hue,
   locale,
+  highlighted,
+  dimmed,
+  onHover,
   onOpen,
 }: {
   node: Placed;
   depth: number;
   hue: string;
   locale: "en" | "fr";
+  highlighted?: boolean;
+  dimmed?: boolean;
+  onHover?: (name: string | null) => void;
   onOpen?: () => void;
 }) {
   const isDirectory = node.kind === "directory";
@@ -251,8 +259,21 @@ function Tile({
     </>
   );
 
-  const className =
-    "absolute overflow-hidden rounded-[4px] ring-1 ring-inset ring-foreground/10 transition-[filter] duration-150";
+  const className = cn(
+    "absolute overflow-hidden rounded-[4px] ring-inset transition-[filter,opacity] duration-150",
+    highlighted
+      ? "ring-primary z-10 ring-2 brightness-105 dark:brightness-125"
+      : "ring-foreground/10 ring-1",
+    dimmed && "opacity-60",
+  );
+
+  const pointer = onHover
+    ? {
+        onMouseEnter: () => onHover(node.name),
+        onFocus: () => onHover(node.name),
+        onBlur: () => onHover(null),
+      }
+    : {};
 
   if (!isDirectory || !onOpen)
     return (
@@ -260,6 +281,7 @@ function Tile({
         className={className}
         style={style}
         title={`${node.name} - ${formatBytes(node.bytes, locale)}`}
+        {...pointer}
       >
         {content}
       </div>
@@ -275,6 +297,7 @@ function Tile({
         "focus-visible:ring-ring/50 cursor-pointer text-left outline-none hover:brightness-105 focus-visible:ring-3 dark:hover:brightness-125",
       )}
       style={style}
+      {...pointer}
     >
       {content}
     </button>
@@ -292,12 +315,6 @@ const HUES = [
 
 function hueOf(index: number) {
   return HUES[index % HUES.length];
-}
-
-function indexIn(children: StorageNode[], node: StorageNode) {
-  return children.findIndex(
-    (child) => child.name === node.name && child.bytes === node.bytes,
-  );
 }
 
 /**

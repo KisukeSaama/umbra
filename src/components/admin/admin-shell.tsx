@@ -74,7 +74,7 @@ export function AdminShell({
   }, [open]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[110rem] flex-1">
+    <div className="flex w-full flex-1">
       {/* Resting sidebar, wide screens only. Sticky under the site header, with
           its own scroll so a long list never pushes the page down. */}
       <aside className="border-border/60 sticky top-16 hidden h-[calc(100svh-4rem)] w-60 shrink-0 flex-col overflow-y-auto border-r px-3 py-6 lg:flex">

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import {
-  ChevronRightIcon,
+  DiskIcon,
   FileIcon,
   FolderIcon,
   PlayIcon,
@@ -40,6 +40,12 @@ import { cn } from "@/lib/utils";
  * It lists what the server lists, live, because the measured tree is pruned
  * for drawing and a pruned tree is not something to delete from.
  *
+ * Where it looks is not its own: the address comes from the browser around it
+ * and every move is announced back, so the map stands in the same folder and
+ * a rectangle and a row always name the same thing. Above the volumes there is
+ * one more floor, the volumes themselves, listed here from the measurement
+ * rather than from the disk since there is no directory above a root.
+ *
  * Everyone on the staff can look and can play a video. Only the administrator
  * sees a checkbox, and what is ticked is never deleted without a dialog that
  * says how much it weighs, names every entry, and reminds that a folder goes
@@ -56,38 +62,66 @@ export type ExplorerVolume = {
 
 type Selection = { volume: string; path: string[]; names: string[] };
 
+/** No tick at all, one object, so a fresh set is not made on every render. */
+const NOTHING: ReadonlySet<string> = new Set<string>();
+
+/** One line, whether it comes from the disk or from the list of volumes. */
+type Row = {
+  name: string;
+  kind: "directory" | "file";
+  bytes: number | null;
+  modifiedAt: string | null;
+  entry: StorageEntry | null;
+};
+
 export function FileExplorer({
   volumes,
+  volume,
+  path,
+  onNavigate,
   canDelete,
+  hovered,
+  onHover,
 }: {
   volumes: ExplorerVolume[];
+  /** Null is the floor above the volumes, where they are the entries. */
+  volume: string | null;
+  path: string[];
+  onNavigate: (next: { volume: string | null; path: string[] }) => void;
   canDelete: boolean;
+  hovered: string | null;
+  onHover: (name: string | null) => void;
 }) {
   const t = useTranslator();
   const locale = useLocale();
   const router = useRouter();
 
-  const [volume, setVolume] = useState(volumes[0]?.label ?? "");
-  const [path, setPath] = useState<string[]>([]);
   const [listing, setListing] = useState<StorageListing | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [confirming, setConfirming] = useState(false);
   const [playing, setPlaying] = useState<StorageEntry | null>(null);
 
-  const current = volumes.find((entry) => entry.label === volume);
+  // The address as one value, so what follows the explorer around follows the
+  // place rather than the identity of the array it was handed.
+  const address = `${volume ?? ""}/${path.join("/")}`;
 
-  // A new place is a new list and an empty selection: nothing ticked here can
-  // mean anything there.
-  const go = useCallback((nextVolume: string, nextPath: string[]) => {
-    setSelected(new Set());
-    setVolume(nextVolume);
-    setPath(nextPath);
-  }, []);
+  // Ticks are kept with the folder they were made in, so moving empties the
+  // selection by arithmetic instead of by an effect chasing the address:
+  // nothing ticked there can mean anything here.
+  const [ticked, setTicked] = useState<{ at: string; names: Set<string> }>(
+    () => ({ at: address, names: new Set() }),
+  );
+  const selected = ticked.at === address ? ticked.names : NOTHING;
+
+  const clearSelection = useCallback(
+    () => setTicked({ at: address, names: new Set() }),
+    [address],
+  );
 
   // Bumped after a deletion, so the same place is read again.
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
+    if (volume === null) return;
     let cancelled = false;
     (async () => {
       try {
@@ -107,97 +141,84 @@ export function FileExplorer({
             : translateError(locale, undefined),
         );
         // A folder that cannot be listed is left, not stared at.
-        if (path.length > 0) go(volume, path.slice(0, -1));
+        if (path.length > 0) onNavigate({ volume, path: path.slice(0, -1) });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [volume, path, locale, go, version]);
+  }, [volume, path, locale, onNavigate, version]);
 
   // The listing says where it was read; while that is not where the page is,
   // the page is on its way there. No flag to keep in step with the fetch.
-  const loading =
+  const stale =
     listing === null ||
     listing.volume !== volume ||
     listing.path.length !== path.length ||
     listing.path.some((name, index) => name !== path[index]);
-  const entries = listing?.entries ?? [];
-  const allSelected = entries.length > 0 && selected.size === entries.length;
+  const loading = volume !== null && stale;
+
+  const rows: Row[] = useMemo(() => {
+    if (volume === null)
+      return volumes.map((entry) => ({
+        name: entry.label,
+        kind: "directory" as const,
+        bytes: entry.usedBytes,
+        modifiedAt: null,
+        entry: null,
+      }));
+    if (stale) return [];
+    return (listing?.entries ?? []).map((entry) => ({
+      name: entry.name,
+      kind: entry.kind,
+      bytes: entry.bytes,
+      modifiedAt: entry.modifiedAt,
+      entry,
+    }));
+  }, [volume, volumes, listing, stale]);
+
+  const allSelected = rows.length > 0 && selected.size === rows.length;
   // The libraries at the root are not deletable, so they are not tickable:
   // a checkbox that leads to a refusal is a checkbox that lies.
-  const selectable = canDelete && path.length >= MIN_DELETE_DEPTH;
+  const selectable =
+    canDelete && volume !== null && path.length >= MIN_DELETE_DEPTH;
+
+  function open(name: string) {
+    if (volume === null) onNavigate({ volume: name, path: [] });
+    else onNavigate({ volume, path: [...path, name] });
+  }
 
   function toggle(name: string) {
-    setSelected((previous) => {
-      const next = new Set(previous);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
+    const names = new Set(selected);
+    if (names.has(name)) names.delete(name);
+    else names.add(name);
+    setTicked({ at: address, names });
   }
 
   function toggleAll() {
-    setSelected(
-      allSelected ? new Set() : new Set(entries.map((entry) => entry.name)),
-    );
+    setTicked({
+      at: address,
+      names: allSelected ? new Set() : new Set(rows.map((row) => row.name)),
+    });
   }
 
   const selection: Selection = useMemo(
-    () => ({ volume, path, names: [...selected] }),
+    () => ({ volume: volume ?? "", path, names: [...selected] }),
     [volume, path, selected],
   );
   // Stable, because the dialog weighs the selection once per opening and a
   // handler recreated on every render would have it weigh on every render.
   const closeConfirm = useCallback(() => setConfirming(false), []);
 
-  const selectedBytes = entries
-    .filter((entry) => selected.has(entry.name) && entry.bytes !== null)
-    .reduce((total, entry) => total + (entry.bytes ?? 0), 0);
-  const selectedFolders = entries.filter(
-    (entry) => selected.has(entry.name) && entry.kind === "directory",
+  const selectedBytes = rows
+    .filter((row) => selected.has(row.name) && row.bytes !== null)
+    .reduce((total, row) => total + (row.bytes ?? 0), 0);
+  const selectedFolders = rows.filter(
+    (row) => selected.has(row.name) && row.kind === "directory",
   ).length;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm">
-        {volumes.length > 1 ? (
-          <select
-            value={volume}
-            onChange={(event) => go(event.target.value, [])}
-            className="border-input bg-background h-7 rounded-md border px-2 text-sm"
-            aria-label={t("admin.storage.volumes")}
-          >
-            {volumes.map((entry) => (
-              <option key={entry.label} value={entry.label}>
-                {entry.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <Crumb active={path.length === 0} onClick={() => go(volume, [])}>
-            {volume}
-          </Crumb>
-        )}
-        {path.map((name, index) => (
-          <span key={`${index}-${name}`} className="flex items-center gap-1">
-            <ChevronRightIcon className="text-muted-foreground size-3" />
-            <Crumb
-              active={index === path.length - 1}
-              onClick={() => go(volume, path.slice(0, index + 1))}
-            >
-              {name}
-            </Crumb>
-          </span>
-        ))}
-        {current ? (
-          <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-            {formatBytes(current.usedBytes, locale)} /{" "}
-            {formatBytes(current.totalBytes, locale)}
-          </span>
-        ) : null}
-      </div>
-
+    <div className="space-y-3" onMouseLeave={() => onHover(null)}>
       <div className="border-border/60 overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="text-muted-foreground bg-secondary/40 text-xs">
@@ -208,7 +229,7 @@ export function FileExplorer({
                     type="checkbox"
                     className="accent-primary size-3.5 align-middle"
                     checked={allSelected}
-                    disabled={entries.length === 0}
+                    disabled={rows.length === 0}
                     onChange={toggleAll}
                     aria-label={t("admin.storage.selectAll")}
                   />
@@ -227,7 +248,7 @@ export function FileExplorer({
             </tr>
           </thead>
           <tbody className="divide-border/60 divide-y">
-            {loading && !listing ? (
+            {loading && listing === null ? (
               <tr>
                 <td
                   colSpan={5}
@@ -236,7 +257,7 @@ export function FileExplorer({
                   <SpinnerIcon className="inline" />
                 </td>
               </tr>
-            ) : entries.length === 0 ? (
+            ) : rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={5}
@@ -246,14 +267,17 @@ export function FileExplorer({
                 </td>
               </tr>
             ) : (
-              entries.map((entry) => {
-                const isSelected = selected.has(entry.name);
+              rows.map((row) => {
+                const isSelected = selected.has(row.name);
                 return (
                   <tr
-                    key={entry.name}
+                    key={row.name}
+                    onMouseEnter={() => onHover(row.name)}
                     className={cn(
                       "hover:bg-muted/40",
                       isSelected && "bg-primary/5",
+                      hovered === row.name &&
+                        "bg-primary/5 ring-primary/40 ring-1 ring-inset",
                       loading && "opacity-60",
                     )}
                   >
@@ -263,49 +287,55 @@ export function FileExplorer({
                           type="checkbox"
                           className="accent-primary size-3.5 align-middle"
                           checked={isSelected}
-                          onChange={() => toggle(entry.name)}
+                          onChange={() => toggle(row.name)}
                           aria-label={t("admin.storage.select", {
-                            name: entry.name,
+                            name: row.name,
                           })}
                         />
                       </td>
                     ) : null}
                     <td className="max-w-0 px-2 py-1">
-                      {entry.kind === "directory" ? (
+                      {row.kind === "directory" ? (
                         <button
                           type="button"
                           className="flex w-full min-w-0 items-center gap-2 text-left hover:underline"
-                          onClick={() => go(volume, [...path, entry.name])}
+                          onClick={() => open(row.name)}
+                          onFocus={() => onHover(row.name)}
+                          onBlur={() => onHover(null)}
                           aria-label={t("admin.storage.open", {
-                            name: entry.name,
+                            name: row.name,
                           })}
                         >
-                          <FolderIcon className="text-primary size-4 shrink-0" />
-                          <span className="truncate">{entry.name}</span>
+                          {volume === null ? (
+                            <DiskIcon className="text-primary size-4 shrink-0" />
+                          ) : (
+                            <FolderIcon className="text-primary size-4 shrink-0" />
+                          )}
+                          <span className="truncate">{row.name}</span>
                         </button>
                       ) : (
                         <span className="flex min-w-0 items-center gap-2">
                           <FileIcon className="text-muted-foreground size-4 shrink-0" />
-                          <span className="truncate">{entry.name}</span>
+                          <span className="truncate">{row.name}</span>
                         </span>
                       )}
                     </td>
                     <td className="text-muted-foreground px-2 py-1 text-right text-xs tabular-nums">
-                      {entry.bytes === null
-                        ? ""
-                        : formatBytes(entry.bytes, locale)}
+                      {row.bytes === null ? "" : formatBytes(row.bytes, locale)}
                     </td>
                     <td className="text-muted-foreground hidden px-2 py-1 text-right text-xs tabular-nums sm:table-cell">
-                      {formatDateTime(new Date(entry.modifiedAt), locale)}
+                      {row.modifiedAt === null
+                        ? ""
+                        : formatDateTime(new Date(row.modifiedAt), locale)}
                     </td>
                     <td className="px-1 py-1 text-right">
-                      {entry.playable ? (
+                      {row.entry?.playable ? (
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          onClick={() => setPlaying(entry)}
+                          onClick={() => setPlaying(row.entry)}
                           aria-label={t("admin.storage.play", {
-                            name: entry.name,
+                            name: row.name,
                           })}
                         >
                           <PlayIcon />
@@ -320,14 +350,14 @@ export function FileExplorer({
         </table>
       </div>
 
-      {canDelete && !selectable && entries.length > 0 ? (
+      {canDelete && volume !== null && !selectable && rows.length > 0 ? (
         <p className="text-muted-foreground text-xs">
           {t("admin.storage.rootProtected")}
         </p>
       ) : null}
 
       {selectable && selected.size > 0 ? (
-        <div className="border-border/60 bg-secondary/40 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm">
+        <div className="border-border/60 bg-secondary/40 sticky bottom-0 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm backdrop-blur">
           <span className="font-medium tabular-nums">
             {t("admin.storage.selected", { count: selected.size })}
           </span>
@@ -342,11 +372,7 @@ export function FileExplorer({
             </span>
           ) : null}
           <span className="ml-auto flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelected(new Set())}
-            >
+            <Button variant="ghost" size="sm" onClick={clearSelection}>
               {t("admin.storage.clearSelection")}
             </Button>
             <Button
@@ -368,7 +394,7 @@ export function FileExplorer({
           onClose={closeConfirm}
           onDeleted={(result) => {
             setConfirming(false);
-            setSelected(new Set());
+            clearSelection();
             if (result.deleted.length > 0)
               toast.success(
                 t("admin.storage.deleted", { count: result.deleted.length }),
@@ -388,35 +414,11 @@ export function FileExplorer({
 
       <PlayerDialog
         entry={playing}
-        volume={volume}
+        volume={volume ?? ""}
         path={path}
         onClose={() => setPlaying(null)}
       />
     </div>
-  );
-}
-
-function Crumb({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={active}
-      className={cn(
-        "max-w-48 truncate rounded px-1 py-0.5",
-        active ? "font-medium" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 

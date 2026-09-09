@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { currentAccount } from "@/lib/auth/session";
 import { unreadCount } from "@/lib/domain/notifications";
 import { getLocaleOverride, getTranslator } from "@/lib/i18n/server";
+import { cn } from "@/lib/utils";
 
 /**
  * `narrow` drops the second row that carries the member nav on a phone.
@@ -16,10 +17,15 @@ import { getLocaleOverride, getTranslator } from "@/lib/i18n/server";
  * that row would be a second menu over the first. It also makes the header
  * exactly 64px tall at every width there, which is what lets the section bar
  * under it stick to a fixed offset instead of guessing at one.
+ *
+ * `full` lets it run to the edges instead of into the reading column. The site
+ * is read, so it is kept narrow; the workspace is worked in, where a table and
+ * a map want the whole desk and the header has to line up with them.
  */
 export async function SiteHeader({
   narrow = false,
-}: { narrow?: boolean } = {}) {
+  full = false,
+}: { narrow?: boolean; full?: boolean } = {}) {
   const [account, t, localeOverride] = await Promise.all([
     currentAccount(),
     getTranslator(),
@@ -35,7 +41,12 @@ export async function SiteHeader({
 
   return (
     <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
-      <div className="umbra-container flex h-16 items-center justify-between gap-4">
+      <div
+        className={cn(
+          "flex h-16 items-center justify-between gap-4",
+          full ? "w-full px-4 sm:px-6 lg:px-8" : "umbra-container",
+        )}
+      >
         <Link
           href="/"
           className="focus-visible:ring-ring/50 rounded-lg outline-none focus-visible:ring-3"

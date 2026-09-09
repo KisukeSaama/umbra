@@ -299,7 +299,6 @@ export const en = {
   "admin.storage.total": "Total",
   "admin.storage.free": "Free",
   "admin.storage.history": "Usage history",
-  "admin.storage.map": "Disk map",
   "admin.storage.measure": "Measure now",
   "admin.storage.scanning": "Measurement under way",
   "admin.storage.scanProgress": "{count} files walked",
@@ -320,9 +319,11 @@ export const en = {
     "{count} entries too small to draw are counted but not shown.",
   "admin.storage.folded.one":
     "{count} entry too small to draw is counted but not shown.",
-  "admin.storage.explorer": "Files",
+  "admin.storage.offMap":
+    "This folder was too small for the last measurement to keep it.",
+  "admin.storage.explorer": "Map and files",
   "admin.storage.explorer.hint":
-    "What is on the disk, one folder at a time. Deleting is the administrator's alone.",
+    "The map and the list stand in the same folder: open one and the other follows. Deleting is the administrator's alone.",
   "admin.storage.name": "Name",
   "admin.storage.size": "Size",
   "admin.storage.modified": "Modified",
@@ -815,7 +816,6 @@ export const fr: Record<TranslationKey, string> = {
   "admin.storage.total": "Total",
   "admin.storage.free": "Libre",
   "admin.storage.history": "Historique d'utilisation",
-  "admin.storage.map": "Carte du disque",
   "admin.storage.measure": "Mesurer maintenant",
   "admin.storage.scanning": "Mesure en cours",
   "admin.storage.scanProgress": "{count} fichiers parcourus",
@@ -836,9 +836,11 @@ export const fr: Record<TranslationKey, string> = {
     "{count} entrées trop petites pour être dessinées sont comptées sans être montrées.",
   "admin.storage.folded.one":
     "{count} entrée trop petite pour être dessinée est comptée sans être montrée.",
-  "admin.storage.explorer": "Fichiers",
+  "admin.storage.offMap":
+    "Ce dossier était trop petit pour que la dernière mesure le garde.",
+  "admin.storage.explorer": "Carte et fichiers",
   "admin.storage.explorer.hint":
-    "Ce qu'il y a sur le disque, dossier par dossier. Seul l'administrateur supprime.",
+    "La carte et la liste sont dans le même dossier : ouvrez l'une, l'autre suit. Seul l'administrateur supprime.",
   "admin.storage.name": "Nom",
   "admin.storage.size": "Taille",
   "admin.storage.modified": "Modifié",

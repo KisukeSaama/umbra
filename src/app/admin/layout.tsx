@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
 
   return (
     <>
-      <SiteHeader narrow />
+      <SiteHeader narrow full />
       <AdminShell counts={counts} isAdmin={isAdmin}>
         {children}
       </AdminShell>

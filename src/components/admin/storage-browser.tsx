@@ -1,0 +1,178 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+
+import {
+  FileExplorer,
+  type ExplorerVolume,
+} from "@/components/admin/file-explorer";
+import { StorageTreemap, nodeAt } from "@/components/admin/storage-treemap";
+import { ChevronRightIcon } from "@/components/icons";
+import type { StorageNode } from "@/lib/db/schema";
+import { formatBytes } from "@/lib/format";
+import { useLocale, useTranslator } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
+
+/**
+ * The disk, seen twice at once.
+ *
+ * The map and the list answered the same question in two languages and made
+ * the reader carry the translation: find the fat folder in the picture, then
+ * find it again in the table before deleting anything. So they are put side by
+ * side and given one address. Opening a rectangle moves the list; opening a
+ * row moves the map; pointing at either lights up the other. There is one
+ * trail, above both, and it is the only way up.
+ *
+ * The address is a volume label and the names below it, which is what the
+ * server takes. Above the volumes sits one more floor, where the volumes are
+ * the entries, so the whole disk still has a picture of its own.
+ *
+ * On a narrow screen the map is pinned to the top and the list runs under it,
+ * a frozen pane: what fills the disk stays in sight while the folder is read.
+ * On a wide one the same pinning puts the map beside the list, which is the
+ * shape a map and a list of results have always taken.
+ */
+
+export type StorageAddress = { volume: string | null; path: string[] };
+
+export function StorageBrowser({
+  volumes,
+  roots,
+  canDelete,
+  note,
+}: {
+  volumes: ExplorerVolume[];
+  /** The last measured tree, empty when nothing has been measured yet. */
+  roots: StorageNode[];
+  canDelete: boolean;
+  /** When the measurement was taken, and the button that takes another. */
+  note?: ReactNode;
+}) {
+  const t = useTranslator();
+  const locale = useLocale();
+
+  // One volume needs no floor above it: there would be one row on it.
+  const single = volumes.length === 1 ? volumes[0].label : null;
+  const [address, setAddress] = useState<StorageAddress>({
+    volume: single,
+    path: [],
+  });
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  const { volume, path } = address;
+  const container = useRef<HTMLDivElement>(null);
+
+  const go = useCallback((next: StorageAddress) => {
+    setAddress(next);
+    setHovered(null);
+  }, []);
+
+  // Moving into a folder starts a new list at its top, so the reader is taken
+  // back to the top of it rather than left in the middle of a page that has
+  // just been replaced under them.
+  const trail = `${volume ?? ""} ${path.join(" ")}`;
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    if (element.getBoundingClientRect().top < 0)
+      element.scrollIntoView({ block: "start" });
+  }, [trail]);
+
+  const measured = nodeAt(roots, volume, path);
+  const current = volumes.find((entry) => entry.label === volume);
+
+  const crumbs: { label: string; to: StorageAddress }[] = [
+    ...(single === null
+      ? [
+          {
+            label: t("admin.storage.everything"),
+            to: { volume: null, path: [] },
+          },
+        ]
+      : []),
+    ...(volume === null
+      ? []
+      : [{ label: volume, to: { volume, path: [] } as StorageAddress }]),
+    ...path.map((name, index) => ({
+      label: name,
+      to: { volume, path: path.slice(0, index + 1) },
+    })),
+  ];
+
+  return (
+    <div
+      ref={container}
+      className="scroll-mt-28 lg:scroll-mt-20 grid items-start gap-4 lg:grid-cols-2 lg:gap-6"
+    >
+      <div className="bg-card sticky top-28 z-20 space-y-2 pt-1 pb-3 lg:top-20">
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
+          {crumbs.map((crumb, index) => {
+            const last = index === crumbs.length - 1;
+            return (
+              <span key={index} className="flex min-w-0 items-center gap-1">
+                {index > 0 ? (
+                  <ChevronRightIcon className="text-muted-foreground size-3 shrink-0" />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => go(crumb.to)}
+                  disabled={last}
+                  className={cn(
+                    "focus-visible:ring-ring/50 max-w-[12rem] truncate rounded-md px-1 py-0.5 transition-colors outline-none focus-visible:ring-3",
+                    last
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {crumb.label}
+                </button>
+              </span>
+            );
+          })}
+          <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+            {measured
+              ? formatBytes(measured.bytes, locale)
+              : current
+                ? `${formatBytes(current.usedBytes, locale)} / ${formatBytes(current.totalBytes, locale)}`
+                : null}
+          </span>
+        </div>
+
+        <StorageTreemap
+          roots={roots}
+          volume={volume}
+          path={path}
+          onOpen={(name) =>
+            go(
+              volume === null
+                ? { volume: name, path: [] }
+                : { volume, path: [...path, name] },
+            )
+          }
+          hovered={hovered}
+          onHover={setHovered}
+        />
+
+        {note ? <div className="pt-1">{note}</div> : null}
+      </div>
+
+      <div className="min-w-0">
+        <FileExplorer
+          volumes={volumes}
+          volume={volume}
+          path={path}
+          onNavigate={go}
+          canDelete={canDelete}
+          hovered={hovered}
+          onHover={setHovered}
+        />
+      </div>
+    </div>
+  );
+}
