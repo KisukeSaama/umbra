@@ -8,7 +8,7 @@ import { requireStaffPage } from "@/lib/auth/session";
 import { pendingAccountCount } from "@/lib/domain/accounts";
 import { lastReportAt, listReports } from "@/lib/domain/reports";
 import {
-  countRequestsByStatus,
+  LIVE_REQUEST_STATUSES,
   lastRequestAt,
   listRequests,
 } from "@/lib/domain/requests";
@@ -26,6 +26,12 @@ import { LIVE_REPORT_STATUSES } from "@/lib/reports/reasons";
  * one glance rather than four visits, then the queues themselves: everything
  * waiting on a decision, in the order it arrived, with the decision available
  * on the row rather than three pages away.
+ *
+ * A queue holds what is live, which for a request means taken in hand as well
+ * as new. Accepting one used to remove it from here, so the work left the desk
+ * the moment it started and the next move on it had to be gone looking for. A
+ * report has always stayed until it closed, and the two are one queue read
+ * twice: what leaves is what is settled.
  *
  * The figures are counts of work, never a scoreboard: no trend arrow, no
  * gauge, and nothing about whether the server is up. If Umbra answered, it is.
@@ -45,16 +51,14 @@ export default async function AdminDashboardPage() {
     reports,
     tasks,
     pendingAccounts,
-    counts,
     storage,
     latestRequest,
     latestReport,
   ] = await Promise.all([
-    listRequests(["requested"]),
+    listRequests([...LIVE_REQUEST_STATUSES]),
     listReports([...LIVE_REPORT_STATUSES]),
     listOpenEpisodeTasks(),
     isAdmin ? pendingAccountCount() : 0,
-    countRequestsByStatus(),
     storageOverview(),
     lastRequestAt(),
     lastReportAt(),
@@ -80,10 +84,6 @@ export default async function AdminDashboardPage() {
           { label: t("admin.stat.requests"), value: requests.length },
           { label: t("admin.stat.reports"), value: reports.length },
           { label: t("admin.stat.episodes"), value: tasks.length },
-          {
-            label: t("admin.requests.status.processing"),
-            value: counts.processing,
-          },
           ...(isAdmin
             ? [{ label: t("admin.stat.accounts"), value: pendingAccounts }]
             : []),
@@ -120,24 +120,52 @@ export default async function AdminDashboardPage() {
                 key={request.id}
                 main={request.media.title}
                 aside={
-                  request.media.year ? String(request.media.year) : undefined
+                  request.status === "requested"
+                    ? request.media.year
+                      ? String(request.media.year)
+                      : undefined
+                    : t(
+                        `admin.requests.status.${request.status}` as TranslationKey,
+                      )
                 }
               >
-                <ActionButton
-                  url={`/api/admin/requests/${request.id}`}
-                  body={{ status: "accepted" }}
-                  size="xs"
-                >
-                  {t("admin.requests.accept")}
-                </ActionButton>
-                <ActionButton
-                  url={`/api/admin/requests/${request.id}`}
-                  body={{ status: "rejected" }}
-                  size="xs"
-                  variant="ghost"
-                >
-                  {t("admin.requests.reject")}
-                </ActionButton>
+                {request.status === "requested" ? (
+                  <>
+                    <ActionButton
+                      url={`/api/admin/requests/${request.id}`}
+                      body={{ status: "accepted" }}
+                      size="xs"
+                    >
+                      {t("admin.requests.accept")}
+                    </ActionButton>
+                    <ActionButton
+                      url={`/api/admin/requests/${request.id}`}
+                      body={{ status: "rejected" }}
+                      size="xs"
+                      variant="ghost"
+                    >
+                      {t("admin.requests.reject")}
+                    </ActionButton>
+                  </>
+                ) : request.status === "accepted" ? (
+                  <ActionButton
+                    url={`/api/admin/requests/${request.id}`}
+                    body={{ status: "processing" }}
+                    size="xs"
+                    variant="secondary"
+                  >
+                    {t("admin.requests.process")}
+                  </ActionButton>
+                ) : request.inLibrary ? (
+                  <ActionButton
+                    url={`/api/admin/requests/${request.id}`}
+                    body={{ status: "available" }}
+                    size="xs"
+                    variant="secondary"
+                  >
+                    {t("admin.requests.complete")}
+                  </ActionButton>
+                ) : null}
               </Row>
             ))}
           </Queue>

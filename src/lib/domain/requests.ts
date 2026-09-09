@@ -24,6 +24,25 @@ import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 
+/**
+ * A request the administration still has something to do about.
+ *
+ * The mirror of `LIVE_REPORT_STATUSES`. A report taken up stays in the queue
+ * until it is closed, and a request had been leaving it the moment it was
+ * accepted: the work was starting exactly when the row disappeared, and what
+ * was in hand could only be found again by opening the section and reading
+ * every line that had ever been written. Being worked on is not being done.
+ */
+export const LIVE_REQUEST_STATUSES = [
+  "requested",
+  "accepted",
+  "processing",
+] as const;
+
+export function isLiveRequest(status: RequestStatus): boolean {
+  return (LIVE_REQUEST_STATUSES as readonly RequestStatus[]).includes(status);
+}
+
 export type RequestRow = {
   id: string;
   status: RequestStatus;
@@ -201,6 +220,15 @@ export async function countRequestsByStatus(): Promise<
   } satisfies Record<RequestStatus, number>;
   for (const row of rows) counts[row.status] = row.count;
   return counts;
+}
+
+/** Requests still on the desk, for the figure the navigation carries. */
+export async function countLiveRequests(): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(mediaRequests)
+    .where(inArray(mediaRequests.status, [...LIVE_REQUEST_STATUSES]));
+  return row?.count ?? 0;
 }
 
 /**
