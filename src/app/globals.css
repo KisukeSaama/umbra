@@ -144,6 +144,23 @@
      */
     --umbra-sticky-top: 4rem;
   }
+  /* Tailwind v4 gives buttons the arrow cursor; everything a member can press
+     shows the hand instead, and a disabled control keeps the arrow. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="menuitemcheckbox"]:not([data-disabled]),
+  [role="menuitemradio"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="switch"]:not([data-disabled]),
+  [role="checkbox"]:not([data-disabled]),
+  [role="radio"]:not([data-disabled]),
+  label[for],
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
   html {
     @apply font-sans;
     /* Always reserve the scrollbar track, so a short page and a long one line up

@@ -139,6 +139,16 @@ when it answered with something. A section whose storage is not mounted comes
 back empty without failing, and a sweep over the whole table would then erase it,
 taking every request and report attached to those titles with it.
 
+A cycle and a disk walk are minutes of work, so neither the button nor the
+scheduled route holds a request open for one. Both check `job_run` for a step
+already on its feet, refuse or skip if there is one, then start the work and
+return: the run is the record, not the response. A long step writes where it is
+into `job_state.cursor` at most every second and a half, which is what the
+administration reads to say "twelve thousand files walked" instead of showing a
+spinner. A run still marked running after forty-five minutes was interrupted by
+a restart, and is closed as failed the next time anyone asks, so a crash never
+blocks the button for good.
+
 Reconciliation compares dates against now rather than reacting to an event, so
 nothing is missed after downtime, and `ON CONFLICT DO NOTHING` on the task means a
 rerun never duplicates work. A large catch-up lands as a batch of tasks rather

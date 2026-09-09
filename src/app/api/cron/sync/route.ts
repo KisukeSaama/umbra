@@ -4,7 +4,7 @@ import { route } from "@/lib/api";
 import { safeEquals } from "@/lib/auth/compare";
 import { env } from "@/lib/env";
 import { NotFoundError, UnauthorizedError } from "@/lib/errors";
-import { runSyncCycle } from "@/lib/jobs";
+import { anyJobRunning, runSyncCycle } from "@/lib/jobs";
 
 /**
  * Scheduled synchronisation.
@@ -23,6 +23,11 @@ export async function POST(request: NextRequest) {
       ?.replace(/^Bearer /i, "");
     if (!provided || !safeEquals(provided, secret))
       throw new UnauthorizedError();
+
+    // A cycle already on its feet, started by hand or by a worker that ran
+    // long, is left to finish. Skipping costs one interval; two cycles over
+    // the same library cost a fight over the same rows.
+    if (await anyJobRunning()) return { skipped: true, outcomes: [] };
 
     return { outcomes: await runSyncCycle() };
   });

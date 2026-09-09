@@ -158,6 +158,8 @@ export const en = {
   "error.announcementNotFound": "Announcement not found.",
   "error.invalidLink":
     "A link must be a web address starting with http or https.",
+  "error.scanRunning": "The disk is already being measured.",
+  "error.syncRunning": "A synchronisation is already under way.",
 
   "admin.title": "Administration",
   "admin.backToSite": "Back to the site",
@@ -288,8 +290,16 @@ export const en = {
   "admin.storage.total": "Total",
   "admin.storage.free": "Free",
   "admin.storage.history": "Usage history",
-  "admin.storage.map": "What is filling the disk",
+  "admin.storage.map": "Disk map",
   "admin.storage.measure": "Measure now",
+  "admin.storage.scanning": "Measurement under way",
+  "admin.storage.scanProgress": "{count} files walked",
+  "admin.storage.scanProgress.one": "{count} file walked",
+  "admin.storage.scanRoot": "volume {label}",
+  "admin.storage.scanElapsed": "for {value}",
+  "admin.storage.scanStarted":
+    "Measurement started. It carries on if you leave this page.",
+  "admin.storage.scanDone": "Measurement finished.",
   "admin.storage.notScanned":
     "The disk has not been walked yet. The scheduled pass does it a few times a day.",
   "admin.storage.scannedAt": "Measured on {date}",
@@ -621,6 +631,8 @@ export const fr: Record<TranslationKey, string> = {
   "error.announcementNotFound": "Annonce introuvable.",
   "error.invalidLink":
     "Un lien doit être une adresse web commençant par http ou https.",
+  "error.scanRunning": "Le disque est déjà en cours de mesure.",
+  "error.syncRunning": "Une synchronisation est déjà en cours.",
 
   "admin.title": "Administration",
   "admin.backToSite": "Retour au site",
@@ -750,8 +762,16 @@ export const fr: Record<TranslationKey, string> = {
   "admin.storage.total": "Total",
   "admin.storage.free": "Libre",
   "admin.storage.history": "Historique d'utilisation",
-  "admin.storage.map": "Ce qui remplit le disque",
+  "admin.storage.map": "Carte du disque",
   "admin.storage.measure": "Mesurer maintenant",
+  "admin.storage.scanning": "Mesure en cours",
+  "admin.storage.scanProgress": "{count} fichiers parcourus",
+  "admin.storage.scanProgress.one": "{count} fichier parcouru",
+  "admin.storage.scanRoot": "volume {label}",
+  "admin.storage.scanElapsed": "depuis {value}",
+  "admin.storage.scanStarted":
+    "Mesure lancée. Elle continue même si tu quittes la page.",
+  "admin.storage.scanDone": "Mesure terminée.",
   "admin.storage.notScanned":
     "Le disque n'a pas encore été parcouru. Le passage programmé le fait quelques fois par jour.",
   "admin.storage.scannedAt": "Mesuré le {date}",

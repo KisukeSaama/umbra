@@ -1,5 +1,5 @@
-import { ActionButton } from "@/components/admin/action-button";
 import { StatStrip } from "@/components/admin/stat-strip";
+import { StorageScan } from "@/components/admin/storage-scan";
 import { StorageTreemap } from "@/components/admin/storage-treemap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/domain/storage";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { runningJob } from "@/lib/jobs";
 
 /**
  * Storage, in full.
@@ -25,11 +26,20 @@ import { getI18n } from "@/lib/i18n/server";
 export default async function AdminStoragePage() {
   await requireStaffPage();
   const { t, locale } = await getI18n();
-  const [detail, tree, history] = await Promise.all([
+  const [detail, tree, history, running] = await Promise.all([
     storageDetail(),
     storageTree(),
     storageHistory(12),
+    runningJob("storage-scan"),
   ]);
+
+  // The walk outlives the page that started it, so its state comes from the
+  // run rather than from whoever pressed the button.
+  const scan = {
+    running: running !== null,
+    startedAt: running?.startedAt.toISOString() ?? null,
+    progress: running?.progress ?? null,
+  };
 
   if (!detail)
     return (
@@ -38,9 +48,9 @@ export default async function AdminStoragePage() {
           <p className="text-muted-foreground text-sm">
             {t("storage.unknown")}
           </p>
-          <ActionButton url="/api/admin/storage/scan" method="POST" size="sm">
-            {t("admin.storage.measure")}
-          </ActionButton>
+          <div className="flex justify-center">
+            <StorageScan initial={scan} />
+          </div>
         </CardContent>
       </Card>
     );
@@ -84,14 +94,7 @@ export default async function AdminStoragePage() {
                   {" · "}
                   {t("admin.storage.files", { count: tree.fileCount })}
                 </p>
-                <ActionButton
-                  url="/api/admin/storage/scan"
-                  method="POST"
-                  size="sm"
-                  variant="secondary"
-                >
-                  {t("admin.storage.measure")}
-                </ActionButton>
+                <StorageScan initial={scan} variant="secondary" />
               </div>
             </>
           ) : (
@@ -99,13 +102,9 @@ export default async function AdminStoragePage() {
               <p className="text-muted-foreground text-sm">
                 {t("admin.storage.notScanned")}
               </p>
-              <ActionButton
-                url="/api/admin/storage/scan"
-                method="POST"
-                size="sm"
-              >
-                {t("admin.storage.measure")}
-              </ActionButton>
+              <div className="flex justify-center">
+                <StorageScan initial={scan} />
+              </div>
             </div>
           )}
         </CardContent>

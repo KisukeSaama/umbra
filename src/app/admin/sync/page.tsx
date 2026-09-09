@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/admin/action-button";
+import { AutoRefresh } from "@/components/admin/auto-refresh";
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -7,7 +8,7 @@ import {
 } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
-import { formatDateTime } from "@/lib/format";
+import { formatBytes, formatDateTime } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { jobStatus, type JobStatusRow } from "@/lib/jobs";
@@ -30,9 +31,14 @@ export default async function AdminSyncPage() {
   const { t, locale } = await getI18n();
   const jobs = await jobStatus();
   const failing = jobs.filter((job) => job.lastStatus === "failure");
+  const working = jobs.some((job) => job.lastStatus === "running");
 
   return (
     <>
+      {/* A cycle takes minutes. Left open, this page follows it rather than
+          freezing on the moment it was rendered. */}
+      <AutoRefresh active={working} />
+
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-muted-foreground max-w-prose text-sm">
@@ -82,6 +88,24 @@ function JobCard({
             </p>
           </div>
         </div>
+
+        {/* A step on its feet says where it is rather than what it did last
+            time: the last success is history the moment a new run starts. */}
+        {job.lastStatus === "running" ? (
+          <p className="text-primary text-sm">
+            {t("admin.jobs.status.running")}
+            {job.progress ? (
+              <span className="text-muted-foreground">
+                {" · "}
+                {t("admin.jobs.items", { count: job.progress.items })}
+                {job.progress.bytes
+                  ? ` · ${formatBytes(job.progress.bytes, locale)}`
+                  : ""}
+                {job.progress.where ? ` · ${job.progress.where}` : ""}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
 
         <p className="text-muted-foreground text-sm">
           {job.lastSuccessAt ? (

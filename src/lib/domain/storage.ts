@@ -160,6 +160,27 @@ function sum<T>(items: T[], pick: (item: T) => number) {
  * and sizes, rooted at the label the operator chose, never an absolute path.
  */
 
+/**
+ * Where the walk is, for whoever is watching it.
+ *
+ * The walk takes minutes on a media library, which is long enough that a page
+ * showing nothing but a spinner is a page that looks broken. The counter is
+ * passed down the recursion and read from above; writing it down is somebody
+ * else's problem, and throttled there.
+ */
+export type ScanReport = (progress: {
+  items: number;
+  bytes: number;
+  where?: string;
+}) => void;
+
+type ScanCounter = {
+  files: number;
+  bytes: number;
+  where: string | null;
+  report?: ScanReport;
+};
+
 /** Deep enough for volume, library, series, season, episode, and one spare. */
 const MAX_DEPTH = 6;
 /** Below this share of its parent an entry is a pixel, so it is folded away. */
@@ -183,15 +204,18 @@ export type StorageTree = {
  * Slow by nature, so it belongs to the scheduled job and to the explicit
  * "measure now" button, never to a page render.
  */
-export async function scanStorageTree(): Promise<StorageTree | null> {
+export async function scanStorageTree(
+  report?: ScanReport,
+): Promise<StorageTree | null> {
   const configured = parseStoragePaths(env().STORAGE_PATHS);
   if (configured.length === 0) return null;
 
   const startedAt = Date.now();
-  const counter = { files: 0 };
   const roots: StorageNode[] = [];
+  const counter: ScanCounter = { files: 0, bytes: 0, where: null, report };
 
   for (const volume of configured) {
+    counter.where = volume.label;
     try {
       const node = await walk(volume.path, volume.label, 0, counter);
       if (node) roots.push(node);
@@ -250,7 +274,7 @@ async function walk(
   path: string,
   name: string,
   depth: number,
-  counter: { files: number },
+  counter: ScanCounter,
 ): Promise<StorageNode | null> {
   let entries;
   try {
@@ -270,6 +294,12 @@ async function walk(
     try {
       const info = await stat(join(path, file.name));
       counter.files += 1;
+      counter.bytes += info.size;
+      counter.report?.({
+        items: counter.files,
+        bytes: counter.bytes,
+        where: counter.where ?? undefined,
+      });
       bytes += info.size;
       if (depth < MAX_DEPTH)
         children.push({ name: file.name, bytes: info.size, kind: "file" });
