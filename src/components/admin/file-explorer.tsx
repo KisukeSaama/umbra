@@ -21,13 +21,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  MIN_DELETE_DEPTH,
-  type StorageDeletion,
-  type StorageEntry,
-  type StorageListing,
-  type StorageWeight,
+import type {
+  StorageDeletion,
+  StorageEntry,
+  StorageListing,
+  StorageWeight,
 } from "@/lib/domain/storage-files";
+import { MIN_DELETE_DEPTH } from "@/lib/domain/storage-rules";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";

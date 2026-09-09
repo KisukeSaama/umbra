@@ -5,6 +5,7 @@ import { lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 
+import { MIN_DELETE_DEPTH } from "@/lib/domain/storage-rules";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 import { env, parseStoragePaths, type StorageVolumeConfig } from "@/lib/env";
 
@@ -66,14 +67,6 @@ const MAX_NAME_LENGTH = 255;
 export const MAX_BATCH = 200;
 /** Files counted while weighing before the answer is called a floor. */
 const MAX_WEIGHED_FILES = 50_000;
-/**
- * How deep the listed directory must be before its entries can go.
- *
- * Directly under a volume sit the libraries themselves, `Movies`, `Series`,
- * and one click there would take one whole. So a deletion happens inside a
- * library, never of one.
- */
-export const MIN_DELETE_DEPTH = 1;
 
 function configuredVolumes(): StorageVolumeConfig[] {
   return parseStoragePaths(env().STORAGE_PATHS);
