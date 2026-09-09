@@ -5,6 +5,7 @@ import {
   CaretLeft,
   CaretRight,
   CaretUp,
+  ChartBar,
   Check,
   CheckCircle,
   CircleNotch,
@@ -92,6 +93,7 @@ export const FollowUpIcon = icon(ListChecks);
 export const SparkleIcon = icon(Sparkle);
 export const MovieIcon = icon(FilmSlate);
 export const SeriesIcon = icon(Television);
+export const PollIcon = icon(ChartBar);
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

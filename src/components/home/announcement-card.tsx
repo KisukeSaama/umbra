@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { EmptyNote } from "@/components/empty-note";
+import { GlyphTile } from "@/components/glyph-tile";
 import { AnnounceIcon } from "@/components/icons";
 import {
   Card,
@@ -38,9 +40,7 @@ export async function AnnouncementCard({
       <CardContent>
         {announcement ? (
           <div className="flex gap-3">
-            <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-              <AnnounceIcon />
-            </span>
+            <GlyphTile icon={AnnounceIcon} className="size-9" />
             <div className="min-w-0 space-y-1">
               <p className="text-muted-foreground text-xs">
                 {t(`news.category.${announcement.category}` as TranslationKey)}
@@ -52,7 +52,7 @@ export async function AnnouncementCard({
             </div>
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">{t("news.none")}</p>
+          <EmptyNote icon={AnnounceIcon}>{t("news.none")}</EmptyNote>
         )}
       </CardContent>
     </Card>

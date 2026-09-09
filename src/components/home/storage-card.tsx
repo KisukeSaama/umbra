@@ -1,3 +1,5 @@
+import { EmptyNote } from "@/components/empty-note";
+import { GlyphTile } from "@/components/glyph-tile";
 import { DiskIcon } from "@/components/icons";
 import {
   Card,
@@ -29,9 +31,7 @@ export async function StorageCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-            <DiskIcon />
-          </span>
+          <GlyphTile icon={DiskIcon} />
           {t("section.storage")}
         </CardTitle>
         {storage ? (
@@ -44,16 +44,15 @@ export async function StorageCard({
         {storage ? (
           <>
             <Progress value={percent} aria-label={t("section.storage")} />
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm tabular-nums">
               {t("storage.available", {
                 value: formatBytes(storage.availableBytes, locale),
+                total: formatBytes(storage.totalBytes, locale),
               })}
             </p>
           </>
         ) : (
-          <p className="text-muted-foreground text-sm">
-            {t("storage.unknown")}
-          </p>
+          <EmptyNote icon={DiskIcon}>{t("storage.unknown")}</EmptyNote>
         )}
       </CardContent>
     </Card>

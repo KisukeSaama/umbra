@@ -95,7 +95,7 @@ export const en = {
   "news.category.funding": "Funding goal",
 
   "storage.used": "{percent} used",
-  "storage.available": "{value} available",
+  "storage.available": "{value} available of {total}",
   "storage.unknown": "Not measured yet.",
 
   "funding.progress": "{percent} funded",
@@ -264,7 +264,7 @@ export const en = {
   "section.ideas": "Worth asking for",
   "section.myRequests": "My requests",
   "section.myReports": "My reports",
-  "section.whatMoved": "What moved",
+  "section.notifications": "Notifications",
 
   "discover.title": "Discover",
   "discover.subtitle":
@@ -297,8 +297,21 @@ export const en = {
   "title.request": "Ask for it",
   "title.report": "Report a problem",
   "title.onServer": "This is on the server",
-  "title.requested": "Already on the list",
+  "title.requested": "Already requested",
   "title.similar": "In the same vein",
+
+  "season.heading": "Seasons",
+  "season.number": "Season {number}",
+  "season.episodes": "{count} episodes",
+  "season.episodes.one": "{count} episode",
+  "season.episodeShort": "E{number}",
+  "season.complete": "Complete",
+  "season.partial": "{count} of {total} episodes",
+  "season.partial.one": "{count} of {total} episodes",
+  "season.onServer": "On the server",
+  "season.notOnServer": "Not on the server",
+  "season.noEpisodes": "No episode listed for this season.",
+  "season.unavailable": "The episode list could not be loaded.",
 
   "report.title": "Report a problem",
   "report.subtitle": "Three choices, and it reaches the administrator.",
@@ -337,10 +350,11 @@ export const en = {
   "report.status.duplicate": "Already known",
 
   "activity.title": "My follow-up",
-  "activity.subtitle": "What you asked for, what you reported, what moved.",
+  "activity.subtitle":
+    "What you asked for, what you reported, and your notifications.",
   "activity.noRequests": "No request yet.",
   "activity.noRequestsHint": "Search a title and ask for it.",
-  "activity.nothingMoved": "Nothing has moved yet.",
+  "activity.noNotifications": "No notification yet.",
   "activity.requestedOn": "Asked on {date}",
   "activity.timeline.requested": "Asked",
   "activity.timeline.accepted": "Accepted",
@@ -348,9 +362,9 @@ export const en = {
   "activity.timeline.available": "On the server",
   "activity.timeline.rejected": "Declined",
 
-  "notifications.title": "What moved",
+  "notifications.title": "Notifications",
   "notifications.open": "Notifications",
-  "notifications.none": "Nothing new.",
+  "notifications.none": "No notification.",
   "notifications.markRead": "Mark all as read",
   "notifications.unread": "{count} unread",
   "notifications.unread.one": "{count} unread",
@@ -480,7 +494,7 @@ export const fr: Record<TranslationKey, string> = {
   "news.category.funding": "Objectif",
 
   "storage.used": "{percent} utilisés",
-  "storage.available": "{value} disponibles",
+  "storage.available": "{value} disponibles sur {total}",
   "storage.unknown": "Pas encore mesuré.",
 
   "funding.progress": "{percent} financé",
@@ -650,7 +664,7 @@ export const fr: Record<TranslationKey, string> = {
   "section.ideas": "À demander",
   "section.myRequests": "Mes demandes",
   "section.myReports": "Mes signalements",
-  "section.whatMoved": "Ce qui a bougé",
+  "section.notifications": "Notifications",
 
   "discover.title": "Découvrir",
   "discover.subtitle":
@@ -683,8 +697,21 @@ export const fr: Record<TranslationKey, string> = {
   "title.request": "Le demander",
   "title.report": "Signaler un problème",
   "title.onServer": "C'est sur le serveur",
-  "title.requested": "Déjà sur la liste",
+  "title.requested": "Déjà demandé",
   "title.similar": "Dans la même veine",
+
+  "season.heading": "Saisons",
+  "season.number": "Saison {number}",
+  "season.episodes": "{count} épisodes",
+  "season.episodes.one": "{count} épisode",
+  "season.episodeShort": "E{number}",
+  "season.complete": "Complète",
+  "season.partial": "{count} épisodes sur {total}",
+  "season.partial.one": "{count} épisode sur {total}",
+  "season.onServer": "Sur le serveur",
+  "season.notOnServer": "Pas sur le serveur",
+  "season.noEpisodes": "Aucun épisode listé pour cette saison.",
+  "season.unavailable": "La liste des épisodes n'a pas pu être chargée.",
 
   "report.title": "Signaler un problème",
   "report.subtitle": "Trois choix, et ça arrive chez l'administrateur.",
@@ -724,10 +751,10 @@ export const fr: Record<TranslationKey, string> = {
 
   "activity.title": "Mon suivi",
   "activity.subtitle":
-    "Ce que vous avez demandé, ce que vous avez signalé, ce qui a bougé.",
+    "Ce que vous avez demandé, ce que vous avez signalé, et vos notifications.",
   "activity.noRequests": "Aucune demande pour l'instant.",
   "activity.noRequestsHint": "Cherchez un titre et demandez-le.",
-  "activity.nothingMoved": "Rien n'a encore bougé.",
+  "activity.noNotifications": "Aucune notification pour l'instant.",
   "activity.requestedOn": "Demandé le {date}",
   "activity.timeline.requested": "Demandé",
   "activity.timeline.accepted": "Accepté",
@@ -735,9 +762,9 @@ export const fr: Record<TranslationKey, string> = {
   "activity.timeline.available": "Sur le serveur",
   "activity.timeline.rejected": "Refusé",
 
-  "notifications.title": "Ce qui a bougé",
+  "notifications.title": "Notifications",
   "notifications.open": "Notifications",
-  "notifications.none": "Rien de neuf.",
+  "notifications.none": "Aucune notification.",
   "notifications.markRead": "Tout marquer comme lu",
   "notifications.unread": "{count} non lues",
   "notifications.unread.one": "{count} non lue",

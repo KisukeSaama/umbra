@@ -13,19 +13,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { NotificationKind } from "@/lib/db/schema";
-import type { TranslationKey } from "@/lib/i18n";
+import type { NotificationKind, NotificationPayload } from "@/lib/db/schema";
+import { notificationLine } from "@/lib/i18n/notifications";
 import { useTranslator } from "@/lib/i18n/client";
 
 type Item = {
   id: string;
   kind: NotificationKind;
-  payload: {
-    title?: string;
-    status?: string;
-    seasonNumber?: number;
-    episodeNumber?: number;
-  };
+  payload: NotificationPayload;
   read: boolean;
 };
 
@@ -123,7 +118,9 @@ export function NotificationBell({ unread }: { unread: number }) {
                   }
                   aria-hidden
                 />
-                <span className="leading-snug">{line(t, item)}</span>
+                <span className="leading-snug">
+                  {notificationLine(t, item)}
+                </span>
               </li>
             ))}
           </ul>
@@ -136,29 +133,4 @@ export function NotificationBell({ unread }: { unread: number }) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-/**
- * One line, built from a key and a payload.
- *
- * A status the interface has no wording for falls back to the title alone
- * rather than to a blank row: an entry nobody planned for is still worth
- * seeing.
- */
-function line(
-  t: (key: TranslationKey, values?: Record<string, string | number>) => string,
-  item: Item,
-): string {
-  const title = item.payload.title ?? "";
-
-  if (item.kind === "request_status" || item.kind === "report_status") {
-    const prefix = item.kind === "request_status" ? "request" : "report";
-    const key = `notifications.${prefix}.${item.payload.status}`;
-    const translated = t(key as TranslationKey, { title });
-    return translated === key ? title : translated;
-  }
-  if (item.kind === "announcement")
-    return t("notifications.announcement", { title });
-  if (item.kind === "poll_open") return t("notifications.poll", { title });
-  return t("notifications.episode", { title });
 }

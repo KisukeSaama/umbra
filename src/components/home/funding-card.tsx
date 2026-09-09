@@ -1,3 +1,4 @@
+import { GlyphTile } from "@/components/glyph-tile";
 import { GoalIcon } from "@/components/icons";
 import {
   Card,
@@ -28,9 +29,7 @@ export async function FundingCard({ goal }: { goal: FundingView | null }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-            <GoalIcon />
-          </span>
+          <GlyphTile icon={GoalIcon} />
           <span className="truncate">{goal.title}</span>
         </CardTitle>
         <CardAction className="self-center text-sm font-medium tabular-nums">

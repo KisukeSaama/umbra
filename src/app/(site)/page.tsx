@@ -19,6 +19,7 @@ import { activePoll } from "@/lib/domain/polls";
 import { upcomingEpisodes } from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
 import { getI18n } from "@/lib/i18n/server";
+import { cn } from "@/lib/utils";
 
 /**
  * The home page answers, in one screen: what is new, what is coming, what the
@@ -59,17 +60,24 @@ export default async function HomePage() {
         </Suspense>
 
         {/* Two rows of like with like: the two lists that can run long, then
-            the three glances. Nothing is stretched to a neighbour's height, so
-            an empty list stays a short card rather than a tall blank one. */}
+            the glances. Nothing is stretched to a neighbour's height, so an
+            empty list stays a short card rather than a tall blank one. The
+            second row counts what it actually has: with no funding goal the
+            three columns become two, rather than leaving a hole on the right. */}
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             <UpcomingEpisodes episodes={upcoming} />
             <PollCard poll={poll} />
           </div>
-          <div className="grid gap-6 md:grid-cols-3 md:items-start">
+          <div
+            className={cn(
+              "grid gap-6 md:items-start",
+              goal ? "md:grid-cols-3" : "lg:grid-cols-2",
+            )}
+          >
             <AnnouncementCard announcement={announcement} />
             <StorageCard storage={storage} />
-            <FundingCard goal={goal} />
+            {goal ? <FundingCard goal={goal} /> : null}
           </div>
         </div>
       </div>

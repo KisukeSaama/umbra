@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { EmptyNote } from "@/components/empty-note";
+import { PollIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,7 +41,7 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
           <CardTitle>{t("section.poll")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">{t("poll.none")}</p>
+          <EmptyNote icon={PollIcon}>{t("poll.none")}</EmptyNote>
         </CardContent>
       </Card>
     );

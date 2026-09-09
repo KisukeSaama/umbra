@@ -9,6 +9,7 @@ import { listReportsFollowedBy } from "@/lib/domain/reports";
 import { listRequestsBy } from "@/lib/domain/requests";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
+import { notificationLine } from "@/lib/i18n/notifications";
 import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Follow-up" };
@@ -17,8 +18,8 @@ export const metadata: Metadata = { title: "Follow-up" };
  * Where a request stops disappearing.
  *
  * Asking for something used to end at "request sent". This page is the other
- * end of that: what you asked for, what you reported, and what has moved since
- * you last looked, on one screen.
+ * end of that: what you asked for, what you reported, and the notifications
+ * you may have missed, on one screen.
  *
  * The timelines are drawn from the timestamps on the rows themselves, not from
  * the notification feed. Notifications are pruned; a follow-up must not quietly
@@ -28,7 +29,7 @@ export default async function ActivityPage() {
   const account = await requireMemberPage();
   const { t, locale } = await getI18n();
 
-  const [requests, reports, moved] = await Promise.all([
+  const [requests, reports, recent] = await Promise.all([
     listRequestsBy(account.id),
     listReportsFollowedBy(account.id),
     listNotifications(account.id, 20),
@@ -142,19 +143,19 @@ export default async function ActivityPage() {
 
       <section>
         <h2 className="mb-4 text-lg font-semibold tracking-tight">
-          {t("section.whatMoved")}
+          {t("section.notifications")}
         </h2>
-        {moved.length === 0 ? (
+        {recent.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            {t("activity.nothingMoved")}
+            {t("activity.noNotifications")}
           </p>
         ) : (
           <ul className="divide-border/60 divide-y">
-            {moved.map((entry) => (
+            {recent.map((entry) => (
               <li key={entry.id} className="flex items-baseline gap-3 py-2.5">
-                <span className="text-sm">
-                  {entry.payload.title ?? t("common.empty")}
-                </span>
+                {/* The same sentence the bell shows, rather than the bare
+                    title: a list of names says nothing about what happened. */}
+                <span className="text-sm">{notificationLine(t, entry)}</span>
                 <time
                   dateTime={entry.createdAt.toISOString()}
                   className="text-muted-foreground ml-auto text-xs"

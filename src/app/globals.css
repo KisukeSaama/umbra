@@ -128,6 +128,9 @@
   }
   html {
     @apply font-sans;
+    /* Always reserve the scrollbar track, so a short page and a long one line up
+       on the same gutter instead of jumping sideways when the bar appears. */
+    scrollbar-gutter: stable;
   }
   /* The serif carries the page titles only. Everywhere else stays in the grotesk:
      one voice for the mood, one for the information. */

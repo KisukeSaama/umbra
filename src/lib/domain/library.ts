@@ -323,6 +323,30 @@ export async function seasonsOnServer(providerId: string): Promise<number[]> {
   return rows.map((row) => row.season_number);
 }
 
+/**
+ * How many episodes of each season the server holds.
+ *
+ * One statement rather than one query per season: a title page draws the whole
+ * ladder at once, and a show with twenty seasons would otherwise cost twenty
+ * round trips to say the same thing.
+ */
+export async function episodeCountsBySeason(
+  providerId: string,
+): Promise<Map<number, number>> {
+  const rows = await db().execute<{ season_number: number; held: number }>(sql`
+    SELECT ep.season_number, COUNT(DISTINCT ep.episode_number)::int AS held
+      FROM library_item AS ep
+      JOIN library_item AS show
+        ON show.rating_key = ep.grandparent_rating_key
+     WHERE ep.kind = 'episode'
+       AND show.tmdb_id = ${providerId}::text
+       AND ep.season_number IS NOT NULL
+       AND ep.episode_number IS NOT NULL
+     GROUP BY ep.season_number
+  `);
+  return new Map(rows.map((row) => [row.season_number, Number(row.held)]));
+}
+
 /** The episodes of one season, as the server holds them. */
 export async function episodesOnServer(
   providerId: string,
@@ -349,6 +373,21 @@ export async function episodesOnServer(
 }
 
 /**
+ * A genuine Postgres array, written out rather than passed as one.
+ *
+ * A JavaScript array dropped into a template is expanded into a parenthesised
+ * list of parameters, which Postgres reads as a record: `&& ($1, $2)::int[]`
+ * fails at the cast, and the whole request comes back a 500. Spelling out
+ * `ARRAY[...]` keeps the values parameterised and the type right.
+ */
+export function intArray(values: number[]) {
+  return sql`ARRAY[${sql.join(
+    values.map((value) => sql`${value}`),
+    sql`, `,
+  )}]::int[]`;
+}
+
+/**
  * Random picks on the server that match at least one of these genres.
  *
  * The overlap operator reads the array the enrichment pass filled in, so the
@@ -369,7 +408,7 @@ export async function randomAvailableByGenres(
       and(
         eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
         isNotNull(libraryItems.posterPath),
-        sql`${libraryItems.genreIds} && ${genreIds}::int[]`,
+        sql`${libraryItems.genreIds} && ${intArray(genreIds)}`,
       ),
     )
     .orderBy(sql`random()`)

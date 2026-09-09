@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Poster } from "@/components/poster";
+import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
 import { getTranslator } from "@/lib/i18n/server";
@@ -69,6 +70,12 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
           />
         </div>
       </div>
+
+      {/* A series is never one thing you either have or do not: the answer is
+          per season, and then per episode. */}
+      {detail.kind === "tv" ? (
+        <SeasonList providerId={detail.providerId} seasons={detail.seasons} />
+      ) : null}
     </article>
   );
 }

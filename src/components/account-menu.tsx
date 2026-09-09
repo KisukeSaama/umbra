@@ -181,10 +181,10 @@ export function AccountMenu({
 
         <DropdownMenuSeparator />
         {/* The one switch about data rather than appearance, so it says what it
-            keeps and states plainly that nothing else is kept. */}
-        <DropdownMenuGroupLabel>
-          {t("account.personalisation")}
-        </DropdownMenuGroupLabel>
+            keeps and states plainly that nothing else is kept. It stands on its
+            own rather than in a group, so it takes the plain label: the group
+            variant reads a context that is not there and throws. */}
+        <DropdownMenuLabel>{t("account.personalisation")}</DropdownMenuLabel>
         <div className="flex items-start gap-3 px-2 py-1.5">
           <Switch
             id="personalisation"

@@ -1,3 +1,5 @@
+import { EmptyNote } from "@/components/empty-note";
+import { SeriesIcon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { UpcomingEpisode } from "@/lib/domain/series";
@@ -24,9 +26,7 @@ export async function UpcomingEpisodes({
       </CardHeader>
       <CardContent>
         {episodes.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("week.noEpisodes")}
-          </p>
+          <EmptyNote icon={SeriesIcon}>{t("week.noEpisodes")}</EmptyNote>
         ) : (
           <ul className="divide-border/60 -my-2 divide-y">
             {episodes.map((episode) => (
