@@ -18,7 +18,7 @@ export async function UpcomingEpisodes({
   const { t, locale } = await getI18n();
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader>
         <CardTitle>{t("section.comingThisWeek")}</CardTitle>
       </CardHeader>

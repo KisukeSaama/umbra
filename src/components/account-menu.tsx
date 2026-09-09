@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroupLabel,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -75,13 +76,13 @@ export function AccountMenu({
         </DropdownMenuLabel>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>{t("nav.theme")}</DropdownMenuLabel>
         {/* Picking a look keeps the menu open: the change is visible behind it,
             and a second pick is one click away rather than three. */}
         <DropdownMenuRadioGroup
           value={theme ?? "system"}
           onValueChange={(value) => setTheme(String(value))}
         >
+          <DropdownMenuGroupLabel>{t("nav.theme")}</DropdownMenuGroupLabel>
           {themes.map((option) => (
             <DropdownMenuRadioItem
               key={option.value}

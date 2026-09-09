@@ -60,10 +60,15 @@ export default async function HomePage() {
         <WeekStats stats={stats} />
         <RecentlyAdded items={recent} />
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <UpcomingEpisodes episodes={upcoming} />
-          <PollCard poll={poll} />
-          <div className="space-y-6">
+        {/* Two rows of like with like: the two lists that can run long, then
+            the three glances. Nothing is stretched to a neighbour's height, so
+            an empty list stays a short card rather than a tall blank one. */}
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <UpcomingEpisodes episodes={upcoming} />
+            <PollCard poll={poll} />
+          </div>
+          <div className="grid gap-6 md:grid-cols-3 md:items-start">
             <AnnouncementCard announcement={announcement} />
             <StorageCard storage={storage} />
             <FundingCard goal={goal} />

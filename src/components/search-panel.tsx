@@ -106,7 +106,7 @@ export function SearchPanel({ initialQuery = "" }: { initialQuery?: string }) {
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t("home.searchPlaceholder")}
           aria-label={t("common.search")}
-          className="h-12 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0"
+          className="h-12 rounded-none border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
         {loading ? <SpinnerIcon className="text-muted-foreground" /> : null}
       </div>

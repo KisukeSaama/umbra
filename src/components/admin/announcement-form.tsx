@@ -72,6 +72,12 @@ export function AnnouncementForm() {
 
   const ready = title.trim().length > 1 && content.trim().length > 1;
 
+  // Base UI prints the raw value in the trigger unless it is told the labels.
+  const categories = ANNOUNCEMENT_CATEGORIES.map((value) => ({
+    value,
+    label: t(`news.category.${value}` as TranslationKey),
+  }));
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (ready && !busy) void submit(true);
@@ -98,6 +104,7 @@ export function AnnouncementForm() {
                 {t("admin.announcements.category")}
               </Label>
               <Select
+                items={categories}
                 value={category}
                 onValueChange={(value) =>
                   setCategory(value as AnnouncementCategory)
@@ -107,9 +114,9 @@ export function AnnouncementForm() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ANNOUNCEMENT_CATEGORIES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {t(`news.category.${value}` as TranslationKey)}
+                  {categories.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

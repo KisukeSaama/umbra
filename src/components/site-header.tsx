@@ -34,9 +34,12 @@ export async function SiteHeader() {
       </div>
 
       {/* On a phone the nav sits under the brand rather than being folded into a
-          burger: four items fit, and one tap is better than two. */}
-      <div className="umbra-container flex justify-center pb-3 md:hidden">
-        <MainNav isAdmin={isAdmin} />
+          burger: one tap is better than two. It scrolls sideways when the
+          administrator's fifth entry does not fit, rather than being clipped. */}
+      <div className="umbra-container flex overflow-x-auto pb-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+        <div className="mx-auto shrink-0">
+          <MainNav isAdmin={isAdmin} />
+        </div>
       </div>
     </header>
   );

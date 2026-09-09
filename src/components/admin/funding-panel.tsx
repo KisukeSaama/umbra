@@ -114,7 +114,7 @@ export function FundingPanel({ goal }: { goal: FundingView | null }) {
         </div>
 
         <form
-          className="grid gap-2 sm:grid-cols-[8rem_1fr_auto] sm:items-end"
+          className="grid gap-2 sm:grid-cols-[9rem_1fr_auto] sm:items-end"
           onSubmit={(event) => {
             event.preventDefault();
             void adjust(customAmount);

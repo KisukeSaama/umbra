@@ -21,7 +21,7 @@ export async function AnnouncementCard({
   const t = await getTranslator();
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader>
         <CardTitle>{t("section.announcement")}</CardTitle>
         {announcement ? (

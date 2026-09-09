@@ -35,7 +35,7 @@ export async function StorageCard({
           {t("section.storage")}
         </CardTitle>
         {storage ? (
-          <CardAction className="text-sm font-medium tabular-nums">
+          <CardAction className="self-center text-sm font-medium tabular-nums">
             {t("storage.used", { percent: `${percent}%` })}
           </CardAction>
         ) : null}

@@ -15,7 +15,7 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
     <section>
       <SectionHeading title={t("section.recentlyAdded")} />
       {/* A rail on small screens, a grid once there is room: the same cards either way. */}
-      <ul className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 lg:grid-cols-6">
+      <ul className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 scroll-pl-4 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 lg:grid-cols-6 [&::-webkit-scrollbar]:hidden">
         {items.map((item) => (
           <li
             key={item.ratingKey}

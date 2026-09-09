@@ -1,7 +1,8 @@
 # Development stack.
 #
-#   docker compose up            the whole thing, on http://localhost:3000
-#   docker compose up postgres   the database only, to run `npm run dev` on the host
+#   docker compose up                    the whole thing, on http://localhost:3000
+#   docker compose up postgres           the database only, to run `npm run dev` on the host
+#   docker compose --profile worker up   adds the sync worker, off by default
 #
 # The deployed stack is a different file: deploy/compose.yml.
 services:
@@ -9,7 +10,6 @@ services:
     build:
       context: .
       target: dev
-    command: npm run dev
     environment:
       DATABASE_URL: postgres://umbra:umbra@postgres:5432/umbra
       # Everything else comes from .env.local, which Next reads itself.
@@ -26,9 +26,41 @@ services:
       # be shared with a build made on the host.
       - /app/node_modules
       - /app/.next
+      # No media is mounted by default: the path differs on every machine and a
+      # missing one would stop the stack from starting. To exercise the storage
+      # gauge, mount a folder read-only here and point STORAGE_PATHS at the
+      # container side of it in .env.local:
+      #   - /your/local/folder:/mnt/plex:ro   plus STORAGE_PATHS=Media:/mnt/plex
     depends_on:
       postgres:
         condition: service_healthy
+
+  # Calls the sync endpoint on a loop, exactly as the deployed worker does.
+  # Behind a profile: most sessions do not want a background job running, and it
+  # needs a CRON_SECRET of at least 16 characters in .env.local.
+  worker:
+    profiles:
+      - worker
+    build:
+      context: .
+      target: dev
+    command: ["node", "scripts/sync-worker.mjs"]
+    environment:
+      NODE_ENV: development
+      TZ: Europe/Paris
+      UMBRA_INTERNAL_URL: http://app:3000
+      # Short by design: waiting 45 seconds for the first run is a production
+      # concern, not a development one.
+      SYNC_STARTUP_DELAY_SECONDS: "10"
+    env_file:
+      - path: .env.local
+        required: false
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - app
 
   postgres:
     image: postgres:18-alpine

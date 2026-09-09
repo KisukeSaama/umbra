@@ -5,7 +5,7 @@
 #
 # Available here:
 #   ${APP_SLUG} ${APP_SUBDOMAIN} ${DEPLOY_DIR} ${DATA_DIR} ${TRAEFIK_NETWORK}
-#   ${POSTGRES_IMAGE}                                                          (paths.env)
+#   ${POSTGRES_IMAGE} ${MEDIA_ROOT}                                            (paths.env)
 #   ${DEPLOY_ENV} ${APP_HOST} ${CI_REGISTRY_IMAGE} ${IMAGE_TAG} + Umbra's keys   (app.env)
 
 x-logging: &logging
@@ -38,7 +38,7 @@ services:
     logging: *logging
     environment:
       <<: *umbra-env
-      PUBLIC_SITE_URL: https://${APP_HOST}
+      APP_URL: https://${APP_HOST}
     networks:
       - application
       - egress
@@ -48,8 +48,10 @@ services:
         condition: service_healthy
     volumes:
       # Read-only, and only so the storage gauge has something to measure.
-      # Mounted by absolute path: bulk data does not live under DATA_DIR.
-      - /mnt/plex:/mnt/plex:ro
+      # Mounted by absolute path: bulk data does not live under DATA_DIR. The
+      # path comes from paths.env, which is also where STORAGE_PATHS takes its
+      # default, so the mount and what the gauge measures cannot drift apart.
+      - ${MEDIA_ROOT}:${MEDIA_ROOT}:ro
     # expose, never ports: Traefik reaches this over the docker network.
     expose:
       - "3000"

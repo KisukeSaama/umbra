@@ -76,6 +76,10 @@ npm run db:migrate           # applies drizzle/*.sql
 npm run dev                  # http://localhost:3000
 ```
 
+The scheduled sync is behind a Compose profile, since most sessions have no use
+for a background job: `docker compose --profile worker up` adds it, and it needs
+a `CRON_SECRET` of at least 16 characters in `.env.local`.
+
 Sign in with `DEV_LOGIN=true` from the sign-in page: it creates an approved
 administrator without calling plex.tv. Real sign-in needs `plex.tv` registered
 in Janus first, see [docs/deployment.md](docs/deployment.md).

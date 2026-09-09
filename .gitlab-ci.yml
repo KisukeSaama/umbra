@@ -120,7 +120,7 @@ variables:
           "JANUS_PLEX_TV_SLUG=${UMBRA_JANUS_PLEX_TV_SLUG:-plex-tv}" \
           "ADMIN_PLEX_ACCOUNT_ID=${UMBRA_ADMIN_PLEX_ACCOUNT_ID:-}" \
           "AUTO_APPROVE_MEMBERS=${UMBRA_AUTO_APPROVE_MEMBERS:-false}" \
-          "STORAGE_PATHS=${UMBRA_STORAGE_PATHS:-Media:/mnt/plex}" \
+          "STORAGE_PATHS=${UMBRA_STORAGE_PATHS:-Media:${MEDIA_ROOT}}" \
           "CRON_SECRET=${UMBRA_CRON_SECRET}" \
           "SYNC_INTERVAL_MINUTES=${UMBRA_SYNC_INTERVAL_MINUTES:-30}" \
           > "${target}/app.env")

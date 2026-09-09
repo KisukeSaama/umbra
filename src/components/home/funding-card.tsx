@@ -33,7 +33,7 @@ export async function FundingCard({ goal }: { goal: FundingView | null }) {
           </span>
           <span className="truncate">{goal.title}</span>
         </CardTitle>
-        <CardAction className="text-sm font-medium tabular-nums">
+        <CardAction className="self-center text-sm font-medium tabular-nums">
           {reached
             ? t("funding.reached")
             : t("funding.progress", { percent: `${percent}%` })}

@@ -34,7 +34,7 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
 
   if (!poll) {
     return (
-      <Card className="h-full">
+      <Card>
         <CardHeader>
           <CardTitle>{t("section.poll")}</CardTitle>
         </CardHeader>
@@ -75,7 +75,7 @@ export function PollCard({ poll: initialPoll }: { poll: PollView | null }) {
   }
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader>
         <CardTitle>{t("section.poll")}</CardTitle>
         {timeLeft ? (
