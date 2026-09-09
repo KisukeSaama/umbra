@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { announcements, episodeTasks, jobRuns } from "@/lib/db/schema";
 import { pendingAccountCount } from "@/lib/domain/accounts";
 import { countOpenReports } from "@/lib/domain/reports";
-import { countRequestsByStatus } from "@/lib/domain/requests";
+import { countLiveRequests } from "@/lib/domain/requests";
 
 /**
  * What the workspace shows on its own navigation.
@@ -18,6 +18,7 @@ import { countRequestsByStatus } from "@/lib/domain/requests";
  */
 
 export type AdminCounts = {
+  /** Requests still on the desk, taken in hand ones included. */
   requests: number;
   reports: number;
   episodes: number;
@@ -30,7 +31,7 @@ export type AdminCounts = {
 export async function adminCounts(isAdmin: boolean): Promise<AdminCounts> {
   const [requests, reports, episodes, drafts, accounts, failingJobs] =
     await Promise.all([
-      countRequestsByStatus(),
+      countLiveRequests(),
       countOpenReports(),
       openEpisodeTaskCount(),
       draftAnnouncementCount(),
@@ -41,7 +42,7 @@ export async function adminCounts(isAdmin: boolean): Promise<AdminCounts> {
     ]);
 
   return {
-    requests: requests.requested,
+    requests,
     reports,
     episodes,
     drafts,
