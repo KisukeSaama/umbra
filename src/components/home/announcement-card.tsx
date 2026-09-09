@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { AnnouncementView } from "@/lib/domain/announcements";
+import { plainText } from "@/lib/markdown";
 import type { TranslationKey } from "@/lib/i18n";
 import { getTranslator } from "@/lib/i18n/server";
 
@@ -46,8 +47,11 @@ export async function AnnouncementCard({
                 {t(`news.category.${announcement.category}` as TranslationKey)}
               </p>
               <p className="font-medium">{announcement.title}</p>
-              <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-line">
-                {announcement.content}
+              {/* A teaser is a sentence that stops, so the marks come off
+                  here rather than being clamped mid-block. The note is read in
+                  full on the feed. */}
+              <p className="text-muted-foreground line-clamp-4 text-sm">
+                {plainText(announcement.content)}
               </p>
               {/* A note whose whole point is an address elsewhere carries it
                   here too, so the home page is not a teaser for one click. */}

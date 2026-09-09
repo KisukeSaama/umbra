@@ -26,8 +26,6 @@ export type CurrentAccount = {
   username: string;
   role: AccountRole;
   status: AccountStatus;
-  /** Whether suggestions may be shaped by an aggregated taste profile. */
-  personalisationEnabled: boolean;
 };
 
 /**
@@ -89,7 +87,6 @@ export const currentAccount = cache(
         username: accounts.username,
         role: accounts.role,
         status: accounts.status,
-        personalisationEnabled: accounts.personalisationEnabled,
       })
       .from(sessions)
       .innerJoin(accounts, eq(accounts.id, sessions.accountId))
@@ -209,7 +206,6 @@ export async function upsertAccountFromPlex(
     username: accounts.username,
     role: accounts.role,
     status: accounts.status,
-    personalisationEnabled: accounts.personalisationEnabled,
   };
 
   if (existing) {

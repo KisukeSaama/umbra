@@ -269,3 +269,19 @@ whose browser speaks a language they do not.
 Wording lives in `src/lib/i18n/dictionaries.ts`, where `fr` is typed against `en`,
 so a missing translation is a compile error rather than a blank label. Visual
 rules are in [DESIGN.md](DESIGN.md).
+
+## The body of an announcement
+
+An announcement body is markdown, and only the body: the title, the button
+wording and a poll question stay plain text, because they are labels rather than
+prose. `src/lib/markdown.ts` parses a closed subset (headings, lists, quotes,
+code, rules, bold, italic, links) into typed nodes, and `src/components/markdown.tsx`
+turns those nodes into elements. No HTML string exists anywhere along that path,
+so nothing that is typed into the composer can become markup, and an address that
+is not `http`, `https`, `mailto` or a path inside Umbra is printed rather than
+linked.
+
+The admin composer previews with that same component, so what is checked before
+publishing is what the feed will set. Where a body is shown as a teaser, on the
+home card and in the admin register, `plainText()` takes the marks off: a clamped
+run of text stops mid-sentence, whereas clamped blocks stop mid-box.

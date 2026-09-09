@@ -23,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import { useTranslator } from "@/lib/i18n/client";
 
@@ -35,14 +34,11 @@ export function AccountMenu({
   username,
   role,
   localeOverride,
-  personalisationEnabled,
 }: {
   username: string;
   role: "member" | "assistant" | "admin";
   /** The language picked by hand, or `null` while the browser decides. */
   localeOverride: Locale | null;
-  /** Whether suggestions may be shaped by an aggregated taste profile. */
-  personalisationEnabled: boolean;
 }) {
   const t = useTranslator();
   const router = useRouter();
@@ -51,7 +47,6 @@ export function AccountMenu({
   const [language, setLanguage] = useState<Locale | "auto">(
     localeOverride ?? "auto",
   );
-  const [personalised, setPersonalised] = useState(personalisationEnabled);
   const [, startRefresh] = useTransition();
 
   const themes = [
@@ -84,28 +79,6 @@ export function AccountMenu({
       });
       if (!response.ok) {
         setLanguage(previous);
-        return;
-      }
-      router.refresh();
-    });
-  }
-
-  /**
-   * Turning this off deletes the profile server side, so the switch is a real
-   * decision about data rather than a display preference. The optimistic flip
-   * is reverted if the call fails.
-   */
-  function choosePersonalisation(next: boolean) {
-    const previous = personalised;
-    setPersonalised(next);
-    startRefresh(async () => {
-      const response = await fetch("/api/account/personalisation", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enabled: next }),
-      });
-      if (!response.ok) {
-        setPersonalised(previous);
         return;
       }
       router.refresh();
@@ -178,26 +151,6 @@ export function AccountMenu({
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
-
-        <DropdownMenuSeparator />
-        {/* The one switch about data rather than appearance, so it says what it
-            keeps and states plainly that nothing else is kept. It stands on its
-            own rather than in a group, so it takes the plain label: the group
-            variant reads a context that is not there and throws. */}
-        <DropdownMenuLabel>{t("account.personalisation")}</DropdownMenuLabel>
-        <div className="flex items-start gap-3 px-2 py-1.5">
-          <Switch
-            id="personalisation"
-            checked={personalised}
-            onCheckedChange={(checked) => choosePersonalisation(checked)}
-          />
-          <label
-            htmlFor="personalisation"
-            className="text-muted-foreground text-xs leading-snug"
-          >
-            {t("account.personalisationHint")}
-          </label>
-        </div>
 
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={signingOut} onClick={() => void signOut()}>

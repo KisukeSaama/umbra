@@ -14,6 +14,7 @@ import {
   WrenchIcon,
   type IconProps,
 } from "@/components/icons";
+import { Markdown } from "@/components/markdown";
 import { Pagination } from "@/components/pagination";
 import { PollCard } from "@/components/poll-card";
 import { Button } from "@/components/ui/button";
@@ -120,9 +121,10 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
                     {announcement.title}
                   </h2>
 
-                  <p className="max-w-prose text-sm leading-relaxed whitespace-pre-line">
-                    {announcement.content}
-                  </p>
+                  <Markdown
+                    content={announcement.content}
+                    className="max-w-prose"
+                  />
 
                   {announcement.link ? (
                     <Button

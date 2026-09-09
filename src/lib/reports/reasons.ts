@@ -58,6 +58,66 @@ export function reasonsFor(target: ReportTarget): readonly ReportReason[] {
   return REASONS_BY_TARGET[target];
 }
 
+/**
+ * The reasons that ask for content rather than point at a fault.
+ *
+ * A report row is the shape every one of these takes, because the
+ * administration works one queue. But the member who pressed "ask for this
+ * season" did not report anything: they asked for something that is not there
+ * yet, and the follow-up page has to say so, or the gesture comes back under a
+ * heading nobody recognises. So the nature of the gesture is read from its
+ * reason, here, and the page sorts its two lists by it.
+ *
+ * The same three reasons are the ones a sync can settle on its own, which is no
+ * coincidence: what a sync can settle is precisely what was missing rather than
+ * wrong. They stay two lists because they answer two different questions.
+ *
+ * Everything not in here is a fault: the thing is on the server and something
+ * about it is wrong.
+ */
+export const ASK_REASONS = [
+  "missing_season",
+  "missing_episode",
+  "series_outdated",
+] as const satisfies readonly ReportReason[];
+
+export function isAsk(reason: ReportReason): boolean {
+  return (ASK_REASONS as readonly ReportReason[]).includes(reason);
+}
+
+/**
+ * The asks the administration has answered, waiting on the next scan.
+ *
+ * Presence is read from the index the sync fills, so between "it is done" and
+ * the next pass a series still reads as short. This is what the administration
+ * said in the meantime: the whole series is up to date, or these seasons are.
+ * A list rather than a set, because it travels from the page to the panel as a
+ * property.
+ */
+export type SettledAsks = {
+  /** The series as a whole was declared up to date. */
+  series: boolean;
+  /** Seasons declared whole, by number. */
+  seasons: readonly number[];
+};
+
+export const NOTHING_SETTLED: SettledAsks = { series: false, seasons: [] };
+
+/**
+ * Is this place covered by what the administration has just answered?
+ *
+ * A claim on the series covers every season under it: saying the show is up to
+ * date and then offering to ask for one of its seasons would be the same
+ * contradiction the badge exists to avoid.
+ */
+export function isSettled(
+  settled: SettledAsks,
+  seasonNumber: number | null,
+): boolean {
+  if (settled.series) return true;
+  return seasonNumber !== null && settled.seasons.includes(seasonNumber);
+}
+
 /** Which of the four shapes a report is, from what the member selected. */
 export function targetOf(
   kind: MediaKind,

@@ -20,9 +20,6 @@ import { plexLibrary } from "@/lib/providers/plex";
  * media server, turns it into genre counts, and replaces the rows. No title is
  * written down, no date, no history: run it a month later and the earlier month
  * is simply gone. See `docs/adr/0007-aggregated-taste-profile.md`.
- *
- * A member can turn it off in the account menu, and turning it off deletes what
- * is there.
  */
 
 /** How far back a profile looks. Anything older stops counting on its own. */
@@ -125,12 +122,7 @@ export async function accountsForTaste(): Promise<
   return db()
     .select({ id: accounts.id, plexAccountId: accounts.plexAccountId })
     .from(accounts)
-    .where(
-      and(
-        eq(accounts.status, "approved"),
-        eq(accounts.personalisationEnabled, true),
-      ),
-    );
+    .where(eq(accounts.status, "approved"));
 }
 
 /**
@@ -158,22 +150,6 @@ export const topGenres = cache(async function topGenres(
   return rows.map((row) => row.genreId);
 });
 
-/** Turning personalisation off deletes the profile, it does not just hide it. */
-export async function setPersonalisation(
-  accountId: string,
-  enabled: boolean,
-): Promise<void> {
-  await db()
-    .update(accounts)
-    .set({ personalisationEnabled: enabled })
-    .where(eq(accounts.id, accountId));
-  if (!enabled) {
-    await db()
-      .delete(tasteProfiles)
-      .where(eq(tasteProfiles.accountId, accountId));
-  }
-}
-
 /** Whether an account has enough of a profile for a shelf to be worth showing. */
 export async function hasTasteProfile(accountId: string): Promise<boolean> {
   const [row] = await db()
@@ -195,18 +171,13 @@ export const FOLLOWED_HISTORY_LIMIT = 120;
  * The shows a member is currently watching, as server keys.
  *
  * Same contract as the profile above, and for the same reason: the history is
- * read live, lives for the length of one render, and is never written down. It
- * obeys the same switch, so turning personalisation off also stops the week
- * from being read through what somebody watched.
+ * read live, lives for the length of one render, and is never written down.
  *
  * A server that does not answer costs the personalisation, not the page.
  */
 export const followedSeriesKeys = cache(async function followedSeriesKeys(
   accountId: string,
-  personalisationEnabled: boolean,
 ): Promise<string[]> {
-  if (!personalisationEnabled) return [];
-
   const [account] = await db()
     .select({ plexAccountId: accounts.plexAccountId })
     .from(accounts)

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { CloseIcon, PlusIcon } from "@/components/icons";
+import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ANNOUNCEMENT_CATEGORIES,
@@ -45,6 +47,8 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 8;
 
+type Pane = "write" | "preview";
+
 export function AnnouncementForm() {
   const t = useTranslator();
   const locale = useLocale();
@@ -53,6 +57,7 @@ export function AnnouncementForm() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState<AnnouncementCategory>("information");
+  const [pane, setPane] = useState<Pane>("write");
 
   const [withLink, setWithLink] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
@@ -83,6 +88,7 @@ export function AnnouncementForm() {
   function reset() {
     setTitle("");
     setContent("");
+    setPane("write");
     setWithLink(false);
     setLinkUrl("");
     setLinkLabel("");
@@ -182,16 +188,52 @@ export function AnnouncementForm() {
             </div>
           </div>
 
+          {/* The body is markdown, so it is written and read in the same
+              place: the preview is the very component the feed uses, which
+              means what is checked here is what is published, not an
+              approximation of it. */}
           <div className="space-y-1.5">
             <Label htmlFor="announcement-content">
               {t("admin.announcements.content")}
             </Label>
-            <Textarea
-              id="announcement-content"
-              rows={5}
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-            />
+            <Tabs
+              value={pane}
+              onValueChange={(value) => setPane(value as Pane)}
+            >
+              <TabsList variant="line" className="self-start">
+                <TabsTrigger value="write">
+                  {t("admin.announcements.write")}
+                </TabsTrigger>
+                <TabsTrigger value="preview">
+                  {t("admin.announcements.preview")}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="write">
+                <Textarea
+                  id="announcement-content"
+                  rows={8}
+                  className="font-mono"
+                  value={content}
+                  onChange={(event) => setContent(event.target.value)}
+                />
+              </TabsContent>
+
+              <TabsContent value="preview">
+                <div className="border-input min-h-44 rounded-md border px-3 py-2">
+                  {content.trim() ? (
+                    <Markdown content={content} className="max-w-prose" />
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      {t("admin.announcements.preview.empty")}
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+            <p className="text-muted-foreground text-xs">
+              {t("admin.announcements.markdown")}
+            </p>
           </div>
 
           <Block

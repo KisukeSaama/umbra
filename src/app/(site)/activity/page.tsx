@@ -9,12 +9,23 @@ import { requireMemberPage } from "@/lib/auth/session";
 import {
   countReportsFollowedBy,
   listReportsFollowedBy,
+  type ReportRow,
 } from "@/lib/domain/reports";
-import { countRequestsBy, listRequestsBy } from "@/lib/domain/requests";
+import {
+  countRequestsBy,
+  listRequestsBy,
+  type RequestRow,
+} from "@/lib/domain/requests";
 import { formatDate } from "@/lib/format";
-import type { TranslationKey } from "@/lib/i18n";
+import type { Locale, TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
-import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
+import {
+  mergePage,
+  mergeWindow,
+  paginate,
+  parsePage,
+  toSearchParams,
+} from "@/lib/pagination";
 import { isLive } from "@/lib/reports/reasons";
 
 export const metadata: Metadata = { title: "Follow-up" };
@@ -24,6 +35,9 @@ export const metadata: Metadata = { title: "Follow-up" };
  * back through old requests does not scroll the reports away underneath.
  */
 const PER_PAGE = 10;
+
+/** Where an ask has got to, in the words a request uses for the same steps. */
+const ASK_STEPS = ["open", "acknowledged", "in_progress", "resolved"] as const;
 
 /**
  * Where a request stops disappearing.
@@ -36,6 +50,14 @@ const PER_PAGE = 10;
  * end of that: what you asked for and what you reported, on one screen. The
  * notifications stay in the bell, which is where they are already read: a
  * second copy of the same feed here only made the page longer.
+ *
+ * "What you asked for" is one list of two shapes. A missing title is a request
+ * row, a missing season is a report row, because the administration works one
+ * report queue; but the member pressed "ask for this season" and nothing about
+ * that gesture was a report, so listing it under "my reports" answered a
+ * question nobody had asked. Both are read separately and interleaved by date,
+ * and the reports section keeps what is actually a fault: something is here and
+ * something about it is wrong.
  *
  * It is also where a gesture can be taken back, as long as nobody has acted on
  * it. What "nobody has acted on it" means is decided by the domain; the page
@@ -57,13 +79,14 @@ export default async function ActivityPage({
   const { t, locale } = await getI18n();
 
   const params = toSearchParams(await searchParams);
-  const [requestCount, reportCount] = await Promise.all([
+  const [requestCount, askCount, reportCount] = await Promise.all([
     countRequestsBy(account.id),
-    countReportsFollowedBy(account.id),
+    countReportsFollowedBy(account.id, "ask"),
+    countReportsFollowedBy(account.id, "fault"),
   ]);
 
   const requestPage = paginate(
-    requestCount,
+    requestCount + askCount,
     parsePage(params.get("requests")),
     PER_PAGE,
   );
@@ -73,16 +96,26 @@ export default async function ActivityPage({
     PER_PAGE,
   );
 
-  const [requests, reports] = await Promise.all([
-    listRequestsBy(account.id, {
-      limit: requestPage.perPage,
-      offset: requestPage.offset,
-    }),
+  const asked = mergeWindow(requestPage);
+  const [requests, asks, reports] = await Promise.all([
+    listRequestsBy(account.id, asked),
+    listReportsFollowedBy(account.id, { ...asked, nature: "ask" }),
     listReportsFollowedBy(account.id, {
       limit: reportPage.perPage,
       offset: reportPage.offset,
+      nature: "fault",
     }),
   ]);
+
+  const entries = mergePage<Entry>(
+    requestPage,
+    [
+      requests.map((request) => ({ kind: "request" as const, request })),
+      asks.map((ask) => ({ kind: "ask" as const, ask })),
+    ],
+    (entry) =>
+      entry.kind === "request" ? entry.request.createdAt : entry.ask.createdAt,
+  );
 
   return (
     <div className="umbra-container max-w-6xl space-y-12 py-10">
@@ -97,64 +130,23 @@ export default async function ActivityPage({
         <h2 className="mb-4 text-lg font-semibold tracking-tight">
           {t("section.myRequests")}
         </h2>
-        {requests.length === 0 ? (
+        {entries.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {t("activity.noRequests")} {t("activity.noRequestsHint")}
           </p>
         ) : (
           <ul className="space-y-3">
-            {requests.map((request) => (
-              <li
-                key={request.id}
-                id={request.id}
-                className="border-border/60 bg-card/40 flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] gap-4 rounded-xl border p-3 sm:p-4"
-              >
-                <div className="w-16 shrink-0 sm:w-20">
-                  <Poster
-                    src={request.media.posterUrl}
-                    alt={request.media.title}
-                    sizes="5rem"
-                  />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex flex-wrap items-baseline gap-x-2">
-                    <p className="font-medium">{request.media.title}</p>
-                    {request.media.year ? (
-                      <span className="text-muted-foreground text-sm">
-                        {request.media.year}
-                      </span>
-                    ) : null}
-                  </div>
-                  <Timeline
-                    status={request.status}
-                    steps={["requested", "accepted", "processing", "available"]}
-                    prefix="activity.timeline"
-                  />
-                  {request.adminNote ? (
-                    <p className="border-border/60 border-l-2 pl-3 text-sm">
-                      <span className="text-muted-foreground">
-                        {t("activity.note")}
-                      </span>{" "}
-                      {request.adminNote}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="text-muted-foreground text-xs">
-                      {t("activity.requestedOn", {
-                        date: formatDate(request.createdAt, locale),
-                      })}
-                    </p>
-                    {request.status === "requested" ? (
-                      <WithdrawButton
-                        endpoint={`/api/requests/${request.id}`}
-                        label="title.cancelRequest"
-                        done="status.requestCancelled"
-                      />
-                    ) : null}
-                  </div>
-                </div>
-              </li>
-            ))}
+            {entries.map((entry) =>
+              entry.kind === "request" ? (
+                <RequestEntry
+                  key={entry.request.id}
+                  request={entry.request}
+                  locale={locale}
+                />
+              ) : (
+                <AskEntry key={entry.ask.id} ask={entry.ask} locale={locale} />
+              ),
+            )}
           </ul>
         )}
 
@@ -244,5 +236,140 @@ export default async function ActivityPage({
         />
       </section>
     </div>
+  );
+}
+
+/** One line of "what you asked for", whichever table it came out of. */
+type Entry =
+  { kind: "request"; request: RequestRow } | { kind: "ask"; ask: ReportRow };
+
+/** A title that is not on the server, asked for as a whole. */
+async function RequestEntry({
+  request,
+  locale,
+}: {
+  request: RequestRow;
+  locale: Locale;
+}) {
+  const { t } = await getI18n();
+
+  return (
+    <EntryCard
+      id={request.id}
+      posterUrl={request.media.posterUrl}
+      title={request.media.title}
+      year={request.media.year}
+    >
+      <Timeline
+        status={request.status}
+        steps={["requested", "accepted", "processing", "available"]}
+        prefix="activity.timeline"
+      />
+      {request.adminNote ? <Note>{request.adminNote}</Note> : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="text-muted-foreground text-xs">
+          {t("activity.requestedOn", {
+            date: formatDate(request.createdAt, locale),
+          })}
+        </p>
+        {request.status === "requested" ? (
+          <WithdrawButton
+            endpoint={`/api/requests/${request.id}`}
+            label="title.cancelRequest"
+            done="status.requestCancelled"
+          />
+        ) : null}
+      </div>
+    </EntryCard>
+  );
+}
+
+/**
+ * A part of a title that is not on the server yet, asked for from the season it
+ * belongs to. A report row underneath, and never named as one here: the line
+ * says which season it is about, and follows the steps a request follows.
+ */
+async function AskEntry({ ask, locale }: { ask: ReportRow; locale: Locale }) {
+  const { t } = await getI18n();
+
+  return (
+    <EntryCard
+      id={ask.id}
+      posterUrl={ask.media.posterUrl}
+      title={ask.media.title}
+      year={ask.media.year}
+    >
+      <p className="text-muted-foreground text-sm">
+        {ask.seasonNumber !== null
+          ? `${t("report.season", { number: ask.seasonNumber })} · `
+          : ""}
+        {ask.episodeNumber !== null
+          ? `${t("report.episode", { number: ask.episodeNumber })} · `
+          : ""}
+        {t(`report.reason.${ask.reason}` as TranslationKey)}
+      </p>
+      <Timeline status={ask.status} steps={ASK_STEPS} prefix="ask.timeline" />
+      {ask.adminNote ? <Note>{ask.adminNote}</Note> : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="text-muted-foreground text-xs">
+          {t("activity.requestedOn", {
+            date: formatDate(ask.createdAt, locale),
+          })}
+        </p>
+        {isLive(ask.status) ? (
+          <WithdrawButton
+            endpoint={`/api/reports/${ask.id}`}
+            label="title.cancelRequest"
+            done="status.requestCancelled"
+          />
+        ) : null}
+      </div>
+    </EntryCard>
+  );
+}
+
+/** The one shape both kinds of ask take, so a mixed list reads as one list. */
+function EntryCard({
+  id,
+  posterUrl,
+  title,
+  year,
+  children,
+}: {
+  id: string;
+  posterUrl: string | null;
+  title: string;
+  year: number | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <li
+      id={id}
+      className="border-border/60 bg-card/40 flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] gap-4 rounded-xl border p-3 sm:p-4"
+    >
+      <div className="w-16 shrink-0 sm:w-20">
+        <Poster src={posterUrl} alt={title} sizes="5rem" />
+      </div>
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <p className="font-medium">{title}</p>
+          {year ? (
+            <span className="text-muted-foreground text-sm">{year}</span>
+          ) : null}
+        </div>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+/** A word from the administration, on a request or on an ask. */
+async function Note({ children }: { children: React.ReactNode }) {
+  const { t } = await getI18n();
+  return (
+    <p className="border-border/60 border-l-2 pl-3 text-sm">
+      <span className="text-muted-foreground">{t("activity.note")}</span>{" "}
+      {children}
+    </p>
   );
 }

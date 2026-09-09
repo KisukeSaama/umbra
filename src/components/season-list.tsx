@@ -20,7 +20,12 @@ import {
   isUnaired,
 } from "@/lib/domain/seasons";
 import { formatDate } from "@/lib/format";
-import { askKey } from "@/lib/reports/reasons";
+import {
+  askKey,
+  isSettled,
+  NOTHING_SETTLED,
+  type SettledAsks,
+} from "@/lib/reports/reasons";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -42,12 +47,20 @@ export function SeasonList({
   seasons,
   availability,
   openAsks = [],
+  settled = NOTHING_SETTLED,
 }: {
   providerId: string;
   seasons: SeasonState[];
   availability: Availability;
   /** Keys of the asks already open on this series, from `askKey`. */
   openAsks?: string[];
+  /**
+   * What the administration has answered since the last scan. The counts below
+   * come from the index, so they still show the gap it has just filled: a
+   * season it covers is drawn as whole and stops offering the ask, exactly as
+   * the search has stopped calling the series partial.
+   */
+  settled?: SettledAsks;
 }) {
   const t = useTranslator();
   const [open, setOpen] = useState<number | null>(null);
@@ -113,9 +126,11 @@ export function SeasonList({
           const first = index === 0;
           const last = index === seasons.length - 1;
           const listed = episodes[season.seasonNumber];
+          const complete =
+            isSeasonComplete(season) || isSettled(settled, season.seasonNumber);
           // A report is about something the server is supposed to hold, so the
           // ask only exists once the series itself is there.
-          const canAsk = isOnServer(availability) && !isSeasonComplete(season);
+          const canAsk = isOnServer(availability) && !complete;
           // Nothing of it here is a missing season; some of it here is missing
           // episodes. The reason decides the wording and the key alike.
           const askReason = isSeasonMissing(season)
@@ -162,7 +177,7 @@ export function SeasonList({
                   ) : null}
                 </span>
 
-                <SeasonBadge season={season} />
+                <SeasonBadge season={season} complete={complete} />
               </button>
 
               {expanded ? (
@@ -277,13 +292,20 @@ function EpisodeRow({ episode }: { episode: EpisodeState }) {
  * provider has not numbered yet falls back on the count alone rather than
  * claiming to be complete.
  */
-function SeasonBadge({ season }: { season: SeasonState }) {
+function SeasonBadge({
+  season,
+  complete,
+}: {
+  season: SeasonState;
+  /** Whole, whether the index says so or the administration has just said so. */
+  complete: boolean;
+}) {
   const t = useTranslator();
 
-  if (isSeasonMissing(season))
+  if (!complete && isSeasonMissing(season))
     return <Badge variant="outline">{t("season.notOnServer")}</Badge>;
 
-  if (isSeasonComplete(season))
+  if (complete)
     return (
       <Badge variant="secondary">
         <CheckIcon />

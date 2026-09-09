@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
 import { listAllAnnouncements } from "@/lib/domain/announcements";
 import { formatDate } from "@/lib/format";
+import { plainText } from "@/lib/markdown";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -77,8 +78,11 @@ export default async function AdminAnnouncementsPage() {
                       </div>
                     </div>
 
-                    <p className="text-muted-foreground line-clamp-3 text-sm whitespace-pre-line">
-                      {announcement.content}
+                    {/* The list is a register, not the feed: the body is
+                        summarised without its marks, and read as published on
+                        /news. */}
+                    <p className="text-muted-foreground line-clamp-3 text-sm">
+                      {plainText(announcement.content)}
                     </p>
 
                     {announcement.link ? (

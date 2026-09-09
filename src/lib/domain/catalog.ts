@@ -15,6 +15,7 @@ import {
 import { availabilityOf, type Availability } from "@/lib/domain/availability";
 import { episodeCountsBySeason, episodesOnServer } from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
+import { settledIndex } from "@/lib/domain/settled";
 import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 
@@ -57,10 +58,11 @@ export async function decorate(
   const providerIds = [
     ...new Set(summaries.map((summary) => summary.providerId)),
   ];
-  const [inLibrary, requested, tracked] = await Promise.all([
+  const [inLibrary, requested, tracked, settled] = await Promise.all([
     libraryIndex(providerIds),
     requestedIndex(providerIds),
     trackerGapIndex(providerIds),
+    settledIndex(providerIds),
   ]);
   const incomplete = await incompleteIndex(summaries, inLibrary, tracked);
 
@@ -72,7 +74,7 @@ export async function decorate(
     overview: summary.overview,
     year: yearOf(summary.releaseDate),
     posterUrl: posterUrl(summary.posterPath),
-    availability: stateOf(summary, inLibrary, requested, incomplete),
+    availability: stateOf(summary, inLibrary, requested, incomplete, settled),
   }));
 }
 
@@ -82,28 +84,37 @@ export async function availabilityFor(
   providerId: string,
 ): Promise<Availability> {
   const summary = { providerId, kind };
-  const [inLibrary, requested, tracked] = await Promise.all([
+  const [inLibrary, requested, tracked, settled] = await Promise.all([
     libraryIndex([providerId]),
     requestedIndex([providerId]),
     trackerGapIndex([providerId]),
+    settledIndex([providerId]),
   ]);
   const incomplete = await incompleteIndex([summary], inLibrary, tracked);
-  return stateOf(summary, inLibrary, requested, incomplete);
+  return stateOf(summary, inLibrary, requested, incomplete, settled);
 }
 
-/** The three indexes, read against one title. */
+/**
+ * The four indexes, read against one title.
+ *
+ * The last one is the only one that does not come from a scan: it carries what
+ * the administration answered since the last pass, and it can only ever take a
+ * shortfall away. A title nobody has asked about is decided exactly as before.
+ */
 function stateOf(
   summary: Pick<MediaSummary, "providerId" | "kind">,
   inLibrary: Set<string>,
   requested: Set<string>,
   incomplete: Set<string>,
+  settled: Set<string>,
 ): Availability {
+  const key = `${summary.kind}:${summary.providerId}`;
   return availabilityOf({
     inLibrary: inLibrary.has(
       `${libraryKindOf(summary.kind)}:${summary.providerId}`,
     ),
-    incomplete: incomplete.has(`${summary.kind}:${summary.providerId}`),
-    requested: requested.has(`${summary.kind}:${summary.providerId}`),
+    incomplete: incomplete.has(key) && !settled.has(key),
+    requested: requested.has(key),
   });
 }
 
@@ -212,7 +223,8 @@ async function incompleteIndex(
       summaries
         .filter(
           (summary) =>
-            summary.kind === "tv" && inLibrary.has(`show:${summary.providerId}`),
+            summary.kind === "tv" &&
+            inLibrary.has(`show:${summary.providerId}`),
         )
         .map((summary) => summary.providerId),
     ),

@@ -207,8 +207,8 @@ export type UpcomingEpisode = {
  *
  * The week is read through the member first: the shows they are actually on
  * come at the top, whatever else is due follows. Passing no key gives the plain
- * calendar, which is what the shared views and a member who turned
- * personalisation off get.
+ * calendar, which is what the shared views get, and a member whose history the
+ * server could not answer for.
  *
  * The list is never cut down to the followed shows alone. A week the server is
  * preparing for everybody is still news, and a member who watched nothing this
@@ -247,10 +247,7 @@ export async function upcomingEpisodes(
         sql`${episodes.airDate} >= CURRENT_DATE - INTERVAL '7 days'`,
       ),
     )
-    .orderBy(
-      ...(personalised ? [desc(followed)] : []),
-      asc(episodes.airDate),
-    )
+    .orderBy(...(personalised ? [desc(followed)] : []), asc(episodes.airDate))
     .limit(limit);
 }
 

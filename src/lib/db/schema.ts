@@ -62,13 +62,6 @@ export const accounts = pgTable(
     username: text("username").notNull(),
     role: text("role").$type<AccountRole>().notNull().default("member"),
     status: text("status").$type<AccountStatus>().notNull().default("pending"),
-    /**
-     * Opt out of the aggregated taste profile. Turning it off deletes the
-     * profile at once: see `docs/adr/0007-aggregated-taste-profile.md`.
-     */
-    personalisationEnabled: boolean("personalisation_enabled")
-      .notNull()
-      .default(true),
     createdAt,
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
