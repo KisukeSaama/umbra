@@ -230,8 +230,25 @@
    * The picture at the top of a title.
    *
    * Nothing is read over it, unlike the hero, so it is not washed flat: it
-   * stays a picture and only dissolves where it meets the surface below.
+   * stays a picture and only dissolves where it meets the surface around it.
+   *
+   * A banner is a rectangle in the middle of a much wider page, so squared off
+   * it reads as an image pasted on rather than as the weather of the title. The
+   * mask takes the four edges away: the sides and the top dissolve into the
+   * page, the foot is left to the gradient below, which has to reach the
+   * surface colour and not merely transparency because the poster sits over it.
    */
+  .umbra-banner {
+    -webkit-mask-image:
+      linear-gradient(to right, transparent, #000 18%, #000 82%, transparent),
+      linear-gradient(to bottom, transparent, #000 35%);
+    mask-image:
+      linear-gradient(to right, transparent, #000 18%, #000 82%, transparent),
+      linear-gradient(to bottom, transparent, #000 35%);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+
   .umbra-banner::after {
     content: "";
     position: absolute;

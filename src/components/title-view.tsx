@@ -10,10 +10,11 @@ import { getTranslator } from "@/lib/i18n/server";
  * One title, given the room to be looked at.
  *
  * The banner is the only picture in Umbra allowed to fill a width. Nothing is
- * read over it, so it is shown rather than washed out, and it dissolves only at
- * its foot into the surface carrying it. It bleeds through the container
- * padding without reaching for the top of the page, because the way back sits
- * above it.
+ * read over it, so it is shown rather than washed out, and it dissolves on
+ * every edge into the surface carrying it rather than being cut square. It
+ * bleeds through the container padding without reaching for the top of the
+ * page, because the way back sits above it, and the title rises into its foot
+ * instead of waiting under a band.
  */
 export async function TitleView({ detail }: { detail: TitleDetail }) {
   const t = await getTranslator();
@@ -31,7 +32,7 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
     <article className="space-y-6">
       {detail.backdropUrl ? (
         <div
-          className="umbra-banner relative -mx-4 -mb-2 h-36 overflow-hidden sm:-mx-6 sm:h-52"
+          className="umbra-banner relative -mx-4 -mb-6 h-44 overflow-hidden sm:-mx-6 sm:h-64 lg:-mx-10"
           aria-hidden
         >
           {/* Decoration, so it is a background rather than an image with a
