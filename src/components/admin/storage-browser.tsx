@@ -131,66 +131,73 @@ export function StorageBrowser({
   return (
     <div
       ref={container}
-      className="scroll-mt-28 lg:scroll-mt-20 grid items-start gap-4 lg:grid-cols-2 lg:gap-6"
+      className="scroll-mt-28 lg:scroll-mt-20 lg:grid lg:grid-cols-2 lg:gap-6"
     >
-      <div className="bg-card sticky top-28 z-20 space-y-2 pt-1 pb-3 lg:top-20 lg:order-2">
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
-          {crumbs.map((crumb, index) => {
-            const last = index === crumbs.length - 1;
-            return (
-              <span key={index} className="flex min-w-0 items-center gap-1">
-                {index > 0 ? (
-                  <ChevronRightIcon className="text-muted-foreground size-3 shrink-0" />
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => go(crumb.to)}
-                  disabled={last}
-                  className={cn(
-                    "focus-visible:ring-ring/50 max-w-[12rem] truncate rounded-md px-1 py-0.5 transition-colors outline-none focus-visible:ring-3",
-                    last
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {crumb.label}
-                </button>
+      {/* A pinned box only travels inside its containing block, so the map is
+          given one as tall as the list: below `lg` the column dissolves and
+          the map hangs directly under the browser, on a wide screen it is the
+          stretched half beside the list. Pinning the map to its own box would
+          be pinning it to nothing, and it would scroll away with the page. */}
+      <div className="contents lg:order-2 lg:block">
+        <div className="bg-card sticky top-28 z-20 mb-4 space-y-2 pt-1 pb-3 lg:top-20 lg:mb-0">
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
+            {crumbs.map((crumb, index) => {
+              const last = index === crumbs.length - 1;
+              return (
+                <span key={index} className="flex min-w-0 items-center gap-1">
+                  {index > 0 ? (
+                    <ChevronRightIcon className="text-muted-foreground size-3 shrink-0" />
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => go(crumb.to)}
+                    disabled={last}
+                    className={cn(
+                      "focus-visible:ring-ring/50 max-w-[12rem] truncate rounded-md px-1 py-0.5 transition-colors outline-none focus-visible:ring-3",
+                      last
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {crumb.label}
+                  </button>
+                </span>
+              );
+            })}
+            <span className="ml-auto flex items-center gap-2">
+              {volume !== null ? (
+                <EpisortLink
+                  target={{ volume, path }}
+                  title={t("admin.storage.openInEpisort.hint")}
+                />
+              ) : null}
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {measured
+                  ? formatBytes(measured.bytes, locale)
+                  : current
+                    ? `${formatBytes(current.usedBytes, locale)} / ${formatBytes(current.totalBytes, locale)}`
+                    : null}
               </span>
-            );
-          })}
-          <span className="ml-auto flex items-center gap-2">
-            {volume !== null ? (
-              <EpisortLink
-                target={{ volume, path }}
-                title={t("admin.storage.openInEpisort.hint")}
-              />
-            ) : null}
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {measured
-                ? formatBytes(measured.bytes, locale)
-                : current
-                  ? `${formatBytes(current.usedBytes, locale)} / ${formatBytes(current.totalBytes, locale)}`
-                  : null}
             </span>
-          </span>
+          </div>
+
+          <StorageTreemap
+            roots={roots}
+            volume={volume}
+            path={path}
+            onOpen={(name) =>
+              go(
+                volume === null
+                  ? { volume: name, path: [] }
+                  : { volume, path: [...path, name] },
+              )
+            }
+            hovered={hovered}
+            onHover={setHovered}
+          />
+
+          {note ? <div className="pt-1">{note}</div> : null}
         </div>
-
-        <StorageTreemap
-          roots={roots}
-          volume={volume}
-          path={path}
-          onOpen={(name) =>
-            go(
-              volume === null
-                ? { volume: name, path: [] }
-                : { volume, path: [...path, name] },
-            )
-          }
-          hovered={hovered}
-          onHover={setHovered}
-        />
-
-        {note ? <div className="pt-1">{note}</div> : null}
       </div>
 
       <div className="min-w-0 lg:order-1">
