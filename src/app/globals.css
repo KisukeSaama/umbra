@@ -125,6 +125,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    /*
+     * What a sticky heading has to clear, and what scrolling to an anchor has
+     * to leave above it: the site header, which floats over every page. A
+     * dialog scrolls inside itself with nothing above it, so it sets this back
+     * to zero for everything it contains.
+     */
+    --umbra-sticky-top: 4rem;
   }
   html {
     @apply font-sans;
@@ -180,17 +187,26 @@
       to bottom,
       color-mix(
         in oklab,
-        var(--umbra-banner-surface, var(--background)) 10%,
+        var(--umbra-surface, var(--background)) 10%,
         transparent
       ),
       color-mix(
           in oklab,
-          var(--umbra-banner-surface, var(--background)) 45%,
+          var(--umbra-surface, var(--background)) 45%,
           transparent
         )
         60%,
-      var(--umbra-banner-surface, var(--background))
+      var(--umbra-surface, var(--background))
     );
+  }
+
+  /*
+   * Whatever the content is sitting on: the page normally, the panel inside a
+   * dialog, which sets the variable for everything under it. Sticky headings
+   * need it, since anything scrolling beneath them must not show through.
+   */
+  .umbra-surface {
+    background-color: var(--umbra-surface, var(--background));
   }
 
   .umbra-hairline {

@@ -55,7 +55,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none [--umbra-banner-surface:var(--popover)] sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none [--umbra-sticky-top:0px] [--umbra-surface:var(--popover)] sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
         {...props}
@@ -63,10 +63,17 @@ function DialogContent({
         {/* The panel itself never scrolls: the content does, inside it. That is
             what keeps the close button reachable at the bottom of a long
             title, and what lets the rounded corners clip a full-width
-            backdrop. */}
+            backdrop.
+
+            One explicit column, because an implicit one is sized on the
+            content: a single line of clipped text is wider than the phone it
+            is read on before the ellipsis ever applies, and the whole panel
+            then drifts sideways under the finger. The column is capped at the
+            panel instead, and anything still wider is clipped rather than
+            turned into a second axis to scroll. */}
         <div
           data-slot="dialog-body"
-          className="grid min-h-0 gap-4 overflow-y-auto overscroll-contain p-4 sm:p-6"
+          className="grid min-h-0 grid-cols-1 gap-4 overflow-x-hidden overflow-y-auto overscroll-contain p-4 sm:p-6"
         >
           {children}
         </div>

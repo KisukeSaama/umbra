@@ -7,28 +7,34 @@ import { toast } from "sonner";
 import { CheckIcon, SpinnerIcon } from "@/components/icons";
 import { ReportFlow } from "@/components/report-flow";
 import { Button } from "@/components/ui/button";
+import { UpdateAsk } from "@/components/update-ask";
 import type { Availability } from "@/lib/domain/catalog";
 import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import type { MediaKind } from "@/lib/providers/metadata";
 
 /**
- * The two things a member can do about a title, and never both at once.
+ * What a member can do about a title, and never more than the state allows.
  *
- * A title that is here can be reported. A title that is not can be asked for.
- * Which one shows is decided by the state, so there is never a button that
- * would fail if pressed.
+ * A title that is not here can be asked for. A title that is here can be
+ * reported. A series that is here without being all there is the third case,
+ * and it used to fall through the first two: the page said "on the server" and
+ * offered nothing but a report three steps deep. It now says what it is and
+ * carries the ask for the rest next to it.
  */
 export function TitleActions({
   kind,
   providerId,
   title,
   availability,
+  incomplete = false,
 }: {
   kind: MediaKind;
   providerId: string;
   title: string;
   availability: Availability;
+  /** A series on the server whose seasons do not add up to what exists. */
+  incomplete?: boolean;
 }) {
   const t = useTranslator();
   const locale = useLocale();
@@ -100,16 +106,29 @@ export function TitleActions({
     }
   }
 
-  if (state === "available")
+  if (state === "available") {
+    const partial = kind === "tv" && incomplete;
     return (
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-primary flex items-center gap-1.5 text-sm">
           <CheckIcon />
-          {t("title.onServer")}
+          {t(partial ? "title.onServerPartly" : "title.onServer")}
         </span>
-        <ReportFlow variant="outline" preset={{ kind, providerId, title }} />
+        {partial ? (
+          <UpdateAsk
+            kind={kind}
+            providerId={providerId}
+            reason="series_outdated"
+            label="update.askSeries"
+          />
+        ) : null}
+        <ReportFlow
+          variant={partial ? "ghost" : "outline"}
+          preset={{ kind, providerId, title }}
+        />
       </div>
     );
+  }
 
   if (state === "requested")
     return (

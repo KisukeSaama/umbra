@@ -3,6 +3,7 @@ import { Poster } from "@/components/poster";
 import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
+import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { getTranslator } from "@/lib/i18n/server";
 
 /**
@@ -71,6 +72,7 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
             providerId={detail.providerId}
             title={detail.title}
             availability={detail.availability}
+            incomplete={isSeriesIncomplete(detail.seasons)}
           />
         </div>
       </div>
@@ -78,7 +80,11 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
       {/* A series is never one thing you either have or do not: the answer is
           per season, and then per episode. */}
       {detail.kind === "tv" ? (
-        <SeasonList providerId={detail.providerId} seasons={detail.seasons} />
+        <SeasonList
+          providerId={detail.providerId}
+          seasons={detail.seasons}
+          availability={detail.availability}
+        />
       ) : null}
     </article>
   );

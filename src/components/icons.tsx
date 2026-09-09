@@ -8,6 +8,7 @@ import {
   ChartBar,
   Check,
   CheckCircle,
+  Circle,
   CircleNotch,
   Coins,
   Compass,
@@ -68,6 +69,7 @@ function icon(
 export const SearchIcon = icon(MagnifyingGlass, "regular");
 export const DiceIcon = icon(DiceFive);
 export const CheckIcon = icon(Check, "bold");
+export const CircleIcon = icon(Circle, "regular");
 export const ChevronRightIcon = icon(CaretRight, "bold");
 export const ChevronDownIcon = icon(CaretDown, "bold");
 export const ChevronUpIcon = icon(CaretUp, "bold");

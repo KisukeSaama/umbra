@@ -62,6 +62,10 @@ an action exists.
 | Requested | "Request already recorded" | none                           |
 | Absent    | the title, and a button    | "Request", then "Request sent" |
 
+A series is the one case where "available" is not the whole answer: the server
+can hold four episodes of a season of ten. The title then says so, and carries
+the ask for the rest. See "Asking for the rest" below.
+
 ## The request lifecycle
 
 ```
@@ -116,6 +120,20 @@ Three reasons settle themselves. An episode that arrives closes "an episode is
 missing", a season complete closes "a season is missing", and a series caught up
 closes "the series is behind". Everything else describes a codec, a track or a
 playback failure, which Umbra does not index and must never try to check.
+
+### Asking for the rest
+
+A series that is on the server without being all there used to have no answer:
+the state said "available", so the request button was gone, and the only way to
+say "there are six episodes missing" was the report flow, three steps away from
+the line that shows the gap. So the shortfall now carries its own press: on the
+series, "ask for the update"; on a season with nothing in it, "ask for this
+season"; on a season that falls short, "ask for the missing episodes".
+
+It is not a fourth kind of thing. Each of them sends the report the three
+questions would have produced, with the reason taken from what the panel already
+knows rather than asked again: still a choice out of a list, still one queue for
+the administrator, still withdrawable in the moment that follows.
 
 ## Following what you asked for
 

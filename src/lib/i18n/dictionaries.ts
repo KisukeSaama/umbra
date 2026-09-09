@@ -304,6 +304,7 @@ export const en = {
   "title.request": "Ask for it",
   "title.report": "Report a problem",
   "title.onServer": "This is on the server",
+  "title.onServerPartly": "On the server, but not all of it",
   "title.requested": "Already requested",
   "title.cancelRequest": "Cancel this request",
   "title.similar": "In the same vein",
@@ -320,6 +321,13 @@ export const en = {
   "season.notOnServer": "Not on the server",
   "season.noEpisodes": "No episode listed for this season.",
   "season.unavailable": "The episode list could not be loaded.",
+
+  "update.askSeries": "Ask for the update",
+  "update.askSeason": "Ask for this season",
+  "update.askEpisodes": "Ask for the missing episodes",
+  "update.asked": "Asked",
+  "update.sent": "Asked. You can follow it in your follow-up.",
+  "update.joined": "Already asked. You will be told what happens next.",
 
   "report.title": "Report a problem",
   "report.subtitle": "Three choices, and it reaches the administrator.",
@@ -713,6 +721,7 @@ export const fr: Record<TranslationKey, string> = {
   "title.request": "Le demander",
   "title.report": "Signaler un problème",
   "title.onServer": "C'est sur le serveur",
+  "title.onServerPartly": "Sur le serveur, mais pas en entier",
   "title.requested": "Déjà demandé",
   "title.cancelRequest": "Annuler la demande",
   "title.similar": "Dans la même veine",
@@ -729,6 +738,13 @@ export const fr: Record<TranslationKey, string> = {
   "season.notOnServer": "Pas sur le serveur",
   "season.noEpisodes": "Aucun épisode listé pour cette saison.",
   "season.unavailable": "La liste des épisodes n'a pas pu être chargée.",
+
+  "update.askSeries": "Demander la mise à jour",
+  "update.askSeason": "Demander cette saison",
+  "update.askEpisodes": "Demander les épisodes manquants",
+  "update.asked": "Demandé",
+  "update.sent": "Demande envoyée. Vous pouvez la suivre dans Mon suivi.",
+  "update.joined": "Déjà demandé. Vous serez tenu au courant de la suite.",
 
   "report.title": "Signaler un problème",
   "report.subtitle": "Trois choix, et ça arrive chez l'administrateur.",

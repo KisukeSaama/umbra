@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CircleIcon,
   SpinnerIcon,
 } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
-import type { EpisodeState, SeasonState } from "@/lib/domain/catalog";
+import { UpdateAsk } from "@/components/update-ask";
+import type {
+  Availability,
+  EpisodeState,
+  SeasonState,
+} from "@/lib/domain/catalog";
+import { isSeasonComplete, isSeasonMissing } from "@/lib/domain/seasons";
 import { useTranslator } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
 
 /**
  * The ladder of a series, and where the server stands on it.
@@ -18,7 +26,8 @@ import { useTranslator } from "@/lib/i18n/client";
  * A member looking at a show asks one question before any other: is the season
  * I am after here, and how much of it. So every season states its own count
  * against what the provider says the season is made of, and opening one lists
- * the episodes with the same answer per line.
+ * the episodes with the same answer per line. A season that falls short then
+ * carries the way to ask for the rest, on the very line that shows the gap.
  *
  * Episodes are fetched when a season is opened and kept afterwards: a show with
  * forty seasons must not cost forty calls to be looked at, and folding a season
@@ -27,15 +36,18 @@ import { useTranslator } from "@/lib/i18n/client";
 export function SeasonList({
   providerId,
   seasons,
+  availability,
 }: {
   providerId: string;
   seasons: SeasonState[];
+  availability: Availability;
 }) {
   const t = useTranslator();
   const [open, setOpen] = useState<number | null>(null);
   const [episodes, setEpisodes] = useState<Record<number, EpisodeState[]>>({});
   const [loading, setLoading] = useState<number | null>(null);
   const [failed, setFailed] = useState<number | null>(null);
+  const rows = useRef(new Map<number, HTMLLIElement | null>());
 
   async function toggle(seasonNumber: number) {
     if (open === seasonNumber) {
@@ -43,6 +55,20 @@ export function SeasonList({
       return;
     }
     setOpen(seasonNumber);
+    /*
+     * A season opened at the foot of a phone unfolds below the fold: the press
+     * is answered by a screen that has not visibly changed. Bringing the row it
+     * came from to the top hands the whole panel to the episodes, and does it
+     * after the paint so the list is already there to scroll through.
+     */
+    requestAnimationFrame(() =>
+      rows.current.get(seasonNumber)?.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      }),
+    );
     if (episodes[seasonNumber]) return;
 
     setLoading(seasonNumber);
@@ -75,15 +101,32 @@ export function SeasonList({
       <ul className="divide-border/60 border-border/60 divide-y rounded-xl border">
         {seasons.map((season) => {
           const expanded = open === season.seasonNumber;
-          const rows = episodes[season.seasonNumber];
+          const listed = episodes[season.seasonNumber];
+          // A report is about something the server is supposed to hold, so the
+          // ask only exists once the series itself is there.
+          const canAsk =
+            availability === "available" && !isSeasonComplete(season);
 
           return (
-            <li key={season.seasonNumber}>
+            <li
+              key={season.seasonNumber}
+              ref={(node) => {
+                rows.current.set(season.seasonNumber, node);
+              }}
+              className="scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)]"
+            >
               <button
                 type="button"
                 onClick={() => void toggle(season.seasonNumber)}
                 aria-expanded={expanded}
-                className="focus-visible:ring-ring/50 hover:bg-muted/40 flex w-full items-center gap-3 px-3 py-2.5 text-left outline-none focus-visible:ring-3"
+                className={cn(
+                  "focus-visible:ring-ring/50 hover:bg-muted/40 flex w-full items-center gap-3 px-3 py-3 text-left outline-none focus-visible:ring-3",
+                  // Kept in sight while its own episodes scroll under it: a
+                  // list of twenty lines otherwise loses the season it belongs
+                  // to on the first swipe.
+                  expanded &&
+                    "umbra-surface sticky top-[var(--umbra-sticky-top)] z-10",
+                )}
               >
                 {expanded ? (
                   <ChevronDownIcon className="text-muted-foreground size-4 shrink-0" />
@@ -106,7 +149,7 @@ export function SeasonList({
               </button>
 
               {expanded ? (
-                <div className="px-3 pb-3">
+                <div className="space-y-3 px-3 pb-3">
                   {loading === season.seasonNumber ? (
                     <p className="text-muted-foreground flex items-center gap-2 py-2 text-sm">
                       <SpinnerIcon />
@@ -116,35 +159,13 @@ export function SeasonList({
                     <p className="text-muted-foreground py-2 text-sm">
                       {t("season.unavailable")}
                     </p>
-                  ) : rows && rows.length > 0 ? (
+                  ) : listed && listed.length > 0 ? (
                     <ul className="divide-border/40 divide-y">
-                      {rows.map((episode) => (
-                        <li
+                      {listed.map((episode) => (
+                        <EpisodeRow
                           key={episode.episodeNumber}
-                          className="flex items-baseline gap-3 py-1.5 text-sm"
-                        >
-                          <span className="text-muted-foreground w-10 shrink-0 tabular-nums">
-                            {t("season.episodeShort", {
-                              number: episode.episodeNumber,
-                            })}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">
-                            {episode.title ??
-                              t("season.episodeShort", {
-                                number: episode.episodeNumber,
-                              })}
-                          </span>
-                          {episode.onServer ? (
-                            <span className="text-primary flex shrink-0 items-center gap-1 text-xs">
-                              <CheckIcon />
-                              {t("season.onServer")}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground shrink-0 text-xs">
-                              {t("season.notOnServer")}
-                            </span>
-                          )}
-                        </li>
+                          episode={episode}
+                        />
                       ))}
                     </ul>
                   ) : (
@@ -152,6 +173,26 @@ export function SeasonList({
                       {t("season.noEpisodes")}
                     </p>
                   )}
+
+                  {canAsk ? (
+                    <div className="flex justify-end">
+                      <UpdateAsk
+                        kind="tv"
+                        providerId={providerId}
+                        seasonNumber={season.seasonNumber}
+                        reason={
+                          isSeasonMissing(season)
+                            ? "missing_season"
+                            : "missing_episode"
+                        }
+                        label={
+                          isSeasonMissing(season)
+                            ? "update.askSeason"
+                            : "update.askEpisodes"
+                        }
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </li>
@@ -163,6 +204,41 @@ export function SeasonList({
 }
 
 /**
+ * One episode, on one line, on the narrowest screen there is.
+ *
+ * The answer is a word on a desktop and a mark on a phone: spelling "not on the
+ * server" out at 360 pixels would leave a third of the line for the title and
+ * cut every one of them short. The word stays for anyone reading with a screen
+ * reader either way.
+ */
+function EpisodeRow({ episode }: { episode: EpisodeState }) {
+  const t = useTranslator();
+  const number = t("season.episodeShort", { number: episode.episodeNumber });
+
+  return (
+    <li className="flex items-center gap-3 py-2 text-sm">
+      <span className="text-muted-foreground w-8 shrink-0 text-xs tabular-nums">
+        {number}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{episode.title ?? number}</span>
+      {episode.onServer ? (
+        <span className="text-primary flex shrink-0 items-center gap-1.5 text-xs">
+          <CheckIcon />
+          <span className="sr-only sm:not-sr-only">{t("season.onServer")}</span>
+        </span>
+      ) : (
+        <span className="text-muted-foreground/70 flex shrink-0 items-center gap-1.5 text-xs">
+          <CircleIcon />
+          <span className="sr-only sm:not-sr-only">
+            {t("season.notOnServer")}
+          </span>
+        </span>
+      )}
+    </li>
+  );
+}
+
+/**
  * Three states, exactly like a title: here, partly here, not here. A season the
  * provider has not numbered yet falls back on the count alone rather than
  * claiming to be complete.
@@ -170,10 +246,10 @@ export function SeasonList({
 function SeasonBadge({ season }: { season: SeasonState }) {
   const t = useTranslator();
 
-  if (season.onServer === 0)
+  if (isSeasonMissing(season))
     return <Badge variant="outline">{t("season.notOnServer")}</Badge>;
 
-  if (season.episodeCount > 0 && season.onServer >= season.episodeCount)
+  if (isSeasonComplete(season))
     return (
       <Badge variant="secondary">
         <CheckIcon />
