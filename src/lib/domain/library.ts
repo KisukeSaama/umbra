@@ -425,24 +425,6 @@ export async function randomAvailableByGenres(
   return rows.map(toRecentItem);
 }
 
-/** Several random picks at once, for a shelf rather than a single card. */
-export async function randomAvailableItems(
-  limit: number,
-): Promise<RecentItem[]> {
-  const rows = await db()
-    .select()
-    .from(libraryItems)
-    .where(
-      and(
-        inArray(libraryItems.kind, ["movie", "show"]),
-        isNotNull(libraryItems.posterPath),
-      ),
-    )
-    .orderBy(sql`random()`)
-    .limit(limit);
-  return rows.map(toRecentItem);
-}
-
 function toRecentItem(row: typeof libraryItems.$inferSelect): RecentItem {
   return {
     ratingKey: row.ratingKey,

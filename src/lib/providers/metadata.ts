@@ -46,6 +46,12 @@ export type DiscoverQuery = {
   /** Minutes. Only meaningful for a film. */
   runtimeLte?: number;
   sortBy?: "popularity" | "rating" | "recent";
+  /**
+   * Minimum number of votes. Left out, the provider picks a floor that suits
+   * the sort; a caller lowers it when the query is already narrow enough that
+   * the floor is what empties it rather than what cleans it up.
+   */
+  voteCountGte?: number;
   page?: number;
   language?: string;
 };

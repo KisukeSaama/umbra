@@ -176,6 +176,7 @@ export const tmdbProvider: MediaMetadataProvider = {
     originalLanguage,
     runtimeLte,
     sortBy,
+    voteCountGte,
     page,
     language,
   }) {
@@ -183,7 +184,7 @@ export const tmdbProvider: MediaMetadataProvider = {
       include_adult: "false",
       page: safePage(page),
       sort_by: sortFor(kind, sortBy),
-      "vote_count.gte": voteFloor(kind, sortBy),
+      "vote_count.gte": voteCountGte ?? voteFloor(kind, sortBy),
     };
     // A pipe is "any of these", a comma would demand all of them at once.
     if (genreIds?.length) query.with_genres = genreIds.join("|");

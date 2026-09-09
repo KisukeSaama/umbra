@@ -402,21 +402,37 @@ export async function notifyReportFollowers(
  * otherwise would have to walk media parts on the server, which is exactly what
  * this project does not do.
  */
+/**
+ * The match is an `EXISTS` rather than an `UPDATE ... FROM` with joins.
+ *
+ * Postgres refuses a reference to the row being updated inside the `ON` of a
+ * join in the `FROM` clause, and it refuses it at parse time, so the statement
+ * never ran once. That failure was not local: this runs inside the library
+ * sync, and everything the sync does after it, the poster and genre backfill
+ * included, stopped running with it. The picker reads those genres, which is
+ * how a broken join here became a guided selection that ignored the mood.
+ *
+ * The alias is also not `show`: that word is a reserved statement keyword.
+ */
 export async function closeReportsSolvedByLibrary(): Promise<number> {
   const result = await db().execute(sql`
     UPDATE report AS r
        SET status = 'resolved', closed_at = now(), updated_at = now()
-      FROM media AS m
-      JOIN library_item AS show
-        ON show.kind = 'show' AND show.tmdb_id = m.provider_id
-      JOIN library_item AS ep
-        ON ep.kind = 'episode'
-       AND ep.grandparent_rating_key = show.rating_key
-       AND ep.season_number = r.season_number
-       AND ep.episode_number = r.episode_number
-     WHERE r.media_id = m.id
-       AND r.reason = 'missing_episode'
+     WHERE r.reason = 'missing_episode'
        AND r.status IN ('open', 'acknowledged', 'in_progress')
+       AND EXISTS (
+         SELECT 1
+           FROM media AS m
+           JOIN library_item AS parent
+             ON parent.kind = 'show'
+            AND parent.tmdb_id = m.provider_id
+           JOIN library_item AS ep
+             ON ep.kind = 'episode'
+            AND ep.grandparent_rating_key = parent.rating_key
+          WHERE m.id = r.media_id
+            AND ep.season_number = r.season_number
+            AND ep.episode_number = r.episode_number
+       )
   `);
   return result.count ?? 0;
 }

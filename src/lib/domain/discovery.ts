@@ -6,11 +6,7 @@ import { cache } from "react";
 import { db } from "@/lib/db";
 import { media, mediaRequests, type MediaType } from "@/lib/db/schema";
 import { type CatalogResult, decorate } from "@/lib/domain/catalog";
-import {
-  randomAvailableByGenres,
-  randomAvailableItems,
-  type RecentItem,
-} from "@/lib/domain/library";
+import { randomAvailableByGenres, type RecentItem } from "@/lib/domain/library";
 import { topGenres } from "@/lib/domain/taste";
 import {
   discoverQueriesFor,
@@ -44,6 +40,12 @@ import { tmdbProvider } from "@/lib/providers/tmdb";
  * rolls land on a page that exists.
  */
 const ROLL_PAGES = 4;
+
+/** Below this, a half of the picker reads as a mistake rather than a selection. */
+const THIN = 3;
+
+/** The floor a narrow mood falls back to before it comes back nearly empty. */
+const RELAXED_VOTES = 100;
 
 export type Shelf = {
   key: string;
@@ -222,11 +224,12 @@ export async function guidedSelection(
     .filter((item) => item.availability === "absent")
     .slice(0, 6);
 
-  // A library with nothing matching still owes an answer.
-  const filler =
-    tonight.length === 0 ? await randomAvailableItems(3) : ([] as RecentItem[]);
-
-  return { tonight: tonight.length > 0 ? tonight.slice(0, 3) : filler, ideas };
+  // Nothing is substituted when the server holds nothing for this mood. Three
+  // titles drawn at random under a heading that answers a question they were
+  // not chosen for is worse than an empty half: it reads as the answer, and it
+  // is what made "make me laugh" reply with a horror film. The picker shows the
+  // half it has.
+  return { tonight: tonight.slice(0, 3), ideas };
 }
 
 /**
@@ -244,9 +247,27 @@ async function rolledPage(
   const rolled = await quietly(() =>
     tmdbProvider.discoverBy({ ...query, language, page }),
   );
-  if (rolled.length > 0 || page === 1) return rolled;
+  if (rolled.length >= THIN) return rolled;
+
+  const first =
+    page === 1
+      ? rolled
+      : await quietly(() =>
+          tmdbProvider.discoverBy({ ...query, language, page: 1 }),
+        );
+  if (first.length >= THIN) return first;
+
+  // Still thin. The narrow moods stack their filters, and a runtime ceiling on
+  // top of an origin and a vote floor leaves a shelf of one card. The floor is
+  // the filter to give up first: it is there to keep the noise out, not to
+  // decide what counts as good, and the answers the member gave are not.
   return quietly(() =>
-    tmdbProvider.discoverBy({ ...query, language, page: 1 }),
+    tmdbProvider.discoverBy({
+      ...query,
+      language,
+      page: 1,
+      voteCountGte: RELAXED_VOTES,
+    }),
   );
 }
 
