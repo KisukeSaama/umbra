@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DURATIONS,
   discoverQueriesFor,
+  excludedGenresFor,
   FORMATS,
   genresFor,
   isDuration,
@@ -10,6 +11,7 @@ import {
   isMood,
   kindsFor,
   MOODS,
+  originalLanguageFor,
   SHORT_RUNTIME_MINUTES,
 } from "@/lib/discovery/moods";
 
@@ -49,6 +51,68 @@ describe("mood mapping", () => {
       expect(genresFor(mood, "movie").length).toBeGreaterThan(0);
       expect(genresFor(mood, "tv").length).toBeGreaterThan(0);
     }
+  });
+
+  it("only ever excludes ids that exist in the space it is asking", () => {
+    // An exclusion aimed at the wrong space is the worst kind of mistake here:
+    // it is accepted, it filters nothing, and the mood silently widens again.
+    for (const mood of MOODS) {
+      for (const id of excludedGenresFor(mood, "movie"))
+        expect(MOVIE_GENRE_IDS.has(id), `${mood} movie ${id}`).toBe(true);
+      for (const id of excludedGenresFor(mood, "tv"))
+        expect(TV_GENRE_IDS.has(id), `${mood} tv ${id}`).toBe(true);
+    }
+  });
+
+  it("never asks for a genre it also refuses", () => {
+    for (const mood of MOODS) {
+      for (const kind of ["movie", "tv"] as const) {
+        const refused = new Set(excludedGenresFor(mood, kind));
+        for (const id of genresFor(mood, kind))
+          expect(refused.has(id), `${mood} ${kind} ${id}`).toBe(false);
+      }
+    }
+  });
+
+  it("keeps the moods apart", () => {
+    // Two moods asking the same thing is a question the picker did not need to
+    // ask: the member chooses between them and gets the same shelf either way.
+    const fingerprints = MOODS.map(
+      (mood) =>
+        `${(["movie", "tv"] as const)
+          .map(
+            (kind) =>
+              `${genresFor(mood, kind).join(",")}!${excludedGenresFor(mood, kind).join(",")}`,
+          )
+          .join("|")}${originalLanguageFor(mood) ?? ""}`,
+    );
+    expect(new Set(fingerprints).size).toBe(MOODS.length);
+  });
+
+  it("pins anime to where it is made, not to how it is drawn", () => {
+    // Animation is a technique. Asked for the genre alone, the shelf comes
+    // back led by Pixar and DC, which is a different request entirely.
+    expect(originalLanguageFor("anime")).toBe("ja");
+    for (const mood of MOODS)
+      if (mood !== "anime") expect(originalLanguageFor(mood)).toBeUndefined();
+  });
+
+  it("carries the refusals into the query", () => {
+    const [query] = discoverQueriesFor({
+      mood: "laugh",
+      format: "movie",
+      duration: "any",
+    });
+    // Genres are a union upstream, so without this a comedy filed under Horror
+    // answers "make me laugh".
+    expect(query.excludeGenreIds).toEqual(excludedGenresFor("laugh", "movie"));
+    expect(query.excludeGenreIds?.length).toBeGreaterThan(0);
+  });
+
+  it("does not answer romance with drama", () => {
+    // Drama used to sit in this mood, and it is what made "romance" return
+    // The Godfather: nearly every serious film carries that genre.
+    expect(genresFor("love", "movie")).not.toContain(18);
   });
 
   it("caps the runtime for a film and never for a show", () => {

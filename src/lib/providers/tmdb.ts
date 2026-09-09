@@ -66,6 +66,19 @@ function sortFor(kind: MediaKind, sortBy: DiscoverQuery["sortBy"]) {
   return "popularity.desc";
 }
 
+/**
+ * The floor under "sort by rating".
+ *
+ * Sorting by average with a low floor does not return the best titles, it
+ * returns the least voted ones: a film released last month with four hundred
+ * votes outranks Seven. The threshold is not the same on both sides because a
+ * show collects far fewer votes than a film of the same standing.
+ */
+function voteFloor(kind: MediaKind, sortBy: DiscoverQuery["sortBy"]) {
+  if (sortBy !== "rating") return 50;
+  return kind === "movie" ? 1000 : 600;
+}
+
 type Json = Record<string, unknown>;
 
 async function get<T = Json>(
@@ -156,16 +169,27 @@ export const tmdbProvider: MediaMetadataProvider = {
       .filter((row): row is MediaSummary => row !== null);
   },
 
-  async discoverBy({ kind, genreIds, runtimeLte, sortBy, page, language }) {
+  async discoverBy({
+    kind,
+    genreIds,
+    excludeGenreIds,
+    originalLanguage,
+    runtimeLte,
+    sortBy,
+    page,
+    language,
+  }) {
     const query: Record<string, string | number> = {
       include_adult: "false",
       page: safePage(page),
       sort_by: sortFor(kind, sortBy),
-      // Without a floor, sorting by rating surfaces films with three votes.
-      "vote_count.gte": sortBy === "rating" ? 200 : 50,
+      "vote_count.gte": voteFloor(kind, sortBy),
     };
     // A pipe is "any of these", a comma would demand all of them at once.
     if (genreIds?.length) query.with_genres = genreIds.join("|");
+    if (excludeGenreIds?.length)
+      query.without_genres = excludeGenreIds.join("|");
+    if (originalLanguage) query.with_original_language = originalLanguage;
     // On a show this parameter filters the length of one episode, which is a
     // different question, so it is only ever sent for a film.
     if (runtimeLte && kind === "movie") query["with_runtime.lte"] = runtimeLte;

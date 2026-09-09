@@ -399,6 +399,7 @@ export async function randomAvailableByGenres(
   kind: "movie" | "tv",
   genreIds: number[],
   limit: number,
+  excludeGenreIds: number[] = [],
 ): Promise<RecentItem[]> {
   if (genreIds.length === 0) return [];
   const rows = await db()
@@ -409,6 +410,14 @@ export async function randomAvailableByGenres(
         eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
         isNotNull(libraryItems.posterPath),
         sql`${libraryItems.genreIds} && ${intArray(genreIds)}`,
+        // The same union problem as on the provider side: a title kept only
+        // because it carries Comedy somewhere is not an answer to "make me
+        // laugh" when its other genre is Horror.
+        ...(excludeGenreIds.length
+          ? [
+              sql`NOT (${libraryItems.genreIds} && ${intArray(excludeGenreIds)})`,
+            ]
+          : []),
       ),
     )
     .orderBy(sql`random()`)

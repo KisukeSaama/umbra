@@ -33,7 +33,16 @@ export type Genre = { id: number; name: string };
 /** How a shelf or the guided picker asks for titles it cannot name. */
 export type DiscoverQuery = {
   kind: MediaKind;
+  /** Any one of these is enough. Absent means every genre. */
   genreIds?: number[];
+  /**
+   * Any one of these disqualifies a title. Genres are a union, so without a
+   * way to say no a mood widens until it means nothing: a film filed under
+   * both Comedy and War answers "make me laugh" on the strength of the first.
+   */
+  excludeGenreIds?: number[];
+  /** ISO 639-1, for a mood defined by where a title was made rather than by genre. */
+  originalLanguage?: string;
   /** Minutes. Only meaningful for a film. */
   runtimeLte?: number;
   sortBy?: "popularity" | "rating" | "recent";

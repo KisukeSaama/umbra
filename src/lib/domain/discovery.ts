@@ -17,7 +17,12 @@ import {
   type Mood,
   type PickerChoice,
 } from "@/lib/discovery/moods";
-import type { Genre, MediaKind, MediaSummary } from "@/lib/providers/metadata";
+import type {
+  DiscoverQuery,
+  Genre,
+  MediaKind,
+  MediaSummary,
+} from "@/lib/providers/metadata";
 import { tmdbProvider } from "@/lib/providers/tmdb";
 
 /**
@@ -32,6 +37,13 @@ import { tmdbProvider } from "@/lib/providers/tmdb";
  * a listing that fails comes back empty, so one refused call costs a rail rather
  * than the page.
  */
+
+/**
+ * How deep a roll is allowed to reach. The narrowest mood holds a handful of
+ * pages once the vote floor is applied, so this stays small enough that most
+ * rolls land on a page that exists.
+ */
+const ROLL_PAGES = 4;
 
 export type Shelf = {
   key: string;
@@ -195,22 +207,14 @@ export async function guidedSelection(
           query.kind,
           query.genreIds ?? [],
           queries.length > 1 ? 2 : 3,
+          query.excludeGenreIds ?? [],
         ),
       ),
     )
   ).flat();
 
   const found = await Promise.all(
-    queries.map((query) =>
-      quietly(() =>
-        tmdbProvider.discoverBy({
-          ...query,
-          language,
-          // A different page each time, so a second roll is a second answer.
-          page: 1 + Math.floor(Math.random() * 5),
-        }),
-      ),
-    ),
+    queries.map((query) => rolledPage(query, language)),
   );
 
   const ideas = found
@@ -223,6 +227,27 @@ export async function guidedSelection(
     tonight.length === 0 ? await randomAvailableItems(3) : ([] as RecentItem[]);
 
   return { tonight: tonight.length > 0 ? tonight.slice(0, 3) : filler, ideas };
+}
+
+/**
+ * One listing, taken from a page picked at random so a second roll is a second
+ * answer rather than the same six cards.
+ *
+ * A narrow mood has few pages, and asking past the last one returns nothing at
+ * all: rather than hand back an empty picker, the first page answers instead.
+ */
+async function rolledPage(
+  query: DiscoverQuery,
+  language?: string,
+): Promise<CatalogResult[]> {
+  const page = 1 + Math.floor(Math.random() * ROLL_PAGES);
+  const rolled = await quietly(() =>
+    tmdbProvider.discoverBy({ ...query, language, page }),
+  );
+  if (rolled.length > 0 || page === 1) return rolled;
+  return quietly(() =>
+    tmdbProvider.discoverBy({ ...query, language, page: 1 }),
+  );
 }
 
 /** Alternates two lists so a mixed shelf does not read as two blocks. */
