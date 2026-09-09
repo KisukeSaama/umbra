@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ActionButton } from "@/components/admin/action-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdminPage } from "@/lib/auth/session";
+import { requireStaffPage } from "@/lib/auth/session";
 import { pendingAccountCount } from "@/lib/domain/accounts";
 import { activePoll } from "@/lib/domain/polls";
 import { listReports } from "@/lib/domain/reports";
@@ -27,8 +27,11 @@ import { LIVE_REPORT_STATUSES } from "@/lib/reports/reasons";
  * thing a page like this can do on a quiet day.
  */
 export default async function AdminTodayPage() {
-  await requireAdminPage();
+  const viewer = await requireStaffPage();
   const { t, locale } = await getI18n();
+  // Accounts are the administrator's alone, so an assistant is never shown a
+  // queue they would be redirected away from.
+  const isAdmin = viewer.role === "admin";
 
   const [
     requests,
@@ -44,7 +47,7 @@ export default async function AdminTodayPage() {
     listReports([...LIVE_REPORT_STATUSES]),
     listOpenEpisodeTasks(),
     activePoll(),
-    pendingAccountCount(),
+    isAdmin ? pendingAccountCount() : 0,
     countRequestsByStatus(),
     storageOverview(),
     jobStatus(),

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
-import { requireAdminPage } from "@/lib/auth/session";
+import { requireStaffPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 import { jobStatus } from "@/lib/jobs";
 
@@ -20,7 +20,7 @@ import { jobStatus } from "@/lib/jobs";
  * run, and the error the last failure left behind.
  */
 export default async function AdminJobsPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   const { t, locale } = await getI18n();
   const jobs = await jobStatus();
   const format = (date: Date | null) =>

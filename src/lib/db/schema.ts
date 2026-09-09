@@ -37,7 +37,18 @@ const updatedAt = timestamp("updated_at", { withTimezone: true })
 
 /* ------------------------------------------------------------- identities -- */
 
-export const ACCOUNT_ROLES = ["member", "admin"] as const;
+/**
+ * Roles, from the least to the most privileged.
+ *
+ * There is exactly one `admin`, because there is exactly one owner of the media
+ * server. An `assistant` is a member the administrator has asked for help: same
+ * workspace, minus the ability to hand out access. Uniqueness of the
+ * administrator is enforced by `account_single_admin_idx`, not by application
+ * code. See `docs/adr/0009-one-administrator-and-assistants.md`.
+ */
+export const ACCOUNT_ROLES = ["member", "assistant", "admin"] as const;
+/** What the accounts page may set: help is granted, administration is not. */
+export const ASSIGNABLE_ROLES = ["member", "assistant"] as const;
 export const ACCOUNT_STATUSES = ["pending", "approved", "blocked"] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
@@ -64,7 +75,15 @@ export const accounts = pgTable(
       .defaultNow(),
   },
   (t) => [
-    check("account_role_check", sql`${t.role} IN ('member', 'admin')`),
+    check(
+      "account_role_check",
+      sql`${t.role} IN ('member', 'assistant', 'admin')`,
+    ),
+    // One administrator, always: a unique index over a single value refuses the
+    // second one at the database rather than in a read-then-write.
+    uniqueIndex("account_single_admin_idx")
+      .on(t.role)
+      .where(sql`${t.role} = 'admin'`),
     check(
       "account_status_check",
       sql`${t.status} IN ('pending', 'approved', 'blocked')`,

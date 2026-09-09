@@ -15,7 +15,9 @@ export async function SiteHeader() {
     getTranslator(),
     getLocaleOverride(),
   ]);
-  const isAdmin = account?.role === "admin";
+  // The link to the workspace is for anyone who has one: the administrator and
+  // the assistants they named.
+  const isStaff = account !== null && account.role !== "member";
 
   // Rendered with the page rather than polled: the count is true on arrival and
   // catches up on the next navigation, which is enough for a bell.
@@ -32,7 +34,7 @@ export async function SiteHeader() {
         </Link>
 
         <div className="hidden md:block">
-          <MainNav isAdmin={isAdmin} />
+          <MainNav isStaff={isStaff} />
         </div>
 
         <div className="flex items-center gap-1">
@@ -45,7 +47,7 @@ export async function SiteHeader() {
               <NotificationBell unread={unread} />
               <AccountMenu
                 username={account.username}
-                isAdmin={isAdmin}
+                role={account.role}
                 localeOverride={localeOverride}
                 personalisationEnabled={account.personalisationEnabled}
               />
@@ -61,7 +63,7 @@ export async function SiteHeader() {
           administrator's fifth entry does not fit, rather than being clipped. */}
       <div className="umbra-container flex overflow-x-auto pb-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
         <div className="mx-auto shrink-0">
-          <MainNav isAdmin={isAdmin} />
+          <MainNav isStaff={isStaff} />
         </div>
       </div>
     </header>

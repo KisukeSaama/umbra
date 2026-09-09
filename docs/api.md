@@ -12,7 +12,8 @@ not go through it: server components call the domain layer directly.
   `not_found`, `conflict`, `rate_limited`, `upstream_unavailable`,
   `internal_error`. A `rate_limited` answer carries `Retry-After` when the
   upstream gave one.
-- `member` means an approved account, `admin` means the administrator.
+- `member` means an approved account, `assistant` a member named to help on the
+  administration side, `admin` the single administrator.
 - A `POST`, `PATCH` or `DELETE` sent by a browser from another origin is refused
   with 403 before any handler runs. Requests without an `Origin` (the sync worker,
   command-line tools) are not affected.
@@ -34,7 +35,8 @@ visitor confirms. Answers `{ "status": "waiting" | "pending" }`, or
 `{ "status": "approved", "account": { "username": "...", "role": "member" } }`,
 which also sets the session cookie.
 
-**`POST /api/auth/dev-login`**, body `{ "username": "dev", "admin": true }`.
+**`POST /api/auth/dev-login`**, body `{ "username": "dev", "admin": true }`, or
+`{ "username": "dev", "role": "assistant" }` to sign in as an assistant.
 Creates an approved account with no external call. Answers 404 unless `DEV_LOGIN`
 is on, and never exists in production.
 
@@ -103,26 +105,27 @@ Turning it off deletes the taste profile rather than hiding it.
 
 ## Administration
 
-All of these require the admin role.
+All of these are open to the administrator and to the assistants, except
+`PATCH /api/admin/accounts/{id}`, which is the administrator's alone.
 
-| Route                                       | Body                                                             | Effect                                                                                                               |
-| ------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `PATCH /api/admin/requests/{id}`            | `{ status, adminNote? }`                                         | Moves a request. `accepted` on a series also starts tracking it                                                      |
-| `PATCH /api/admin/reports/{id}`             | `{ status }`                                                     | Moves a report along its state machine. `acknowledged` on a series also starts tracking it. An illegal move is a 409 |
-| `POST /api/admin/series`                    | `{ providerId }`                                                 | Tracks a series and pulls its calendar                                                                               |
-| `PATCH /api/admin/series/{id}`              | `{ enabled }`                                                    | Pauses or resumes tracking                                                                                           |
-| `PATCH /api/admin/episodes/tasks/{id}`      | `{ status: "done" \| "dismissed" }`                              | Closes a task by hand                                                                                                |
-| `POST /api/admin/announcements`             | `{ title, content, category, published }`                        | Creates an announcement                                                                                              |
-| `PATCH /api/admin/announcements/{id}`       | partial                                                          | Edits or publishes                                                                                                   |
-| `DELETE /api/admin/announcements/{id}`      |                                                                  | Deletes                                                                                                              |
-| `POST /api/admin/polls`                     | `{ question, options[], active, endsAt? }`                       | Creates a poll. Activating closes the others                                                                         |
-| `PATCH /api/admin/polls/{id}`               | `{ active }`                                                     | Opens or closes                                                                                                      |
-| `DELETE /api/admin/polls/{id}`              |                                                                  | Deletes, votes included                                                                                              |
-| `POST /api/admin/funding`                   | `{ title, description?, targetAmountCents, currency?, status? }` | Creates a goal                                                                                                       |
-| `PATCH /api/admin/funding/{id}`             | partial                                                          | Edits, activates, completes                                                                                          |
-| `POST /api/admin/funding/{id}/transactions` | `{ deltaCents, note? }`                                          | Manual adjustment, may be negative                                                                                   |
-| `PATCH /api/admin/accounts/{id}`            | `{ status?, role? }`                                             | Approves, blocks, promotes. Refuses to act on yourself                                                               |
-| `POST /api/admin/jobs/run`                  |                                                                  | Runs a sync cycle now                                                                                                |
+| Route                                       | Body                                                             | Effect                                                                                                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PATCH /api/admin/requests/{id}`            | `{ status, adminNote? }`                                         | Moves a request. `accepted` on a series also starts tracking it                                                                               |
+| `PATCH /api/admin/reports/{id}`             | `{ status }`                                                     | Moves a report along its state machine. `acknowledged` on a series also starts tracking it. An illegal move is a 409                          |
+| `POST /api/admin/series`                    | `{ providerId }`                                                 | Tracks a series and pulls its calendar                                                                                                        |
+| `PATCH /api/admin/series/{id}`              | `{ enabled }`                                                    | Pauses or resumes tracking                                                                                                                    |
+| `PATCH /api/admin/episodes/tasks/{id}`      | `{ status: "done" \| "dismissed" }`                              | Closes a task by hand                                                                                                                         |
+| `POST /api/admin/announcements`             | `{ title, content, category, published }`                        | Creates an announcement                                                                                                                       |
+| `PATCH /api/admin/announcements/{id}`       | partial                                                          | Edits or publishes                                                                                                                            |
+| `DELETE /api/admin/announcements/{id}`      |                                                                  | Deletes                                                                                                                                       |
+| `POST /api/admin/polls`                     | `{ question, options[], active, endsAt? }`                       | Creates a poll. Activating closes the others                                                                                                  |
+| `PATCH /api/admin/polls/{id}`               | `{ active }`                                                     | Opens or closes                                                                                                                               |
+| `DELETE /api/admin/polls/{id}`              |                                                                  | Deletes, votes included                                                                                                                       |
+| `POST /api/admin/funding`                   | `{ title, description?, targetAmountCents, currency?, status? }` | Creates a goal                                                                                                                                |
+| `PATCH /api/admin/funding/{id}`             | partial                                                          | Edits, activates, completes                                                                                                                   |
+| `POST /api/admin/funding/{id}/transactions` | `{ deltaCents, note? }`                                          | Manual adjustment, may be negative                                                                                                            |
+| `PATCH /api/admin/accounts/{id}`            | `{ status?, role? }`                                             | Approves, blocks, names an assistant. `role` accepts `member` and `assistant` only, and it refuses to act on yourself or on the administrator |
+| `POST /api/admin/jobs/run`                  |                                                                  | Runs a sync cycle now                                                                                                                         |
 
 ## Operations
 

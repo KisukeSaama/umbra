@@ -33,12 +33,12 @@ import { useTranslator } from "@/lib/i18n/client";
  */
 export function AccountMenu({
   username,
-  isAdmin,
+  role,
   localeOverride,
   personalisationEnabled,
 }: {
   username: string;
-  isAdmin: boolean;
+  role: "member" | "assistant" | "admin";
   /** The language picked by hand, or `null` while the browser decides. */
   localeOverride: Locale | null;
   /** Whether suggestions may be shaped by an aggregated taste profile. */
@@ -133,9 +133,9 @@ export function AccountMenu({
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="text-foreground flex flex-col gap-0.5 text-sm">
           <span className="truncate">{username}</span>
-          {isAdmin ? (
+          {role !== "member" ? (
             <span className="text-muted-foreground text-xs font-normal">
-              {t("admin.accounts.role.admin")}
+              {t(`admin.accounts.role.${role}`)}
             </span>
           ) : null}
         </DropdownMenuLabel>

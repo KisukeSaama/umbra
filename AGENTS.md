@@ -45,7 +45,7 @@ before changing behaviour and `docs/architecture.md` before changing structure.
 
 ```
 src/app/(site)      community pages, gated on an approved account
-src/app/admin       administration, gated on the admin role
+src/app/admin       administration, gated on the admin or assistant role
 src/app/api         REST routes: mutations, search, sign-in, scheduled sync
 src/lib/domain      the business rules; pages and routes stay thin
 src/lib/discovery   pure mapping from a closed set of answers to a query

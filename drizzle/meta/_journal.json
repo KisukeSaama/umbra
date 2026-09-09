@@ -22,6 +22,13 @@
       "when": 1788949946784,
       "tag": "0002_reports_notifications_taste",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788958109239,
+      "tag": "0003_assistants",
+      "breakpoints": true
     }
   ]
 }

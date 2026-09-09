@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { storageDetail, storageHistory } from "@/lib/domain/storage";
 import { formatBytes, formatDateTime } from "@/lib/format";
-import { requireAdminPage } from "@/lib/auth/session";
+import { requireStaffPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -12,7 +12,7 @@ import { getI18n } from "@/lib/i18n/server";
  * operator chose to name, never a raw device path.
  */
 export default async function AdminStoragePage() {
-  await requireAdminPage();
+  await requireStaffPage();
   const { t, locale } = await getI18n();
   const [detail, history] = await Promise.all([
     storageDetail(),

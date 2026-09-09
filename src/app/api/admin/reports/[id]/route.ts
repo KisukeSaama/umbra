@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireStaff } from "@/lib/auth/session";
 import { REPORT_STATUSES } from "@/lib/db/schema";
 import { updateReportStatus } from "@/lib/domain/reports";
 
@@ -20,7 +20,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return route(async () => {
-    await requireAdmin();
+    await requireStaff();
     const { id } = await params;
     const { status } = await jsonBody(request, schema);
     return updateReportStatus(id, status);

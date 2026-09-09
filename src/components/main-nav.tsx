@@ -21,11 +21,11 @@ const LINKS = [
   { href: "/news", key: "nav.news" },
 ] as const;
 
-export function MainNav({ isAdmin }: { isAdmin: boolean }) {
+export function MainNav({ isStaff }: { isStaff: boolean }) {
   const t = useTranslator();
   const pathname = usePathname();
 
-  const links = isAdmin
+  const links = isStaff
     ? [...LINKS, { href: "/admin", key: "nav.admin" } as const]
     : LINKS;
 

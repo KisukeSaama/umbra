@@ -1,6 +1,6 @@
 import { AdminHeading, AdminNav } from "@/components/admin/admin-nav";
 import { SiteHeader } from "@/components/site-header";
-import { requireAdminPage } from "@/lib/auth/session";
+import { requireStaffPage } from "@/lib/auth/session";
 
 /**
  * The administration side.
@@ -11,7 +11,7 @@ import { requireAdminPage } from "@/lib/auth/session";
  * on a navigation between two admin pages.
  */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
-  await requireAdminPage();
+  const viewer = await requireStaffPage();
 
   return (
     <>
@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       <main className="umbra-container flex-1 py-12">
         <AdminHeading />
         <div className="grid gap-8 lg:grid-cols-[12rem_1fr]">
-          <AdminNav />
+          <AdminNav isAdmin={viewer.role === "admin"} />
           <div className="min-w-0 space-y-8">{children}</div>
         </div>
       </main>

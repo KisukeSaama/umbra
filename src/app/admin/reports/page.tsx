@@ -1,7 +1,7 @@
 import { ActionButton } from "@/components/admin/action-button";
 import { Poster } from "@/components/poster";
 import { Badge } from "@/components/ui/badge";
-import { requireAdminPage } from "@/lib/auth/session";
+import { requireStaffPage } from "@/lib/auth/session";
 import type { ReportStatus } from "@/lib/db/schema";
 import { listReports } from "@/lib/domain/reports";
 import { formatDate } from "@/lib/format";
@@ -20,7 +20,7 @@ import { nextStatuses } from "@/lib/reports/reasons";
  * what lets the sync close it by itself later.
  */
 export default async function AdminReportsPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   const { t, locale } = await getI18n();
   const reports = await listReports();
 

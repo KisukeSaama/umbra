@@ -11,6 +11,11 @@ import { getI18n } from "@/lib/i18n/server";
  *
  * A Plex identity, a status, and nothing else: no e-mail, no profile, no
  * activity trail. Approving is the only gate into the community.
+ *
+ * This is also where help is handed out. An approved member can be named an
+ * assistant, which opens the workspace to them, and unnamed again. The
+ * administrator is not on that list: there is one, decided by configuration,
+ * and their own row carries no action at all.
  */
 export default async function AdminAccountsPage() {
   await requireAdminPage();
@@ -46,7 +51,7 @@ export default async function AdminAccountsPage() {
             {t(`admin.accounts.status.${account.status}` as TranslationKey)}
           </Badge>
 
-          {account.status !== "approved" ? (
+          {account.status !== "approved" && account.role !== "admin" ? (
             <ActionButton
               url={`/api/admin/accounts/${account.id}`}
               body={{ status: "approved" }}
@@ -56,7 +61,7 @@ export default async function AdminAccountsPage() {
             </ActionButton>
           ) : null}
 
-          {account.status !== "blocked" ? (
+          {account.status !== "blocked" && account.role !== "admin" ? (
             <ActionButton
               url={`/api/admin/accounts/${account.id}`}
               body={{ status: "blocked" }}
@@ -64,6 +69,28 @@ export default async function AdminAccountsPage() {
               variant="ghost"
             >
               {t("admin.accounts.block")}
+            </ActionButton>
+          ) : null}
+
+          {account.status === "approved" && account.role === "member" ? (
+            <ActionButton
+              url={`/api/admin/accounts/${account.id}`}
+              body={{ role: "assistant" }}
+              size="sm"
+              variant="secondary"
+            >
+              {t("admin.accounts.promote")}
+            </ActionButton>
+          ) : null}
+
+          {account.role === "assistant" ? (
+            <ActionButton
+              url={`/api/admin/accounts/${account.id}`}
+              body={{ role: "member" }}
+              size="sm"
+              variant="ghost"
+            >
+              {t("admin.accounts.demote")}
             </ActionButton>
           ) : null}
         </li>

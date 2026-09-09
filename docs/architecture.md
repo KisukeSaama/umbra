@@ -87,6 +87,9 @@ Uniqueness lives in the database, never in a read-then-write:
 - `episode_unique_idx` on `(series_id, season_number, episode_number)`: a resync
   updates instead of duplicating.
 - `funding_goal_single_active_idx`: one active goal at a time.
+- `account_single_admin_idx`, unique on `role` where the role is `admin`: there
+  is one administrator, and the database is what says so. The assistants named
+  beside them share the workspace but not the accounts page.
 - `report_active_idx`, partial unique on
   `(media_id, coalesce(season_number, -1), coalesce(episode_number, -1), reason)`
   where the status is still live. The `coalesce` is not decoration: two NULLs
@@ -145,6 +148,14 @@ an `HttpOnly` cookie and only its SHA-256 digest is stored.
 A new account lands as `pending` unless it is the designated administrator or
 `AUTO_APPROVE_MEMBERS` is on. A blocked account stays blocked whatever the
 configuration says.
+
+Three roles, and only one of them is granted from a screen. `requireStaff` gates
+the administration side, which the administrator shares with the assistants they
+named; `requireAdmin` keeps the accounts page and its route for the
+administrator alone. If `ADMIN_PLEX_ACCOUNT_ID` later names someone else, the
+previous administrator steps down to assistant on the next sign-in, because
+`account_single_admin_idx` leaves room for one. See
+`docs/adr/0009-one-administrator-and-assistants.md`.
 
 `plex.tv` has to be registered in Janus by the operator. Until then the sign-in
 route is refused by the gateway, which is expected, and `DEV_LOGIN` covers local

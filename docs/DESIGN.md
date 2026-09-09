@@ -299,11 +299,12 @@ colour at 50 percent, drops to 50 percent opacity, blocks the cursor.
 blur, items fully rounded with 12 to 16px horizontal padding; active is foreground
 text plus a one-pixel ochre underline inset to the item padding, inactive is muted
 ink hovering to foreground on Quiet Sand at 60 percent, and the admin entry shows
-only for administrators. On mobile it does not collapse into a burger: it moves to
+only for the administrator and the assistants. On mobile it does not collapse into a burger: it moves to
 its own centred row below the wordmark, because four items fit and one tap beats
 two. Admin nav: a horizontally scrollable row on small screens, a vertical column
 from the large breakpoint, active item Quiet Sand at medium weight rather than an
-ochre fill. Header: sticky, 64px, bottom border at 60 percent, backdrop blur.
+ochre fill, with the accounts entry left out for an assistant rather than shown
+disabled: a door that is not theirs is not drawn. Header: sticky, 64px, bottom border at 60 percent, backdrop blur.
 
 **Icons.** Phosphor, exposed through `src/components/icons.tsx` at `light` weight,
 `regular` only where a glyph must survive at 16px. Never imported from the library

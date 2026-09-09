@@ -15,7 +15,7 @@ const LINKS = [
   { href: "/admin/polls", key: "admin.nav.polls" },
   { href: "/admin/storage", key: "admin.nav.storage" },
   { href: "/admin/funding", key: "admin.nav.funding" },
-  { href: "/admin/accounts", key: "admin.nav.accounts" },
+  { href: "/admin/accounts", key: "admin.nav.accounts", adminOnly: true },
   { href: "/admin/jobs", key: "admin.nav.jobs" },
 ] as const;
 
@@ -23,16 +23,23 @@ function isCurrent(href: string, pathname: string) {
   return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
 }
 
-export function AdminNav() {
+/**
+ * The assistants share this workspace, minus what hands out access: the
+ * accounts page belongs to the administrator alone, so it is not offered here.
+ * Hiding is a courtesy, not the guard: the page and the route check for
+ * themselves.
+ */
+export function AdminNav({ isAdmin }: { isAdmin: boolean }) {
   const t = useTranslator();
   const pathname = usePathname();
+  const links = LINKS.filter((link) => isAdmin || !("adminOnly" in link));
 
   return (
     <nav
       aria-label={t("admin.title")}
       className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:flex-col lg:overflow-visible lg:pb-0"
     >
-      {LINKS.map((link) => {
+      {links.map((link) => {
         const active = isCurrent(link.href, pathname);
         return (
           <Link

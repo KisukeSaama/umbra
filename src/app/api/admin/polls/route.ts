@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireStaff } from "@/lib/auth/session";
 import { createPoll } from "@/lib/domain/polls";
 
 const schema = z.object({
@@ -14,7 +14,7 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   return route(async () => {
-    await requireAdmin();
+    await requireStaff();
     const input = await jsonBody(request, schema);
     return createPoll({ ...input, endsAt: input.endsAt ?? null });
   });

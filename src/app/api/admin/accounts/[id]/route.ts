@@ -3,12 +3,12 @@ import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth/session";
-import { ACCOUNT_ROLES, ACCOUNT_STATUSES } from "@/lib/db/schema";
+import { ACCOUNT_STATUSES, ASSIGNABLE_ROLES } from "@/lib/db/schema";
 import { updateAccount } from "@/lib/domain/accounts";
 
 const schema = z.object({
   status: z.enum(ACCOUNT_STATUSES).optional(),
-  role: z.enum(ACCOUNT_ROLES).optional(),
+  role: z.enum(ASSIGNABLE_ROLES).optional(),
 });
 
 export async function PATCH(

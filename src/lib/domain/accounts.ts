@@ -50,18 +50,38 @@ export async function pendingAccountCount(): Promise<number> {
   return row?.count ?? 0;
 }
 
+/**
+ * Approves, blocks, or names an assistant.
+ *
+ * The administrator is not a role this hands out: there is one, decided by
+ * `ADMIN_PLEX_ACCOUNT_ID` and enforced by the database. What can be granted here
+ * is help, `member` to `assistant` and back.
+ */
 export async function updateAccount(
   accountId: string,
   input: { status?: AccountStatus; role?: AccountRole },
   actingAccountId: string,
 ) {
-  // An administrator cannot lock themselves out of their own instance.
-  if (
-    accountId === actingAccountId &&
-    (input.status !== undefined || input.role !== undefined)
-  ) {
+  if (input.status === undefined && input.role === undefined) {
     throw new BadRequestError("error.badRequest");
   }
+
+  // An administrator cannot lock themselves out of their own instance.
+  if (accountId === actingAccountId) {
+    throw new BadRequestError("error.badRequest");
+  }
+
+  // The administrator is designated by configuration, never promoted from a
+  // list, and never demoted from one either.
+  if (input.role === "admin") throw new BadRequestError("error.badRequest");
+
+  const [target] = await db()
+    .select({ role: accounts.role })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  if (!target) throw new NotFoundError("error.notFound");
+  if (target.role === "admin") throw new BadRequestError("error.badRequest");
 
   const [row] = await db()
     .update(accounts)

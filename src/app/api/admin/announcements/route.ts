@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireStaff } from "@/lib/auth/session";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/db/schema";
 import { createAnnouncement } from "@/lib/domain/announcements";
 
@@ -15,7 +15,7 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   return route(async () => {
-    await requireAdmin();
+    await requireStaff();
     return createAnnouncement(await jsonBody(request, schema));
   });
 }

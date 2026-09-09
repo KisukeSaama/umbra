@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listOpenEpisodeTasks, listTrackedSeries } from "@/lib/domain/series";
 import { formatDate, formatEpisodeCode } from "@/lib/format";
-import { requireAdminPage } from "@/lib/auth/session";
+import { requireStaffPage } from "@/lib/auth/session";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -14,7 +14,7 @@ import { getI18n } from "@/lib/i18n/server";
  * for the cases automation cannot settle.
  */
 export default async function AdminSeriesPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   const { t, locale } = await getI18n();
   const [series, tasks] = await Promise.all([
     listTrackedSeries(),
