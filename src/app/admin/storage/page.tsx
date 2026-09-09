@@ -79,7 +79,10 @@ export default async function AdminStoragePage() {
 
       <Progress value={percent} aria-label={t("section.storage")} />
 
-      <Card>
+      {/* The card must not clip. A box that hides its overflow becomes the
+          scrollport its children are pinned to, and the map inside would be
+          pinned to something that never scrolls, which is to say to nothing. */}
+      <Card className="overflow-visible">
         <CardHeader>
           <CardTitle>{t("admin.storage.explorer")}</CardTitle>
           <CardDescription>{t("admin.storage.explorer.hint")}</CardDescription>
