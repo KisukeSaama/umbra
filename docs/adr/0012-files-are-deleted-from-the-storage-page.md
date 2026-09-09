@@ -34,8 +34,10 @@ symbolic link is never followed, never listed and never deleted. That check
 lives in `src/lib/domain/storage-files.ts` and nowhere else.
 
 Writing means deletion, nothing else: no rename, no move, no upload, no
-execution. The root of a volume is not deletable, which is the only depth
-where one click could take a library. Batches are bounded and rate limited.
+execution. Nothing directly under the root of a volume is deletable: that is
+where the libraries sit, `Movies`, `Series`, and one click there would take
+one whole. A deletion happens inside a library, never of one. Batches are
+bounded and rate limited.
 A deletion records a storage snapshot at once, so the gauge says what just
 happened; the map waits for the next scan.
 

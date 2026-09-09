@@ -162,6 +162,8 @@ export const en = {
   "error.syncRunning": "A synchronisation is already under way.",
   "error.invalidPath": "Unknown path.",
   "error.pathNotFound": "This no longer exists.",
+  "error.deleteAtRoot":
+    "Libraries at the root of a volume are not deleted from here. Open one first.",
   "error.storageReadOnly":
     "The volume is mounted read-only. Nothing was deleted.",
   "error.notPlayable": "This file is not a video.",
@@ -324,6 +326,8 @@ export const en = {
   "admin.storage.modified": "Modified",
   "admin.storage.up": "Up one level",
   "admin.storage.emptyDir": "This folder is empty.",
+  "admin.storage.rootProtected":
+    "Libraries at the root are protected. Open one to manage what it holds.",
   "admin.storage.selectAll": "Select everything here",
   "admin.storage.select": "Select {name}",
   "admin.storage.open": "Open {name}",
@@ -673,6 +677,8 @@ export const fr: Record<TranslationKey, string> = {
   "error.syncRunning": "Une synchronisation est déjà en cours.",
   "error.invalidPath": "Chemin inconnu.",
   "error.pathNotFound": "Cela n'existe plus.",
+  "error.deleteAtRoot":
+    "Les bibliothèques à la racine d'un volume ne se suppriment pas d'ici. Ouvrez-en une d'abord.",
   "error.storageReadOnly":
     "Le volume est monté en lecture seule. Rien n'a été supprimé.",
   "error.notPlayable": "Ce fichier n'est pas une vidéo.",
@@ -834,6 +840,8 @@ export const fr: Record<TranslationKey, string> = {
   "admin.storage.modified": "Modifié",
   "admin.storage.up": "Remonter d'un niveau",
   "admin.storage.emptyDir": "Ce dossier est vide.",
+  "admin.storage.rootProtected":
+    "Les bibliothèques à la racine sont protégées. Ouvrez-en une pour gérer son contenu.",
   "admin.storage.selectAll": "Tout sélectionner ici",
   "admin.storage.select": "Sélectionner {name}",
   "admin.storage.open": "Ouvrir {name}",

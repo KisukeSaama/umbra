@@ -182,10 +182,17 @@ describe("deletion", () => {
     expect(await readdir(join(base, "other"))).toEqual(["secret.txt"]);
   });
 
+  it("protects the libraries at the root of a volume", async () => {
+    expect(
+      await code(deleteStorageEntries("Media", [], ["Movies"], volumes)),
+    ).toBe("error.deleteAtRoot");
+    expect(await readdir(join(base, "media"))).toContain("Movies");
+  });
+
   it("refuses an empty batch", async () => {
-    expect(await code(deleteStorageEntries("Media", [], [], volumes))).toBe(
-      "error.invalidPath",
-    );
+    expect(
+      await code(deleteStorageEntries("Media", ["Movies"], [], volumes)),
+    ).toBe("error.invalidPath");
   });
 });
 

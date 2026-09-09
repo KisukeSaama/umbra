@@ -26,8 +26,7 @@ import { env, parseStoragePaths, type StorageVolumeConfig } from "@/lib/env";
  * Reading is a listing of one directory, never a walk, and one video at a
  * time streamed as it is on disk. Writing is deletion, nothing else: no
  * rename, no move, no upload, and a deletion is refused at the root of a
- * volume, which is the only depth where a single click could take a whole
- * library with it.
+ * volume, where a single click could take a whole library with it.
  */
 
 export type StorageEntry = {
@@ -67,6 +66,14 @@ const MAX_NAME_LENGTH = 255;
 export const MAX_BATCH = 200;
 /** Files counted while weighing before the answer is called a floor. */
 const MAX_WEIGHED_FILES = 50_000;
+/**
+ * How deep the listed directory must be before its entries can go.
+ *
+ * Directly under a volume sit the libraries themselves, `Movies`, `Series`,
+ * and one click there would take one whole. So a deletion happens inside a
+ * library, never of one.
+ */
+export const MIN_DELETE_DEPTH = 1;
 
 function configuredVolumes(): StorageVolumeConfig[] {
   return parseStoragePaths(env().STORAGE_PATHS);
@@ -243,8 +250,8 @@ export async function deleteStorageEntries(
   assertNames(names);
   if (names.length === 0 || names.length > MAX_BATCH)
     throw new BadRequestError("error.invalidPath");
-  // The root itself is never among the names: a deletion is always of
-  // something below it, and the shallowest thing deletable is a direct child.
+  if (path.length < MIN_DELETE_DEPTH)
+    throw new ConflictError("error.deleteAtRoot");
 
   const result: StorageDeletion = { deleted: [], failed: [] };
   let readOnly = false;

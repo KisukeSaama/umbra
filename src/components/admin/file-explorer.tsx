@@ -21,11 +21,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type {
-  StorageDeletion,
-  StorageEntry,
-  StorageListing,
-  StorageWeight,
+import {
+  MIN_DELETE_DEPTH,
+  type StorageDeletion,
+  type StorageEntry,
+  type StorageListing,
+  type StorageWeight,
 } from "@/lib/domain/storage-files";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { translateError } from "@/lib/i18n";
@@ -123,6 +124,9 @@ export function FileExplorer({
     listing.path.some((name, index) => name !== path[index]);
   const entries = listing?.entries ?? [];
   const allSelected = entries.length > 0 && selected.size === entries.length;
+  // The libraries at the root are not deletable, so they are not tickable:
+  // a checkbox that leads to a refusal is a checkbox that lies.
+  const selectable = canDelete && path.length >= MIN_DELETE_DEPTH;
 
   function toggle(name: string) {
     setSelected((previous) => {
@@ -198,7 +202,7 @@ export function FileExplorer({
         <table className="w-full text-sm">
           <thead className="text-muted-foreground bg-secondary/40 text-xs">
             <tr>
-              {canDelete ? (
+              {selectable ? (
                 <th className="w-8 px-2 py-1.5">
                   <input
                     type="checkbox"
@@ -253,7 +257,7 @@ export function FileExplorer({
                       loading && "opacity-60",
                     )}
                   >
-                    {canDelete ? (
+                    {selectable ? (
                       <td className="px-2 py-1">
                         <input
                           type="checkbox"
@@ -316,7 +320,13 @@ export function FileExplorer({
         </table>
       </div>
 
-      {canDelete && selected.size > 0 ? (
+      {canDelete && !selectable && entries.length > 0 ? (
+        <p className="text-muted-foreground text-xs">
+          {t("admin.storage.rootProtected")}
+        </p>
+      ) : null}
+
+      {selectable && selected.size > 0 ? (
         <div className="border-border/60 bg-secondary/40 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm">
           <span className="font-medium tabular-nums">
             {t("admin.storage.selected", { count: selected.size })}
@@ -351,7 +361,7 @@ export function FileExplorer({
         </div>
       ) : null}
 
-      {canDelete && confirming ? (
+      {selectable && confirming ? (
         <DeleteDialog
           selection={selection}
           folders={selectedFolders}
