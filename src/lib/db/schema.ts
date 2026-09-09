@@ -1,0 +1,498 @@
+import { sql } from "drizzle-orm";
+import {
+  bigint,
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+/**
+ * Umbra schema.
+ *
+ * Two principles: store only what is needed (no e-mail, no Plex token, no
+ * per-person watch history), and let the database carry uniqueness rather than
+ * application code. That is what makes the jobs idempotent.
+ */
+
+const createdAt = timestamp("created_at", { withTimezone: true })
+  .notNull()
+  .defaultNow();
+const updatedAt = timestamp("updated_at", { withTimezone: true })
+  .notNull()
+  .defaultNow();
+
+/* ------------------------------------------------------------- identities -- */
+
+export const ACCOUNT_ROLES = ["member", "admin"] as const;
+export const ACCOUNT_STATUSES = ["pending", "approved", "blocked"] as const;
+export type AccountRole = (typeof ACCOUNT_ROLES)[number];
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+
+export const accounts = pgTable(
+  "account",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Plex account id: the only personal data kept, alongside the display name. */
+    plexAccountId: text("plex_account_id").notNull().unique(),
+    username: text("username").notNull(),
+    role: text("role").$type<AccountRole>().notNull().default("member"),
+    status: text("status").$type<AccountStatus>().notNull().default("pending"),
+    createdAt,
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check("account_role_check", sql`${t.role} IN ('member', 'admin')`),
+    check(
+      "account_status_check",
+      sql`${t.status} IN ('pending', 'approved', 'blocked')`,
+    ),
+  ],
+);
+
+export const sessions = pgTable(
+  "session",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** SHA-256 digest of the token: the token itself is never stored. */
+    tokenHash: text("token_hash").notNull().unique(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    createdAt,
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index("session_account_idx").on(t.accountId),
+    index("session_expires_idx").on(t.expiresAt),
+  ],
+);
+
+/** plex.tv PIN awaiting confirmation. Short-lived. */
+export const authPins = pgTable("auth_pin", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  plexPinId: text("plex_pin_id").notNull(),
+  createdAt,
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+});
+
+/* ------------------------------------------------------------------ media -- */
+
+export const MEDIA_TYPES = ["movie", "tv"] as const;
+export type MediaType = (typeof MEDIA_TYPES)[number];
+
+/**
+ * Metadata for a title Umbra knows about (requested or tracked).
+ * Not a provider cache: Janus already caches the responses.
+ */
+export const media = pgTable(
+  "media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").notNull().default("tmdb"),
+    providerId: text("provider_id").notNull(),
+    mediaType: text("media_type").$type<MediaType>().notNull(),
+    title: text("title").notNull(),
+    originalTitle: text("original_title"),
+    overview: text("overview"),
+    releaseDate: date("release_date"),
+    posterPath: text("poster_path"),
+    createdAt,
+    updatedAt,
+  },
+  (t) => [
+    uniqueIndex("media_provider_idx").on(t.provider, t.mediaType, t.providerId),
+    check("media_type_check", sql`${t.mediaType} IN ('movie', 'tv')`),
+  ],
+);
+
+export const LIBRARY_KINDS = ["movie", "show", "season", "episode"] as const;
+export type LibraryKind = (typeof LIBRARY_KINDS)[number];
+
+/**
+ * Local index of the server library, filled by the sync job. Lets Umbra answer
+ * "already available" without calling the server on every search.
+ */
+export const libraryItems = pgTable(
+  "library_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ratingKey: text("rating_key").notNull().unique(),
+    kind: text("kind").$type<LibraryKind>().notNull(),
+    title: text("title").notNull(),
+    year: integer("year"),
+    tmdbId: text("tmdb_id"),
+    tvdbId: text("tvdb_id"),
+    imdbId: text("imdb_id"),
+    parentRatingKey: text("parent_rating_key"),
+    grandparentRatingKey: text("grandparent_rating_key"),
+    grandparentTitle: text("grandparent_title"),
+    seasonNumber: integer("season_number"),
+    episodeNumber: integer("episode_number"),
+    sectionKey: text("section_key"),
+    /** Poster path, filled from the metadata provider so the browser never
+     *  talks to the media server. */
+    posterPath: text("poster_path"),
+    addedAt: timestamp("added_at", { withTimezone: true }),
+    syncedAt: timestamp("synced_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("library_item_tmdb_idx").on(t.tmdbId, t.kind),
+    index("library_item_added_idx").on(t.addedAt),
+    index("library_item_episode_idx").on(
+      t.grandparentRatingKey,
+      t.seasonNumber,
+      t.episodeNumber,
+    ),
+    check(
+      "library_item_kind_check",
+      sql`${t.kind} IN ('movie', 'show', 'season', 'episode')`,
+    ),
+  ],
+);
+
+/* --------------------------------------------------------------- requests -- */
+
+export const REQUEST_STATUSES = [
+  "requested",
+  "accepted",
+  "processing",
+  "available",
+  "rejected",
+] as const;
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+
+export const mediaRequests = pgTable(
+  "media_request",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mediaId: uuid("media_id")
+      .notNull()
+      .references(() => media.id, { onDelete: "cascade" }),
+    requestedBy: uuid("requested_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    status: text("status")
+      .$type<RequestStatus>()
+      .notNull()
+      .default("requested"),
+    adminNote: text("admin_note"),
+    createdAt,
+    updatedAt,
+  },
+  (t) => [
+    // One live request per title: deduplication is enforced by the database.
+    uniqueIndex("media_request_active_idx")
+      .on(t.mediaId)
+      .where(sql`status <> 'rejected'`),
+    index("media_request_status_idx").on(t.status, t.createdAt),
+    check(
+      "media_request_status_check",
+      sql`${t.status} IN ('requested', 'accepted', 'processing', 'available', 'rejected')`,
+    ),
+  ],
+);
+
+/* ---------------------------------------------------- series and episodes -- */
+
+export const trackedSeries = pgTable("tracked_series", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mediaId: uuid("media_id")
+    .notNull()
+    .unique()
+    .references(() => media.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(true),
+  /** Raw provider status (`Returning Series`, `Ended`, ...). */
+  providerStatus: text("provider_status"),
+  /** Server-side key of the show, discovered by the library sync. */
+  plexRatingKey: text("plex_rating_key"),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  createdAt,
+});
+
+export const EPISODE_STATUSES = [
+  "scheduled",
+  "aired_missing",
+  "available",
+] as const;
+export type EpisodeStatus = (typeof EPISODE_STATUSES)[number];
+
+export const episodes = pgTable(
+  "episode",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    seriesId: uuid("series_id")
+      .notNull()
+      .references(() => trackedSeries.id, { onDelete: "cascade" }),
+    seasonNumber: integer("season_number").notNull(),
+    episodeNumber: integer("episode_number").notNull(),
+    providerEpisodeId: text("provider_episode_id"),
+    title: text("title"),
+    /** Scheduled broadcast. Never means "available to download". */
+    airDate: date("air_date"),
+    plexAvailable: boolean("plex_available").notNull().default(false),
+    plexCheckedAt: timestamp("plex_checked_at", { withTimezone: true }),
+    status: text("status")
+      .$type<EpisodeStatus>()
+      .notNull()
+      .default("scheduled"),
+    createdAt,
+    updatedAt,
+  },
+  (t) => [
+    uniqueIndex("episode_unique_idx").on(
+      t.seriesId,
+      t.seasonNumber,
+      t.episodeNumber,
+    ),
+    index("episode_air_date_idx").on(t.airDate),
+    index("episode_status_idx").on(t.status),
+    check(
+      "episode_status_check",
+      sql`${t.status} IN ('scheduled', 'aired_missing', 'available')`,
+    ),
+  ],
+);
+
+export const EPISODE_TASK_STATUSES = ["open", "done", "dismissed"] as const;
+export type EpisodeTaskStatus = (typeof EPISODE_TASK_STATUSES)[number];
+
+/** Admin task raised when an aired episode is still missing from the server. */
+export const episodeTasks = pgTable(
+  "episode_task",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    episodeId: uuid("episode_id")
+      .notNull()
+      .unique()
+      .references(() => episodes.id, { onDelete: "cascade" }),
+    status: text("status").$type<EpisodeTaskStatus>().notNull().default("open"),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    createdAt,
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("episode_task_status_idx").on(t.status, t.createdAt),
+    check(
+      "episode_task_status_check",
+      sql`${t.status} IN ('open', 'done', 'dismissed')`,
+    ),
+  ],
+);
+
+/* -------------------------------------------------------------- community -- */
+
+export const ANNOUNCEMENT_CATEGORIES = [
+  "information",
+  "infrastructure",
+  "content",
+  "update",
+  "storage",
+  "funding",
+] as const;
+export type AnnouncementCategory = (typeof ANNOUNCEMENT_CATEGORIES)[number];
+
+export const announcements = pgTable(
+  "announcement",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    category: text("category")
+      .$type<AnnouncementCategory>()
+      .notNull()
+      .default("information"),
+    published: boolean("published").notNull().default(false),
+    createdAt,
+    updatedAt,
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("announcement_published_idx").on(t.published, t.publishedAt),
+    check(
+      "announcement_category_check",
+      sql`${t.category} IN ('information', 'infrastructure', 'content', 'update', 'storage', 'funding')`,
+    ),
+  ],
+);
+
+export const polls = pgTable("poll", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  question: text("question").notNull(),
+  active: boolean("active").notNull().default(false),
+  startsAt: timestamp("starts_at", { withTimezone: true }),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  createdAt,
+});
+
+export const pollOptions = pgTable(
+  "poll_option",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pollId: uuid("poll_id")
+      .notNull()
+      .references(() => polls.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [index("poll_option_poll_idx").on(t.pollId, t.position)],
+);
+
+export const votes = pgTable(
+  "vote",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pollId: uuid("poll_id")
+      .notNull()
+      .references(() => polls.id, { onDelete: "cascade" }),
+    optionId: uuid("option_id")
+      .notNull()
+      .references(() => pollOptions.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    createdAt,
+  },
+  // One vote per person per poll.
+  (t) => [uniqueIndex("vote_unique_idx").on(t.pollId, t.accountId)],
+);
+
+/* ---------------------------------------------------------------- storage -- */
+
+export type StorageVolume = {
+  label: string;
+  totalBytes: number;
+  usedBytes: number;
+  availableBytes: number;
+};
+
+export const storageSnapshots = pgTable(
+  "storage_snapshot",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    totalBytes: bigint("total_bytes", { mode: "number" }).notNull(),
+    usedBytes: bigint("used_bytes", { mode: "number" }).notNull(),
+    availableBytes: bigint("available_bytes", { mode: "number" }).notNull(),
+    /** Per-volume detail, admin only. */
+    volumes: jsonb("volumes").$type<StorageVolume[]>().notNull().default([]),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("storage_snapshot_recorded_idx").on(t.recordedAt)],
+);
+
+/* ---------------------------------------------------------------- funding -- */
+
+export const FUNDING_STATUSES = [
+  "draft",
+  "active",
+  "completed",
+  "archived",
+] as const;
+export type FundingStatus = (typeof FUNDING_STATUSES)[number];
+
+export const fundingGoals = pgTable(
+  "funding_goal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    description: text("description"),
+    /** In cents: Umbra collects nothing, these amounts are entered by hand. */
+    targetAmountCents: bigint("target_amount_cents", {
+      mode: "number",
+    }).notNull(),
+    currentAmountCents: bigint("current_amount_cents", { mode: "number" })
+      .notNull()
+      .default(0),
+    currency: text("currency").notNull().default("EUR"),
+    status: text("status").$type<FundingStatus>().notNull().default("draft"),
+    createdAt,
+    updatedAt,
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    // A single active goal at a time (V1).
+    uniqueIndex("funding_goal_single_active_idx")
+      .on(t.status)
+      .where(sql`status = 'active'`),
+    check("funding_goal_target_check", sql`${t.targetAmountCents} > 0`),
+    check(
+      "funding_goal_status_check",
+      sql`${t.status} IN ('draft', 'active', 'completed', 'archived')`,
+    ),
+  ],
+);
+
+export const fundingTransactions = pgTable(
+  "funding_transaction",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    goalId: uuid("goal_id")
+      .notNull()
+      .references(() => fundingGoals.id, { onDelete: "cascade" }),
+    /** May be negative: a correction is a movement like any other. */
+    deltaCents: bigint("delta_cents", { mode: "number" }).notNull(),
+    note: text("note"),
+    createdAt,
+  },
+  (t) => [index("funding_transaction_goal_idx").on(t.goalId, t.createdAt)],
+);
+
+/* --------------------------------------------------------------- job runs -- */
+
+/** Job resume state: this is what makes catching up after downtime possible. */
+export const jobState = pgTable("job_state", {
+  jobName: text("job_name").primaryKey(),
+  lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+  cursor: jsonb("cursor"),
+});
+
+export const JOB_RUN_STATUSES = ["running", "success", "failure"] as const;
+export type JobRunStatus = (typeof JOB_RUN_STATUSES)[number];
+
+export const jobRuns = pgTable(
+  "job_run",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobName: text("job_name").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    status: text("status").$type<JobRunStatus>().notNull().default("running"),
+    itemsProcessed: integer("items_processed").notNull().default(0),
+    error: text("error"),
+  },
+  (t) => [
+    index("job_run_name_idx").on(t.jobName, t.startedAt),
+    check(
+      "job_run_status_check",
+      sql`${t.status} IN ('running', 'success', 'failure')`,
+    ),
+  ],
+);
+
+/** Daily usage counters. No person identifier, ever. */
+export const analyticsDaily = pgTable(
+  "analytics_daily",
+  {
+    day: date("day").notNull(),
+    metric: text("metric").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.metric] })],
+);

@@ -1,0 +1,64 @@
+import { FundingForm } from "@/components/admin/funding-form";
+import { FundingPanel } from "@/components/admin/funding-panel";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { goalHistory, listGoals } from "@/lib/domain/funding";
+import { formatAmount } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/server";
+
+/**
+ * Funding, administrator side.
+ *
+ * One active goal, its manual adjustments, and the history those adjustments
+ * leave behind. No payment provider is involved anywhere in this page.
+ */
+export default async function AdminFundingPage() {
+  const { t, locale } = await getI18n();
+  const goals = await listGoals();
+  const active =
+    goals.find((goal) => goal.status === "active") ?? goals[0] ?? null;
+  const history = active ? await goalHistory(active.id) : [];
+
+  return (
+    <>
+      {active ? <FundingPanel goal={active} /> : null}
+      {active?.status === "active" ? null : <FundingForm />}
+
+      {history.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("admin.funding.history")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-border/60 -my-2 divide-y text-sm">
+              {history.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between gap-4 py-2"
+                >
+                  <span className="text-muted-foreground">
+                    {entry.createdAt.toLocaleString(
+                      locale === "fr" ? "fr-FR" : "en-US",
+                    )}
+                    {entry.note ? ` - ${entry.note}` : ""}
+                  </span>
+                  <span
+                    className={
+                      entry.deltaCents < 0 ? "text-destructive" : "text-primary"
+                    }
+                  >
+                    {entry.deltaCents > 0 ? "+" : ""}
+                    {formatAmount(
+                      entry.deltaCents,
+                      active?.currency ?? "EUR",
+                      locale,
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+    </>
+  );
+}

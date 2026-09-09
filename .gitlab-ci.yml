@@ -1,0 +1,278 @@
+# Umbra pipeline.
+#
+#   test  -> on develop, on tags v*, and on merge requests
+#   build -> on develop and on tags v*, pushes one image to the GitLab registry
+#   deploy_dev  -> manual, from develop  -> https://umbra-d.kisukesaama.com
+#   deploy_prod -> automatic, on tag v*  -> https://umbra.kisukesaama.com
+#
+# Required GitLab CI/CD variables, scoped per environment, production ones protected:
+#   UMBRA_POSTGRES_PASSWORD        database password
+#   UMBRA_JANUS_APPLICATION_ID     this service's id in Janus (not a secret)
+#   UMBRA_JANUS_API_KEY            this service's Janus key
+#   UMBRA_CRON_SECRET              shared by the worker and the sync endpoint
+# Optional:
+#   UMBRA_ADMIN_PLEX_ACCOUNT_ID    Plex account promoted to admin on first sign-in
+#   UMBRA_DISCORD_WEBHOOK_URL      admin notifications
+#   UMBRA_STORAGE_PATHS            published volumes, `Label:/path` comma separated
+#   UMBRA_AUTO_APPROVE_MEMBERS     "true" to skip manual approval
+#   UMBRA_JANUS_URL                overrides the gateway address
+
+image: docker:29
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  APP_SUBDOMAIN: umbra
+  DOCKER_BUILDKIT: "1"
+  DOCKER_HOST: unix:///var/run/docker.sock
+  DOCKER_TLS_CERTDIR: ""
+
+# ---------------------------------------------------------------------------
+# Shared setup. Do not edit below this line without reading
+# https://gitlab.kisukesaama.com/devops/docs -> pipeline.md.
+# ---------------------------------------------------------------------------
+
+.docker_defaults: &docker_defaults
+  image: docker:29
+  tags:
+    - devops
+  before_script:
+    - set -euo pipefail
+    - docker info
+    - |
+      if [[ -z "${CI_REGISTRY:-}" ]]; then
+        echo "CI_REGISTRY is not set." >&2
+        exit 1
+      fi
+    - export CI_REGISTRY_IMAGE="${CI_REGISTRY_IMAGE:-${CI_REGISTRY}/${CI_PROJECT_PATH}}"
+    - export IMAGE_TAG="${CI_COMMIT_TAG:-${CI_COMMIT_REF_SLUG}}"
+    - echo "${CI_REGISTRY_PASSWORD:-${CI_JOB_TOKEN}}" | docker login --username "${CI_REGISTRY_USER:-gitlab-ci-token}" --password-stdin "${CI_REGISTRY}"
+
+.deploy_defaults: &deploy_defaults
+  image: docker:29
+  tags:
+    - devops
+  before_script:
+    - set -euo pipefail
+    - docker info
+    - |
+      if [[ -z "${CI_REGISTRY:-}" ]]; then
+        echo "CI_REGISTRY is not set." >&2
+        exit 1
+      fi
+    - export CI_REGISTRY_IMAGE="${CI_REGISTRY_IMAGE:-${CI_REGISTRY}/${CI_PROJECT_PATH}}"
+    - export IMAGE_TAG="${CI_COMMIT_TAG:-${CI_COMMIT_REF_SLUG}}"
+    - set -a; source deploy/paths.env; set +a
+    # A tag means production; anything else that reaches a deploy job is develop.
+    - |
+      if [[ -n "${CI_COMMIT_TAG:-}" ]]; then
+        export DEPLOY_ENV=prod
+        export APP_HOST="${APP_SUBDOMAIN}.kisukesaama.com"
+      else
+        export DEPLOY_ENV=dev
+        export APP_HOST="${APP_SUBDOMAIN}-d.kisukesaama.com"
+      fi
+    - export TARGET_DIR="${DEPLOY_DIR}/${DEPLOY_ENV}"
+    - export ENV_DATA_DIR="${DATA_DIR}/${DEPLOY_ENV}"
+    - |
+      validate_paths() {
+        case "${DEPLOY_DIR:-}" in
+          /home/kisuke/*) ;;
+          *) echo "DEPLOY_DIR must stay under /home/kisuke/." >&2; exit 1 ;;
+        esac
+        case "${DATA_DIR:-}" in
+          /home/kisuke/*) ;;
+          *) echo "DATA_DIR must stay under /home/kisuke/." >&2; exit 1 ;;
+        esac
+        case "${DEPLOY_DIR}${DATA_DIR}" in
+          *..*) echo "Deployment paths cannot contain '..'." >&2; exit 1 ;;
+        esac
+      }
+
+      # A missing variable must fail here, not inside a container.
+      write_runtime_files() {
+        local target="$1"
+        local env_name="${CI_ENVIRONMENT_NAME:-this environment}"
+        : "${UMBRA_POSTGRES_PASSWORD:?Set UMBRA_POSTGRES_PASSWORD for ${env_name}}"
+        : "${UMBRA_JANUS_APPLICATION_ID:?Set UMBRA_JANUS_APPLICATION_ID for ${env_name}}"
+        : "${UMBRA_JANUS_API_KEY:?Set UMBRA_JANUS_API_KEY for ${env_name}}"
+        : "${UMBRA_CRON_SECRET:?Set UMBRA_CRON_SECRET for ${env_name}}"
+
+        mkdir -p "${target}"
+        cp deploy/compose.yml "${target}/compose.yml"
+        cp deploy/paths.env "${target}/paths.env"
+        # app.env carries credentials: restrictive umask here, mode 600 on the host.
+        (umask 077; printf '%s\n' \
+          "DEPLOY_ENV=${DEPLOY_ENV}" \
+          "APP_HOST=${APP_HOST}" \
+          "CI_REGISTRY_IMAGE=${CI_REGISTRY_IMAGE}" \
+          "IMAGE_TAG=${IMAGE_TAG}" \
+          "POSTGRES_DB=${UMBRA_POSTGRES_DB:-umbra}" \
+          "POSTGRES_USER=${UMBRA_POSTGRES_USER:-umbra}" \
+          "POSTGRES_PASSWORD=${UMBRA_POSTGRES_PASSWORD}" \
+          "JANUS_URL=${UMBRA_JANUS_URL:-https://janus.kisukesaama.com}" \
+          "JANUS_APPLICATION_ID=${UMBRA_JANUS_APPLICATION_ID}" \
+          "JANUS_API_KEY=${UMBRA_JANUS_API_KEY}" \
+          "JANUS_LIBRARY_SLUG=${UMBRA_JANUS_LIBRARY_SLUG:-kisuflix}" \
+          "JANUS_METADATA_SLUG=${UMBRA_JANUS_METADATA_SLUG:-tmdb-v3}" \
+          "JANUS_PLEX_TV_SLUG=${UMBRA_JANUS_PLEX_TV_SLUG:-plex-tv}" \
+          "ADMIN_PLEX_ACCOUNT_ID=${UMBRA_ADMIN_PLEX_ACCOUNT_ID:-}" \
+          "AUTO_APPROVE_MEMBERS=${UMBRA_AUTO_APPROVE_MEMBERS:-false}" \
+          "DISCORD_WEBHOOK_URL=${UMBRA_DISCORD_WEBHOOK_URL:-}" \
+          "STORAGE_PATHS=${UMBRA_STORAGE_PATHS:-Media:/mnt/plex}" \
+          "CRON_SECRET=${UMBRA_CRON_SECRET}" \
+          "SYNC_INTERVAL_MINUTES=${UMBRA_SYNC_INTERVAL_MINUTES:-30}" \
+          > "${target}/app.env")
+      }
+
+      # The runner mounts the host Docker socket but NOT /home/kisuke: files
+      # written in this job live in a container that is about to be deleted.
+      stage_on_host() {
+        local source_dir="$1"
+        local target_rel="${TARGET_DIR#/home/kisuke/}"
+        local data_rel="${DATA_DIR#/home/kisuke/}"
+
+        tar -C "${source_dir}" -cf - . | docker run --rm -i \
+          -e TARGET_REL="${target_rel}" \
+          -e DATA_REL="${data_rel}" \
+          -e DEPLOY_ENV="${DEPLOY_ENV}" \
+          -v /home/kisuke:/host-home \
+          alpine:3.24 sh -euc '
+            case "$TARGET_REL" in ""|/*|*..*) exit 1 ;; esac
+            case "$DATA_REL" in ""|/*|*..*) exit 1 ;; esac
+            host_target="/host-home/$TARGET_REL"
+            host_data="/host-home/$DATA_REL/$DEPLOY_ENV"
+            mkdir -p "$host_target" "$host_data/postgres"
+            tar -C "$host_target" -xf -
+            chmod 750 "$host_target" "$host_data" "$host_data/postgres"
+            chmod 640 "$host_target/compose.yml" "$host_target/paths.env"
+            chmod 600 "$host_target/app.env"
+          '
+      }
+
+      validate_paths
+      mkdir -p "${TARGET_DIR}" "${ENV_DATA_DIR}/postgres"
+      write_runtime_files "${TARGET_DIR}"
+      stage_on_host "${TARGET_DIR}"
+    - echo "${CI_REGISTRY_PASSWORD:-${CI_JOB_TOKEN}}" | docker login --username "${CI_REGISTRY_USER:-gitlab-ci-token}" --password-stdin "${CI_REGISTRY}"
+    - |
+      compose() {
+        docker compose -p "${APP_SUBDOMAIN}-${DEPLOY_ENV}" \
+          --env-file paths.env --env-file app.env -f compose.yml "$@"
+      }
+
+      # A failed health condition only reports "dependency failed to start"; the
+      # reason is in the container log, on a host the runner cannot shell into.
+      deploy() {
+        compose pull
+        compose up -d --remove-orphans && return 0
+        echo "Deployment failed. Container state and recent logs follow." >&2
+        compose ps -a >&2 || true
+        compose logs --no-color --tail 200 >&2 || true
+        return 1
+      }
+
+# ---- test -----------------------------------------------------------------
+
+test:
+  stage: test
+  tags: [devops]
+  image: node:24-alpine
+  cache:
+    key: umbra-npm
+    paths:
+      - .npm
+  before_script:
+    - npm config set cache "$CI_PROJECT_DIR/.npm"
+  script:
+    - npm ci --no-audit --no-fund
+    - npm audit --audit-level=high
+    - npm run lint
+    - npm run typecheck
+    - npm test
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: "$CI_COMMIT_TAG =~ /^v.*/"
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# ---- build ----------------------------------------------------------------
+
+build:
+  stage: build
+  <<: *docker_defaults
+  needs:
+    - job: test
+      artifacts: false
+  script:
+    # One application, one image. The worker runs the same image with another command.
+    - docker build --pull -t "${CI_REGISTRY_IMAGE}:${IMAGE_TAG}" -f Dockerfile .
+    - docker push "${CI_REGISTRY_IMAGE}:${IMAGE_TAG}"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: "$CI_COMMIT_TAG =~ /^v.*/"
+
+# ---- deploy DEV (manual, from develop) ------------------------------------
+
+deploy_dev:
+  stage: deploy
+  <<: *deploy_defaults
+  needs: ["build"]
+  resource_group: umbra-dev
+  environment:
+    name: dev
+    url: https://umbra-d.kisukesaama.com
+    on_stop: stop_dev
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: manual
+  script:
+    - cd "${TARGET_DIR}"
+    - deploy
+
+stop_dev:
+  stage: deploy
+  <<: *deploy_defaults
+  resource_group: umbra-dev
+  environment:
+    name: dev
+    action: stop
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: manual
+  script:
+    - cd "${TARGET_DIR}"
+    - compose down
+
+# ---- deploy PROD (automatic, on v* tags) ----------------------------------
+
+deploy_prod:
+  stage: deploy
+  <<: *deploy_defaults
+  needs: ["build"]
+  resource_group: umbra-prod
+  environment:
+    name: production
+    url: https://umbra.kisukesaama.com
+    on_stop: stop_prod
+  rules:
+    - if: "$CI_COMMIT_TAG =~ /^v.*/"
+  script:
+    - cd "${TARGET_DIR}"
+    - deploy
+
+stop_prod:
+  stage: deploy
+  <<: *deploy_defaults
+  resource_group: umbra-prod
+  environment:
+    name: production
+    action: stop
+  rules:
+    - if: "$CI_COMMIT_TAG =~ /^v.*/"
+      when: manual
+  script:
+    - cd "${TARGET_DIR}"
+    - compose down

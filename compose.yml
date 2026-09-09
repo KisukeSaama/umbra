@@ -1,0 +1,53 @@
+# Development stack.
+#
+#   docker compose up            the whole thing, on http://localhost:3000
+#   docker compose up postgres   the database only, to run `npm run dev` on the host
+#
+# The deployed stack is a different file: deploy/compose.yml.
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    command: npm run dev
+    environment:
+      DATABASE_URL: postgres://umbra:umbra@postgres:5432/umbra
+      # Everything else comes from .env.local, which Next reads itself.
+      NODE_ENV: development
+      TZ: Europe/Paris
+    env_file:
+      - path: .env.local
+        required: false
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      # Container-owned: node_modules holds platform binaries, and .next must not
+      # be shared with a build made on the host.
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: umbra
+      POSTGRES_USER: umbra
+      POSTGRES_PASSWORD: umbra
+      TZ: Europe/Paris
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18 images want a single mount at /var/lib/postgresql and place
+      # the cluster in a version named subdirectory under it.
+      - umbra-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umbra -d umbra"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  umbra-postgres:

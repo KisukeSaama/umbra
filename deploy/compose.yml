@@ -1,0 +1,153 @@
+# Deployed stack: public Next.js app, private sync worker, private database.
+#
+# Variables come from paths.env + app.env, both passed with --env-file by the
+# pipeline's compose() wrapper.
+#
+# Available here:
+#   ${APP_SLUG} ${APP_SUBDOMAIN} ${DEPLOY_DIR} ${DATA_DIR} ${TRAEFIK_NETWORK}   (paths.env)
+#   ${DEPLOY_ENV} ${APP_HOST} ${CI_REGISTRY_IMAGE} ${IMAGE_TAG} + Umbra's keys   (app.env)
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# The app and the worker run the same image with the same configuration; only
+# the command differs.
+x-umbra-env: &umbra-env
+  NODE_ENV: production
+  TZ: Europe/Paris
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  JANUS_URL: ${JANUS_URL}
+  JANUS_APPLICATION_ID: ${JANUS_APPLICATION_ID}
+  JANUS_API_KEY: ${JANUS_API_KEY}
+  JANUS_LIBRARY_SLUG: ${JANUS_LIBRARY_SLUG}
+  JANUS_METADATA_SLUG: ${JANUS_METADATA_SLUG}
+  JANUS_PLEX_TV_SLUG: ${JANUS_PLEX_TV_SLUG}
+  ADMIN_PLEX_ACCOUNT_ID: ${ADMIN_PLEX_ACCOUNT_ID}
+  AUTO_APPROVE_MEMBERS: ${AUTO_APPROVE_MEMBERS}
+  DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+  STORAGE_PATHS: ${STORAGE_PATHS}
+  CRON_SECRET: ${CRON_SECRET}
+
+services:
+  # The only service on the traefik network. Everything else stays private.
+  web:
+    image: ${CI_REGISTRY_IMAGE}:${IMAGE_TAG}
+    logging: *logging
+    environment:
+      <<: *umbra-env
+      PUBLIC_SITE_URL: https://${APP_HOST}
+    networks:
+      - application
+      - egress
+      - traefik
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Read-only, and only so the storage gauge has something to measure.
+      # Mounted by absolute path: bulk data does not live under DATA_DIR.
+      - /mnt/plex:/mnt/plex:ro
+    # expose, never ports: Traefik reaches this over the docker network.
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Next writes its image and fetch cache at runtime; the rest stays read-only.
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    labels:
+      - traefik.enable=true
+      # Mandatory on a container attached to more than one network.
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}.entrypoints=websecure
+      # The Cloudflare origin certificate mounted in Traefik already covers this host.
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}.tls=true
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}.service=${APP_SUBDOMAIN}-${DEPLOY_ENV}
+      - traefik.http.services.${APP_SUBDOMAIN}-${DEPLOY_ENV}.loadbalancer.server.port=3000
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}.middlewares=${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers
+      - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.frameDeny=true
+      - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.referrerPolicy=strict-origin-when-cross-origin
+      - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.stsIncludeSubdomains=true
+      # A private hub has no business in a search index.
+      - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.customResponseHeaders.X-Robots-Tag=noindex, nofollow, noarchive
+
+  # Calls the sync endpoint on a loop. No public surface, no schema of its own.
+  worker:
+    image: ${CI_REGISTRY_IMAGE}:${IMAGE_TAG}
+    command: ["node", "scripts/sync-worker.mjs"]
+    logging: *logging
+    environment:
+      <<: *umbra-env
+      UMBRA_INTERNAL_URL: http://web:3000
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES}
+      # Only the web container owns the schema.
+      MIGRATE_ON_START: "false"
+    networks:
+      - application
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  postgres:
+    image: postgres:18-alpine
+    logging: *logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Europe/Paris
+    volumes:
+      # Bind mount, not a named volume: state must be visible on the host for
+      # backups, and the per-environment path keeps dev and prod apart.
+      # Postgres 18 images take a single mount at /var/lib/postgresql and put the
+      # cluster in a version named subdirectory under it.
+      - ${DATA_DIR}/${DEPLOY_ENV}/postgres:/var/lib/postgresql
+    networks:
+      - application
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  # No route out: the database and the worker never reach the internet.
+  application:
+    internal: true
+  # The web container does: every third-party call goes through Janus.
+  egress: {}
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}

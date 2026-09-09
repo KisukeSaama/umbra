@@ -1,0 +1,3 @@
+# LF everywhere. A CRLF that reaches the deployment runner turns a path variable
+# into a path ending in a carriage return, and the stack deploys next to itself.
+* text=auto eol=lf

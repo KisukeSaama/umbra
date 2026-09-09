@@ -1,0 +1,100 @@
+import "server-only";
+
+import { z } from "zod";
+
+/**
+ * Server configuration, validated once on first access.
+ *
+ * No third-party API secret lives here: TMDB and Plex credentials are held in
+ * the Janus vault (see `JANUS.md`). Umbra only knows its own Janus key.
+ *
+ * Validation is lazy so that `next build` can run without a production
+ * environment being present.
+ */
+const schema = z.object({
+  DATABASE_URL: z.string().min(1),
+
+  JANUS_URL: z.string().url(),
+  JANUS_APPLICATION_ID: z.string().min(1),
+  JANUS_API_KEY: z.string().min(1),
+  /** Media library slug (the Plex server, exposed through Janus). */
+  JANUS_LIBRARY_SLUG: z.string().min(1).default("kisuflix"),
+  /** Metadata provider slug. */
+  JANUS_METADATA_SLUG: z.string().min(1).default("tmdb-v3"),
+  /** plex.tv slug, used by the PIN sign-in flow. */
+  JANUS_PLEX_TV_SLUG: z.string().min(1).default("plex-tv"),
+
+  /** Plex account promoted to admin on its first sign-in. */
+  ADMIN_PLEX_ACCOUNT_ID: z.string().optional(),
+  /** Approve every authenticated Plex account automatically. */
+  AUTO_APPROVE_MEMBERS: z.coerce.boolean().default(false),
+  SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  PLEX_PRODUCT: z.string().min(1).default("Umbra"),
+  PLEX_CLIENT_ID: z.string().min(1).default("umbra-hub"),
+  /** Opens the development sign-in route. Never enabled in production. */
+  DEV_LOGIN: z.coerce.boolean().default(false),
+
+  /** `Movies:/data/movies,Series:/data/series` */
+  STORAGE_PATHS: z.string().default(""),
+
+  DISCORD_WEBHOOK_URL: z.string().url().optional(),
+
+  /** Token expected by the scheduled sync route. */
+  CRON_SECRET: z.string().min(16).optional(),
+
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
+});
+
+export type Env = z.infer<typeof schema>;
+
+let cached: Env | null = null;
+
+export function env(): Env {
+  if (cached) return cached;
+
+  const parsed = schema.safeParse(process.env);
+  if (!parsed.success) {
+    const missing = parsed.error.issues
+      .map((issue) => `${issue.path.join(".")} (${issue.message})`)
+      .join(", ");
+    throw new Error(`Invalid configuration: ${missing}`);
+  }
+
+  cached = parsed.data;
+  return cached;
+}
+
+/** Clears the cache. Test-only. */
+export function resetEnvCache() {
+  cached = null;
+}
+
+export type StorageVolumeConfig = { label: string; path: string };
+
+/**
+ * `Movies:/data/movies,/data/series` into published volumes.
+ * On Windows, `C:\media` has no label: a single-character prefix is a drive
+ * letter, not a label.
+ */
+export function parseStoragePaths(raw: string): StorageVolumeConfig[] {
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const separator = entry.indexOf(":");
+      if (separator > 1) {
+        return {
+          label: entry.slice(0, separator).trim(),
+          path: entry.slice(separator + 1).trim(),
+        };
+      }
+      return { label: entry, path: entry };
+    });
+}
+
+export function isProduction() {
+  return env().NODE_ENV === "production";
+}

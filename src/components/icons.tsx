@@ -1,0 +1,89 @@
+import {
+  ArrowSquareOut,
+  CaretDown,
+  CaretRight,
+  CaretUp,
+  Check,
+  CheckCircle,
+  CircleNotch,
+  Coins,
+  DiceFive,
+  HardDrives,
+  Info,
+  MagnifyingGlass,
+  Megaphone,
+  Monitor,
+  Moon,
+  SignOut,
+  Sun,
+  UserCircle,
+  Warning,
+  X,
+  XCircle,
+} from "@phosphor-icons/react/dist/ssr";
+import type {
+  Icon as PhosphorIcon,
+  IconProps as PhosphorIconProps,
+} from "@phosphor-icons/react";
+
+import { cn } from "@/lib/utils";
+
+/**
+ * Umbra's icon set: Phosphor, in one weight, behind one module.
+ *
+ * Everything imports from here rather than from the library, so the visual
+ * voice is decided in a single place and swapping a glyph, a weight or even the
+ * library itself never touches a screen.
+ *
+ * The SSR entry point is deliberate: these render on the server like any other
+ * markup instead of dragging a client boundary into a page that has none.
+ */
+export type IconProps = PhosphorIconProps;
+
+/** Light strokes to match the interface; bold only where a glyph must read at 16px. */
+function icon(
+  Glyph: PhosphorIcon,
+  weight: PhosphorIconProps["weight"] = "light",
+) {
+  return function UmbraIcon({ className, ...props }: IconProps) {
+    return (
+      <Glyph
+        weight={weight}
+        className={cn("size-4 shrink-0", className)}
+        {...props}
+      />
+    );
+  };
+}
+
+export const SearchIcon = icon(MagnifyingGlass, "regular");
+export const DiceIcon = icon(DiceFive);
+export const CheckIcon = icon(Check, "bold");
+export const ChevronRightIcon = icon(CaretRight, "bold");
+export const ChevronDownIcon = icon(CaretDown, "bold");
+export const ChevronUpIcon = icon(CaretUp, "bold");
+export const CloseIcon = icon(X, "bold");
+export const SignOutIcon = icon(SignOut, "regular");
+export const PersonIcon = icon(UserCircle);
+export const SunIcon = icon(Sun, "regular");
+export const MoonIcon = icon(Moon, "regular");
+export const DisplayIcon = icon(Monitor, "regular");
+export const AnnounceIcon = icon(Megaphone);
+export const DiskIcon = icon(HardDrives);
+export const GoalIcon = icon(Coins);
+export const ExternalLinkIcon = icon(ArrowSquareOut, "regular");
+export const AlertIcon = icon(Warning, "regular");
+export const InfoIcon = icon(Info, "regular");
+export const CheckCircleIcon = icon(CheckCircle, "regular");
+export const ErrorCircleIcon = icon(XCircle, "regular");
+
+/** Waiting. The only icon that carries motion. */
+export function SpinnerIcon({ className, ...props }: IconProps) {
+  return (
+    <CircleNotch
+      weight="bold"
+      className={cn("size-4 shrink-0 animate-spin", className)}
+      {...props}
+    />
+  );
+}
