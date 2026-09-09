@@ -32,7 +32,7 @@ export default async function TitlePage({
   const detail = await titleDetail(kind, id, locale);
 
   return (
-    <div className="umbra-container max-w-4xl space-y-12 py-10">
+    <div className="umbra-container max-w-6xl space-y-12 py-10">
       <TitleView detail={detail} />
       <Suspense fallback={<ShelfSkeleton />}>
         <Similar kind={kind} id={id} locale={locale} />

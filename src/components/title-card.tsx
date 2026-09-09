@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { CheckIcon } from "@/components/icons";
+import { CheckIcon, CircleHalfIcon } from "@/components/icons";
 import { Poster } from "@/components/poster";
 import type { Availability } from "@/lib/domain/catalog";
 import { getTranslator } from "@/lib/i18n/server";
@@ -44,13 +44,34 @@ export async function TitleCard({
     >
       <div className="relative">
         <Poster src={posterUrl} alt={title} priority={priority} sizes="10rem" />
-        {availability === "available" ? (
+        {availability === "available" || availability === "partial" ? (
           <span
-            className="bg-primary text-primary-foreground absolute top-2 right-2 flex size-5 items-center justify-center rounded-full"
-            title={t("status.available")}
+            className={cn(
+              "absolute top-2 right-2 flex size-5 items-center justify-center rounded-full",
+              // Partly here is its own answer, not a paler yes: the mark says
+              // half so a rail can be read without opening anything.
+              availability === "partial"
+                ? "bg-secondary text-foreground"
+                : "bg-primary text-primary-foreground",
+            )}
+            title={t(
+              availability === "partial"
+                ? "status.partial"
+                : "status.available",
+            )}
           >
-            <CheckIcon className="size-3" />
-            <span className="sr-only">{t("status.available")}</span>
+            {availability === "partial" ? (
+              <CircleHalfIcon className="size-3" />
+            ) : (
+              <CheckIcon className="size-3" />
+            )}
+            <span className="sr-only">
+              {t(
+                availability === "partial"
+                  ? "status.partial"
+                  : "status.available",
+              )}
+            </span>
           </span>
         ) : availability === "requested" ? (
           <span

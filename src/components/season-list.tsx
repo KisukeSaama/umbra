@@ -11,11 +11,8 @@ import {
 import { LoadingRegion, TextLine } from "@/components/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { UpdateAsk } from "@/components/update-ask";
-import type {
-  Availability,
-  EpisodeState,
-  SeasonState,
-} from "@/lib/domain/catalog";
+import { isOnServer, type Availability } from "@/lib/domain/availability";
+import type { EpisodeState, SeasonState } from "@/lib/domain/catalog";
 import { isSeasonComplete, isSeasonMissing } from "@/lib/domain/seasons";
 import { useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -104,8 +101,7 @@ export function SeasonList({
           const listed = episodes[season.seasonNumber];
           // A report is about something the server is supposed to hold, so the
           // ask only exists once the series itself is there.
-          const canAsk =
-            availability === "available" && !isSeasonComplete(season);
+          const canAsk = isOnServer(availability) && !isSeasonComplete(season);
 
           return (
             <li

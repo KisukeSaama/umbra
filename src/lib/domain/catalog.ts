@@ -5,22 +5,25 @@ import { cache } from "react";
 
 import { db } from "@/lib/db";
 import {
+  episodes,
   libraryItems,
   media,
   mediaRequests,
+  trackedSeries,
   type MediaType,
 } from "@/lib/db/schema";
+import {
+  availabilityOf,
+  isOnServer,
+  type Availability,
+} from "@/lib/domain/availability";
 import { episodeCountsBySeason, episodesOnServer } from "@/lib/domain/library";
+import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 
-/**
- * Search: the heart of Umbra.
- *
- * A result is always in exactly one of three states, and that state decides
- * both the wording and whether the request button exists at all.
- */
-export type Availability = "available" | "requested" | "absent";
+/** Search: the heart of Umbra. The states themselves live one file away. */
+export type { Availability };
 
 export type CatalogResult = {
   providerId: string;
@@ -58,9 +61,10 @@ export async function decorate(
   const providerIds = [
     ...new Set(summaries.map((summary) => summary.providerId)),
   ];
-  const [inLibrary, requested] = await Promise.all([
+  const [inLibrary, requested, incomplete] = await Promise.all([
     libraryIndex(providerIds),
     requestedIndex(providerIds),
+    incompleteIndex(providerIds),
   ]);
 
   return summaries.map((summary) => ({
@@ -71,7 +75,7 @@ export async function decorate(
     overview: summary.overview,
     year: yearOf(summary.releaseDate),
     posterUrl: posterUrl(summary.posterPath),
-    availability: availabilityOf(summary, inLibrary, requested),
+    availability: stateOf(summary, inLibrary, requested, incomplete),
   }));
 }
 
@@ -80,23 +84,28 @@ export async function availabilityFor(
   kind: MediaKind,
   providerId: string,
 ): Promise<Availability> {
-  const [inLibrary, requested] = await Promise.all([
+  const [inLibrary, requested, incomplete] = await Promise.all([
     libraryIndex([providerId]),
     requestedIndex([providerId]),
+    incompleteIndex([providerId]),
   ]);
-  return availabilityOf({ providerId, kind }, inLibrary, requested);
+  return stateOf({ providerId, kind }, inLibrary, requested, incomplete);
 }
 
-function availabilityOf(
+/** The three indexes, read against one title. */
+function stateOf(
   summary: Pick<MediaSummary, "providerId" | "kind">,
   inLibrary: Set<string>,
   requested: Set<string>,
+  incomplete: Set<string>,
 ): Availability {
-  if (inLibrary.has(`${libraryKindOf(summary.kind)}:${summary.providerId}`))
-    return "available";
-  if (requested.has(`${summary.kind}:${summary.providerId}`))
-    return "requested";
-  return "absent";
+  return availabilityOf({
+    inLibrary: inLibrary.has(
+      `${libraryKindOf(summary.kind)}:${summary.providerId}`,
+    ),
+    incomplete: incomplete.has(`${summary.kind}:${summary.providerId}`),
+    requested: requested.has(`${summary.kind}:${summary.providerId}`),
+  });
 }
 
 /** Keys `movie:335984` / `show:209867` present on the server. */
@@ -129,6 +138,39 @@ async function requestedIndex(providerIds: string[]): Promise<Set<string>> {
       ),
     );
 
+  return new Set(rows.map((row) => `${row.mediaType}:${row.providerId}`));
+}
+
+/**
+ * Series the server holds without holding whole, by provider id.
+ *
+ * Read from the tracker, which already keeps the broadcast calendar of the
+ * shows it follows next to what the server answered: an episode that has aired
+ * and has not arrived is exactly the gap a member must not be told is filled.
+ * One join, no provider call, so search stays a single round trip.
+ *
+ * A series nobody tracks has no calendar to fall short of, and unknown is not
+ * incomplete: it keeps saying "on the server", which is what the page it links
+ * to will confirm season by season.
+ */
+async function incompleteIndex(providerIds: string[]): Promise<Set<string>> {
+  const rows = await db()
+    .selectDistinct({
+      providerId: media.providerId,
+      mediaType: media.mediaType,
+    })
+    .from(episodes)
+    .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
+    .innerJoin(media, eq(media.id, trackedSeries.mediaId))
+    .where(
+      and(
+        inArray(media.providerId, providerIds),
+        eq(episodes.status, "aired_missing"),
+        eq(episodes.plexAvailable, false),
+      ),
+    );
+
+  // Keyed by kind as well: a movie and a series can carry the same id.
   return new Set(rows.map((row) => `${row.mediaType}:${row.providerId}`));
 }
 
@@ -198,8 +240,24 @@ export const titleDetail = cache(async function titleDetail(
     }
   }
 
+  /*
+   * The seasons know better than the index does: they carry what the provider
+   * lists against what the server holds, for every season rather than for the
+   * ones a tracker follows. So the page settles the state it was handed, and
+   * the wording, the season badges and the update ask can never disagree.
+   */
+  const availability =
+    kind === "tv" && isOnServer(decorated.availability)
+      ? availabilityOf({
+          inLibrary: true,
+          incomplete:
+            isSeriesIncomplete(seasons) || decorated.availability === "partial",
+        })
+      : decorated.availability;
+
   return {
     ...decorated,
+    availability,
     backdropUrl: summary.backdropPath
       ? `https://image.tmdb.org/t/p/w780${summary.backdropPath}`
       : null,

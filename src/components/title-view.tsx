@@ -3,7 +3,6 @@ import { Poster } from "@/components/poster";
 import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
-import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { getTranslator } from "@/lib/i18n/server";
 
 /**
@@ -72,7 +71,6 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
             providerId={detail.providerId}
             title={detail.title}
             availability={detail.availability}
-            incomplete={isSeriesIncomplete(detail.seasons)}
           />
         </div>
       </div>

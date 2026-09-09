@@ -10,6 +10,7 @@ import {
   Check,
   CheckCircle,
   Circle,
+  CircleHalf,
   CircleNotch,
   Clock,
   Compass,
@@ -80,6 +81,7 @@ export const SearchIcon = icon(MagnifyingGlass, "regular");
 export const DiceIcon = icon(DiceFive);
 export const CheckIcon = icon(Check, "bold");
 export const CircleIcon = icon(Circle, "regular");
+export const CircleHalfIcon = icon(CircleHalf, "fill");
 export const ChevronRightIcon = icon(CaretRight, "bold");
 export const ChevronDownIcon = icon(CaretDown, "bold");
 export const ChevronUpIcon = icon(CaretUp, "bold");

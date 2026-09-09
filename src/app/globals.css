@@ -178,7 +178,7 @@
 @layer base {
   /* One shared page rhythm, so every screen lines up on the same gutter. */
   .umbra-container {
-    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-[90rem] px-4 sm:px-6 lg:px-10;
   }
 }
 

@@ -11,6 +11,7 @@ import {
   type RequestStatus,
 } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
+import { isOnServer } from "@/lib/domain/availability";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
@@ -48,7 +49,9 @@ export async function createRequest(
   language?: string,
 ): Promise<{ requestId: string; title: string }> {
   const availability = await availabilityFor(kind, providerId);
-  if (availability === "available")
+  // Partly there counts as there: what is missing is asked for season by
+  // season, not by requesting the whole title a second time.
+  if (isOnServer(availability))
     throw new ConflictError("error.alreadyAvailable");
   if (availability === "requested")
     throw new ConflictError("error.alreadyRequested");

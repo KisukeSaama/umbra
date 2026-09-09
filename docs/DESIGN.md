@@ -236,7 +236,7 @@ marketing headline.
 | Display  | Instrument Serif 400, 2.25rem, line-height 1.1, tracking -0.015em | the page h1 only, applied in the base layer. 3.75rem on the home hero, 3rem on admin    |
 | Headline | Manrope 600, 1.125rem to 1.25rem, tracking tight                  | section headings, optionally a link with trailing chevron and an aside on the right     |
 | Title    | Manrope 600, 1rem, line-height snug                               | card titles, 0.875rem in small cards                                                    |
-| Body     | Manrope 400, 0.875rem, line-height 1.5                            | interface default, set on the card container. Prose 65 to 75ch; container caps at 72rem |
+| Body     | Manrope 400, 0.875rem, line-height 1.5                            | interface default, set on the card container. Prose 65 to 75ch; container caps at 90rem |
 | Label    | Manrope 500, 0.75rem, tracking 0.18em, uppercase                  | eyebrows above page titles, "for Kisuflix" at 0.62rem, the wordmark at tracking 0.22em  |
 | Code     | JetBrains Mono 400                                                | job names and identifiers, nothing else                                                 |
 

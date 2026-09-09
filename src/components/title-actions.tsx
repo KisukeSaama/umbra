@@ -4,14 +4,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { CheckIcon, SpinnerIcon } from "@/components/icons";
+import { CheckIcon, CircleHalfIcon, SpinnerIcon } from "@/components/icons";
 import { ReportFlow } from "@/components/report-flow";
 import { Button } from "@/components/ui/button";
 import { UpdateAsk } from "@/components/update-ask";
-import type { Availability } from "@/lib/domain/catalog";
+import { isOnServer, type Availability } from "@/lib/domain/availability";
 import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import type { MediaKind } from "@/lib/providers/metadata";
+import { cn } from "@/lib/utils";
 
 /**
  * What a member can do about a title, and never more than the state allows.
@@ -19,22 +20,19 @@ import type { MediaKind } from "@/lib/providers/metadata";
  * A title that is not here can be asked for. A title that is here can be
  * reported. A series that is here without being all there is the third case,
  * and it used to fall through the first two: the page said "on the server" and
- * offered nothing but a report three steps deep. It now says what it is and
- * carries the ask for the rest next to it.
+ * offered nothing but a report three steps deep. It is now a state of its own,
+ * carried all the way from search, and the ask for the rest sits next to it.
  */
 export function TitleActions({
   kind,
   providerId,
   title,
   availability,
-  incomplete = false,
 }: {
   kind: MediaKind;
   providerId: string;
   title: string;
   availability: Availability;
-  /** A series on the server whose seasons do not add up to what exists. */
-  incomplete?: boolean;
 }) {
   const t = useTranslator();
   const locale = useLocale();
@@ -106,12 +104,17 @@ export function TitleActions({
     }
   }
 
-  if (state === "available") {
-    const partial = kind === "tv" && incomplete;
+  if (isOnServer(state)) {
+    const partial = state === "partial";
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-primary flex items-center gap-1.5 text-sm">
-          <CheckIcon />
+        <span
+          className={cn(
+            "flex items-center gap-1.5 text-sm",
+            partial ? "text-muted-foreground" : "text-primary",
+          )}
+        >
+          {partial ? <CircleHalfIcon /> : <CheckIcon />}
           {t(partial ? "title.onServerPartly" : "title.onServer")}
         </span>
         {partial ? (

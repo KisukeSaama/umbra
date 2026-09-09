@@ -59,6 +59,7 @@ export const en = {
   "common.skipToContent": "Skip to content",
 
   "status.available": "Available on the server",
+  "status.partial": "On the server, partly",
   "status.requested": "Request already recorded",
   "status.request": "Request",
   "status.requestSent": "Request sent",
@@ -584,6 +585,7 @@ export const fr: Record<TranslationKey, string> = {
   "common.skipToContent": "Aller au contenu",
 
   "status.available": "Disponible sur le serveur",
+  "status.partial": "Sur le serveur, en partie",
   "status.requested": "Demande déjà enregistrée",
   "status.request": "Demander",
   "status.requestSent": "Demande envoyée",

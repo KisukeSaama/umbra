@@ -36,7 +36,7 @@ export default async function ActivityPage() {
   ]);
 
   return (
-    <div className="umbra-container max-w-4xl space-y-12 py-10">
+    <div className="umbra-container max-w-6xl space-y-12 py-10">
       <header>
         <h1 className="text-3xl tracking-tight sm:text-4xl">
           {t("activity.title")}

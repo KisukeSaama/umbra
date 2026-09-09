@@ -13,7 +13,7 @@ export default async function ActivityLoading() {
   return (
     <LoadingRegion
       label={t("common.loading")}
-      className="umbra-container max-w-4xl space-y-12 py-10"
+      className="umbra-container max-w-6xl space-y-12 py-10"
     >
       <PageHeaderSkeleton />
 

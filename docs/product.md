@@ -52,7 +52,7 @@ maintenance banners are meaningless here and must not be built.
 what anyone watched. Umbra shows what is new, what is coming, and shelves to
 browse. Anything more belongs on the server itself.
 
-## The three states of a search result
+## The four states of a search result
 
 Every result is in exactly one state, which decides both the wording and whether
 an action exists.
@@ -60,12 +60,20 @@ an action exists.
 | State     | What the member sees       | Action                         |
 | --------- | -------------------------- | ------------------------------ |
 | Available | "Available on the server"  | none                           |
+| Partial   | "On the server, partly"    | ask for the rest               |
 | Requested | "Request already recorded" | none                           |
 | Absent    | the title, and a button    | "Request", then "Request sent" |
 
-A series is the one case where "available" is not the whole answer: the server
-can hold four episodes of a season of ten. The title then says so, and carries
-the ask for the rest. See "Asking for the rest" below.
+Partial exists because a series is the one thing the server can hold without
+holding whole: four episodes of a season of ten. Calling that "available" in
+search sent members to a page that took it back season by season, so the state
+travels with the result instead. It is read from the tracker, which already
+knows what has aired and has not arrived; a series nobody tracks has no calendar
+to fall short of and keeps saying "available", which its own page then details
+season by season. See "Asking for the rest" below.
+
+Presence is what the rules read: a partial title cannot be requested again, and
+it can be reported, exactly like a title held whole.
 
 ## The request lifecycle
 

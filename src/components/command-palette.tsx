@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { CheckIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
+import {
+  CheckIcon,
+  CircleHalfIcon,
+  SearchIcon,
+  SpinnerIcon,
+} from "@/components/icons";
 import { Poster } from "@/components/poster";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,8 +30,9 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
  *
  * Checking whether something is already on the server is the gesture members
  * repeat most, so it stopped being a page you navigate to and became a key you
- * press. The three states still decide everything: available says so, requested
- * says so, and only an absent title gets a button.
+ * press. The states still decide everything: here says so, partly here says so
+ * too rather than passing for whole, requested says so, and only an absent
+ * title gets a button.
  */
 export function CommandPalette({
   variant = "icon",
@@ -209,6 +215,13 @@ export function CommandPalette({
                     <span className="text-primary flex shrink-0 items-center gap-1 text-xs">
                       <CheckIcon />
                       {t("status.available")}
+                    </span>
+                  ) : availability === "partial" ? (
+                    // Saying "available" here sent members to a page that then
+                    // had to take it back, season by season.
+                    <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
+                      <CircleHalfIcon />
+                      {t("status.partial")}
                     </span>
                   ) : availability === "requested" ? (
                     <span className="text-muted-foreground shrink-0 text-xs">

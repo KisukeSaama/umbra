@@ -13,6 +13,7 @@ import {
   type ReportStatus,
 } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
+import { isOnServer } from "@/lib/domain/availability";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
@@ -80,8 +81,7 @@ export async function createReport(input: {
   // A report is about something that is supposed to be on the server. A title
   // that is not there is a request, and saying so is more useful than refusing.
   const availability = await availabilityFor(input.kind, input.providerId);
-  if (availability !== "available")
-    throw new ConflictError("error.notOnServer");
+  if (!isOnServer(availability)) throw new ConflictError("error.notOnServer");
 
   const summary = await tmdbProvider.details(
     input.kind,
