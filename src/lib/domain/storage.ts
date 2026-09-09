@@ -13,6 +13,7 @@ import {
   type StorageNode,
   type StorageVolume,
 } from "@/lib/db/schema";
+import { isLibrary } from "@/lib/domain/storage-rules";
 import { env, parseStoragePaths } from "@/lib/env";
 
 /**
@@ -289,7 +290,11 @@ async function walk(
   const children: StorageNode[] = [];
   let bytes = 0;
 
-  const directories = entries.filter((entry) => entry.isDirectory());
+  // What is not a library is not the library's weight: at the root of a
+  // volume those names are skipped whole, so nothing under them is counted.
+  const directories = entries.filter(
+    (entry) => entry.isDirectory() && (depth > 0 || isLibrary(entry.name)),
+  );
   const files = entries.filter((entry) => entry.isFile());
 
   for (const file of files) {

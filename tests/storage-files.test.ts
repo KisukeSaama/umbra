@@ -39,6 +39,9 @@ beforeEach(async () => {
   const other = join(base, "other");
   await mkdir(join(media, "Movies", "Alien (1979)"), { recursive: true });
   await mkdir(join(media, "Series"), { recursive: true });
+  await mkdir(join(media, "lost+found"), { recursive: true });
+  await mkdir(join(media, "data"), { recursive: true });
+  await mkdir(join(media, "Series", "data"), { recursive: true });
   await mkdir(other, { recursive: true });
   await writeFile(join(media, "Movies", "Alien (1979)", "Alien.mkv"), "abcdef");
   await writeFile(join(media, "Movies", "Alien (1979)", "Alien.srt"), "sub");
@@ -95,6 +98,19 @@ describe("listing", () => {
       bytes: null,
     });
     expect(listing.entries[1]).toMatchObject({ kind: "file", bytes: 5 });
+  });
+
+  it("hides what is not a library at the root of a volume", async () => {
+    const root = await listStorageDirectory("Media", [], volumes);
+    expect(root.entries.map((entry) => entry.name)).toEqual([
+      "Movies",
+      "Series",
+    ]);
+  });
+
+  it("leaves those names alone below the root", async () => {
+    const listing = await listStorageDirectory("Media", ["Series"], volumes);
+    expect(listing.entries.map((entry) => entry.name)).toContain("data");
   });
 
   it("marks videos as playable", async () => {

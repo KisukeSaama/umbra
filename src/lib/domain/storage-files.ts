@@ -5,7 +5,7 @@ import { lstat, readdir, realpath, rm, stat } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 
-import { MIN_DELETE_DEPTH } from "@/lib/domain/storage-rules";
+import { isLibrary, MIN_DELETE_DEPTH } from "@/lib/domain/storage-rules";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 import { env, parseStoragePaths, type StorageVolumeConfig } from "@/lib/env";
 
@@ -156,6 +156,10 @@ export async function listStorageDirectory(
     // them, and a name that cannot be acted on is a name that misleads.
     if (dirent.isSymbolicLink()) continue;
     if (!dirent.isDirectory() && !dirent.isFile()) continue;
+    // At the root of a volume, what is not a library is not shown: the map
+    // does not count it, and a name on one side but not the other is a name
+    // that has to be explained.
+    if (path.length === 0 && !isLibrary(dirent.name)) continue;
     try {
       const info = await stat(join(target, dirent.name));
       const playable = dirent.isFile() && videoType(dirent.name) !== null;
