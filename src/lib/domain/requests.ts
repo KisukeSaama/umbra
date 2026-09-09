@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
+import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import type { MediaKind } from "@/lib/providers/metadata";
@@ -158,16 +159,48 @@ export async function updateRequestStatus(
 
   if (!updated) throw new NotFoundError("error.requestNotFound");
 
-  if (status === "accepted") {
-    const [row] = await db()
-      .select({ providerId: media.providerId, mediaType: media.mediaType })
-      .from(media)
-      .where(eq(media.id, updated.mediaId))
-      .limit(1);
-    if (row?.mediaType === "tv") await trackSeries(row.providerId);
-  }
+  const [row] = await db()
+    .select({
+      providerId: media.providerId,
+      mediaType: media.mediaType,
+      title: media.title,
+    })
+    .from(media)
+    .where(eq(media.id, updated.mediaId))
+    .limit(1);
 
+  if (status === "accepted" && row?.mediaType === "tv")
+    await trackSeries(row.providerId);
+
+  await notifyRequester(requestId, status, row?.title ?? "");
   return updated;
+}
+
+/**
+ * Tells the person who asked.
+ *
+ * The step is part of the notification key, so a request moving through
+ * accepted and then available says both things rather than only the first, and
+ * a job replaying the same move says nothing twice.
+ */
+export async function notifyRequester(
+  requestId: string,
+  status: RequestStatus,
+  title: string,
+) {
+  const [row] = await db()
+    .select({ requestedBy: mediaRequests.requestedBy })
+    .from(mediaRequests)
+    .where(eq(mediaRequests.id, requestId))
+    .limit(1);
+  if (!row?.requestedBy) return 0;
+
+  return notify([row.requestedBy], {
+    kind: "request_status",
+    subjectId: requestId,
+    step: status,
+    payload: { title, status },
+  });
 }
 
 /**
@@ -187,4 +220,67 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
        AND r.status IN ('requested', 'accepted', 'processing')
   `);
   return result.count ?? 0;
+}
+
+/**
+ * Tells everyone whose request has landed on the server.
+ *
+ * Kept apart from the closing statement so a job never holds a list in memory,
+ * and safe to rerun because the notification key already carries the step.
+ */
+export async function notifyArrivedRequests(): Promise<number> {
+  const result = await db().execute(sql`
+    INSERT INTO notification (account_id, kind, subject_id, dedup_key, payload)
+    SELECT r.requested_by,
+           'request_status'::text,
+           r.id,
+           'request_status:' || r.id::text || ':available',
+           jsonb_build_object('status', 'available', 'title', m.title)
+      FROM media_request AS r
+      JOIN media AS m ON m.id = r.media_id
+     WHERE r.status = 'available'
+       AND r.requested_by IS NOT NULL
+       AND r.updated_at > now() - interval '7 days'
+    ON CONFLICT (account_id, dedup_key) DO NOTHING
+  `);
+  return result.count ?? 0;
+}
+
+/** The requests one member opened, for their own follow-up page. */
+export async function listRequestsBy(accountId: string): Promise<RequestRow[]> {
+  const rows = await db()
+    .select({
+      id: mediaRequests.id,
+      status: mediaRequests.status,
+      createdAt: mediaRequests.createdAt,
+      updatedAt: mediaRequests.updatedAt,
+      adminNote: mediaRequests.adminNote,
+      requestedBy: accounts.username,
+      providerId: media.providerId,
+      mediaType: media.mediaType,
+      title: media.title,
+      releaseDate: media.releaseDate,
+      posterPath: media.posterPath,
+    })
+    .from(mediaRequests)
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
+    .where(eq(mediaRequests.requestedBy, accountId))
+    .orderBy(desc(mediaRequests.createdAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    adminNote: row.adminNote,
+    requestedBy: row.requestedBy,
+    media: {
+      providerId: row.providerId,
+      kind: row.mediaType,
+      title: row.title,
+      year: yearOf(row.releaseDate),
+      posterUrl: posterUrl(row.posterPath),
+    },
+  }));
 }

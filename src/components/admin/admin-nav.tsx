@@ -7,8 +7,9 @@ import { useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/admin", key: "admin.nav.overview" },
+  { href: "/admin", key: "admin.today" },
   { href: "/admin/requests", key: "admin.nav.requests" },
+  { href: "/admin/reports", key: "admin.nav.reports" },
   { href: "/admin/series", key: "admin.nav.series" },
   { href: "/admin/announcements", key: "admin.nav.announcements" },
   { href: "/admin/polls", key: "admin.nav.polls" },

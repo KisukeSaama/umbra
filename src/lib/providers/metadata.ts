@@ -21,6 +21,24 @@ export type MediaSummary = {
   backdropPath: string | null;
   /** Only used to rank search results. */
   popularity: number;
+  /**
+   * Provider genre ids. Present on list rows and on details, which is what
+   * lets the library index be stamped without a second call.
+   */
+  genreIds: number[];
+};
+
+export type Genre = { id: number; name: string };
+
+/** How a shelf or the guided picker asks for titles it cannot name. */
+export type DiscoverQuery = {
+  kind: MediaKind;
+  genreIds?: number[];
+  /** Minutes. Only meaningful for a film. */
+  runtimeLte?: number;
+  sortBy?: "popularity" | "rating" | "recent";
+  page?: number;
+  language?: string;
 };
 
 export type SeasonSummary = {
@@ -66,6 +84,19 @@ export interface MediaMetadataProvider {
     season: number,
     language?: string,
   ): Promise<EpisodeInfo[]>;
+  /** What everyone is watching right now, both kinds mixed. */
+  trending(language?: string): Promise<MediaSummary[]>;
+  /** Titles matching a shape rather than a name. */
+  discoverBy(query: DiscoverQuery): Promise<MediaSummary[]>;
+  /** Films not out yet, or shows currently airing. */
+  upcoming(kind: MediaKind, language?: string): Promise<MediaSummary[]>;
+  /** Titles the provider considers close to this one. */
+  recommendations(
+    kind: MediaKind,
+    providerId: string,
+    language?: string,
+  ): Promise<MediaSummary[]>;
+  genres(kind: MediaKind, language?: string): Promise<Genre[]>;
 }
 
 /** A finished show no longer needs a daily sync. */

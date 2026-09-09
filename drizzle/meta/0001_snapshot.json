@@ -63,9 +63,7 @@
         "account_plex_account_id_unique": {
           "name": "account_plex_account_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "plex_account_id"
-          ]
+          "columns": ["plex_account_id"]
         }
       },
       "policies": {},
@@ -110,10 +108,7 @@
       "compositePrimaryKeys": {
         "analytics_daily_day_metric_pk": {
           "name": "analytics_daily_day_metric_pk",
-          "columns": [
-            "day",
-            "metric"
-          ]
+          "columns": ["day", "metric"]
         }
       },
       "uniqueConstraints": {},
@@ -325,12 +320,8 @@
           "name": "episode_task_episode_id_episode_id_fk",
           "tableFrom": "episode_task",
           "tableTo": "episode",
-          "columnsFrom": [
-            "episode_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["episode_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -340,9 +331,7 @@
         "episode_task_episode_id_unique": {
           "name": "episode_task_episode_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "episode_id"
-          ]
+          "columns": ["episode_id"]
         }
       },
       "policies": {},
@@ -500,12 +489,8 @@
           "name": "episode_series_id_tracked_series_id_fk",
           "tableFrom": "episode",
           "tableTo": "tracked_series",
-          "columnsFrom": [
-            "series_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["series_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -691,12 +676,8 @@
           "name": "funding_transaction_goal_id_funding_goal_id_fk",
           "tableFrom": "funding_transaction",
           "tableTo": "funding_goal",
-          "columnsFrom": [
-            "goal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["goal_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1004,9 +985,7 @@
         "library_item_rating_key_unique": {
           "name": "library_item_rating_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "rating_key"
-          ]
+          "columns": ["rating_key"]
         }
       },
       "policies": {},
@@ -1229,12 +1208,8 @@
           "name": "media_request_media_id_media_id_fk",
           "tableFrom": "media_request",
           "tableTo": "media",
-          "columnsFrom": [
-            "media_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["media_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1242,12 +1217,8 @@
           "name": "media_request_requested_by_account_id_fk",
           "tableFrom": "media_request",
           "tableTo": "account",
-          "columnsFrom": [
-            "requested_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["requested_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1322,12 +1293,8 @@
           "name": "poll_option_poll_id_poll_id_fk",
           "tableFrom": "poll_option",
           "tableTo": "poll",
-          "columnsFrom": [
-            "poll_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["poll_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1464,12 +1431,8 @@
           "name": "session_account_id_account_id_fk",
           "tableFrom": "session",
           "tableTo": "account",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1479,9 +1442,7 @@
         "session_token_hash_unique": {
           "name": "session_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -1612,12 +1573,8 @@
           "name": "tracked_series_media_id_media_id_fk",
           "tableFrom": "tracked_series",
           "tableTo": "media",
-          "columnsFrom": [
-            "media_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["media_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1627,9 +1584,7 @@
         "tracked_series_media_id_unique": {
           "name": "tracked_series_media_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "media_id"
-          ]
+          "columns": ["media_id"]
         }
       },
       "policies": {},
@@ -1701,12 +1656,8 @@
           "name": "vote_poll_id_poll_id_fk",
           "tableFrom": "vote",
           "tableTo": "poll",
-          "columnsFrom": [
-            "poll_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["poll_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1714,12 +1665,8 @@
           "name": "vote_option_id_poll_option_id_fk",
           "tableFrom": "vote",
           "tableTo": "poll_option",
-          "columnsFrom": [
-            "option_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["option_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1727,12 +1674,8 @@
           "name": "vote_account_id_account_id_fk",
           "tableFrom": "vote",
           "tableTo": "account",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

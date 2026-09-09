@@ -18,7 +18,12 @@ import {
  */
 
 export type Metric =
-  "searches" | "requests_created" | "votes_cast" | "logins" | "discovery_rolls";
+  | "searches"
+  | "requests_created"
+  | "reports_created"
+  | "votes_cast"
+  | "logins"
+  | "discovery_rolls";
 
 export async function bumpMetric(metric: Metric, delta = 1) {
   await db()

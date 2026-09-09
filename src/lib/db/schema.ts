@@ -21,6 +21,11 @@ import {
  * Two principles: store only what is needed (no e-mail, no Plex token, no
  * per-person watch history), and let the database carry uniqueness rather than
  * application code. That is what makes the jobs idempotent.
+ *
+ * `taste_profile` is the one place a person's habits leave a trace, and it is
+ * deliberately shaped so that they cannot: a handful of weighted genre ids,
+ * replaced wholesale on every run over a rolling window. No title, no date, no
+ * history. See `docs/adr/0007-aggregated-taste-profile.md`.
  */
 
 const createdAt = timestamp("created_at", { withTimezone: true })
@@ -46,6 +51,13 @@ export const accounts = pgTable(
     username: text("username").notNull(),
     role: text("role").$type<AccountRole>().notNull().default("member"),
     status: text("status").$type<AccountStatus>().notNull().default("pending"),
+    /**
+     * Opt out of the aggregated taste profile. Turning it off deletes the
+     * profile at once: see `docs/adr/0007-aggregated-taste-profile.md`.
+     */
+    personalisationEnabled: boolean("personalisation_enabled")
+      .notNull()
+      .default(true),
     createdAt,
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
@@ -144,6 +156,12 @@ export const libraryItems = pgTable(
     /** Poster path, filled from the metadata provider so the browser never
      *  talks to the media server. */
     posterPath: text("poster_path"),
+    /**
+     * Metadata provider genre ids, filled by the same enrichment pass as the
+     * poster: the details call already carries them, so this costs no extra
+     * request. Not personal data, and what the taste profile is built from.
+     */
+    genreIds: integer("genre_ids").array(),
     addedAt: timestamp("added_at", { withTimezone: true }),
     syncedAt: timestamp("synced_at", { withTimezone: true })
       .notNull()
@@ -494,4 +512,226 @@ export const analyticsDaily = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.day, t.metric] })],
+);
+
+/* ---------------------------------------------------------------- reports -- */
+
+/**
+ * Why a member is raising their hand. A closed list, and the whole reason the
+ * feature can exist without a comment box: a report is a series of choices, so
+ * there is nothing to moderate and nothing to translate.
+ */
+export const REPORT_REASONS = [
+  "missing_episode",
+  "missing_season",
+  "series_outdated",
+  "wrong_content",
+  "bad_quality",
+  "missing_audio_track",
+  "missing_subtitles",
+  "playback_error",
+  "duplicate_entry",
+  "wrong_order",
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+export const REPORT_STATUSES = [
+  "open",
+  "acknowledged",
+  "in_progress",
+  "resolved",
+  "rejected",
+  "duplicate",
+] as const;
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
+
+/**
+ * A problem reported on something that is supposed to be on the server.
+ *
+ * The target is a `media` row rather than a `library_item`: the library index is
+ * rebuilt by every sync, entries not seen in a pass are dropped, and a report
+ * must not die because a scan hiccuped. `library_rating_key` keeps the server
+ * key seen at the time, so the administrator can still find the object.
+ */
+export const reports = pgTable(
+  "report",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mediaId: uuid("media_id")
+      .notNull()
+      .references(() => media.id, { onDelete: "cascade" }),
+    reportedBy: uuid("reported_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    /** Null means the whole title, a season alone means the whole season. */
+    seasonNumber: integer("season_number"),
+    episodeNumber: integer("episode_number"),
+    libraryRatingKey: text("library_rating_key"),
+    reason: text("reason").$type<ReportReason>().notNull(),
+    status: text("status").$type<ReportStatus>().notNull().default("open"),
+    createdAt,
+    updatedAt,
+    /** Taken up by the administrator. */
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    /** Resolved, refused or merged. */
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+  },
+  (t) => [
+    /**
+     * One live report per title, place and reason.
+     *
+     * `coalesce` is not decoration: in Postgres two NULLs never collide, so
+     * without it "the whole series" would duplicate on every click. The second
+     * member to report the same thing joins the existing one instead.
+     */
+    uniqueIndex("report_active_idx")
+      .on(
+        t.mediaId,
+        sql`(coalesce(${t.seasonNumber}, -1))`,
+        sql`(coalesce(${t.episodeNumber}, -1))`,
+        t.reason,
+      )
+      .where(sql`status NOT IN ('resolved', 'rejected', 'duplicate')`),
+    index("report_status_idx").on(t.status, t.createdAt),
+    index("report_media_idx").on(t.mediaId),
+    index("report_live_idx").on(t.status, t.reason),
+    // An episode without its season is not a place anyone can point at.
+    check(
+      "report_scope_check",
+      sql`${t.episodeNumber} IS NULL OR ${t.seasonNumber} IS NOT NULL`,
+    ),
+    check(
+      "report_reason_check",
+      sql`${t.reason} IN ('missing_episode', 'missing_season', 'series_outdated', 'wrong_content', 'bad_quality', 'missing_audio_track', 'missing_subtitles', 'playback_error', 'duplicate_entry', 'wrong_order')`,
+    ),
+    check(
+      "report_status_check",
+      sql`${t.status} IN ('open', 'acknowledged', 'in_progress', 'resolved', 'rejected', 'duplicate')`,
+    ),
+  ],
+);
+
+/**
+ * Who else is waiting on this report.
+ *
+ * Never shown as a number: `docs/product.md` rules out popularity counters. It
+ * exists so a second reporter can follow the outcome in their own page.
+ */
+export const reportFollowers = pgTable(
+  "report_follower",
+  {
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => reports.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    createdAt,
+  },
+  (t) => [
+    primaryKey({ columns: [t.reportId, t.accountId] }),
+    index("report_follower_account_idx").on(t.accountId),
+  ],
+);
+
+/* ---------------------------------------------------------- notifications -- */
+
+export const NOTIFICATION_KINDS = [
+  "request_status",
+  "report_status",
+  "announcement",
+  "poll_open",
+  "episode_available",
+] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+/**
+ * What a member is told, and the trace of it.
+ *
+ * `payload` holds data and never a sentence: the client resolves a translation
+ * key in its own language, exactly like `messageKey` on an API error. It is
+ * also what the follow-up page draws its timeline from, which is why there is
+ * no separate history table.
+ */
+export type NotificationPayload = {
+  title?: string;
+  status?: string;
+  reason?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+  category?: string;
+};
+
+export const notifications = pgTable(
+  "notification",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<NotificationKind>().notNull(),
+    /** The request, report, announcement or poll this is about. */
+    subjectId: uuid("subject_id"),
+    /** What makes this entry distinct for that subject, such as a new status. */
+    dedupKey: text("dedup_key").notNull(),
+    payload: jsonb("payload")
+      .$type<NotificationPayload>()
+      .notNull()
+      .default({}),
+    createdAt,
+    readAt: timestamp("read_at", { withTimezone: true }),
+  },
+  (t) => [
+    /**
+     * What lets every fan-out be replayed with `ON CONFLICT DO NOTHING`, which
+     * is the condition for the jobs to stay idempotent. The key carries the
+     * subject and the step it announces, so the status has to be part of it:
+     * keyed on the subject alone, a request going accepted then available
+     * would tell the member about the first and never about the second.
+     */
+    uniqueIndex("notification_unique_idx").on(t.accountId, t.dedupKey),
+    index("notification_account_idx").on(t.accountId, t.createdAt),
+    index("notification_unread_idx")
+      .on(t.accountId)
+      .where(sql`read_at IS NULL`),
+    index("notification_subject_idx").on(t.subjectId, t.createdAt),
+    check(
+      "notification_kind_check",
+      sql`${t.kind} IN ('request_status', 'report_status', 'announcement', 'poll_open', 'episode_available')`,
+    ),
+  ],
+);
+
+/* ---------------------------------------------------------- taste profile -- */
+
+/**
+ * A few weighted genres per account, and nothing else.
+ *
+ * Never a watched title, never a date: the job reads a rolling window from the
+ * media server and replaces these rows wholesale, so nothing accumulates. See
+ * `docs/adr/0007-aggregated-taste-profile.md`.
+ */
+export const tasteProfiles = pgTable(
+  "taste_profile",
+  {
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    /**
+     * Films and shows do not share a genre numbering at the provider, and the
+     * mismatch is silent: a show id sent to a film listing simply returns
+     * nothing. The kind is part of the key so a weight is never read in the
+     * wrong space.
+     */
+    mediaKind: text("media_kind").$type<MediaType>().notNull(),
+    /** Metadata provider genre id, in the numbering of that kind. */
+    genreId: integer("genre_id").notNull(),
+    weight: integer("weight").notNull().default(0),
+    updatedAt,
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.mediaKind, t.genreId] }),
+    index("taste_profile_weight_idx").on(t.accountId, t.weight),
+    check("taste_profile_kind_check", sql`${t.mediaKind} IN ('movie', 'tv')`),
+  ],
 );

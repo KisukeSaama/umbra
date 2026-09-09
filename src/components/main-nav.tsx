@@ -8,13 +8,16 @@ import { cn } from "@/lib/utils";
 
 /**
  * Four destinations, and an admin entry that only administrators see.
- * Storage and the funding goal live on the home page rather than in the nav:
- * they are things you glance at, not places you go.
+ *
+ * They are the four moments of the loop: arrive, look for something, follow
+ * what you asked for, read what is going on. Polls moved into the news feed,
+ * because a poll is news you can answer, and search left the nav entirely: it
+ * is a key you press, not a place you go.
  */
 const LINKS = [
   { href: "/", key: "nav.home" },
-  { href: "/request", key: "nav.request" },
-  { href: "/polls", key: "nav.polls" },
+  { href: "/discover", key: "nav.discover" },
+  { href: "/activity", key: "nav.activity" },
   { href: "/news", key: "nav.news" },
 ] as const;
 

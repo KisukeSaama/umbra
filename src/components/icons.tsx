@@ -1,21 +1,29 @@
 import {
   ArrowSquareOut,
+  Bell,
   CaretDown,
+  CaretLeft,
   CaretRight,
   CaretUp,
   Check,
   CheckCircle,
   CircleNotch,
   Coins,
+  Compass,
   DiceFive,
+  FilmSlate,
+  Flag,
   HardDrives,
   Info,
+  ListChecks,
   MagnifyingGlass,
   Megaphone,
   Monitor,
   Moon,
   SignOut,
+  Sparkle,
   Sun,
+  Television,
   UserCircle,
   Warning,
   X,
@@ -76,6 +84,14 @@ export const AlertIcon = icon(Warning, "regular");
 export const InfoIcon = icon(Info, "regular");
 export const CheckCircleIcon = icon(CheckCircle, "regular");
 export const ErrorCircleIcon = icon(XCircle, "regular");
+export const ChevronLeftIcon = icon(CaretLeft, "bold");
+export const BellIcon = icon(Bell);
+export const FlagIcon = icon(Flag);
+export const CompassIcon = icon(Compass);
+export const FollowUpIcon = icon(ListChecks);
+export const SparkleIcon = icon(Sparkle);
+export const MovieIcon = icon(FilmSlate);
+export const SeriesIcon = icon(Television);
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

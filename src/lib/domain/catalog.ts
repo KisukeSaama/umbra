@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, eq, inArray, ne } from "drizzle-orm";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 import {
@@ -129,6 +130,49 @@ async function requestedIndex(providerIds: string[]): Promise<Set<string>> {
 
   return new Set(rows.map((row) => `${row.mediaType}:${row.providerId}`));
 }
+
+/** A backdrop, for the one place a title gets a whole screen to itself. */
+export type TitleDetail = CatalogResult & {
+  backdropUrl: string | null;
+  /** Seasons the provider knows about, for a series. */
+  seasons: number[];
+};
+
+/**
+ * Everything one title's own page shows.
+ *
+ * The three states still decide what can be done with it, so this is `decorate`
+ * over a single result rather than a second way of answering the same question.
+ */
+export const titleDetail = cache(async function titleDetail(
+  kind: MediaKind,
+  providerId: string,
+  language?: string,
+): Promise<TitleDetail> {
+  const summary = await tmdbProvider.details(kind, providerId, language);
+  const [decorated] = await decorate([summary]);
+
+  let seasons: number[] = [];
+  if (kind === "tv") {
+    try {
+      const details = await tmdbProvider.seriesDetails(providerId, language);
+      seasons = details.seasons
+        .map((season) => season.seasonNumber)
+        // Specials are numbered zero and are not what anyone means by a season.
+        .filter((season) => season > 0);
+    } catch (error) {
+      console.warn("[catalog] season list unavailable", error);
+    }
+  }
+
+  return {
+    ...decorated,
+    backdropUrl: summary.backdropPath
+      ? `https://image.tmdb.org/t/p/w780${summary.backdropPath}`
+      : null,
+    seasons,
+  };
+});
 
 export function yearOf(releaseDate: string | null | undefined): number | null {
   if (!releaseDate) return null;

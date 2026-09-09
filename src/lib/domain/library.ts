@@ -4,16 +4,17 @@ import {
   and,
   desc,
   eq,
+  ilike,
   inArray,
   isNotNull,
   isNull,
   lt,
+  or,
   sql,
 } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { libraryItems } from "@/lib/db/schema";
-import { bumpMetric } from "@/lib/domain/analytics";
 import type { LibraryItem } from "@/lib/providers/library";
 import { plexLibrary } from "@/lib/providers/plex";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
@@ -26,8 +27,20 @@ import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
  * pick something at random.
  */
 
+/** A title on the server, reduced to what a report or a card needs. */
+export type LibraryMatch = {
+  ratingKey: string;
+  kind: "movie" | "tv";
+  providerId: string;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+};
+
 export type RecentItem = {
   ratingKey: string;
+  /** Provider id when the media server matched the title, so a card can link. */
+  providerId: string | null;
   kind: "movie" | "show" | "episode";
   title: string;
   showTitle: string | null;
@@ -63,11 +76,25 @@ export async function syncLibrary(): Promise<{
       const sectionEpisodes = await plexLibrary.sectionEpisodes(section.key);
       episodeCount += await upsertItems(sectionEpisodes);
     }
-  }
 
-  // What the server no longer holds must not keep answering "available".
-  if (items + episodeCount > 0) {
-    await db().delete(libraryItems).where(lt(libraryItems.syncedAt, startedAt));
+    /*
+     * What the server no longer holds must not keep answering "available", but
+     * the sweep is scoped to the section that just answered, and only when it
+     * answered with something. A section whose storage is not mounted, or one
+     * read while the server is restarting, comes back empty without failing: a
+     * sweep over the whole table would then erase it, and with it every request
+     * and every report attached to those titles.
+     */
+    if (sectionItems.length > 0) {
+      await db()
+        .delete(libraryItems)
+        .where(
+          and(
+            eq(libraryItems.sectionKey, section.key),
+            lt(libraryItems.syncedAt, startedAt),
+          ),
+        );
+    }
   }
 
   return { items, episodes: episodeCount };
@@ -147,38 +174,6 @@ export async function recentEpisodes(limit = 12): Promise<RecentItem[]> {
   return rows.map(toRecentItem);
 }
 
-/**
- * "I do not know what to watch": one random title among what is on the server.
- *
- * Posters are filled in by a capped backfill, so a plain random pick lands on a
- * poster-less row most of the time and the suggestion shows as a bare title.
- * Titles that already have a poster are drawn first; the unfiltered draw is
- * only there so a library with no poster at all still answers.
- */
-export async function randomAvailableItem(): Promise<RecentItem | null> {
-  const draw = (withPoster: boolean) =>
-    db()
-      .select()
-      .from(libraryItems)
-      .where(
-        withPoster
-          ? and(
-              inArray(libraryItems.kind, ["movie", "show"]),
-              isNotNull(libraryItems.posterPath),
-            )
-          : inArray(libraryItems.kind, ["movie", "show"]),
-      )
-      .orderBy(sql`random()`)
-      .limit(1);
-
-  const [preferred] = await draw(true);
-  const row = preferred ?? (await draw(false))[0];
-
-  if (!row) return null;
-  await bumpMetric("discovery_rolls");
-  return toRecentItem(row);
-}
-
 export async function libraryCounts() {
   const rows = await db()
     .select({ kind: libraryItems.kind, count: sql<number>`count(*)::int` })
@@ -207,11 +202,15 @@ export async function episodePresence(showRatingKey: string) {
 }
 
 /**
- * Fills in missing posters from the metadata provider.
+ * Fills in what the media server does not say: the poster, and the genres.
  *
  * Capped per run: the point is a steady trickle after each sync, not a burst of
  * calls against the provider quota. Only titles with a known provider id can be
- * resolved, and a failure simply leaves the poster for the next run.
+ * resolved, and a failure simply leaves the entry for the next run.
+ *
+ * Genres ride along because the details call already carries them. They are
+ * what the genre shelves read and what the taste profile is built from, so they
+ * cost nothing beyond a call that was happening anyway.
  */
 export async function enrichLibraryPosters(limit = 120): Promise<number> {
   const rows = await db()
@@ -223,7 +222,7 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
     .from(libraryItems)
     .where(
       and(
-        isNull(libraryItems.posterPath),
+        or(isNull(libraryItems.posterPath), isNull(libraryItems.genreIds)),
         isNotNull(libraryItems.tmdbId),
         inArray(libraryItems.kind, ["movie", "show"]),
       ),
@@ -240,25 +239,166 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
         row.kind === "movie" ? "movie" : "tv",
         row.tmdbId,
       );
-      if (!summary.posterPath) continue;
       await db()
         .update(libraryItems)
-        .set({ posterPath: summary.posterPath })
+        .set({
+          posterPath: summary.posterPath ?? undefined,
+          // An empty list is still an answer: it stops the row coming back on
+          // every run for a title the provider has no genres for.
+          genreIds: summary.genreIds,
+        })
         .where(eq(libraryItems.id, row.id));
       filled += 1;
     } catch (error) {
-      console.warn(
-        `[library] poster lookup failed tmdbId=${row.tmdbId}`,
-        error,
-      );
+      console.warn(`[library] lookup failed tmdbId=${row.tmdbId}`, error);
     }
   }
   return filled;
 }
 
+/**
+ * Titles on the server whose name contains what was typed.
+ *
+ * The only search that does not go to the provider, and the one the report flow
+ * uses: you can only report something that is here, so the list to pick from is
+ * the local index. Entries the media server could not match to a provider id
+ * are left out, since without one there is no stable identity to attach a
+ * report to.
+ */
+export async function searchLibrary(
+  query: string,
+  limit = 12,
+): Promise<LibraryMatch[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const rows = await db()
+    .select({
+      ratingKey: libraryItems.ratingKey,
+      kind: libraryItems.kind,
+      title: libraryItems.title,
+      year: libraryItems.year,
+      tmdbId: libraryItems.tmdbId,
+      posterPath: libraryItems.posterPath,
+    })
+    .from(libraryItems)
+    .where(
+      and(
+        inArray(libraryItems.kind, ["movie", "show"]),
+        isNotNull(libraryItems.tmdbId),
+        ilike(libraryItems.title, `%${trimmed}%`),
+      ),
+    )
+    .orderBy(desc(libraryItems.addedAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
+    ratingKey: row.ratingKey,
+    kind: row.kind === "movie" ? ("movie" as const) : ("tv" as const),
+    providerId: row.tmdbId ?? "",
+    title: row.title,
+    year: row.year,
+    posterUrl: posterUrl(row.posterPath),
+  }));
+}
+
+/**
+ * The seasons of a show as the server actually holds them.
+ *
+ * A report about something being wrong points at what exists, so the choice
+ * comes from the index. A report about something missing is the other way
+ * round and reads the broadcast calendar instead.
+ */
+export async function seasonsOnServer(providerId: string): Promise<number[]> {
+  const rows = await db().execute<{ season_number: number }>(sql`
+    SELECT DISTINCT ep.season_number
+      FROM library_item AS ep
+      JOIN library_item AS show
+        ON show.rating_key = ep.grandparent_rating_key
+     WHERE ep.kind = 'episode'
+       AND show.tmdb_id = ${providerId}::text
+       AND ep.season_number IS NOT NULL
+     ORDER BY ep.season_number
+  `);
+  return rows.map((row) => row.season_number);
+}
+
+/** The episodes of one season, as the server holds them. */
+export async function episodesOnServer(
+  providerId: string,
+  seasonNumber: number,
+): Promise<{ episodeNumber: number; title: string }[]> {
+  const rows = await db().execute<{
+    episode_number: number;
+    title: string;
+  }>(sql`
+    SELECT ep.episode_number, ep.title
+      FROM library_item AS ep
+      JOIN library_item AS show
+        ON show.rating_key = ep.grandparent_rating_key
+     WHERE ep.kind = 'episode'
+       AND show.tmdb_id = ${providerId}::text
+       AND ep.season_number = ${seasonNumber}::int
+       AND ep.episode_number IS NOT NULL
+     ORDER BY ep.episode_number
+  `);
+  return rows.map((row) => ({
+    episodeNumber: row.episode_number,
+    title: row.title,
+  }));
+}
+
+/**
+ * Random picks on the server that match at least one of these genres.
+ *
+ * The overlap operator reads the array the enrichment pass filled in, so the
+ * guided picker can answer half its selection from what is already here. That
+ * half is the point: an idea you can act on tonight beats one you have to wait
+ * for.
+ */
+export async function randomAvailableByGenres(
+  kind: "movie" | "tv",
+  genreIds: number[],
+  limit: number,
+): Promise<RecentItem[]> {
+  if (genreIds.length === 0) return [];
+  const rows = await db()
+    .select()
+    .from(libraryItems)
+    .where(
+      and(
+        eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
+        isNotNull(libraryItems.posterPath),
+        sql`${libraryItems.genreIds} && ${genreIds}::int[]`,
+      ),
+    )
+    .orderBy(sql`random()`)
+    .limit(limit);
+  return rows.map(toRecentItem);
+}
+
+/** Several random picks at once, for a shelf rather than a single card. */
+export async function randomAvailableItems(
+  limit: number,
+): Promise<RecentItem[]> {
+  const rows = await db()
+    .select()
+    .from(libraryItems)
+    .where(
+      and(
+        inArray(libraryItems.kind, ["movie", "show"]),
+        isNotNull(libraryItems.posterPath),
+      ),
+    )
+    .orderBy(sql`random()`)
+    .limit(limit);
+  return rows.map(toRecentItem);
+}
+
 function toRecentItem(row: typeof libraryItems.$inferSelect): RecentItem {
   return {
     ratingKey: row.ratingKey,
+    providerId: row.tmdbId,
     kind: row.kind === "season" ? "show" : row.kind,
     title: row.title,
     showTitle: row.grandparentTitle,
