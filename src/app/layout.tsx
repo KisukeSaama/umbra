@@ -3,6 +3,7 @@ import { Instrument_Serif, JetBrains_Mono, Manrope } from "next/font/google";
 
 import "./globals.css";
 
+import { TextSizeScript } from "@/components/text-size";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/lib/i18n/client";
@@ -74,6 +75,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
+        <TextSizeScript />
         <ThemeProvider>
           <LocaleProvider locale={locale}>
             {children}

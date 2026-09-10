@@ -210,12 +210,15 @@ export function CommandPalette() {
 
   return (
     <Dialog open={palette.open} onOpenChange={setOpen}>
+      {/* Loupe and word, at every width: the icon alone was a guess for the
+          people who do not live on the web, and the word costs one header
+          slot. */}
       <DialogTrigger
-        render={<Button variant="ghost" size="icon" />}
-        aria-label={t("common.search")}
+        render={<Button variant="ghost" className="gap-1.5 px-2.5" />}
         title={t("home.searchHint")}
       >
-        <SearchIcon className="size-5" />
+        <SearchIcon />
+        {t("common.search")}
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-2xl">
@@ -258,7 +261,10 @@ export function CommandPalette() {
         </p>
 
         {tooShort || results === null ? (
-          <p className="text-muted-foreground text-sm">{t("search.hint")}</p>
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-sm">{t("search.hint")}</p>
+            <ShortcutHint />
+          </div>
         ) : results.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {t("search.noResults")}
@@ -350,6 +356,31 @@ export function CommandPalette() {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function isApplePlatform(): boolean {
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+}
+
+/**
+ * The key that opens the palette, named once, where it is learnt: in the
+ * empty palette itself. Hidden on a touch screen, where there is no key to
+ * press, and the modifier follows the keyboard the visitor actually has.
+ */
+function ShortcutHint() {
+  const t = useTranslator();
+  const apple = useSyncExternalStore(
+    () => () => {},
+    isApplePlatform,
+    () => false,
+  );
+  return (
+    <p className="text-muted-foreground hidden items-center gap-1.5 text-xs sm:pointer-fine:flex">
+      <kbd>{apple ? "Cmd" : "Ctrl"}</kbd>
+      <kbd>K</kbd>
+      <span>{t("search.shortcut")}</span>
+    </p>
   );
 }
 

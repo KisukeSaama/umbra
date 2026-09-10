@@ -30,7 +30,7 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
     : LINKS;
 
   return (
-    <nav className="border-border/60 bg-card/60 flex items-center gap-1 rounded-full border p-1 backdrop-blur">
+    <nav className="border-border/60 bg-card/60 flex w-full items-center gap-0.5 rounded-full border p-1 backdrop-blur md:w-auto md:gap-1">
       {links.map((link) => {
         const active =
           link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
@@ -40,7 +40,9 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "focus-visible:ring-ring/50 relative rounded-full px-3 py-2 text-sm transition-colors outline-none focus-visible:ring-3 sm:px-4 md:py-1.5",
+              // On a phone the four share the width equally and never scroll
+              // out of sight; a finger also gets a 44px row there.
+              "focus-visible:ring-ring/50 relative flex-1 rounded-full px-2 py-2.5 text-center text-[0.9375rem] whitespace-nowrap transition-colors outline-none focus-visible:ring-3 sm:px-4 md:flex-none md:py-1.5 md:text-sm",
               active
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
@@ -48,7 +50,7 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
           >
             {t(link.key)}
             {active ? (
-              <span className="bg-primary absolute inset-x-3 -bottom-px h-px rounded-full sm:inset-x-4" />
+              <span className="bg-primary absolute inset-x-2 -bottom-px h-px rounded-full sm:inset-x-4" />
             ) : null}
           </Link>
         );

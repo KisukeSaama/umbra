@@ -43,13 +43,13 @@ typography:
     letterSpacing: "-0.01em"
   body:
     fontFamily: "Manrope, system-ui, sans-serif"
-    fontSize: "0.875rem"
+    fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
   label:
     fontFamily: "Manrope, system-ui, sans-serif"
-    fontSize: "0.75rem"
+    fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "0.18em"
@@ -185,19 +185,19 @@ Two tinted neutral fields (warm paper by day, cold near-black by night) crossed 
 one warm accent, deliberately rare. Warm neutrals carry hue 85, cold neutrals hue
 262 to 265.
 
-| Token           | Day                     | Night                    | Use                                                                                                              |
-| --------------- | ----------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| Messenger Ochre | `oklch(0.565 0.125 57)` | `oklch(0.735 0.13 57)`   | primary buttons, one-pixel underline on the active nav item, focus ring tint, the "available on the server" line |
-| Ochre Wash      | `oklch(0.935 0.022 57)` | `oklch(0.285 0.022 57)`  | accent surface: hover and selected backgrounds. Carries no text beyond ink                                       |
-| Quiet Sand      | `oklch(0.945 0.006 85)` | `oklch(0.26 0.009 262)`  | second neutral layer: secondary buttons, muted surfaces, active admin nav, empty poster frame                    |
-| Moon Blue       | `oklch(0.55 0.09 245)`  | `oklch(0.66 0.09 245)`   | second hero glow at 14 percent, second chart series                                                              |
-| Warm Paper      | `oklch(0.972 0.004 85)` | -                        | the page by day. Barely warm, never white                                                                        |
-| Sheet           | `oklch(1 0 0)`          | `oklch(0.205 0.009 262)` | card and popover surface. The sidebar sits at `oklch(0.185 0.009 262)` at night                                  |
-| Night (page)    | -                       | `oklch(0.16 0.008 262)`  | the page after dark                                                                                              |
-| Ink             | `oklch(0.24 0.012 265)` | `oklch(0.95 0.008 85)`   | primary text. A blue-black, never a neutral grey                                                                 |
-| Muted Ink       | `oklch(0.52 0.012 265)` | `oklch(0.7 0.012 262)`   | secondary text, placeholders, inactive nav, timestamps, counts                                                   |
-| Hairline        | `oklch(0.9 0.006 85)`   | `oklch(1 0 0 / 9%)`      | borders, input strokes, dividers. A white alpha at night, so it lifts with what sits under it                    |
-| Alert Red       | `oklch(0.58 0.2 25)`    | `oklch(0.65 0.17 25)`    | destructive and error, always a 10 to 20 percent background with the full hue as text                            |
+| Token           | Day                     | Night                    | Use                                                                                                            |
+| --------------- | ----------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Messenger Ochre | `oklch(0.565 0.125 57)` | `oklch(0.735 0.13 57)`   | primary buttons, one-pixel underline on the active nav item, focus ring tint, the "available on Kisuflix" line |
+| Ochre Wash      | `oklch(0.935 0.022 57)` | `oklch(0.285 0.022 57)`  | accent surface: hover and selected backgrounds. Carries no text beyond ink                                     |
+| Quiet Sand      | `oklch(0.945 0.006 85)` | `oklch(0.26 0.009 262)`  | second neutral layer: secondary buttons, muted surfaces, active admin nav, empty poster frame                  |
+| Moon Blue       | `oklch(0.55 0.09 245)`  | `oklch(0.66 0.09 245)`   | second hero glow at 14 percent, second chart series                                                            |
+| Warm Paper      | `oklch(0.972 0.004 85)` | -                        | the page by day. Barely warm, never white                                                                      |
+| Sheet           | `oklch(1 0 0)`          | `oklch(0.205 0.009 262)` | card and popover surface. The sidebar sits at `oklch(0.185 0.009 262)` at night                                |
+| Night (page)    | -                       | `oklch(0.16 0.008 262)`  | the page after dark                                                                                            |
+| Ink             | `oklch(0.24 0.012 265)` | `oklch(0.95 0.008 85)`   | primary text. A blue-black, never a neutral grey                                                               |
+| Muted Ink       | `oklch(0.52 0.012 265)` | `oklch(0.7 0.012 262)`   | secondary text, placeholders, inactive nav, timestamps, counts                                                 |
+| Hairline        | `oklch(0.9 0.006 85)`   | `oklch(1 0 0 / 9%)`      | borders, input strokes, dividers. A white alpha at night, so it lifts with what sits under it                  |
+| Alert Red       | `oklch(0.58 0.2 25)`    | `oklch(0.65 0.17 25)`    | destructive and error, always a 10 to 20 percent background with the full hue as text                          |
 
 **Data colour.** Three further chart hues (green 155, violet 300, gold 90) join
 Messenger Ochre and Moon Blue to make a five hue set, in that order, used by one
@@ -235,13 +235,22 @@ marketing headline.
 | -------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | Display  | Instrument Serif 400, 2.25rem, line-height 1.1, tracking -0.015em | the page h1 only, applied in the base layer. 3.75rem on the home hero, 3rem on admin    |
 | Headline | Manrope 600, 1.125rem to 1.25rem, tracking tight                  | section headings, optionally a link with trailing chevron and an aside on the right     |
-| Title    | Manrope 600, 1rem, line-height snug                               | card titles, 0.875rem in small cards                                                    |
-| Body     | Manrope 400, 0.875rem, line-height 1.5                            | interface default, set on the card container. Prose 65 to 75ch; container caps at 90rem |
-| Label    | Manrope 500, 0.75rem, tracking 0.18em, uppercase                  | eyebrows above page titles, "for Kisuflix" at 0.62rem, the wordmark at tracking 0.22em  |
+| Title    | Manrope 600, 1rem, line-height snug                               | card titles, in small cards too                                                         |
+| Body     | Manrope 400, 1rem, line-height 1.5                                | interface default, set on the card container. Prose 65 to 75ch; container caps at 90rem |
+| Small    | Manrope 400, 0.8125rem                                            | dates, years, counts, key caps and the state under a card title. Never a sentence       |
+| Label    | Manrope 500, 0.8125rem, tracking 0.18em, uppercase                | eyebrows above page titles, "for Kisuflix" at 0.62rem, the wordmark at tracking 0.22em  |
 | Code     | JetBrains Mono 400                                                | job names and identifiers, nothing else                                                 |
 
 Numbers a reader compares vertically or that update in place carry `tabular-nums`:
 the week strip, the stat strip, storage figures.
+
+**The Every Age Rule.** Kisuflix is watched by teenagers and by their
+grandparents, and the interface is read by both. Body copy is 16px, the small
+size is 13px and is spent on dates, years, counts and key caps, never on a hint
+or an empty state. Nothing user-visible goes under 13px, and no text is muted
+below the muted ink itself. Every size is in rem, so the "Text size" setting in
+the account menu, one class on the root at 112.5 percent, scales the whole
+interface without any component knowing.
 
 **The One Serif Line Rule.** Instrument Serif appears exactly once per page, on
 the h1, enforced by the base layer. Forbidden on section headings, card titles,
@@ -281,7 +290,9 @@ arrived. No card may ever do this.
 **Buttons.** 12px corners (`rounded-lg`), 9.6px on the extra-small and small
 sizes. Heights 28, 32, 36, 40px with matching square icon variants; default 36px
 with 12px horizontal padding, so every control clears a comfortable pointer
-target.
+target. On a touch screen (`pointer-coarse`, read from the pointer rather than
+the viewport, because a tablet is as wide as a laptop and is still touched) the
+default, small and icon sizes all come up to 40px: a finger is not a cursor.
 
 - _Primary_: ochre on ochre-foreground, hover to the same ochre at 80 percent.
 - _Outline_: hairline border on the page background, hover to Quiet Sand; at night the surface is the input colour at 30 percent.
@@ -314,8 +325,13 @@ blur, items fully rounded with 12 to 16px horizontal padding; active is foregrou
 text plus a one-pixel ochre underline inset to the item padding, inactive is muted
 ink hovering to foreground on Quiet Sand at 60 percent, and the admin entry shows
 only for the administrator and the assistants. On mobile it does not collapse into a burger: it moves to
-its own centred row below the wordmark, because four items fit and one tap beats
-two. Admin nav: a resting sidebar from the large breakpoint, 15rem, sticky under the
+its own row below the wordmark, where the four share the width equally in a
+44px row, because four items fit and one tap beats two; a fifth, the admin
+entry, makes the row scroll rather than wrap. Header actions carry their word at
+every width: "Search" beside the loupe, "Open Plex" beside the triangle ("Plex"
+on a phone), because an icon alone is a guess for anyone who has not learnt it,
+and the way out to the thing people came for must not be a guess. To make room,
+the lockup shows the mark alone below the small breakpoint. Admin nav: a resting sidebar from the large breakpoint, 15rem, sticky under the
 site header with its own scroll, sections in three named groups (work, community,
 server) with the count of what is waiting at the end of each row. Below that
 breakpoint it becomes a left drawer, opened from a sticky bar that names the
@@ -369,10 +385,14 @@ the way the week strip does. Shelves arrive one after another, opacity and
 transform only, 420ms, and never all at once.
 
 **State on the card.** Every title card carries its own state, because the
-question a member arrives with is always the same. On the server is an ochre
-check on the poster; already asked for is a quiet pill; absent is nothing at all.
-That is the one sanctioned ochre on a poster, and it counts against the One Lamp
-budget for the screen.
+question a member arrives with is always the same. On Kisuflix is an ochre
+check on the poster and the words "On Kisuflix" under the title; partly here is
+a half circle and "Partly on Kisuflix"; already asked for is a quiet pill and
+"Requested"; absent is nothing at all. The mark is for the glance and the line
+is for everyone else: a dot in a corner is a code, and a code is only read by
+the people who already know it. That is the one sanctioned ochre on a poster,
+mark and line together, and it counts against the One Lamp budget for the
+screen.
 
 ## 6. Do's and Don'ts
 
