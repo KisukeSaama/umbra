@@ -19,11 +19,13 @@ import {
   episodeCountsBySeason,
   episodesOnServer,
   matchesAnyProviderId,
+  matchesProviderId,
   REAL_MATCH_FIRST,
 } from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
 import type { Genre, MediaKind, MediaSummary } from "@/lib/providers/metadata";
+import { plexDetailsUrl, plexLibrary } from "@/lib/providers/plex";
 import { posterUrl, tmdbLanguage, tmdbProvider } from "@/lib/providers/tmdb";
 
 /** Search: the heart of Umbra. The states themselves live one file away. */
@@ -462,6 +464,32 @@ export const titleDetail = cache(async function titleDetail(
     seasons,
   };
 });
+
+/** Direct Plex destination for a title the local index currently holds. */
+export async function titlePlexUrl(
+  kind: MediaKind,
+  providerId: string,
+): Promise<string | null> {
+  const [row] = await db()
+    .select({ ratingKey: libraryItems.ratingKey })
+    .from(libraryItems)
+    .where(
+      and(
+        eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
+        matchesProviderId(providerId),
+      ),
+    )
+    .orderBy(REAL_MATCH_FIRST)
+    .limit(1);
+  if (!row) return null;
+
+  try {
+    return plexDetailsUrl(await plexLibrary.machineIdentifier(), row.ratingKey);
+  } catch (error) {
+    console.warn("[catalog] Plex link unavailable", error);
+    return null;
+  }
+}
 
 /**
  * The episodes of one season, said twice over.

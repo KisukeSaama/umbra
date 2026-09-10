@@ -9,6 +9,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  notInArray,
   or,
   sql,
 } from "drizzle-orm";
@@ -671,6 +672,7 @@ export async function randomAvailableByGenres(
   limit: number,
   excludeGenreIds: number[] = [],
   requireGenreIds: number[] = [],
+  excludeProviderIds: string[] = [],
 ): Promise<RecentItem[]> {
   const rows = await db()
     .select()
@@ -698,6 +700,9 @@ export async function randomAvailableByGenres(
         // enough that the difference is not what empties it.
         ...(requireGenreIds.length
           ? [sql`${libraryItems.genreIds} @> ${intArray(requireGenreIds)}`]
+          : []),
+        ...(excludeProviderIds.length
+          ? [notInArray(libraryItems.tmdbId, excludeProviderIds)]
           : []),
         // The same bar the provider half is held to, on the one score the index
         // has. Null is not a failing grade: the enrichment pass fills the index

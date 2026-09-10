@@ -276,15 +276,17 @@ export const tmdbProvider: MediaMetadataProvider = {
       query.language,
       params,
     );
-    const { kind, requireGenreIds } = query;
+    const { kind, requireGenreIds, excludeOriginalLanguages } = query;
     const rows = summariesOfKind(body.results, kind);
     // TMDB reads a comma in `with_genres` as "all of these" and a pipe as "any
     // of these", and it does not accept the two mixed in one value: a mood is
     // already a union, so the genres that have to be there on top of it are
     // applied here, on rows that carry their own list.
-    if (!requireGenreIds?.length) return rows;
-    return rows.filter((row) =>
-      requireGenreIds.every((id) => row.genreIds.includes(id)),
+    return rows.filter(
+      (row) =>
+        (!requireGenreIds?.length ||
+          requireGenreIds.every((id) => row.genreIds.includes(id))) &&
+        !excludeOriginalLanguages?.includes(row.originalLanguage ?? ""),
     );
   },
 

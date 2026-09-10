@@ -55,7 +55,9 @@ export default async function DiscoverPage({
         <h2 className="mb-1 text-lg font-semibold tracking-tight">
           {t("picker.title")}
         </h2>
-        <p className="text-muted-foreground mb-5 text-sm">{t("picker.open")}</p>
+        <p className="text-muted-foreground mb-5 text-sm">
+          {t("picker.openHint")}
+        </p>
         <MoodPicker />
       </section>
 

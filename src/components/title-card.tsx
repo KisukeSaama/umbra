@@ -1,9 +1,10 @@
 import Link from "next/link";
 
+import { formatPosterScore } from "@/components/formatting";
 import { CheckIcon, CircleHalfIcon } from "@/components/icons";
 import { Poster } from "@/components/poster";
 import type { Availability } from "@/lib/domain/catalog";
-import { getTranslator } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,8 @@ export async function TitleCard({
   title,
   year,
   posterUrl,
+  voteAverage,
+  voteCount,
   availability,
   priority = false,
 }: {
@@ -32,10 +35,13 @@ export async function TitleCard({
   title: string;
   year: number | null;
   posterUrl: string | null;
+  voteAverage?: number | null;
+  voteCount?: number;
   availability?: Availability;
   priority?: boolean;
 }) {
-  const t = await getTranslator();
+  const { t, locale } = await getI18n();
+  const ratingLabel = formatPosterScore(voteAverage, voteCount, locale);
 
   return (
     <Link
@@ -49,6 +55,7 @@ export async function TitleCard({
           captioned
           priority={priority}
           sizes="10rem"
+          ratingLabel={ratingLabel}
         />
         {availability === "available" || availability === "partial" ? (
           <span

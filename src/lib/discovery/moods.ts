@@ -16,8 +16,8 @@ export const MOODS = [
   "any",
 ] as const;
 export type Mood = (typeof MOODS)[number];
-export const ANIME_STANCES = ["only", "without", "with"] as const;
-export type AnimeStance = (typeof ANIME_STANCES)[number];
+export const VISUAL_STYLES = ["anime", "cartoon", "live"] as const;
+export type VisualStyle = (typeof VISUAL_STYLES)[number];
 export const FORMATS = ["movie", "series", "either"] as const;
 export type Format = (typeof FORMATS)[number];
 export const DURATIONS = ["short", "any"] as const;
@@ -39,8 +39,8 @@ const GENRES: Record<Mood, Record<MediaKind, number[]>> = {
   any: { movie: [], tv: [] },
 };
 export type PickerChoice = {
-  mood: Mood;
-  anime: AnimeStance;
+  moods: Mood[];
+  visualStyles: VisualStyle[];
   format: Format;
   duration: Duration;
   commitment?: Commitment;
@@ -48,8 +48,8 @@ export type PickerChoice = {
 export function isMood(raw: unknown): raw is Mood {
   return MOODS.includes(raw as Mood);
 }
-export function isAnimeStance(raw: unknown): raw is AnimeStance {
-  return ANIME_STANCES.includes(raw as AnimeStance);
+export function isVisualStyle(raw: unknown): raw is VisualStyle {
+  return VISUAL_STYLES.includes(raw as VisualStyle);
 }
 export function isFormat(raw: unknown): raw is Format {
   return FORMATS.includes(raw as Format);
@@ -97,34 +97,55 @@ export function matchesQuery(
     item.originalLanguage !== query.originalLanguage
   )
     return false;
+  if (query.excludeOriginalLanguages?.includes(item.originalLanguage ?? ""))
+    return false;
   return true;
 }
 
 export function discoverQueriesFor(choice: PickerChoice): DiscoverQuery[] {
-  return kindsFor(choice.format).map((kind) => ({
-    kind,
-    genreIds: genresFor(choice.mood, kind),
-    excludeGenreIds: [
-      ...excludedGenresFor(choice.mood, kind),
-      ...(choice.anime === "without" ? [ANIMATION_GENRE_ID] : []),
-    ],
-    ...(choice.anime === "only"
-      ? { requireGenreIds: [ANIMATION_GENRE_ID] }
-      : {}),
-    ...(kind === "tv" && (choice.mood === "horror" || choice.mood === "love")
-      ? {
-          keyword: choice.mood === "horror" ? "horror" : "romance",
-          genreIds: [],
-        }
-      : {}),
-    sortBy: "rating" as const,
-    ...(kind === "tv" && choice.commitment === "short"
-      ? { shortSeries: true }
-      : {}),
-    ...(choice.duration === "short" && kind === "movie"
-      ? { runtimeLte: SHORT_RUNTIME_MINUTES }
-      : {}),
-  }));
+  const moods = choice.moods.includes("any") ? ["any" as const] : choice.moods;
+  const styles =
+    choice.visualStyles.length === VISUAL_STYLES.length
+      ? [null]
+      : choice.visualStyles;
+
+  return kindsFor(choice.format).flatMap((kind) => {
+    const genreIds = [
+      ...new Set(moods.flatMap((mood) => genresFor(mood, kind))),
+    ];
+    const excluded = [
+      ...new Set(moods.flatMap((mood) => excludedGenresFor(mood, kind))),
+    ];
+
+    return styles.map((style) => ({
+      kind,
+      genreIds,
+      excludeGenreIds: [
+        ...excluded,
+        ...(style === "live" ? [ANIMATION_GENRE_ID] : []),
+      ],
+      ...(style === "anime" || style === "cartoon"
+        ? { requireGenreIds: [ANIMATION_GENRE_ID] }
+        : {}),
+      ...(style === "anime" ? { originalLanguage: "ja" } : {}),
+      ...(style === "cartoon" ? { excludeOriginalLanguages: ["ja"] } : {}),
+      ...(kind === "tv" &&
+      moods.length === 1 &&
+      (moods[0] === "horror" || moods[0] === "love")
+        ? {
+            keyword: moods[0] === "horror" ? "horror" : "romance",
+            genreIds: [],
+          }
+        : {}),
+      sortBy: "rating" as const,
+      ...(kind === "tv" && choice.commitment === "short"
+        ? { shortSeries: true }
+        : {}),
+      ...(choice.duration === "short" && kind === "movie"
+        ? { runtimeLte: SHORT_RUNTIME_MINUTES }
+        : {}),
+    }));
+  });
 }
 
 /** Specials do not count as a season. Cancelled shows are never a complete short story. */

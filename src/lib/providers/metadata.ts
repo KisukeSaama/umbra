@@ -110,6 +110,8 @@ export type DiscoverQuery = {
   requireGenreIds?: number[];
   /** ISO 639-1, for an answer about where a title was made rather than its genre. */
   originalLanguage?: string;
+  /** Languages refused after discovery when the provider has no inverse filter. */
+  excludeOriginalLanguages?: string[];
   /** Minutes. Only meaningful for a film. */
   runtimeLte?: number;
   /** Exact provider keyword, resolved through its keyword search. */

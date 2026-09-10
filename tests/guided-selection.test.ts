@@ -66,8 +66,8 @@ describe("guided selection constraints on both halves", () => {
         })),
       );
       const selection = await guidedSelection({
-        mood: "any",
-        anime: "with",
+        moods: ["any"],
+        visualStyles: ["anime", "cartoon", "live"],
         format,
         duration: "any",
       });
@@ -93,8 +93,8 @@ describe("guided selection constraints on both halves", () => {
         : [],
     );
     const selection = await guidedSelection({
-      mood: "any",
-      anime: "with",
+      moods: ["any"],
+      visualStyles: ["anime", "cartoon", "live"],
       format: "either",
       duration: "any",
     });
@@ -125,15 +125,13 @@ describe("guided selection constraints on both halves", () => {
       )[id],
     }));
     const selection = await guidedSelection({
-      mood: "laugh",
-      anime: "with",
+      moods: ["laugh"],
+      visualStyles: ["anime", "cartoon", "live"],
       format: "movie",
       duration: "short",
     });
     expect(selection.tonight.map((item) => item.providerId)).toEqual(["1"]);
-    expect(selection.tonight[0].plexUrl).toBe(
-      "https://app.plex.tv/desktop/#!/server/server-id/details?key=%2Flibrary%2Fmetadata%2F1",
-    );
+    expect(selection.tonight[0].kind).toBe("movie");
     expect(selection.ideas.map((item) => item.providerId)).toEqual(["4"]);
   });
 
@@ -154,8 +152,8 @@ describe("guided selection constraints on both halves", () => {
       seasons: [{ seasonNumber: 1, episodeCount: 8 }],
     }));
     const selection = await guidedSelection({
-      mood: "drama",
-      anime: "with",
+      moods: ["drama"],
+      visualStyles: ["anime", "cartoon", "live"],
       format: "series",
       duration: "any",
       commitment: "short",
@@ -169,7 +167,12 @@ describe("guided selection constraints on both halves", () => {
       kind === "movie" ? [35] : [10765],
     );
     await guidedSelection(
-      { mood: "any", anime: "with", format: "either", duration: "any" },
+      {
+        moods: ["any"],
+        visualStyles: ["anime", "cartoon", "live"],
+        format: "either",
+        duration: "any",
+      },
       "fr",
       "account",
       true,
@@ -198,14 +201,79 @@ describe("guided selection constraints on both halves", () => {
   it("keeps the surprise fallback open when no profile exists", async () => {
     mocks.genres.mockResolvedValue([]);
     await guidedSelection(
-      { mood: "any", anime: "with", format: "either", duration: "any" },
+      {
+        moods: ["any"],
+        visualStyles: ["anime", "cartoon", "live"],
+        format: "either",
+        duration: "any",
+      },
       "fr",
       "account",
       true,
     );
-    expect(mocks.random).toHaveBeenCalledWith("movie", [], 12, [], []);
+    expect(mocks.random).toHaveBeenCalledWith("movie", [], 12, [], [], []);
     expect(mocks.discover).toHaveBeenCalledWith(
       expect.objectContaining({ genreIds: [] }),
     );
+  });
+
+  it("does not repeat skipped titles while unseen Plex choices remain", async () => {
+    mocks.random.mockResolvedValue(
+      Array.from({ length: 7 }, (_, index) => ({
+        providerId: String(index),
+        ratingKey: String(index),
+      })),
+    );
+    mocks.discover.mockResolvedValue(
+      Array.from({ length: 7 }, (_, index) => ({
+        providerId: String(index),
+        kind: "movie",
+        availability: "absent",
+      })),
+    );
+
+    const selection = await guidedSelection(
+      {
+        moods: ["any"],
+        visualStyles: ["anime", "cartoon", "live"],
+        format: "movie",
+        duration: "any",
+      },
+      "fr",
+      undefined,
+      false,
+      new Set(["movie:0"]),
+    );
+
+    expect(selection.tonight.map((item) => item.providerId)).not.toContain("0");
+    expect(selection.ideas.map((item) => item.providerId)).not.toContain("0");
+  });
+
+  it("reuses skipped Plex titles when no unseen choice remains", async () => {
+    mocks.random.mockImplementation(
+      async (
+        _kind,
+        _genres,
+        _limit,
+        _excludedGenres,
+        _requiredGenres,
+        excluded,
+      ) => (excluded?.length ? [] : [{ providerId: "1", ratingKey: "1" }]),
+    );
+
+    const selection = await guidedSelection(
+      {
+        moods: ["any"],
+        visualStyles: ["anime", "cartoon", "live"],
+        format: "movie",
+        duration: "any",
+      },
+      "fr",
+      undefined,
+      false,
+      new Set(["movie:1"]),
+    );
+
+    expect(selection.tonight.map((item) => item.providerId)).toEqual(["1"]);
   });
 });

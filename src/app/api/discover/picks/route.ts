@@ -5,7 +5,7 @@ import { route } from "@/lib/api";
 import { requireMember } from "@/lib/auth/session";
 import {
   COMMITMENTS,
-  ANIME_STANCES,
+  VISUAL_STYLES,
   DURATIONS,
   FORMATS,
   MOODS,
@@ -23,8 +23,8 @@ import { checkRate, perMinute } from "@/lib/rate-limit";
  * boundary says so.
  */
 const schema = z.object({
-  mood: z.enum(MOODS),
-  anime: z.enum(ANIME_STANCES),
+  moods: z.array(z.enum(MOODS)).min(1).max(MOODS.length),
+  visualStyles: z.array(z.enum(VISUAL_STYLES)).min(1).max(VISUAL_STYLES.length),
   format: z.enum(FORMATS),
   duration: z.enum(DURATIONS),
   commitment: z.enum(COMMITMENTS).default("any"),
@@ -42,26 +42,33 @@ export async function GET(request: NextRequest) {
     const choice =
       mode === "surprise"
         ? {
-            mood: "any" as const,
-            anime: "with" as const,
+            moods: ["any" as const],
+            visualStyles: [...VISUAL_STYLES],
             format: "either" as const,
             duration: "any" as const,
             commitment: "any" as const,
           }
         : schema.parse({
-            mood: params.get("mood"),
-            anime: params.get("anime"),
+            moods: params.getAll("mood"),
+            visualStyles: params.getAll("visualStyle"),
             format: params.get("format"),
             duration: params.get("duration"),
             commitment: params.get("commitment") ?? undefined,
           });
 
     const locale = detectLocale(request.headers.get("accept-language"));
+    const excluded = new Set(
+      params
+        .getAll("exclude")
+        .slice(0, 240)
+        .filter((key) => /^(movie|tv):\d+$/.test(key)),
+    );
     const selection = await guidedSelection(
       choice,
       locale,
       account.id,
       mode === "surprise",
+      excluded,
     );
     await bumpMetric("discovery_rolls");
     return selection;

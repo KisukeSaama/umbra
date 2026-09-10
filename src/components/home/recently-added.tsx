@@ -1,9 +1,10 @@
+import { formatPosterScore } from "@/components/formatting";
 import { Rail } from "@/components/rail";
 import { Poster } from "@/components/poster";
 import { SectionHeading } from "@/components/section";
 import { TitleCard } from "@/components/title-card";
 import type { RecentItem } from "@/lib/domain/library";
-import { getTranslator } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
 
 /**
  * The reason to come back when nothing is being requested: what landed on the
@@ -14,7 +15,7 @@ import { getTranslator } from "@/lib/i18n/server";
  * does not lift on hover either: nothing promises a click it cannot keep.
  */
 export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
-  const t = await getTranslator();
+  const { t, locale } = await getI18n();
   if (items.length === 0) return null;
 
   return (
@@ -33,6 +34,8 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
                 title={item.title}
                 year={item.year}
                 posterUrl={item.posterUrl}
+                voteAverage={item.voteAverage}
+                voteCount={item.voteCount}
                 availability="available"
                 priority={index < 4}
               />
@@ -44,6 +47,11 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
                   captioned
                   sizes="10rem"
                   priority={index < 4}
+                  ratingLabel={formatPosterScore(
+                    item.voteAverage,
+                    item.voteCount,
+                    locale,
+                  )}
                 />
                 <p className="mt-2 truncate text-sm font-medium">
                   {item.title}

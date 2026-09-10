@@ -304,9 +304,10 @@ render and dropped (see `docs/adr/0015-suggestions-seeded-on-titles.md`). Every
 card carries its state, so "is this already here" is answered by looking rather
 than by searching.
 
-The guided picker asks for format, genre, then Animation or Live Action, with an
-indifferent answer on every axis. Animation includes every country and style.
-Each selected answer reveals a short explanation below its buttons. Films then
+The guided picker asks for format, one or more genres, then one or more of anime,
+cartoon and live action. Anime means Japanese animation; cartoon covers animation
+from elsewhere. Selected genres reveal a short explanation below their buttons;
+the other answers stand on their labels alone. Films then
 ask for under two hours or unrestricted length; series ask for a finished single
 season of up to ten episodes, multiple seasons, or any commitment. Choosing
 either format skips this final constraint. A separate button submits the answers,
@@ -318,9 +319,17 @@ Runtime and series commitment are checked against provider details in both halve
 unknown details never qualify for a constraint. TV horror and romance use provider
 keywords because TV does not have those genre categories.
 
+Every suggested card opens its Umbra title page. When the title is already on
+the server, that page offers the direct Plex link opposite the way back.
+
 "Surprise me" bypasses the questions, using familiar genres from the taste profile
 and the existing personal ranking. Without a profile, the fallback is a varied
 selection. It stores no additional viewing data.
+
+A new selection skips every title currently shown. Later rolls exclude those
+titles on both halves. If every matching title already on the server has been
+skipped, earlier server titles may return so the watch-now half does not become
+empty. Skipped titles outside the server stay excluded.
 
 The personal shelf uses the same familiar-genre queries as "Surprise me".
 Recommendations outside those genres are removed before the shelf limit, while

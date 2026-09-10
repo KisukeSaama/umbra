@@ -14,8 +14,8 @@ import {
  */
 
 const [laughFilm] = discoverQueriesFor({
-  mood: "laugh",
-  anime: "with",
+  moods: ["laugh"],
+  visualStyles: ["anime", "cartoon", "live"],
   format: "movie",
   duration: "any",
 });
@@ -40,10 +40,10 @@ describe("reading a row against a query", () => {
     expect(matchesQuery({ kind: "tv", genreIds: [35] }, laughFilm)).toBe(false);
   });
 
-  it("accepts animation regardless of original language", () => {
+  it("keeps anime to Japanese animation", () => {
     const [onlyAnime] = discoverQueriesFor({
-      mood: "adventure",
-      anime: "only",
+      moods: ["adventure"],
+      visualStyles: ["anime"],
       format: "movie",
       duration: "any",
     });
@@ -59,7 +59,7 @@ describe("reading a row against a query", () => {
         { kind: "movie", genreIds: drawn, originalLanguage: "en" },
         onlyAnime,
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       matchesQuery(
         { kind: "movie", genreIds: [12], originalLanguage: "ja" },
@@ -70,8 +70,8 @@ describe("reading a row against a query", () => {
 
   it("leaves a length question to the provider, since a row has no runtime", () => {
     const [short] = discoverQueriesFor({
-      mood: "laugh",
-      anime: "with",
+      moods: ["laugh"],
+      visualStyles: ["anime", "cartoon", "live"],
       format: "movie",
       duration: "short",
     });

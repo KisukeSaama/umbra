@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { StarIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -56,7 +57,8 @@ export function Poster({
         </div>
       )}
       {ratingLabel ? (
-        <span className="absolute right-2 bottom-2 max-w-[calc(100%-1rem)] rounded-md bg-[oklch(0.16_0.008_262/0.92)] px-1.5 py-1 text-right text-[10px] leading-tight font-medium text-[oklch(0.95_0.008_85)] tabular-nums sm:text-xs">
+        <span className="absolute right-2 bottom-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-md bg-[oklch(0.16_0.008_262/0.92)] px-1.5 py-1 text-right text-[10px] leading-tight font-medium text-[oklch(0.95_0.008_85)] tabular-nums sm:text-xs">
+          <StarIcon className="size-3" aria-hidden />
           {ratingLabel}
         </span>
       ) : null}

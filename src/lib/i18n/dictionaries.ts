@@ -477,11 +477,13 @@ export const en = {
     "Browse, check what is already here, ask for what is not.",
   "discover.empty": "Nothing to show here for now.",
 
-  "picker.open":
+  "picker.open": "I do not know what to watch",
+  "picker.openHint":
     "A few choices to find something to watch, or let us surprise you.",
   "picker.title": "Your next evening",
   "picker.mood": "Which genre appeals to you?",
-  "picker.anime": "Animation or Live Action?",
+  "picker.visualStyle": "Anime, cartoon or live action?",
+  "picker.multipleChoices": "multiple choices allowed",
   "picker.format": "A film or a series?",
   "picker.duration": "How much time do you have?",
   "picker.format.movie.hint": "A story to watch in one sitting.",
@@ -492,6 +494,12 @@ export const en = {
   "picker.anime.without.hint":
     "Live-action films and series, with real actors.",
   "picker.anime.with.hint": "Animation and live action are both welcome.",
+  "picker.visualStyle.anime": "Anime",
+  "picker.visualStyle.anime.hint": "Japanese animation, in every style.",
+  "picker.visualStyle.cartoon": "Cartoon",
+  "picker.visualStyle.cartoon.hint": "Animation made outside Japan.",
+  "picker.visualStyle.live": "Live action",
+  "picker.visualStyle.live.hint": "Stories filmed with real actors.",
   "picker.duration.short.hint": "A film that fits into less than two hours.",
   "picker.duration.any.hint":
     "You have time to spare; longer films are welcome too.",
@@ -509,6 +517,7 @@ export const en = {
   "picker.surprise.hint":
     "A selection close to your tastes, without the questions.",
   "picker.submit": "Show my selection",
+  "picker.reset": "Reset",
   "picker.mood.laugh.hint": "In the mood for laughter and something lighter.",
   "picker.mood.thrill.hint": "In the mood for suspense and tension.",
   "picker.mood.horror": "Horror",
@@ -521,8 +530,6 @@ export const en = {
   "picker.mood.any": "Any genre",
   "picker.mood.any.hint": "Any genre could surprise you.",
   "picker.again": "New selection",
-  "picker.openPlex": "Open in Plex",
-  "picker.tmdbRating": "TMDB · {rating}/10",
   "picker.restart": "Choose my criteria",
   "picker.result": "Here is what that gives",
   "picker.resultHint":
@@ -542,6 +549,7 @@ export const en = {
   "picker.duration.any": "Any length",
 
   "title.request": "Ask for it",
+  "title.openPlex": "Open in Plex",
   "title.report": "Report a problem",
   "title.onServer": "This is on Kisuflix",
   "title.onServerPartly": "On Kisuflix, but not all of it",
@@ -1174,11 +1182,13 @@ export const fr: Record<TranslationKey, string> = {
     "Parcourez, vérifiez ce qui est déjà là, demandez le reste.",
   "discover.empty": "Rien à afficher ici pour l'instant.",
 
-  "picker.open":
+  "picker.open": "Je ne sais pas quoi regarder",
+  "picker.openHint":
     "Quelques choix pour trouver quoi regarder, ou laissez-vous surprendre.",
   "picker.title": "Votre prochaine soirée",
   "picker.mood": "Quel genre vous tente ?",
-  "picker.anime": "Animation ou Live Action ?",
+  "picker.visualStyle": "Anime, cartoon ou réel ?",
+  "picker.multipleChoices": "plusieurs choix possibles",
   "picker.format": "Un film ou une série ?",
   "picker.duration": "Vous avez combien de temps ?",
   "picker.format.movie.hint": "Une histoire à regarder en une séance.",
@@ -1191,6 +1201,14 @@ export const fr: Record<TranslationKey, string> = {
     "Des prises de vues réelles, avec de vrais acteurs.",
   "picker.anime.with.hint":
     "Animation et prises de vues réelles sont les bienvenues.",
+  "picker.visualStyle.anime": "Anime",
+  "picker.visualStyle.anime.hint":
+    "Animation japonaise, tous styles confondus.",
+  "picker.visualStyle.cartoon": "Cartoon",
+  "picker.visualStyle.cartoon.hint": "Animation produite hors du Japon.",
+  "picker.visualStyle.live": "Réel",
+  "picker.visualStyle.live.hint":
+    "Des prises de vues réelles, avec de vrais acteurs.",
   "picker.duration.short.hint": "Un film qui tient en moins de deux heures.",
   "picker.duration.any.hint":
     "Vous avez tout votre temps, les films longs sont aussi les bienvenus.",
@@ -1204,10 +1222,11 @@ export const fr: Record<TranslationKey, string> = {
   "picker.commitment.any": "Peu importe",
   "picker.commitment.any.hint":
     "Séries courtes ou longues, laissez-vous tenter.",
-  "picker.surprise": "Surprends-moi",
+  "picker.surprise": "Me surprendre",
   "picker.surprise.hint":
     "Une sélection proche de vos goûts, sans répondre aux questions.",
   "picker.submit": "Voir la sélection",
+  "picker.reset": "Réinitialiser",
   "picker.mood.laugh.hint": "Une envie de rire et de légèreté.",
   "picker.mood.thrill.hint": "Une envie de suspense et de tension.",
   "picker.mood.horror": "Horreur",
@@ -1221,8 +1240,6 @@ export const fr: Record<TranslationKey, string> = {
   "picker.mood.any": "Peu importe",
   "picker.mood.any.hint": "Tous les genres peuvent vous surprendre.",
   "picker.again": "Nouvelle sélection",
-  "picker.openPlex": "Ouvrir dans Plex",
-  "picker.tmdbRating": "TMDB · {rating}/10",
   "picker.restart": "Choisir mes critères",
   "picker.result": "Voilà ce que ça donne",
   "picker.resultHint":
@@ -1242,6 +1259,7 @@ export const fr: Record<TranslationKey, string> = {
   "picker.duration.any": "Peu importe",
 
   "title.request": "Le demander",
+  "title.openPlex": "Ouvrir dans Plex",
   "title.report": "Signaler un problème",
   "title.onServer": "C'est sur Kisuflix",
   "title.onServerPartly": "Sur Kisuflix, mais pas en entier",

@@ -5,11 +5,13 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { BackToTop } from "@/components/back-to-top";
 import { CastRail } from "@/components/cast-rail";
+import { ExternalLinkIcon } from "@/components/icons";
 import { Shelf } from "@/components/shelf";
 import { ShelfSkeleton } from "@/components/skeletons";
 import { TitleView } from "@/components/title-view";
+import { buttonVariants } from "@/components/ui/button";
 import { currentAccount, requireMemberPage } from "@/lib/auth/session";
-import { decorate, titleDetail } from "@/lib/domain/catalog";
+import { decorate, titleDetail, titlePlexUrl } from "@/lib/domain/catalog";
 import { moreFrom, titleCrew, type PersonCard } from "@/lib/domain/people";
 import { getI18n } from "@/lib/i18n/server";
 import { tmdbProvider } from "@/lib/providers/tmdb";
@@ -59,16 +61,30 @@ export default async function TitlePage({
   if (kind !== "movie" && kind !== "tv") notFound();
   if (!/^\d+$/.test(id)) notFound();
 
-  const { locale } = await getI18n();
-  const [detail, crew] = await Promise.all([
+  const { locale, t } = await getI18n();
+  const [detail, crew, plexUrl] = await Promise.all([
     titleDetail(kind, id, locale),
     titleCrew(kind, id, locale),
+    titlePlexUrl(kind, id),
   ]);
   const signer = crew.leads[0];
 
   return (
     <div className="umbra-container max-w-6xl space-y-6 py-10">
-      <BackLink fallback="/discover" />
+      <div className="flex items-center justify-between gap-3">
+        <BackLink fallback="/discover" />
+        {plexUrl ? (
+          <a
+            href={plexUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
+          >
+            {t("title.openPlex")}
+            <ExternalLinkIcon />
+          </a>
+        ) : null}
+      </div>
       <div className="space-y-12">
         <TitleView detail={detail} leads={crew.leads} accountId={account.id} />
         <CastRail cast={crew.cast} />
