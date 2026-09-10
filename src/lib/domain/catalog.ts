@@ -30,6 +30,8 @@ import { posterUrl, tmdbLanguage, tmdbProvider } from "@/lib/providers/tmdb";
 export type { Availability };
 
 export type CatalogResult = {
+  voteAverage?: number | null;
+  voteCount?: number;
   providerId: string;
   kind: MediaKind;
   title: string;
@@ -90,6 +92,8 @@ export async function decorate(
   const incomplete = await incompleteIndex(summaries, inLibrary, tracked, cuts);
 
   return summaries.map((summary) => ({
+    voteAverage: summary.voteAverage,
+    voteCount: summary.voteCount,
     providerId: summary.providerId,
     kind: summary.kind,
     title: summary.title,

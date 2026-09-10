@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   ANIMATION_GENRE_ID,
-  ANIME_LANGUAGE,
   ANIME_STANCES,
   DURATIONS,
   discoverQueriesFor,
@@ -16,6 +15,7 @@ import {
   kindsFor,
   MOODS,
   SHORT_RUNTIME_MINUTES,
+  matchesCommitment,
 } from "@/lib/discovery/moods";
 
 /**
@@ -50,7 +50,7 @@ describe("mood mapping", () => {
   });
 
   it("gives every mood something to ask for on both sides", () => {
-    for (const mood of MOODS) {
+    for (const mood of MOODS.filter((mood) => mood !== "any")) {
       expect(genresFor(mood, "movie").length).toBeGreaterThan(0);
       expect(genresFor(mood, "tv").length).toBeGreaterThan(0);
     }
@@ -101,16 +101,15 @@ describe("mood mapping", () => {
       }
   });
 
-  it("pins anime to where it is made, not to how it is drawn", () => {
-    // Animation is a technique. Asked for the genre alone, the shelf comes
-    // back led by Pixar and DC, which is a different request entirely.
+  it("includes animation from every country", () => {
+    // Animation includes both Japanese animation and Western studios.
     const [query] = discoverQueriesFor({
       mood: "love",
       anime: "only",
       format: "movie",
       duration: "any",
     });
-    expect(query.originalLanguage).toBe(ANIME_LANGUAGE);
+    expect(query.originalLanguage).toBeUndefined();
     expect(query.requireGenreIds).toEqual([ANIMATION_GENRE_ID]);
     // Required, never merged into the union: a romance asked for drawn is two
     // conditions, and a union holding both would answer with either.
@@ -121,7 +120,7 @@ describe("mood mapping", () => {
     // The provider filters on a language it wants and not on one it refuses,
     // so "no anime" is read as "nothing drawn".
     const [query] = discoverQueriesFor({
-      mood: "comfort",
+      mood: "drama",
       anime: "without",
       format: "movie",
       duration: "any",
@@ -222,5 +221,74 @@ describe("mood mapping", () => {
     expect(isFormat("")).toBe(false);
     expect(isDuration(DURATIONS[0])).toBe(true);
     expect(isDuration(null)).toBe(false);
+  });
+});
+
+describe("series commitment", () => {
+  const details = {
+    summary: {} as import("@/lib/providers/metadata").MediaSummary,
+    status: "Ended",
+    inProduction: false,
+    seasons: [{ seasonNumber: 1, episodeCount: 8, airDate: null }],
+  };
+  it("accepts a finished short season and ignores specials", () => {
+    expect(
+      matchesCommitment(
+        {
+          ...details,
+          seasons: [
+            ...details.seasons,
+            { seasonNumber: 0, episodeCount: 20, airDate: null },
+          ],
+        },
+        "short",
+      ),
+    ).toBe(true);
+  });
+  it("refuses cancelled, unfinished, unknown and long stories as short", () => {
+    for (const status of ["Canceled", "Returning Series", null])
+      expect(matchesCommitment({ ...details, status }, "short")).toBe(false);
+    expect(
+      matchesCommitment(
+        {
+          ...details,
+          seasons: [{ seasonNumber: 1, episodeCount: 12, airDate: null }],
+        },
+        "short",
+      ),
+    ).toBe(false);
+    expect(matchesCommitment({ ...details, inProduction: true }, "short")).toBe(
+      false,
+    );
+  });
+  it("requires two real seasons for a longer commitment", () => {
+    expect(matchesCommitment(details, "long")).toBe(false);
+    expect(
+      matchesCommitment(
+        {
+          ...details,
+          seasons: [
+            ...details.seasons,
+            { seasonNumber: 2, episodeCount: 8, airDate: null },
+          ],
+        },
+        "long",
+      ),
+    ).toBe(true);
+  });
+  it("does not approximate TV horror or romance with drama or mystery", () => {
+    for (const [mood, keyword] of [
+      ["horror", "horror"],
+      ["love", "romance"],
+    ] as const) {
+      expect(
+        discoverQueriesFor({
+          mood,
+          anime: "with",
+          format: "series",
+          duration: "any",
+        })[0],
+      ).toMatchObject({ keyword, genreIds: [] });
+    }
   });
 });

@@ -52,6 +52,8 @@ export type LibraryMatch = {
 };
 
 export type RecentItem = {
+  voteAverage?: number | null;
+  voteCount?: number;
   ratingKey: string;
   /** Provider id when the media server matched the title, so a card can link. */
   providerId: string | null;
@@ -670,7 +672,6 @@ export async function randomAvailableByGenres(
   excludeGenreIds: number[] = [],
   requireGenreIds: number[] = [],
 ): Promise<RecentItem[]> {
-  if (genreIds.length === 0) return [];
   const rows = await db()
     .select()
     .from(libraryItems)
@@ -678,7 +679,9 @@ export async function randomAvailableByGenres(
       and(
         eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
         isNotNull(libraryItems.posterPath),
-        sql`${libraryItems.genreIds} && ${intArray(genreIds)}`,
+        ...(genreIds.length
+          ? [sql`${libraryItems.genreIds} && ${intArray(genreIds)}`]
+          : []),
         // The same union problem as on the provider side: a title kept only
         // because it carries Comedy somewhere is not an answer to "make me
         // laugh" when its other genre is Horror.
@@ -756,6 +759,8 @@ export async function availableByProviderIds(
 
 function toRecentItem(row: typeof libraryItems.$inferSelect): RecentItem {
   return {
+    voteAverage: row.voteAverage,
+    voteCount: row.voteCount ?? 0,
     ratingKey: row.ratingKey,
     providerId: row.tmdbId,
     kind: row.kind === "season" ? "show" : row.kind,

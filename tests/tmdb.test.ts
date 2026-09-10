@@ -107,6 +107,29 @@ describe("tmdb credits", () => {
 });
 
 describe("tmdb parsing", () => {
+  it("narrows short series at the provider without applying TV filters to films", () => {
+    expect(discoverParams({ kind: "tv", shortSeries: true })).toMatchObject({
+      with_status: 3,
+      with_type: 2,
+    });
+    expect(
+      discoverParams({ kind: "movie", shortSeries: true }),
+    ).not.toHaveProperty("with_type");
+  });
+
+  it("reads runtime from details without inventing a duration for list rows", () => {
+    expect(
+      summaryFromJson({
+        id: 1,
+        media_type: "movie",
+        title: "Film",
+        runtime: 119,
+      })?.runtime,
+    ).toBe(119);
+    expect(
+      summaryFromJson({ id: 1, media_type: "movie", title: "Film" })?.runtime,
+    ).toBeNull();
+  });
   it("reads a movie row from a multi search", () => {
     const summary = summaryFromJson({
       id: 335984,

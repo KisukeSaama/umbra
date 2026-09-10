@@ -18,6 +18,7 @@ export function Poster({
   className,
   sizes = "(min-width: 1024px) 12rem, (min-width: 640px) 20vw, 40vw",
   priority = false,
+  ratingLabel,
 }: {
   src: string | null;
   alt: string;
@@ -31,6 +32,7 @@ export function Poster({
   className?: string;
   sizes?: string;
   priority?: boolean;
+  ratingLabel?: string;
 }) {
   return (
     <div
@@ -53,6 +55,11 @@ export function Poster({
           {alt}
         </div>
       )}
+      {ratingLabel ? (
+        <span className="absolute right-2 bottom-2 max-w-[calc(100%-1rem)] rounded-md bg-[oklch(0.16_0.008_262/0.92)] px-1.5 py-1 text-right text-[10px] leading-tight font-medium text-[oklch(0.95_0.008_85)] tabular-nums sm:text-xs">
+          {ratingLabel}
+        </span>
+      ) : null}
     </div>
   );
 }

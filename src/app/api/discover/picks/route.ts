@@ -4,6 +4,7 @@ import { z } from "zod";
 import { route } from "@/lib/api";
 import { requireMember } from "@/lib/auth/session";
 import {
+  COMMITMENTS,
   ANIME_STANCES,
   DURATIONS,
   FORMATS,
@@ -26,6 +27,7 @@ const schema = z.object({
   anime: z.enum(ANIME_STANCES),
   format: z.enum(FORMATS),
   duration: z.enum(DURATIONS),
+  commitment: z.enum(COMMITMENTS).default("any"),
 });
 
 export async function GET(request: NextRequest) {
@@ -34,15 +36,33 @@ export async function GET(request: NextRequest) {
     checkRate("picks", account.id, perMinute(20));
 
     const params = request.nextUrl.searchParams;
-    const choice = schema.parse({
-      mood: params.get("mood"),
-      anime: params.get("anime"),
-      format: params.get("format"),
-      duration: params.get("duration"),
-    });
+    const mode = z
+      .enum(["guided", "surprise"])
+      .parse(params.get("mode") ?? "guided");
+    const choice =
+      mode === "surprise"
+        ? {
+            mood: "any" as const,
+            anime: "with" as const,
+            format: "either" as const,
+            duration: "any" as const,
+            commitment: "any" as const,
+          }
+        : schema.parse({
+            mood: params.get("mood"),
+            anime: params.get("anime"),
+            format: params.get("format"),
+            duration: params.get("duration"),
+            commitment: params.get("commitment") ?? undefined,
+          });
 
     const locale = detectLocale(request.headers.get("accept-language"));
-    const selection = await guidedSelection(choice, locale, account.id);
+    const selection = await guidedSelection(
+      choice,
+      locale,
+      account.id,
+      mode === "surprise",
+    );
     await bumpMetric("discovery_rolls");
     return selection;
   });
