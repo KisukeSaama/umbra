@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     });
 
     const locale = detectLocale(request.headers.get("accept-language"));
-    const selection = await guidedSelection(choice, locale);
+    const selection = await guidedSelection(choice, locale, account.id);
     await bumpMetric("discovery_rolls");
     return selection;
   });

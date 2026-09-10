@@ -36,8 +36,10 @@ export type LibraryItem = {
  * One thing a person watched, reduced to what a taste profile needs.
  *
  * Deliberately not a title and not a date beyond the timestamp used to bound
- * the window: nothing here is stored, it is aggregated into genre weights and
- * dropped. See `docs/adr/0007-aggregated-taste-profile.md`.
+ * the window: nothing here is stored, it is aggregated into genre weights or
+ * used to seed one render, and dropped. See
+ * `docs/adr/0007-aggregated-taste-profile.md` and
+ * `docs/adr/0015-suggestions-seeded-on-titles.md`.
  */
 export type WatchEvent = {
   ratingKey: string;

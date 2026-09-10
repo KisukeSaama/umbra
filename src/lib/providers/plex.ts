@@ -93,7 +93,8 @@ export const plexLibrary: MediaLibraryProvider = {
    *
    * This is the only call in Umbra that is about a person rather than about the
    * library, and it is why it returns keys and a kind and nothing else: the
-   * caller turns it into genre weights immediately and keeps no trace of it.
+   * caller turns it into genre weights or into the seeds of one render, and
+   * keeps no trace of it.
    */
   async watchHistory({ plexAccountId, since, limit }) {
     if (!/^\d+$/.test(plexAccountId)) return [];
@@ -107,20 +108,41 @@ export const plexLibrary: MediaLibraryProvider = {
       "X-Plex-Container-Size": Math.max(1, Math.trunc(limit)),
     });
 
-    return containerRows(body, "Metadata")
-      .map((row): WatchEvent | null => {
-        const ratingKey = attr(row, "ratingKey");
-        const kind = parseLibraryKind(attr(row, "type"));
-        if (!ratingKey || !kind) return null;
-        return {
-          ratingKey,
-          grandparentRatingKey: attr(row, "grandparentRatingKey"),
-          kind,
-        };
-      })
-      .filter((event): event is WatchEvent => event !== null);
+    return watchEventsFrom(body);
   },
 };
+
+/**
+ * History rows, reduced to keys and a kind.
+ *
+ * The history endpoint does not carry `grandparentRatingKey` on an episode,
+ * only `grandparentKey`, the show's metadata path. Read alone, the first left
+ * every episode standing for itself, and since the index is asked for films
+ * and shows, every series anybody watched weighed nothing at all. The key is
+ * therefore taken from the path when the attribute is absent.
+ */
+export function watchEventsFrom(body: unknown): WatchEvent[] {
+  return containerRows(body, "Metadata")
+    .map((row): WatchEvent | null => {
+      const ratingKey = attr(row, "ratingKey");
+      const kind = parseLibraryKind(attr(row, "type"));
+      if (!ratingKey || !kind) return null;
+      return {
+        ratingKey,
+        grandparentRatingKey:
+          attr(row, "grandparentRatingKey") ??
+          keyFromPath(attr(row, "grandparentKey")),
+        kind,
+      };
+    })
+    .filter((event): event is WatchEvent => event !== null);
+}
+
+/** `/library/metadata/77549` to `77549`, and anything else to nothing. */
+function keyFromPath(path: string | null): string | null {
+  const match = path?.match(/^\/library\/metadata\/(\d+)$/);
+  return match ? match[1] : null;
+}
 
 /**
  * Walks a library listing page by page.
