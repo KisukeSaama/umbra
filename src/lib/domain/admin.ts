@@ -4,7 +4,6 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { announcements, episodeTasks, jobRuns } from "@/lib/db/schema";
-import { pendingAccountCount } from "@/lib/domain/accounts";
 import { countOpenReports } from "@/lib/domain/reports";
 import { countLiveRequests } from "@/lib/domain/requests";
 
@@ -23,32 +22,20 @@ export type AdminCounts = {
   reports: number;
   episodes: number;
   drafts: number;
-  accounts: number;
   /** Steps whose most recent run failed. Zero is the ordinary state. */
   failingJobs: number;
 };
 
-export async function adminCounts(isAdmin: boolean): Promise<AdminCounts> {
-  const [requests, reports, episodes, drafts, accounts, failingJobs] =
-    await Promise.all([
-      countLiveRequests(),
-      countOpenReports(),
-      openEpisodeTaskCount(),
-      draftAnnouncementCount(),
-      // Accounts belong to the administrator alone, so an assistant is never
-      // shown a number for a door they cannot open.
-      isAdmin ? pendingAccountCount() : Promise.resolve(0),
-      failingJobCount(),
-    ]);
+export async function adminCounts(): Promise<AdminCounts> {
+  const [requests, reports, episodes, drafts, failingJobs] = await Promise.all([
+    countLiveRequests(),
+    countOpenReports(),
+    openEpisodeTaskCount(),
+    draftAnnouncementCount(),
+    failingJobCount(),
+  ]);
 
-  return {
-    requests,
-    reports,
-    episodes,
-    drafts,
-    accounts,
-    failingJobs,
-  };
+  return { requests, reports, episodes, drafts, failingJobs };
 }
 
 export async function openEpisodeTaskCount(): Promise<number> {

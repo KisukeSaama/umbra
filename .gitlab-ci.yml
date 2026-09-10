@@ -13,9 +13,6 @@
 # Optional:
 #   UMBRA_ADMIN_PLEX_ACCOUNT_ID    Plex account promoted to admin on first sign-in
 #   UMBRA_STORAGE_PATHS            published volumes, `Label:/path` comma separated
-#   UMBRA_AUTO_APPROVE_MEMBERS     "true" to skip manual approval
-#   UMBRA_REQUIRE_SERVER_MEMBERSHIP  "false" to stop refusing a sign-in from a
-#                                    Plex account the server is not shared with
 #   UMBRA_JANUS_PLEX_OWNER_SLUG    overrides the plex.tv slug carrying the owner
 #                                  token, which the membership sweep reads
 #   UMBRA_JANUS_URL                overrides the gateway address
@@ -124,8 +121,6 @@ variables:
           "JANUS_PLEX_TV_SLUG=${UMBRA_JANUS_PLEX_TV_SLUG:-plex-tv}" \
           "JANUS_PLEX_OWNER_SLUG=${UMBRA_JANUS_PLEX_OWNER_SLUG:-plex-tv-owner}" \
           "ADMIN_PLEX_ACCOUNT_ID=${UMBRA_ADMIN_PLEX_ACCOUNT_ID:-}" \
-          "AUTO_APPROVE_MEMBERS=${UMBRA_AUTO_APPROVE_MEMBERS:-false}" \
-          "REQUIRE_SERVER_MEMBERSHIP=${UMBRA_REQUIRE_SERVER_MEMBERSHIP:-true}" \
           "STORAGE_PATHS=${UMBRA_STORAGE_PATHS:-Media:${MEDIA_ROOT}}" \
           "CRON_SECRET=${UMBRA_CRON_SECRET}" \
           "SYNC_INTERVAL_MINUTES=${UMBRA_SYNC_INTERVAL_MINUTES:-30}" \

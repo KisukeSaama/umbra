@@ -14,7 +14,8 @@ not go through it: server components call the domain layer directly.
   upstream gave one, and a body that fails validation carries `fields`, the paths
   that were refused, which helps the client without saying anything about the
   server.
-- `member` means an approved account, `assistant` a member named to help on the
+- `member` means a signed-in account (only somebody the server is shared with
+  ever gets one), `assistant` a member named to help on the
   administration side, `admin` the single administrator.
 - Rate limits are counted per minute and keyed by account, or by the address the
   edge vouches for (`CF-Connecting-IP`, then `X-Real-IP`) where there is no
@@ -52,16 +53,17 @@ visitor confirms: thirty a minute per pin, which is what polling needs, and
 sixty a minute per address with three hundred for everyone together, because the
 pin in the body is chosen by the caller and a bucket per request is no bucket at
 all. Answers
-`{ "status": "waiting" | "pending" }`, or
+`{ "status": "waiting" }`, `{ "status": "denied" }` when the server is not
+shared with that Plex account, or
 `{ "status": "approved", "account": { "username": "...", "role": "member" } }`,
 which also sets the session cookie.
 
 **`POST /api/auth/dev-login`**, body `{ "username": "dev", "admin": true }`, or
 `{ "username": "dev", "role": "assistant" }` to sign in as an assistant.
-Creates an approved account with no external call. Answers 404 unless `DEV_LOGIN`
+Creates an account with no external call. Answers 404 unless `DEV_LOGIN`
 is on, and never exists in production.
 
-**`GET /api/auth/me`**: `{ "account": { "id", "username", "role", "status" } | null }`.
+**`GET /api/auth/me`**: `{ "account": { "id", "username", "role" } | null }`.
 No role needed: it answers `null` for a visitor.
 
 **`POST /api/auth/logout`**: deletes the session, clears the cookie.
@@ -188,7 +190,7 @@ access or take anything away for good.
 | `DELETE /api/admin/announcements/{id}` |                                                         | Deletes                                                                                                                                                                                                                                                                                                      |
 | `PATCH /api/admin/polls/{id}`          | `{ active }`                                            | Opens or closes the question of a note. Opening closes the others                                                                                                                                                                                                                                            |
 | `DELETE /api/admin/polls/{id}`         |                                                         | Removes the question from its note, votes included                                                                                                                                                                                                                                                           |
-| `PATCH /api/admin/accounts/{id}`       | `{ status?, role? }`                                    | Approves, blocks, names an assistant. `role` accepts `member` and `assistant` only, and it refuses to act on yourself or on the administrator                                                                                                                                                                |
+| `PATCH /api/admin/accounts/{id}`       | `{ role }`                                              | Names or unnames an assistant. Access is not set here: it follows the share on plex.tv. `role` accepts `member` and `assistant` only, and it refuses to act on yourself or on the administrator                                                                                                                                                                |
 | `POST /api/admin/jobs/run`             |                                                         | Starts a sync cycle and answers `{ started: true }` without waiting for it. 409 with `error.syncRunning` when one is already on its feet                                                                                                                                                                     |
 | `POST /api/admin/storage/scan`         |                                                         | Starts a measurement and a full walk of the configured volumes, and answers `{ started: true }`. Minutes of work, so the run is the record, not the response. 409 with `error.scanRunning`                                                                                                                   |
 | `GET /api/admin/storage/scan`          |                                                         | Where that walk is: `{ running, startedAt, progress }`, polled by the page while it runs                                                                                                                                                                                                                     |

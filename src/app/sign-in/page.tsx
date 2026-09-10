@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SignInPage() {
   const account = await currentAccount();
-  if (account?.status === "approved") redirect("/");
+  if (account) redirect("/");
 
   const t = await getTranslator();
 

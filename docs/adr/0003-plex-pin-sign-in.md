@@ -18,7 +18,9 @@ the display name. The visitor's Plex token is used once to read that id and then
 dropped: never stored, never logged.
 
 New accounts wait for approval unless the configuration says otherwise. The
-account named by `ADMIN_PLEX_ACCOUNT_ID` becomes the administrator.
+account named by `ADMIN_PLEX_ACCOUNT_ID` becomes the administrator. (Superseded
+in part by `0014-only-members-of-the-server.md`: the share on plex.tv is the
+only gate, and approval is gone.)
 
 ## Consequences
 

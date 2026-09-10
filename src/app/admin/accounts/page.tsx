@@ -22,15 +22,17 @@ const PER_PAGE = 30;
 /**
  * Accounts.
  *
- * A Plex identity, a status, and nothing else: no e-mail, no profile, no
- * activity trail. Approving is the only gate into the community.
+ * A Plex identity, a role, and nothing else: no e-mail, no profile, no
+ * activity trail, no status. Access is not decided here: it follows the share
+ * on plex.tv, checked at sign-in and by the membership sweep
+ * (`docs/adr/0014-only-members-of-the-server.md`).
  *
  * An assistant reads this page and changes nothing on it: knowing who is here
- * is part of helping, handing out access is not. The buttons are not drawn for
- * them and the route behind those buttons asks for the administrator anyway.
+ * is part of helping, naming help is not. The buttons are not drawn for them
+ * and the route behind those buttons asks for the administrator anyway.
  *
- * This is also where help is handed out. An approved member can be named an
- * assistant, which opens the workspace to them, and unnamed again. The
+ * What is decided here is help. A member can be named an assistant, which
+ * opens the workspace to them, and unnamed again. The
  * administrator is not on that list: there is one, decided by configuration,
  * and their own row carries no action at all.
  *
@@ -92,46 +94,7 @@ export default async function AdminAccountsPage({
               </Badge>
             ) : null}
 
-            <Badge
-              variant={
-                account.status === "pending"
-                  ? "default"
-                  : account.status === "blocked"
-                    ? "destructive"
-                    : "secondary"
-              }
-            >
-              {t(`admin.accounts.status.${account.status}` as TranslationKey)}
-            </Badge>
-
-            {isAdmin &&
-            account.status !== "approved" &&
-            account.role !== "admin" ? (
-              <ActionButton
-                url={`/api/admin/accounts/${account.id}`}
-                body={{ status: "approved" }}
-                size="sm"
-              >
-                {t("admin.accounts.approve")}
-              </ActionButton>
-            ) : null}
-
-            {isAdmin &&
-            account.status !== "blocked" &&
-            account.role !== "admin" ? (
-              <ActionButton
-                url={`/api/admin/accounts/${account.id}`}
-                body={{ status: "blocked" }}
-                size="sm"
-                variant="ghost"
-              >
-                {t("admin.accounts.block")}
-              </ActionButton>
-            ) : null}
-
-            {isAdmin &&
-            account.status === "approved" &&
-            account.role === "member" ? (
+            {isAdmin && account.role === "member" ? (
               <ActionButton
                 url={`/api/admin/accounts/${account.id}`}
                 body={{ role: "assistant" }}

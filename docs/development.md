@@ -14,10 +14,9 @@ npm run dev`, is the faster loop when you are editing constantly. Migrations are
 applied at server start either way.
 
 Sign in through the development entry on `/sign-in` (`DEV_LOGIN=true`): it
-creates an approved administrator with no external call. That flag and
-`AUTO_APPROVE_MEMBERS` are read as the word they are spelled with rather than
-for the truthiness of a string, so `false` closes the route and an empty value
-leaves the default, which is off for both; a word the application does not
+creates an administrator with no external call. That flag is read as the word
+it is spelled with rather than for the truthiness of a string, so `false`
+closes the route and an empty value leaves the default, which is off; a word the application does not
 recognise fails the boot rather than being guessed at. To see the administration
 side as an assistant, post to the same route by hand with
 `{ "username": "helper", "role": "assistant" }`. Then fill the site:

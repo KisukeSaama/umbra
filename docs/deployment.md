@@ -46,14 +46,11 @@ One image, three containers:
    | `UMBRA_CRON_SECRET`           | yes         | At least 16 characters                 |
    | `UMBRA_ADMIN_PLEX_ACCOUNT_ID` | recommended | The account that becomes admin         |
    | `UMBRA_STORAGE_PATHS`         | no          | Defaults to `Media:/mnt/plex`          |
-   | `UMBRA_AUTO_APPROVE_MEMBERS`  | no          | `true` or `false`; unset means `false` |
    | `UMBRA_JANUS_URL`             | no          | Overrides the gateway address          |
 
-   `AUTO_APPROVE_MEMBERS` is read as the word it is spelled with rather than for
-   the truthiness of a string, so `false` is genuinely off and a word the
-   application does not recognise stops the boot instead of being guessed at.
-   The pipeline writes `false` when the variable is unset, which is the state to
-   leave it in: every account then waits for a decision. The slugs, the database
+   There is no approval setting: whoever the server is shared with on plex.tv
+   gets in, and nobody else (see `docs/adr/0014-only-members-of-the-server.md`).
+   The slugs, the database
    name and user and the sync interval have `UMBRA_*` overrides of their own,
    listed at the top of `.gitlab-ci.yml`, and their defaults are what dev and
    prod both run on.

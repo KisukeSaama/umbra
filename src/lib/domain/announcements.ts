@@ -8,7 +8,7 @@ import {
   polls,
   type AnnouncementCategory,
 } from "@/lib/db/schema";
-import { notifyApprovedAccounts } from "@/lib/domain/notifications";
+import { notifyAllAccounts } from "@/lib/domain/notifications";
 import {
   attachPoll,
   pollView,
@@ -319,7 +319,7 @@ async function announceToEveryone(
   title: string,
   category: AnnouncementCategory,
 ) {
-  return notifyApprovedAccounts({
+  return notifyAllAccounts({
     kind: "announcement",
     subjectId: id,
     step: "published",

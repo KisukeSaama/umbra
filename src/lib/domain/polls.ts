@@ -5,9 +5,9 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, type Queryable } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { announcements, pollOptions, polls, votes } from "@/lib/db/schema";
-import { approvedAccountCount } from "@/lib/domain/accounts";
+import { countAccounts } from "@/lib/domain/accounts";
 import { bumpMetric } from "@/lib/domain/analytics";
-import { notifyApprovedAccounts } from "@/lib/domain/notifications";
+import { notifyAllAccounts } from "@/lib/domain/notifications";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 
 /**
@@ -32,7 +32,7 @@ export type PollView = {
   endsAt: Date | null;
   totalVotes: number;
   /**
-   * How many people could answer: the approved accounts.
+   * How many people could answer: every account.
    *
    * The question is put to the people who use Umbra, not to everyone the
    * server is shared with: most of them never open it, and counting them in
@@ -111,7 +111,7 @@ export async function pollView(
     closed: isClosed(poll),
     endsAt: poll.endsAt,
     totalVotes,
-    memberCount: await approvedAccountCount(),
+    memberCount: await countAccounts(),
     votedOptionId,
     options: options.map((option) => ({
       ...option,
@@ -285,7 +285,7 @@ export async function setPollActive(
   // Opening a poll is worth an entry; closing one is not, since there is
   // nothing left to do about it.
   if (active && options.notify !== false)
-    await notifyApprovedAccounts({
+    await notifyAllAccounts({
       kind: "poll_open",
       subjectId: row.id,
       step: "open",

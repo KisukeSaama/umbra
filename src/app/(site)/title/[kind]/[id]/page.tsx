@@ -25,7 +25,7 @@ export async function generateMetadata({
   params,
 }: PageProps<"/title/[kind]/[id]">): Promise<Metadata> {
   const account = await currentAccount();
-  if (account?.status !== "approved") return {};
+  if (!account) return {};
 
   const { kind, id } = await params;
   if ((kind !== "movie" && kind !== "tv") || !/^\d+$/.test(id)) return {};

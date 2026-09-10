@@ -18,7 +18,7 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
  * polls until the answer comes back. The Plex token never reaches the browser:
  * the server reads the account id with it and drops it.
  */
-type Phase = "idle" | "waiting" | "pending" | "denied";
+type Phase = "idle" | "waiting" | "denied";
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -85,10 +85,6 @@ export function SignInFlow({ devLoginEnabled }: { devLoginEnabled: boolean }) {
         schedulePoll(pinId);
         return;
       }
-      if (body.status === "pending") {
-        setPhase("pending");
-        return;
-      }
       if (body.status === "denied") {
         setPhase("denied");
         return;
@@ -132,16 +128,15 @@ export function SignInFlow({ devLoginEnabled }: { devLoginEnabled: boolean }) {
     }
   }
 
-  if (phase === "pending" || phase === "denied") {
-    const denied = phase === "denied";
+  if (phase === "denied") {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t(denied ? "auth.notMember" : "auth.pending")}</CardTitle>
+          <CardTitle>{t("auth.notMember")}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            {t(denied ? "auth.notMemberHint" : "auth.pendingHint")}
+            {t("auth.notMemberHint")}
           </p>
         </CardContent>
       </Card>

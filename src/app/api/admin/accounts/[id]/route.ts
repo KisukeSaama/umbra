@@ -3,14 +3,11 @@ import { z } from "zod";
 
 import { idParam, jsonBody, route } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth/session";
-import { ACCOUNT_STATUSES, ASSIGNABLE_ROLES } from "@/lib/db/schema";
-import { updateAccount } from "@/lib/domain/accounts";
+import { ASSIGNABLE_ROLES } from "@/lib/db/schema";
+import { updateAccountRole } from "@/lib/domain/accounts";
 import { checkRate, perMinute } from "@/lib/rate-limit";
 
-const schema = z.object({
-  status: z.enum(ACCOUNT_STATUSES).optional(),
-  role: z.enum(ASSIGNABLE_ROLES).optional(),
-});
+const schema = z.object({ role: z.enum(ASSIGNABLE_ROLES) });
 
 export async function PATCH(
   request: NextRequest,
@@ -20,6 +17,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     checkRate("admin", admin.id, perMinute(30));
     const id = await idParam(params);
-    return updateAccount(id, await jsonBody(request, schema), admin.id);
+    const { role } = await jsonBody(request, schema);
+    return updateAccountRole(id, role, admin.id);
   });
 }

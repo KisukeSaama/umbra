@@ -50,38 +50,27 @@ describe("boolean flags", () => {
 
   /*
    * The bug this covers: `z.coerce.boolean()` is `Boolean(value)`, so the
-   * string the deployment actually writes read as true and every account was
-   * approved on sight.
+   * string the deployment actually writes read as true and a switch meant to
+   * be off was on.
    */
   it("reads the word false as false", () => {
-    expect(read({ AUTO_APPROVE_MEMBERS: "false" }).AUTO_APPROVE_MEMBERS).toBe(
-      false,
-    );
-    expect(read({ AUTO_APPROVE_MEMBERS: "0" }).AUTO_APPROVE_MEMBERS).toBe(
-      false,
-    );
     expect(read({ DEV_LOGIN: "false" }).DEV_LOGIN).toBe(false);
+    expect(read({ DEV_LOGIN: "0" }).DEV_LOGIN).toBe(false);
   });
 
   it("reads the word true as true", () => {
-    expect(read({ AUTO_APPROVE_MEMBERS: "true" }).AUTO_APPROVE_MEMBERS).toBe(
-      true,
-    );
-    expect(read({ AUTO_APPROVE_MEMBERS: " TRUE " }).AUTO_APPROVE_MEMBERS).toBe(
-      true,
-    );
+    expect(read({ DEV_LOGIN: "true" }).DEV_LOGIN).toBe(true);
+    expect(read({ DEV_LOGIN: " TRUE " }).DEV_LOGIN).toBe(true);
   });
 
   it("falls back to the default when absent or empty", () => {
-    expect(read({ AUTO_APPROVE_MEMBERS: undefined }).AUTO_APPROVE_MEMBERS).toBe(
-      false,
-    );
+    expect(read({ DEV_LOGIN: undefined }).DEV_LOGIN).toBe(false);
     // Compose passes an unset variable through as an empty string.
-    expect(read({ AUTO_APPROVE_MEMBERS: "" }).AUTO_APPROVE_MEMBERS).toBe(false);
+    expect(read({ DEV_LOGIN: "" }).DEV_LOGIN).toBe(false);
   });
 
   it("refuses a value that is neither", () => {
-    expect(() => read({ AUTO_APPROVE_MEMBERS: "maybe" })).toThrow(
+    expect(() => read({ DEV_LOGIN: "maybe" })).toThrow(
       /Invalid configuration/,
     );
   });

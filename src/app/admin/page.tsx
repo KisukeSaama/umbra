@@ -7,7 +7,6 @@ import { formatPercent } from "@/components/formatting";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
-import { pendingAccountCount } from "@/lib/domain/accounts";
 import { lastReportAt, listReports } from "@/lib/domain/reports";
 import {
   LIVE_REQUEST_STATUSES,
@@ -47,35 +46,21 @@ export async function generateMetadata(): Promise<Metadata> {
  * honest thing a page like this can do on a quiet day.
  */
 export default async function AdminDashboardPage() {
-  const viewer = await requireStaffPage();
+  await requireStaffPage();
   const { t, locale } = await getI18n();
-  // Accounts are the administrator's alone, so an assistant is never shown a
-  // queue they would be redirected away from.
-  const isAdmin = viewer.role === "admin";
 
-  const [
-    requests,
-    reports,
-    tasks,
-    pendingAccounts,
-    storage,
-    latestRequest,
-    latestReport,
-  ] = await Promise.all([
-    listRequests([...LIVE_REQUEST_STATUSES]),
-    listReports([...LIVE_REPORT_STATUSES]),
-    listOpenEpisodeTasks(),
-    isAdmin ? pendingAccountCount() : 0,
-    storageOverview(),
-    lastRequestAt(),
-    lastReportAt(),
-  ]);
+  const [requests, reports, tasks, storage, latestRequest, latestReport] =
+    await Promise.all([
+      listRequests([...LIVE_REQUEST_STATUSES]),
+      listReports([...LIVE_REPORT_STATUSES]),
+      listOpenEpisodeTasks(),
+      storageOverview(),
+      lastRequestAt(),
+      lastReportAt(),
+    ]);
 
   const quiet =
-    requests.length === 0 &&
-    reports.length === 0 &&
-    tasks.length === 0 &&
-    pendingAccounts === 0;
+    requests.length === 0 && reports.length === 0 && tasks.length === 0;
 
   // The last time a member asked for something, request or report alike. It
   // tells the administration how warm the place is, which a job timestamp
@@ -91,9 +76,6 @@ export default async function AdminDashboardPage() {
           { label: t("admin.stat.requests"), value: requests.length },
           { label: t("admin.stat.reports"), value: reports.length },
           { label: t("admin.stat.episodes"), value: tasks.length },
-          ...(isAdmin
-            ? [{ label: t("admin.stat.accounts"), value: pendingAccounts }]
-            : []),
           {
             label: t("section.storage"),
             value: storage
@@ -239,14 +221,6 @@ export default async function AdminDashboardPage() {
               </Row>
             ))}
           </Queue>
-        ) : null}
-
-        {pendingAccounts > 0 ? (
-          <Queue
-            title={t("admin.inbox.accounts", { count: pendingAccounts })}
-            href="/admin/accounts"
-            label={t("admin.nav.accounts")}
-          />
         ) : null}
       </div>
 

@@ -50,9 +50,7 @@ const updatedAt = timestamp("updated_at", { withTimezone: true })
 export const ACCOUNT_ROLES = ["member", "assistant", "admin"] as const;
 /** What the accounts page may set: help is granted, administration is not. */
 export const ASSIGNABLE_ROLES = ["member", "assistant"] as const;
-export const ACCOUNT_STATUSES = ["pending", "approved", "blocked"] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
-export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 export const accounts = pgTable(
   "account",
@@ -62,7 +60,6 @@ export const accounts = pgTable(
     plexAccountId: text("plex_account_id").notNull().unique(),
     username: text("username").notNull(),
     role: text("role").$type<AccountRole>().notNull().default("member"),
-    status: text("status").$type<AccountStatus>().notNull().default("pending"),
     createdAt,
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
@@ -78,10 +75,6 @@ export const accounts = pgTable(
     uniqueIndex("account_single_admin_idx")
       .on(t.role)
       .where(sql`${t.role} = 'admin'`),
-    check(
-      "account_status_check",
-      sql`${t.status} IN ('pending', 'approved', 'blocked')`,
-    ),
   ],
 );
 

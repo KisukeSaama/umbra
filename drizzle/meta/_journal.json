@@ -85,6 +85,13 @@
       "when": 1789047394610,
       "tag": "0011_request_followers",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789058016707,
+      "tag": "0012_drop_account_status",
+      "breakpoints": true
     }
   ]
 }
