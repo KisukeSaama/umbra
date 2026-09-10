@@ -550,6 +550,7 @@ export const en = {
 
   "title.request": "Ask for it",
   "title.openPlex": "Open in Plex",
+  "title.actions": "Title actions",
   "title.report": "Report a problem",
   "title.onServer": "This is on Kisuflix",
   "title.onServerPartly": "On Kisuflix, but not all of it",
@@ -1260,6 +1261,7 @@ export const fr: Record<TranslationKey, string> = {
 
   "title.request": "Le demander",
   "title.openPlex": "Ouvrir dans Plex",
+  "title.actions": "Actions du titre",
   "title.report": "Signaler un problème",
   "title.onServer": "C'est sur Kisuflix",
   "title.onServerPartly": "Sur Kisuflix, mais pas en entier",

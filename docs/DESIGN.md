@@ -409,7 +409,7 @@ screen.
 - Use `border-left` or `border-right` above one pixel as a coloured accent stripe. Use a full ring, a background tint, or nothing.
 - Apply `background-clip: text` with a gradient. Emphasis comes from weight and size.
 - Build the big-number-plus-gradient hero metric block, or fill a screen with identically sized icon-heading-text cards. The home grid is deliberately uneven.
-- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, the list of who is waiting on a row of the administration queues, and genuine confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not one of them: it is a page, with a back link at the top left and a return to the top in the bottom right corner once the scroll is long.
+- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, the list of who is waiting on a row of the administration queues, and genuine confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not one of them: it is a page, with a back link at the top left and, once that row has scrolled away, a dock centred at the bottom (a blurred pill, as licensed for anything content scrolls under) carrying the way back, the way to Plex and the return to the top.
 - Animate anything that does not convey state, or animate a layout property. Transitions run 150 to 250ms; the poster scale at 500ms is the outer limit.
 - Use an em dash or an emoji anywhere: code, comments, documentation, interface copy.
 
