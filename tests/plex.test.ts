@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   itemsFrom,
+  plexAppUrl,
   plexDetailsUrl,
   sectionId,
   serverAccountId,
@@ -16,6 +17,12 @@ describe("library parsing", () => {
       "#!/server/server-id/details?key=%2Flibrary%2Fmetadata%2F1234",
     );
     expect(url.search).toBe("");
+  });
+
+  it("links the mobile apps to the same metadata key on the same server", () => {
+    expect(plexAppUrl("server-id", "1234")).toBe(
+      "plex://preplay/?metadataKey=%2Flibrary%2Fmetadata%2F1234&server=server-id",
+    );
   });
 
   it("reads a movie and its provider mappings", () => {

@@ -25,7 +25,11 @@ import {
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
 import type { Genre, MediaKind, MediaSummary } from "@/lib/providers/metadata";
-import { plexDetailsUrl, plexLibrary } from "@/lib/providers/plex";
+import {
+  plexAppUrl,
+  plexDetailsUrl,
+  plexLibrary,
+} from "@/lib/providers/plex";
 import { posterUrl, tmdbLanguage, tmdbProvider } from "@/lib/providers/tmdb";
 
 /** Search: the heart of Umbra. The states themselves live one file away. */
@@ -465,11 +469,14 @@ export const titleDetail = cache(async function titleDetail(
   };
 });
 
-/** Direct Plex destination for a title the local index currently holds. */
-export async function titlePlexUrl(
+/**
+ * Direct Plex destinations for a title the local index currently holds: the
+ * web player, and the same page in the mobile apps.
+ */
+export async function titlePlexLinks(
   kind: MediaKind,
   providerId: string,
-): Promise<string | null> {
+): Promise<{ web: string; app: string } | null> {
   const [row] = await db()
     .select({ ratingKey: libraryItems.ratingKey })
     .from(libraryItems)
@@ -484,7 +491,11 @@ export async function titlePlexUrl(
   if (!row) return null;
 
   try {
-    return plexDetailsUrl(await plexLibrary.machineIdentifier(), row.ratingKey);
+    const server = await plexLibrary.machineIdentifier();
+    return {
+      web: plexDetailsUrl(server, row.ratingKey),
+      app: plexAppUrl(server, row.ratingKey),
+    };
   } catch (error) {
     console.warn("[catalog] Plex link unavailable", error);
     return null;
