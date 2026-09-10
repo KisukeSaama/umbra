@@ -27,9 +27,9 @@ export function Shelf({
   if (items.length === 0) return null;
 
   return (
-    <section className="umbra-rise" style={{ animationDelay: `${delayMs}ms` }}>
+    <section className="umbra-fade" style={{ animationDelay: `${delayMs}ms` }}>
       <SectionHeading title={title} href={href} />
-      <Rail>
+      <Rail name={title}>
         {items.map((item, index) => (
           <div
             key={`${item.kind}:${item.providerId}`}

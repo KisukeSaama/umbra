@@ -260,7 +260,7 @@ function Question({
   onPick: (value: string) => void;
 }) {
   return (
-    <fieldset className="umbra-rise">
+    <fieldset className="umbra-fade">
       <legend className="text-muted-foreground mb-3 text-sm">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (

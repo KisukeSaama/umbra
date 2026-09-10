@@ -20,7 +20,7 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
   return (
     <section>
       <SectionHeading title={t("section.recentlyAdded")} href="/discover" />
-      <Rail>
+      <Rail name="recently-added">
         {items.map((item, index) => (
           <div
             key={item.ratingKey}
