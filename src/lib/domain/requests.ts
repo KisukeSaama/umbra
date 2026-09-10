@@ -323,6 +323,32 @@ export async function followedRequestFor(
   return row ?? null;
 }
 
+/**
+ * How many members are waiting on the live request for a title, 0 when none.
+ *
+ * Shown on the title page alone, beside the ask, so a member who finds a title
+ * somebody already asked for sees that joining is worth it. Never a ranking,
+ * never on a card. See `docs/adr/0016-requests-have-followers.md`.
+ */
+export async function waitingOnTitle(
+  kind: MediaKind,
+  providerId: string,
+): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(requestFollowers)
+    .innerJoin(mediaRequests, eq(mediaRequests.id, requestFollowers.requestId))
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .where(
+      and(
+        eq(media.providerId, providerId),
+        eq(media.mediaType, kind),
+        ne(mediaRequests.status, "rejected"),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
 /** One row, as both lists shape it: the queue and a member's own follow-up. */
 function toRequestRow(row: {
   id: string;
@@ -451,6 +477,52 @@ export async function waitingOnRequests(
     waiting.set(row.requestId, names);
   }
   return waiting;
+}
+
+/** A request the staff took up, as every member may see it on the home page. */
+export type InProgressRequest = {
+  id: string;
+  status: Extract<RequestStatus, "accepted" | "processing">;
+  media: RequestRow["media"];
+};
+
+/**
+ * What the staff took up and the server does not hold yet.
+ *
+ * The public face of the queue: a title and how far along it is, never who
+ * asked, how many are waiting, or the note left on it. Titles being fetched
+ * come first, being closest to arriving, then the most recently moved. One the
+ * library already holds is left out: the sync is about to close it, and the
+ * home page would announce as coming something already there.
+ */
+export async function inProgressRequests(
+  limit: number,
+): Promise<InProgressRequest[]> {
+  const rows = await db()
+    .select(REQUEST_COLUMNS)
+    .from(mediaRequests)
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
+    .where(
+      and(
+        inArray(mediaRequests.status, ["accepted", "processing"]),
+        sql`not ${inLibraryColumn}`,
+      ),
+    )
+    .orderBy(
+      sql`${mediaRequests.status} = 'processing' desc`,
+      desc(mediaRequests.updatedAt),
+    )
+    .limit(limit);
+
+  return rows.map((row) => {
+    const request = toRequestRow(row);
+    return {
+      id: request.id,
+      status: request.status as InProgressRequest["status"],
+      media: request.media,
+    };
+  });
 }
 
 /** Requests still on the desk, for the figure the navigation carries. */

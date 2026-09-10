@@ -37,6 +37,7 @@ export function TitleActions({
   title,
   availability,
   followed = null,
+  waiting = 0,
   alternateCut = null,
 }: {
   kind: MediaKind;
@@ -45,6 +46,8 @@ export function TitleActions({
   availability: Availability;
   /** The live request this member is waiting on for the title, if any. */
   followed?: { id: string; status: RequestStatus } | null;
+  /** How many members wait on the live request for it, 0 when there is none. */
+  waiting?: number;
   /** The re-cut the server holds it in, so the report says only what applies. */
   alternateCut?: AlternateCut | null;
 }) {
@@ -147,26 +150,24 @@ export function TitleActions({
       </div>
     );
 
-  if (state === "requested")
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-muted-foreground text-sm">{t("title.requested")}</p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void ask()}
-          disabled={sending}
-        >
-          {sending ? <SpinnerIcon /> : null}
-          {sending ? t("status.requesting") : t("title.requestToo")}
-        </Button>
-      </div>
-    );
-
-  return (
+  const button = (
     <Button onClick={() => void ask()} disabled={sending}>
       {sending ? <SpinnerIcon /> : null}
       {sending ? t("status.requesting") : t("title.request")}
     </Button>
   );
+
+  // Asked for by somebody else: the same button, which joins their request,
+  // and the one line that makes joining worth it.
+  if (state === "requested" && waiting > 0)
+    return (
+      <div className="flex flex-col items-start gap-2">
+        {button}
+        <p className="text-muted-foreground text-sm">
+          {t("title.waiting", { count: waiting })}
+        </p>
+      </div>
+    );
+
+  return button;
 }

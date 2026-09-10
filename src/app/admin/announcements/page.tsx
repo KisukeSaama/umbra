@@ -3,7 +3,12 @@ import type { Metadata } from "next";
 import { ActionButton } from "@/components/admin/action-button";
 import { AnnouncementForm } from "@/components/admin/announcement-form";
 import { formatPercent } from "@/components/formatting";
-import { ExternalLinkIcon, PollIcon } from "@/components/icons";
+import {
+  ExternalLinkIcon,
+  PollIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
+} from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +17,7 @@ import {
   countAllAnnouncements,
   listAllAnnouncements,
 } from "@/lib/domain/announcements";
+import { reactionRoster } from "@/lib/domain/reactions";
 import { formatDate } from "@/lib/format";
 import { plainText } from "@/lib/markdown";
 import type { TranslationKey } from "@/lib/i18n";
@@ -52,6 +58,8 @@ export default async function AdminAnnouncementsPage({
     limit: page.perPage,
     offset: page.offset,
   });
+  // Who reacted how: members only ever see the counts, the staff see names.
+  const roster = await reactionRoster(announcements.map(({ id }) => id));
 
   return (
     <>
@@ -63,6 +71,7 @@ export default async function AdminAnnouncementsPage({
         <ul className="space-y-3">
           {announcements.map((announcement) => {
             const poll = announcement.poll;
+            const reacted = roster.get(announcement.id);
             return (
               <li key={announcement.id}>
                 <Card className="gap-3">
@@ -100,6 +109,24 @@ export default async function AdminAnnouncementsPage({
                             {t("poll.votes", { count: poll.totalVotes })}
                           </Badge>
                         ) : null}
+                        {reacted ? (
+                          <>
+                            <Badge
+                              variant="outline"
+                              title={t("admin.announcements.likes")}
+                            >
+                              <ThumbsUpIcon />
+                              {announcement.reactions.likes}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              title={t("admin.announcements.dislikes")}
+                            >
+                              <ThumbsDownIcon />
+                              {announcement.reactions.dislikes}
+                            </Badge>
+                          </>
+                        ) : null}
                         {poll?.closed ? (
                           <Badge variant="outline">
                             {t("admin.polls.closed")}
@@ -127,6 +154,34 @@ export default async function AdminAnnouncementsPage({
                           {announcement.link.label ?? announcement.link.url}
                         </span>
                       </a>
+                    ) : null}
+
+                    {reacted ? (
+                      <details className="text-xs">
+                        <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 w-fit cursor-pointer rounded-md transition-colors outline-none focus-visible:ring-3">
+                          {t("admin.announcements.reactions")}
+                        </summary>
+                        <dl className="mt-2 grid gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)]">
+                          {(
+                            [
+                              ["likes", ThumbsUpIcon],
+                              ["dislikes", ThumbsDownIcon],
+                            ] as const
+                          ).map(([side, Icon]) =>
+                            reacted[side].length > 0 ? (
+                              <div key={side} className="contents">
+                                <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                                  <Icon />
+                                  {t(`admin.announcements.${side}`)}
+                                </dt>
+                                <dd className="break-words">
+                                  {reacted[side].join(", ")}
+                                </dd>
+                              </div>
+                            ) : null,
+                          )}
+                        </dl>
+                      </details>
                     ) : null}
 
                     {poll ? (

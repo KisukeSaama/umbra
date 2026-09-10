@@ -111,7 +111,8 @@ export const en = {
   "week.upcoming": "Scheduled",
   "week.missing": "To add",
   "week.available": "On the server",
-  "week.following": "You are watching",
+  "week.calendarNote":
+    "Nothing you are watching airs this week. On the server's calendar:",
   "week.noEpisodes": "No episode scheduled in the coming days.",
 
   "poll.vote": "Vote now",
@@ -138,6 +139,9 @@ export const en = {
   "news.category.storage": "Storage",
   "news.category.funding": "Fundraiser",
   "news.openLink": "Open the link",
+  "news.reactions": "Reactions",
+  "news.like": "I like it",
+  "news.dislike": "I do not like it",
 
   "storage.used": "{percent} used",
   "storage.available": "{value} available of {total}",
@@ -193,6 +197,8 @@ export const en = {
   "error.requestUnderway":
     "This request has already been taken up and can no longer be cancelled.",
   "error.seriesNotFound": "Series not found.",
+  "error.seriesRequested":
+    "An accepted request keeps this series under watch. Pause it instead.",
   "error.taskNotFound": "Task not found.",
   "error.announcementNotFound": "Announcement not found.",
   "error.invalidLink":
@@ -271,6 +277,25 @@ export const en = {
   "admin.series.paused": "Paused",
   "admin.series.pause": "Pause tracking",
   "admin.series.resume": "Resume tracking",
+  "admin.series.remove": "Remove",
+  "admin.series.removed": "Series removed",
+  "admin.series.removeConfirm":
+    "{title} leaves the watch, along with its calendar and its open tasks.",
+  "admin.series.hint":
+    "The shows under watch. A requested series joins on its own once accepted; any other can be added here.",
+  "admin.series.add": "Track a series",
+  "admin.series.addPlaceholder": "Search a series to track",
+  "admin.series.track": "Track",
+  "admin.series.added": "{title} is now tracked",
+  "admin.series.noResult": "No series matches this search.",
+  "admin.series.fromRequest": "Requested",
+  "admin.series.manual": "Added by hand",
+  "admin.series.empty":
+    "No series under watch yet. Search one above, or accept a series request.",
+  "admin.episodes.hint":
+    "Aired episodes the server does not hold yet. Each one closes itself when the episode arrives.",
+  "admin.episodes.empty":
+    "Nothing to add: every aired episode is on the server.",
   "admin.episodes.tasks": "Episodes to add",
   "admin.episodes.done": "Done",
   "admin.episodes.dismiss": "Dismiss",
@@ -294,6 +319,9 @@ export const en = {
   "admin.announcements.link.url": "Address",
   "admin.announcements.link.label": "Button wording",
   "admin.announcements.poll": "Ask a question",
+  "admin.announcements.reactions": "Who reacted",
+  "admin.announcements.likes": "Liked it",
+  "admin.announcements.dislikes": "Did not like it",
   "admin.announcements.poll.hint":
     "A poll is an announcement that expects an answer back. Publishing the note opens the question.",
   "admin.polls.question": "Question",
@@ -427,6 +455,7 @@ export const en = {
   "section.forYou": "Picked for you",
   "section.trending": "Everyone is watching",
   "section.upcoming": "Soon in cinemas",
+  "section.inProgress": "Coming soon",
   "section.airing": "Airing right now",
   "section.becauseYouAsked": "Because you asked for {title}",
   "section.onServer": "On the server",
@@ -469,9 +498,9 @@ export const en = {
   "title.report": "Report a problem",
   "title.onServer": "This is on the server",
   "title.onServerPartly": "On the server, but not all of it",
-  "title.requested": "Already requested",
   "title.requestedByYou": "You asked for it",
-  "title.requestToo": "Ask for it too",
+  "title.waiting": "Popular pick: {count} people are already waiting for it.",
+  "title.waiting.one": "Someone is already waiting for it.",
   "title.cancelRequest": "Cancel this request",
   "title.similar": "In the same vein",
   "title.cut": "On the server in the {cut} cut",
@@ -717,7 +746,8 @@ export const fr: Record<TranslationKey, string> = {
   "week.upcoming": "Diffusion prévue",
   "week.missing": "À ajouter",
   "week.available": "Sur le serveur",
-  "week.following": "Vous regardez",
+  "week.calendarNote":
+    "Rien de ce que vous regardez ne sort cette semaine. Au calendrier du serveur :",
   "week.noEpisodes": "Aucun épisode prévu dans les prochains jours.",
 
   "poll.vote": "Voter",
@@ -744,6 +774,9 @@ export const fr: Record<TranslationKey, string> = {
   "news.category.storage": "Stockage",
   "news.category.funding": "Cagnotte",
   "news.openLink": "Ouvrir le lien",
+  "news.reactions": "Réactions",
+  "news.like": "J'aime",
+  "news.dislike": "Je n'aime pas",
 
   "storage.used": "{percent} utilisés",
   "storage.available": "{value} disponibles sur {total}",
@@ -800,6 +833,8 @@ export const fr: Record<TranslationKey, string> = {
   "error.requestUnderway":
     "Cette demande est déjà prise en charge et ne peut plus être annulée.",
   "error.seriesNotFound": "Série introuvable.",
+  "error.seriesRequested":
+    "Une demande acceptée garde cette série sous surveillance. Suspendez-la plutôt.",
   "error.taskNotFound": "Tâche introuvable.",
   "error.announcementNotFound": "Annonce introuvable.",
   "error.invalidLink":
@@ -877,6 +912,25 @@ export const fr: Record<TranslationKey, string> = {
   "admin.series.paused": "Suspendu",
   "admin.series.pause": "Suspendre le suivi",
   "admin.series.resume": "Reprendre le suivi",
+  "admin.series.remove": "Supprimer",
+  "admin.series.removed": "Série supprimée",
+  "admin.series.removeConfirm":
+    "{title} quitte la surveillance, avec son calendrier et ses tâches ouvertes.",
+  "admin.series.hint":
+    "Les séries sous surveillance. Une série demandée s'y ajoute d'elle-même une fois acceptée ; toute autre peut être ajoutée ici.",
+  "admin.series.add": "Suivre une série",
+  "admin.series.addPlaceholder": "Rechercher une série à suivre",
+  "admin.series.track": "Suivre",
+  "admin.series.added": "{title} est maintenant suivie",
+  "admin.series.noResult": "Aucune série ne correspond à cette recherche.",
+  "admin.series.fromRequest": "Demandée",
+  "admin.series.manual": "Ajoutée à la main",
+  "admin.series.empty":
+    "Aucune série suivie pour l'instant. Recherchez-en une ci-dessus, ou acceptez une demande de série.",
+  "admin.episodes.hint":
+    "Les épisodes diffusés que le serveur n'a pas encore. Chacun se ferme tout seul quand l'épisode arrive.",
+  "admin.episodes.empty":
+    "Rien à ajouter : tous les épisodes diffusés sont sur le serveur.",
   "admin.episodes.tasks": "Épisodes à ajouter",
   "admin.episodes.done": "Fait",
   "admin.episodes.dismiss": "Ignorer",
@@ -900,6 +954,9 @@ export const fr: Record<TranslationKey, string> = {
   "admin.announcements.link.url": "Adresse",
   "admin.announcements.link.label": "Texte du bouton",
   "admin.announcements.poll": "Poser une question",
+  "admin.announcements.reactions": "Qui a réagi",
+  "admin.announcements.likes": "Ont aimé",
+  "admin.announcements.dislikes": "N'ont pas aimé",
   "admin.announcements.poll.hint":
     "Un sondage est une annonce qui attend une réponse. Publier l'annonce ouvre la question.",
   "admin.polls.question": "Question",
@@ -1033,6 +1090,7 @@ export const fr: Record<TranslationKey, string> = {
   "section.forYou": "Choisi pour vous",
   "section.trending": "Ce que tout le monde regarde",
   "section.upcoming": "Bientôt au cinéma",
+  "section.inProgress": "Bientôt disponibles",
   "section.airing": "En cours de diffusion",
   "section.becauseYouAsked": "Parce que vous avez demandé {title}",
   "section.onServer": "Sur le serveur",
@@ -1075,9 +1133,9 @@ export const fr: Record<TranslationKey, string> = {
   "title.report": "Signaler un problème",
   "title.onServer": "C'est sur le serveur",
   "title.onServerPartly": "Sur le serveur, mais pas en entier",
-  "title.requested": "Déjà demandé",
   "title.requestedByYou": "Vous l'avez demandé",
-  "title.requestToo": "Le demander aussi",
+  "title.waiting": "Ce titre a du succès : {count} personnes l'attendent déjà.",
+  "title.waiting.one": "Quelqu'un l'attend déjà.",
   "title.cancelRequest": "Annuler la demande",
   "title.similar": "Dans la même veine",
   "title.cut": "Sur le serveur en version {cut}",

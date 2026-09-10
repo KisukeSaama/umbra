@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AnnouncementReactions } from "@/components/announcement-reactions";
 import { EmptyNote } from "@/components/empty-note";
 import { GlyphTile } from "@/components/glyph-tile";
 import { AnnounceIcon, ExternalLinkIcon } from "@/components/icons";
@@ -68,6 +69,12 @@ export async function AnnouncementCard({
                   <ExternalLinkIcon className="shrink-0" />
                 </a>
               ) : null}
+              <div className="pt-1">
+                <AnnouncementReactions
+                  announcementId={announcement.id}
+                  reactions={announcement.reactions}
+                />
+              </div>
             </div>
           </div>
         ) : (

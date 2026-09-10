@@ -1,20 +1,33 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
   episodeTasks,
   episodes,
+  libraryItems,
   media,
   mediaRequests,
   trackedSeries,
   type EpisodeStatus,
 } from "@/lib/db/schema";
 import { ensureMedia } from "@/lib/domain/catalog";
-import { NotFoundError } from "@/lib/errors";
+import { followedSeriesKeys } from "@/lib/domain/taste";
+import { ConflictError, NotFoundError } from "@/lib/errors";
 import { isRunning } from "@/lib/providers/metadata";
 import { tmdbProvider } from "@/lib/providers/tmdb";
+import { episodesInWeek, today, weekStatus } from "@/lib/week";
 
 /**
  * Series Tracker.
@@ -55,6 +68,36 @@ export async function setSeriesEnabled(seriesId: string, enabled: boolean) {
     .returning({ id: trackedSeries.id });
   if (!row) throw new NotFoundError("error.seriesNotFound");
   return row;
+}
+
+/** A request that puts a series back under watch on every cycle. */
+const activeRequest = sql`EXISTS (
+  SELECT 1 FROM media_request r
+   WHERE r.media_id = ${trackedSeries.mediaId}
+     AND r.status IN ('accepted', 'processing')
+)`;
+
+/**
+ * Takes a series off the watch for good, with its calendar and its tasks.
+ *
+ * Refused while a request for it is accepted or processing: the next cycle
+ * would track it again (`trackAcceptedSeries`), so the delete would only look
+ * like it worked. Pausing is the answer there. The condition sits in the
+ * DELETE itself, so a request accepted in between cannot slip past it.
+ */
+export async function untrackSeries(seriesId: string) {
+  const [row] = await db()
+    .delete(trackedSeries)
+    .where(and(eq(trackedSeries.id, seriesId), sql`NOT ${activeRequest}`))
+    .returning({ id: trackedSeries.id });
+  if (row) return row;
+
+  const [exists] = await db()
+    .select({ id: trackedSeries.id })
+    .from(trackedSeries)
+    .where(eq(trackedSeries.id, seriesId));
+  if (exists) throw new ConflictError("error.seriesRequested");
+  throw new NotFoundError("error.seriesNotFound");
 }
 
 /**
@@ -285,33 +328,125 @@ export type UpcomingEpisode = {
   episodeTitle: string | null;
   airDate: string | null;
   status: EpisodeStatus;
-  /** The member is on this show: that is why the entry sits where it sits. */
-  followed: boolean;
 };
 
-/**
- * Next broadcasts of tracked shows, for the home page and the calendar.
- *
- * The week is read through the member first: the shows they are actually on
- * come at the top, whatever else is due follows. Passing no key gives the plain
- * calendar, which is what the shared views get, and a member whose history the
- * server could not answer for.
- *
- * The list is never cut down to the followed shows alone. A week the server is
- * preparing for everybody is still news, and a member who watched nothing this
- * month would otherwise be shown an empty card.
- */
-export async function upcomingEpisodes(
-  limit = 8,
-  followedKeys: string[] = [],
-): Promise<UpcomingEpisode[]> {
-  const personalised = followedKeys.length > 0;
-  // A bare FALSE in ORDER BY reads as a column position in Postgres, so the
-  // plain calendar orders on the air date alone rather than on a constant.
-  const followed = personalised
-    ? sql<boolean>`COALESCE(${inArray(trackedSeries.plexRatingKey, followedKeys)}, FALSE)`
-    : sql<boolean>`FALSE::boolean`;
+/** How many of a member's recent shows the week asks the provider about. */
+const WATCHED_SHOWS = 8;
 
+/**
+ * The week of the shows a member is on, whether or not anybody asked for them.
+ *
+ * The tracker only knows the series that came in through a request, so reading
+ * the week from it answered "what happened to what was asked for", which is not
+ * the question. This starts from the member's recent history instead, read live
+ * and dropped with the render, and asks the provider for the last and the next
+ * broadcast of each show. The server index then says which of them are here.
+ *
+ * One provider call per show, answered by the gateway's cache after the first.
+ * A show the provider does not answer for is left out, never the card.
+ */
+export async function watchingThisWeek(
+  accountId: string,
+  language?: string,
+  limit = 5,
+): Promise<UpcomingEpisode[]> {
+  const keys = (await followedSeriesKeys(accountId)).slice(0, WATCHED_SHOWS);
+  if (keys.length === 0) return [];
+
+  const shows = await db()
+    .select({
+      ratingKey: libraryItems.ratingKey,
+      tmdbId: libraryItems.tmdbId,
+      posterPath: libraryItems.posterPath,
+    })
+    .from(libraryItems)
+    .where(
+      and(
+        inArray(libraryItems.ratingKey, keys),
+        eq(libraryItems.kind, "show"),
+        isNotNull(libraryItems.tmdbId),
+      ),
+    );
+
+  const day = today();
+  const found = (
+    await Promise.all(
+      shows.map(async (show) => {
+        try {
+          const details = await tmdbProvider.seriesDetails(
+            show.tmdbId as string,
+            language,
+          );
+          return episodesInWeek(details, day).map((episode) => ({
+            showKey: show.ratingKey,
+            seriesTitle: details.summary.title,
+            posterPath: details.summary.posterPath ?? show.posterPath,
+            episode,
+          }));
+        } catch (error) {
+          console.warn(
+            `[series] week unavailable tmdbId=${show.tmdbId}`,
+            error,
+          );
+          return [];
+        }
+      }),
+    )
+  ).flat();
+  if (found.length === 0) return [];
+
+  const present = await db()
+    .select({
+      showKey: libraryItems.grandparentRatingKey,
+      seasonNumber: libraryItems.seasonNumber,
+      episodeNumber: libraryItems.episodeNumber,
+    })
+    .from(libraryItems)
+    .where(
+      and(
+        eq(libraryItems.kind, "episode"),
+        or(
+          ...found.map(({ showKey, episode }) =>
+            and(
+              eq(libraryItems.grandparentRatingKey, showKey),
+              eq(libraryItems.seasonNumber, episode.seasonNumber),
+              eq(libraryItems.episodeNumber, episode.episodeNumber),
+            ),
+          ),
+        ),
+      ),
+    );
+  const here = new Set(
+    present.map(
+      (row) => `${row.showKey}:${row.seasonNumber}:${row.episodeNumber}`,
+    ),
+  );
+
+  return found
+    .map(({ showKey, seriesTitle, posterPath, episode }) => ({
+      seriesTitle,
+      posterPath,
+      seasonNumber: episode.seasonNumber,
+      episodeNumber: episode.episodeNumber,
+      episodeTitle: episode.title,
+      airDate: episode.airDate,
+      status: weekStatus(
+        episode.airDate ?? day,
+        here.has(`${showKey}:${episode.seasonNumber}:${episode.episodeNumber}`),
+        day,
+      ),
+    }))
+    .sort((a, b) => (a.airDate ?? "").localeCompare(b.airDate ?? ""))
+    .slice(0, limit);
+}
+
+/**
+ * Next broadcasts of tracked shows: the server's own calendar.
+ *
+ * What the home page falls back on when nothing a member watches airs this
+ * week, so the card still carries the week the server is preparing for.
+ */
+export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
   return db()
     .select({
       seriesTitle: media.title,
@@ -321,7 +456,6 @@ export async function upcomingEpisodes(
       episodeTitle: episodes.title,
       airDate: episodes.airDate,
       status: episodes.status,
-      followed,
     })
     .from(episodes)
     .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
@@ -334,7 +468,7 @@ export async function upcomingEpisodes(
         sql`${episodes.airDate} >= CURRENT_DATE - INTERVAL '7 days'`,
       ),
     )
-    .orderBy(...(personalised ? [desc(followed)] : []), asc(episodes.airDate))
+    .orderBy(asc(episodes.airDate))
     .limit(limit);
 }
 
@@ -356,6 +490,16 @@ export async function listTrackedSeries(
         SELECT count(*)::int FROM episode e
          WHERE e.series_id = ${trackedSeries.id} AND e.status = 'aired_missing'
       )`,
+      /*
+       * Whether a member asked for it. Read from the requests rather than
+       * stored on the row: a series added by hand that someone later asks for
+       * is from a request from then on, with nothing to keep in step.
+       */
+      fromRequest: sql<boolean>`EXISTS (
+        SELECT 1 FROM media_request r WHERE r.media_id = ${trackedSeries.mediaId}
+      )`,
+      /** Whether `untrackSeries` would take it, so the button is not drawn otherwise. */
+      removable: sql<boolean>`NOT ${activeRequest}`,
     })
     .from(trackedSeries)
     .innerJoin(media, eq(media.id, trackedSeries.mediaId))

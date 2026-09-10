@@ -182,6 +182,8 @@ export const tmdbProvider: MediaMetadataProvider = {
       summary,
       status: str(body, "status"),
       inProduction: body.in_production === true,
+      lastEpisode: episodeFromJson(body.last_episode_to_air),
+      nextEpisode: episodeFromJson(body.next_episode_to_air),
       seasons: seasons
         .map((season) => {
           const seasonNumber = int(season, "season_number");

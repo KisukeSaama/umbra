@@ -36,6 +36,8 @@ import {
   SquaresFour,
   Sun,
   Television,
+  ThumbsDown,
+  ThumbsUp,
   Trash,
   Tray,
   UserCircle,
@@ -124,6 +126,8 @@ export const CutIcon = icon(Scissors);
 export const ClockIcon = icon(Clock, "regular");
 export const WrenchIcon = icon(Wrench);
 export const HandHeartIcon = icon(HandHeart);
+export const ThumbsUpIcon = icon(ThumbsUp, "regular");
+export const ThumbsDownIcon = icon(ThumbsDown, "regular");
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

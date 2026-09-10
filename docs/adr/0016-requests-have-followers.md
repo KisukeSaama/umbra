@@ -35,9 +35,12 @@ requests were given their author as first follower by the migration.
   that lists everyone in a dialog. The dashboard, which is a glance, carries the
   number alone once it is more than one. Names are the display names Umbra
   already holds, so nothing new is collected.
-- Members never see that number, anywhere. There is no counter on a card, no
-  ranking and no "most wanted" shelf: the product still refuses turning asking
-  into a contest.
+- Members see that number in one place only: on the page of a title somebody
+  already asked for, under the button that joins the request, as "6 people are
+  already waiting for it". Without it, a title already asked for read as a dead
+  end, and the one reason to join (others want it too) went unsaid. There is
+  still no counter on a card or in search, no ranking and no "most wanted"
+  shelf: the product still refuses turning asking into a contest.
 
 ## Consequences
 

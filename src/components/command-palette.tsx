@@ -93,8 +93,9 @@ const optionId = (index: number) => `umbra-search-option-${index}`;
  * Checking whether something is already on the server is the gesture members
  * repeat most, so it stopped being a page you navigate to and became a key you
  * press. The states still decide everything: here says so, partly here says so
- * too rather than passing for whole, requested says so, and only an absent
- * title gets a button.
+ * too rather than passing for whole, and anything not here gets a button. A
+ * title somebody else already asked for gets the same one: pressing it joins
+ * their request, so "already requested" was a dead end with nothing behind it.
  *
  * The list is driven from the field it is typed in: arrows move a highlight,
  * Enter opens it, and the count is announced, because a result you can only
@@ -191,12 +192,14 @@ export function CommandPalette() {
     const key = `${result.kind}:${result.providerId}`;
     setPending(key);
     try {
-      await request("/api/requests", {
+      const body = await request<{ joined: boolean }>("/api/requests", {
         method: "POST",
         body: { kind: result.kind, providerId: result.providerId },
       });
       setSent((previous) => ({ ...previous, [key]: true }));
-      toast.success(t("status.requestSent"));
+      toast.success(
+        t(body.joined ? "status.requestJoined" : "status.requestSent"),
+      );
       router.refresh();
     } catch (error) {
       toast.error(requestError(locale, error));
@@ -269,9 +272,7 @@ export function CommandPalette() {
           >
             {visible.map((result, index) => {
               const key = `${result.kind}:${result.providerId}`;
-              const availability = sent[key]
-                ? "requested"
-                : result.availability;
+              const availability = result.availability;
               const highlighted = index === active;
 
               return (
@@ -324,11 +325,14 @@ export function CommandPalette() {
                       <CircleHalfIcon />
                       {t("status.partial")}
                     </span>
-                  ) : availability === "requested" ? (
-                    <span className="text-muted-foreground shrink-0 text-xs">
-                      {t("status.requested")}
+                  ) : sent[key] ? (
+                    <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
+                      <CheckIcon />
+                      {t("status.requestSent")}
                     </span>
                   ) : (
+                    // Somebody else asking first is no reason to stop offering
+                    // it: the same button joins their request.
                     <Button
                       size="sm"
                       disabled={pending === key}

@@ -352,9 +352,11 @@ ids, rebuilt from a rolling ninety day window on every sync and therefore
 replaced rather than accumulated. No title, no date, nothing a person could be
 recognised by. It has no switch: the aggregate is what makes personalisation
 possible without a history, so it is part of the product rather than a setting.
-The recent history is also read live to seed the personal shelf and to lead the
-week with the shows a member is on, and in both cases it is dropped with the
-render. See `docs/adr/0007-aggregated-taste-profile.md`,
+The recent history is also read live to seed the personal shelf and to build the
+home page's week from the shows a member is on, requested or not (the provider
+names each show's last and next broadcast, the server index says which are
+here); the server's calendar only fills that card when nothing they watch airs.
+In both cases the history is dropped with the render. See `docs/adr/0007-aggregated-taste-profile.md`,
 `docs/adr/0013-personalisation-is-not-optional.md` and
 `docs/adr/0015-suggestions-seeded-on-titles.md`.
 
