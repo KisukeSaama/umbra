@@ -7,6 +7,7 @@ import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
 import { openAsksFor } from "@/lib/domain/reports";
+import { followedRequestFor } from "@/lib/domain/requests";
 import { settledAsksFor } from "@/lib/domain/settled";
 import { getTranslator } from "@/lib/i18n/server";
 import { NOTHING_SETTLED } from "@/lib/reports/reasons";
@@ -21,8 +22,19 @@ import { NOTHING_SETTLED } from "@/lib/reports/reasons";
  * page, because the way back sits above it, and the title rises into its foot
  * instead of waiting under a band.
  */
-export async function TitleView({ detail }: { detail: TitleDetail }) {
+export async function TitleView({
+  detail,
+  accountId,
+}: {
+  detail: TitleDetail;
+  /** Who is looking, to tell "you asked for this" from "somebody did". */
+  accountId: string;
+}) {
   const t = await getTranslator();
+  const followed =
+    detail.availability === "requested"
+      ? await followedRequestFor(detail.kind, detail.providerId, accountId)
+      : null;
   /*
    * What has already been asked about this series, so a season never offers an
    * ask a second time, and what the administration has just answered, which the
@@ -122,6 +134,7 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
             providerId={detail.providerId}
             title={detail.title}
             availability={detail.availability}
+            followed={followed}
             alternateCut={detail.alternateCut}
           />
         </div>

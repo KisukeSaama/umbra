@@ -291,6 +291,32 @@ export const mediaRequests = pgTable(
   ],
 );
 
+/**
+ * Who is waiting on a request, the person who opened it included.
+ *
+ * The twin of `report_follower`. A second member asking for a title already on
+ * the list joins the request instead of being turned away, hears about every
+ * step, and counts: how many people want a title is what the administration
+ * reads to decide what to fetch first. The number is shown to the staff alone,
+ * never to members. See `docs/adr/0016-requests-have-followers.md`.
+ */
+export const requestFollowers = pgTable(
+  "request_follower",
+  {
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => mediaRequests.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    createdAt,
+  },
+  (t) => [
+    primaryKey({ columns: [t.requestId, t.accountId] }),
+    index("request_follower_account_idx").on(t.accountId),
+  ],
+);
+
 /* ---------------------------------------------------- series and episodes -- */
 
 export const trackedSeries = pgTable("tracked_series", {
@@ -708,8 +734,9 @@ export const reports = pgTable(
 /**
  * Who else is waiting on this report.
  *
- * Never shown as a number: `docs/product.md` rules out popularity counters. It
- * exists so a second reporter can follow the outcome in their own page.
+ * It exists so a second reporter can follow the outcome in their own page, and
+ * its count tells the staff how many people a fix will answer. That number is
+ * never shown to members. See `docs/adr/0016-requests-have-followers.md`.
  */
 export const reportFollowers = pgTable(
   "report_follower",

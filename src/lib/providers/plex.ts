@@ -97,10 +97,14 @@ export const plexLibrary: MediaLibraryProvider = {
    * keeps no trace of it.
    */
   async watchHistory({ plexAccountId, since, limit }) {
-    if (!/^\d+$/.test(plexAccountId)) return [];
+    const accountID = serverAccountId(
+      plexAccountId,
+      env().ADMIN_PLEX_ACCOUNT_ID,
+    );
+    if (accountID === null) return [];
 
     const body = await get("/status/sessions/history/all", {
-      accountID: Number(plexAccountId),
+      accountID,
       // Plex spells a comparison into the parameter name itself.
       "viewedAt>": Math.floor(since.getTime() / 1000),
       sort: "viewedAt:desc",
@@ -111,6 +115,26 @@ export const plexLibrary: MediaLibraryProvider = {
     return watchEventsFrom(body);
   },
 };
+
+/** How the media server numbers its owner, whatever their plex.tv id. */
+const SERVER_OWNER_ACCOUNT_ID = 1;
+
+/**
+ * The id the media server files one person's history under.
+ *
+ * A member the server is shared with keeps their plex.tv id there, but the
+ * owner is always local account 1. Asked under their plex.tv id, the owner's
+ * history came back empty, and with it every shelf built on it. A value that is
+ * not a number has no history at all.
+ */
+export function serverAccountId(
+  plexAccountId: string,
+  adminPlexAccountId: string | undefined,
+): number | null {
+  if (!/^\d+$/.test(plexAccountId)) return null;
+  if (plexAccountId === adminPlexAccountId) return SERVER_OWNER_ACCOUNT_ID;
+  return Number(plexAccountId);
+}
 
 /**
  * History rows, reduced to keys and a kind.

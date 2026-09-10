@@ -31,9 +31,13 @@ report descriptions. Members choose from what exists; they never publish. This i
 not a missing feature: it removes moderation entirely, removes a class of abuse,
 and keeps both the interface and the security surface small.
 
-**One request per title.** No counter, no "me too", no popularity ranking. The
-administrator sees a list of titles to consider, not a contest; a second person
-asking for the same film simply sees that it is already on the list.
+**One request per title, however many want it.** A second person asking for a
+title already on the list joins that request rather than opening another: it
+appears on their follow-up page and they hear about each of its steps. The
+administration reads who and how many are waiting on each request and each report,
+because that is what decides what to fetch or fix first. Members never see that
+number: no counter, no ranking, nothing that turns asking into a contest. See
+`docs/adr/0016-requests-have-followers.md`.
 
 **A broadcast is never a download.** The tracker knows when an episode is
 scheduled to air and never claims availability from a passed date. The wording is
@@ -58,12 +62,12 @@ browse. Anything more belongs on the server itself.
 Every result is in exactly one state, which decides both the wording and whether
 an action exists.
 
-| State     | What the member sees       | Action                         |
-| --------- | -------------------------- | ------------------------------ |
-| Available | "Available on the server"  | none                           |
-| Partial   | "On the server, partly"    | ask for the rest               |
-| Requested | "Request already recorded" | none                           |
-| Absent    | the title, and a button    | "Request", then "Request sent" |
+| State     | What the member sees       | Action                                       |
+| --------- | -------------------------- | -------------------------------------------- |
+| Available | "Available on the server"  | none                                         |
+| Partial   | "On the server, partly"    | ask for the rest                             |
+| Requested | "Request already recorded" | "Ask for it too", or none if already waiting |
+| Absent    | the title, and a button    | "Request", then "Request sent"               |
 
 Partial exists because a series is the one thing the server can hold without
 holding whole: four episodes of a season of ten. Calling that "available" in
@@ -167,12 +171,14 @@ should not mean pretending the request advanced. Rewriting announces nothing,
 since the member was already told about the step; the new wording is simply
 what their follow-up page shows from then on.
 
-A request can be taken back by the person who opened it, from the title right
-after asking and from the follow-up page afterwards, but only while it is still
-`requested`. Once it is accepted the administrator has decided something, and a
-member undoing that would be erasing a decision rather than their own gesture.
-A cancelled request leaves no row: nothing happened to it, and the title has to
-be askable again.
+A request can be left by anyone waiting on it, from the title and from the
+follow-up page, but only while it is still `requested`. Once it is accepted the
+administrator has decided something, and a member undoing that would be erasing
+a decision rather than their own gesture. Leaving is not deleting, because a
+request can be shared: the others keep waiting, and if the person who opened it
+leaves, it is handed to whoever joined next. The request itself only goes when
+the last person waiting leaves, and then it leaves no row: nothing happened to
+it, and the title has to be askable again.
 
 ## Reporting a problem
 
@@ -199,9 +205,9 @@ and it is erased when the report is marked fixed. A refusal keeps its word,
 which is the one place the reason for it can be read.
 
 One live report per title, place and reason. A second member reporting the same
-thing joins the existing one and is told what happens to it; the number of people
-waiting is never shown anywhere, the administration included, because that would
-be the popularity contest this project refuses.
+thing joins the existing one and is told what happens to it. The staff see how
+many people are waiting on it, since a fix that answers five members comes
+before one that answers a single member; members never do.
 
 A report can be withdrawn while it is still live: the member leaves it and stops
 hearing about it. Leaving is not deleting, because a report can be shared. The

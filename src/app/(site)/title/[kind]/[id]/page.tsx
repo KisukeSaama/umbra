@@ -51,7 +51,7 @@ export async function generateMetadata({
 export default async function TitlePage({
   params,
 }: PageProps<"/title/[kind]/[id]">) {
-  await requireMemberPage();
+  const account = await requireMemberPage();
   const { kind, id } = await params;
   if (kind !== "movie" && kind !== "tv") notFound();
   if (!/^\d+$/.test(id)) notFound();
@@ -63,7 +63,7 @@ export default async function TitlePage({
     <div className="umbra-container max-w-6xl space-y-6 py-10">
       <BackLink fallback="/discover" />
       <div className="space-y-12">
-        <TitleView detail={detail} />
+        <TitleView detail={detail} accountId={account.id} />
         <Suspense fallback={<ShelfSkeleton />}>
           <Similar kind={kind} id={id} locale={locale} />
         </Suspense>

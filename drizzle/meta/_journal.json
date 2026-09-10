@@ -78,6 +78,13 @@
       "when": 1789030760328,
       "tag": "0010_enrichment_stamp_and_job_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789047394610,
+      "tag": "0011_request_followers",
+      "breakpoints": true
     }
   ]
 }

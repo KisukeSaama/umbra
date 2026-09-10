@@ -57,6 +57,8 @@ export type ReportRow = {
   acknowledgedAt: Date | null;
   closedAt: Date | null;
   reportedBy: string | null;
+  /** How many members are waiting on it. For the staff: never shown to members. */
+  waiting: number;
   libraryRatingKey: string | null;
   adminNote: string | null;
   media: {
@@ -352,7 +354,15 @@ export async function withdrawReport(reportId: string, accountId: string) {
   return { withdrawn: true, removed: Boolean(row.dropped) };
 }
 
+/** How many members are waiting on the report being read, as for requests. */
+const waitingColumn = sql<number>`(
+  select count(*)::int
+    from report_follower as f
+   where f.report_id = ${reports.id}
+)`;
+
 const REPORT_COLUMNS = {
+  waiting: waitingColumn,
   id: reports.id,
   reason: reports.reason,
   status: reports.status,
@@ -383,6 +393,7 @@ function toRow(row: {
   libraryRatingKey: string | null;
   adminNote: string | null;
   reportedBy: string | null;
+  waiting: number;
   providerId: string;
   mediaType: MediaKind;
   title: string;
@@ -399,6 +410,7 @@ function toRow(row: {
     acknowledgedAt: row.acknowledgedAt,
     closedAt: row.closedAt,
     reportedBy: row.reportedBy,
+    waiting: row.waiting,
     libraryRatingKey: row.libraryRatingKey,
     adminNote: row.adminNote,
     media: {
@@ -428,6 +440,33 @@ export async function listReports(
     ? query.limit(window.limit).offset(window.offset)
     : query);
   return rows.map(toRow);
+}
+
+/**
+ * Who is waiting on each of these reports, by name, in the order they came.
+ *
+ * For the staff alone, and read the way `waitingOnRequests` reads requests: one
+ * query for a page of the queue, the first name being whoever reported first.
+ */
+export async function waitingOnReports(
+  reportIds: string[],
+): Promise<Map<string, string[]>> {
+  const waiting = new Map<string, string[]>();
+  if (reportIds.length === 0) return waiting;
+
+  const rows = await db()
+    .select({ reportId: reportFollowers.reportId, name: accounts.username })
+    .from(reportFollowers)
+    .innerJoin(accounts, eq(accounts.id, reportFollowers.accountId))
+    .where(inArray(reportFollowers.reportId, reportIds))
+    .orderBy(reportFollowers.createdAt);
+
+  for (const row of rows) {
+    const names = waiting.get(row.reportId) ?? [];
+    names.push(row.name);
+    waiting.set(row.reportId, names);
+  }
+  return waiting;
 }
 
 /** How many reports the queue holds, for the pager above it. */

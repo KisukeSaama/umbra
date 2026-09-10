@@ -65,7 +65,7 @@ each sync.
 | `auth_pin`                                    | a plex.tv pin being confirmed, short-lived                        |
 | `media`                                       | a title Umbra knows about, because it was requested or is tracked |
 | `library_item`                                | the local index of the server library                             |
-| `media_request`                               | a request and its status                                          |
+| `media_request`, `request_follower`           | a request and its status, and who is waiting on it                |
 | `tracked_series`                              | a series under watch, and its key on the server                   |
 | `episode`                                     | the broadcast calendar, and presence on the server                |
 | `episode_task`                                | an aired episode that is still missing                            |
@@ -82,7 +82,7 @@ Uniqueness lives in the database, never in a read-then-write:
 
 - `media_request_active_idx`, partial unique on `media_id` where the status is not
   `rejected`: two simultaneous clicks cannot create two live requests, and the
-  failed insert is turned into "already requested".
+  second member joins the live one as a `request_follower` instead.
 - `vote_unique_idx` on `(poll_id, account_id)`: one vote per person per poll.
 - `episode_unique_idx` on `(series_id, season_number, episode_number)`: a resync
   updates instead of duplicating.
