@@ -19,8 +19,9 @@ There is exactly one, because there is one owner of the server.
 
 **The assistants**: members the administrator named to help on the queues. They
 open the same workspace and act on the same decisions, with one exception: who
-gets into the community stays the administrator's. Naming an assistant and
-taking the role back are both one click, on the accounts page. See
+gets into the community stays the administrator's. They read the accounts page,
+since knowing who is here is part of helping, and change nothing on it. Naming
+an assistant and taking the role back are both one click, on that page. See
 `docs/adr/0009-one-administrator-and-assistants.md`.
 
 ## The rules that shape everything

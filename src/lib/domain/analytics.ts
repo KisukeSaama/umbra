@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { analyticsDaily, libraryItems, mediaRequests } from "@/lib/db/schema";
@@ -19,7 +19,13 @@ export type Metric =
   | "reports_created"
   | "votes_cast"
   | "logins"
-  | "discovery_rolls";
+  | "discovery_rolls"
+  /**
+   * How many people the media server is shared with, as the membership sweep
+   * last counted them. A gauge rather than a counter: it is set, never added
+   * to, and it is an aggregate like every other row here.
+   */
+  | "server_members";
 
 export async function bumpMetric(metric: Metric, delta = 1) {
   await db()
@@ -29,6 +35,28 @@ export async function bumpMetric(metric: Metric, delta = 1) {
       target: [analyticsDaily.day, analyticsDaily.metric],
       set: { count: sql`${analyticsDaily.count} + ${delta}` },
     });
+}
+
+/** Writes a gauge: today's value replaces today's value. */
+export async function setMetric(metric: Metric, value: number) {
+  await db()
+    .insert(analyticsDaily)
+    .values({ day: today(), metric, count: value })
+    .onConflictDoUpdate({
+      target: [analyticsDaily.day, analyticsDaily.metric],
+      set: { count: value },
+    });
+}
+
+/** The most recent value of a gauge, or `null` if it was never written. */
+export async function latestMetric(metric: Metric): Promise<number | null> {
+  const [row] = await db()
+    .select({ count: analyticsDaily.count })
+    .from(analyticsDaily)
+    .where(eq(analyticsDaily.metric, metric))
+    .orderBy(desc(analyticsDaily.day))
+    .limit(1);
+  return row?.count ?? null;
 }
 
 export type WeeklyStats = {

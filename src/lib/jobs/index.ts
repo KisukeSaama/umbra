@@ -4,7 +4,7 @@ import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { jobRuns, jobState } from "@/lib/db/schema";
-import { revokeDepartedMembers } from "@/lib/domain/accounts";
+import { revokeDepartedMembers } from "@/lib/domain/membership";
 import {
   enrichLibraryPosters,
   linkUnmatchedCuts,

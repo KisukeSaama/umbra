@@ -5,6 +5,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, type Queryable } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { announcements, pollOptions, polls, votes } from "@/lib/db/schema";
+import { approvedAccountCount } from "@/lib/domain/accounts";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { notifyApprovedAccounts } from "@/lib/domain/notifications";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
@@ -30,6 +31,14 @@ export type PollView = {
   closed: boolean;
   endsAt: Date | null;
   totalVotes: number;
+  /**
+   * How many people could answer: the approved accounts.
+   *
+   * The question is put to the people who use Umbra, not to everyone the
+   * server is shared with: most of them never open it, and counting them in
+   * would make every result look like indifference.
+   */
+  memberCount: number;
   /** Option id the current visitor picked, when they voted. */
   votedOptionId: string | null;
   options: { id: string; label: string; votes: number; share: number }[];
@@ -102,6 +111,7 @@ export async function pollView(
     closed: isClosed(poll),
     endsAt: poll.endsAt,
     totalVotes,
+    memberCount: await approvedAccountCount(),
     votedOptionId,
     options: options.map((option) => ({
       ...option,

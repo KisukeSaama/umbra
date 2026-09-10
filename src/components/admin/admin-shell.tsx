@@ -35,9 +35,10 @@ import { cn } from "@/lib/utils";
  * column, and a row of nine tabs scrolling sideways is a menu you have to hunt
  * through. The section bar above the content names where you are either way.
  *
- * The assistants share this workspace minus what hands out access: the accounts
- * section is not drawn for them. Hiding is a courtesy, not the guard, and the
- * page and the route check for themselves.
+ * The assistants share this workspace. They can read the accounts section, since
+ * knowing who is here is part of helping, but nothing on it that hands out
+ * access is drawn for them. Hiding is a courtesy, not the guard: the page and
+ * the route check for themselves.
  *
  * The drawer is a real dialog rather than a panel that says it is one. It used
  * to announce `aria-modal` while leaving focus behind on the page underneath,
