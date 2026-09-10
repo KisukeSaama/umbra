@@ -68,17 +68,30 @@ describe("report lifecycle", () => {
   });
 
   it("only moves forward, and never out of a settled state", () => {
-    expect(canTransition("open", "acknowledged")).toBe(true);
-    expect(canTransition("open", "resolved")).toBe(false);
-    expect(canTransition("acknowledged", "resolved")).toBe(true);
-    expect(canTransition("resolved", "open")).toBe(false);
-    expect(nextStatuses("rejected")).toHaveLength(0);
+    expect(canTransition("open", "acknowledged", "bad_quality")).toBe(true);
+    expect(canTransition("open", "resolved", "bad_quality")).toBe(false);
+    expect(canTransition("acknowledged", "resolved", "bad_quality")).toBe(true);
+    expect(canTransition("resolved", "open", "bad_quality")).toBe(false);
+    expect(nextStatuses("rejected", "bad_quality")).toHaveLength(0);
+  });
+
+  it("works a fault on, but takes an ask straight to settled", () => {
+    expect(nextStatuses("acknowledged", "bad_quality")).toContain(
+      "in_progress",
+    );
+    expect(nextStatuses("acknowledged", "missing_season")).not.toContain(
+      "in_progress",
+    );
+    expect(canTransition("acknowledged", "resolved", "missing_season")).toBe(
+      true,
+    );
   });
 
   it("proposes nothing that is not a real status", () => {
-    for (const status of REPORT_STATUSES)
-      for (const next of nextStatuses(status))
-        expect(REPORT_STATUSES).toContain(next);
+    for (const reason of ["bad_quality", "missing_season"] as const)
+      for (const status of REPORT_STATUSES)
+        for (const next of nextStatuses(status, reason))
+          expect(REPORT_STATUSES).toContain(next);
   });
 
   it("only lets the sync close what the sync can actually see", () => {

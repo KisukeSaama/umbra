@@ -4,11 +4,13 @@ import { Suspense } from "react";
 
 import { BackLink } from "@/components/back-link";
 import { BackToTop } from "@/components/back-to-top";
+import { CastRail } from "@/components/cast-rail";
 import { Shelf } from "@/components/shelf";
 import { ShelfSkeleton } from "@/components/skeletons";
 import { TitleView } from "@/components/title-view";
 import { currentAccount, requireMemberPage } from "@/lib/auth/session";
 import { decorate, titleDetail } from "@/lib/domain/catalog";
+import { moreFrom, titleCrew, type PersonCard } from "@/lib/domain/people";
 import { getI18n } from "@/lib/i18n/server";
 import { tmdbProvider } from "@/lib/providers/tmdb";
 
@@ -44,9 +46,10 @@ export async function generateMetadata({
  * what the loading state already promised: the way back at the top left, and
  * the way up at the bottom right once ten seasons have made the scroll long.
  *
- * The similar titles are a second question to the provider, asked after the
- * first has been answered, so they stream in under the title rather than
- * holding it back.
+ * The credits are asked for alongside the title, so the byline and the cast
+ * cost no extra wait. The other work of whoever signs it and the similar
+ * titles are further questions, asked once those are answered, so they stream
+ * in under the title rather than holding it back.
  */
 export default async function TitlePage({
   params,
@@ -57,19 +60,56 @@ export default async function TitlePage({
   if (!/^\d+$/.test(id)) notFound();
 
   const { locale } = await getI18n();
-  const detail = await titleDetail(kind, id, locale);
+  const [detail, crew] = await Promise.all([
+    titleDetail(kind, id, locale),
+    titleCrew(kind, id, locale),
+  ]);
+  const signer = crew.leads[0];
 
   return (
     <div className="umbra-container max-w-6xl space-y-6 py-10">
       <BackLink fallback="/discover" />
       <div className="space-y-12">
-        <TitleView detail={detail} accountId={account.id} />
+        <TitleView detail={detail} leads={crew.leads} accountId={account.id} />
+        <CastRail cast={crew.cast} />
+        {signer ? (
+          <Suspense fallback={<ShelfSkeleton />}>
+            <MoreFrom person={signer} kind={kind} id={id} locale={locale} />
+          </Suspense>
+        ) : null}
         <Suspense fallback={<ShelfSkeleton />}>
           <Similar kind={kind} id={id} locale={locale} />
         </Suspense>
       </div>
       <BackToTop />
     </div>
+  );
+}
+
+async function MoreFrom({
+  person,
+  kind,
+  id,
+  locale,
+}: {
+  person: PersonCard;
+  kind: "movie" | "tv";
+  id: string;
+  locale: string;
+}) {
+  const { t } = await getI18n();
+  const titles = await moreFrom(
+    person.personId,
+    { kind, providerId: id },
+    locale,
+  ).catch(() => []);
+
+  return (
+    <Shelf
+      title={t("title.moreFrom", { name: person.name })}
+      href={`/person/${person.personId}`}
+      items={titles}
+    />
   );
 }
 

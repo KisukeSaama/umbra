@@ -7,11 +7,16 @@ import { formatPercent } from "@/components/formatting";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
-import { lastReportAt, listReports } from "@/lib/domain/reports";
+import {
+  lastReportAt,
+  listReports,
+  type ReportRow,
+} from "@/lib/domain/reports";
 import {
   LIVE_REQUEST_STATUSES,
   lastRequestAt,
   listRequests,
+  type RequestRow,
 } from "@/lib/domain/requests";
 import { listOpenEpisodeTasks } from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
@@ -49,18 +54,28 @@ export default async function AdminDashboardPage() {
   await requireStaffPage();
   const { t, locale } = await getI18n();
 
-  const [requests, reports, tasks, storage, latestRequest, latestReport] =
+  const [requests, asks, reports, tasks, storage, latestRequest, latestReport] =
     await Promise.all([
       listRequests([...LIVE_REQUEST_STATUSES]),
-      listReports([...LIVE_REPORT_STATUSES]),
+      listReports([...LIVE_REPORT_STATUSES], undefined, "ask"),
+      listReports([...LIVE_REPORT_STATUSES], undefined, "fault"),
       listOpenEpisodeTasks(),
       storageOverview(),
       lastRequestAt(),
       lastReportAt(),
     ]);
 
+  // A season asked for is filed as a report and listed with the requests, as
+  // on the request queue and on the member's follow-up page.
+  const asked = [
+    ...requests.map((request) => ({ kind: "request" as const, request })),
+    ...asks.map((ask) => ({ kind: "ask" as const, ask })),
+  ].sort(
+    (left, right) => createdAt(right).getTime() - createdAt(left).getTime(),
+  );
+
   const quiet =
-    requests.length === 0 && reports.length === 0 && tasks.length === 0;
+    asked.length === 0 && reports.length === 0 && tasks.length === 0;
 
   // The last time a member asked for something, request or report alike. It
   // tells the administration how warm the place is, which a job timestamp
@@ -73,7 +88,7 @@ export default async function AdminDashboardPage() {
     <>
       <StatStrip
         stats={[
-          { label: t("admin.stat.requests"), value: requests.length },
+          { label: t("admin.stat.requests"), value: asked.length },
           { label: t("admin.stat.reports"), value: reports.length },
           { label: t("admin.stat.episodes"), value: tasks.length },
           {
@@ -97,67 +112,54 @@ export default async function AdminDashboardPage() {
           neighbour's height: an empty queue stays a short card rather than a
           tall blank one. */}
       <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-        {requests.length > 0 ? (
+        {asked.length > 0 ? (
           <Queue
-            title={t("admin.inbox.requests", { count: requests.length })}
+            title={t("admin.inbox.requests", { count: asked.length })}
             href="/admin/requests"
             label={t("admin.nav.requests")}
-            more={requests.length - 6}
+            more={asked.length - 6}
           >
-            {requests.slice(0, 6).map((request) => (
-              <Row
-                key={request.id}
-                main={request.media.title}
-                waiting={request.waiting}
-                aside={
-                  request.status === "requested"
-                    ? request.media.year
-                      ? String(request.media.year)
-                      : undefined
-                    : t(
-                        `admin.requests.status.${request.status}` as TranslationKey,
-                      )
-                }
-              >
-                {request.status === "requested" ? (
-                  <>
-                    <ActionButton
-                      url={`/api/admin/requests/${request.id}`}
-                      body={{ status: "accepted" }}
-                      size="xs"
-                    >
-                      {t("admin.requests.accept")}
-                    </ActionButton>
-                    <ActionButton
-                      url={`/api/admin/requests/${request.id}`}
-                      body={{ status: "rejected" }}
-                      size="xs"
-                      variant="ghost"
-                    >
-                      {t("admin.requests.reject")}
-                    </ActionButton>
-                  </>
-                ) : request.status === "accepted" ? (
-                  <ActionButton
-                    url={`/api/admin/requests/${request.id}`}
-                    body={{ status: "processing" }}
-                    size="xs"
-                    variant="secondary"
-                  >
-                    {t("admin.requests.process")}
-                  </ActionButton>
-                ) : request.inLibrary ? (
-                  <ActionButton
-                    url={`/api/admin/requests/${request.id}`}
-                    body={{ status: "available" }}
-                    size="xs"
-                    variant="secondary"
-                  >
-                    {t("admin.requests.complete")}
-                  </ActionButton>
-                ) : null}
-              </Row>
-            ))}
+            {asked.slice(0, 6).map((entry) => {
+              if (entry.kind === "ask")
+                return <ReportQueueRow key={entry.ask.id} report={entry.ask} />;
+              const { request } = entry;
+              return (
+                <Row
+                  key={request.id}
+                  main={request.media.title}
+                  waiting={request.waiting}
+                  aside={
+                    request.status === "requested"
+                      ? request.media.year
+                        ? String(request.media.year)
+                        : undefined
+                      : t(
+                          `admin.requests.status.${request.status}` as TranslationKey,
+                        )
+                  }
+                >
+                  {request.status === "requested" ? (
+                    <>
+                      <ActionButton
+                        url={`/api/admin/requests/${request.id}`}
+                        body={{ status: "accepted" }}
+                        size="xs"
+                      >
+                        {t("admin.requests.accept")}
+                      </ActionButton>
+                      <ActionButton
+                        url={`/api/admin/requests/${request.id}`}
+                        body={{ status: "rejected" }}
+                        size="xs"
+                        variant="ghost"
+                      >
+                        {t("admin.requests.reject")}
+                      </ActionButton>
+                    </>
+                  ) : null}
+                </Row>
+              );
+            })}
           </Queue>
         ) : null}
 
@@ -169,30 +171,7 @@ export default async function AdminDashboardPage() {
             more={reports.length - 6}
           >
             {reports.slice(0, 6).map((report) => (
-              <Row
-                key={report.id}
-                main={report.media.title}
-                waiting={report.waiting}
-                aside={t(`report.reason.${report.reason}` as TranslationKey)}
-              >
-                {report.status === "open" ? (
-                  <ActionButton
-                    url={`/api/admin/reports/${report.id}`}
-                    body={{ status: "acknowledged" }}
-                    size="xs"
-                  >
-                    {t("admin.reports.acknowledge")}
-                  </ActionButton>
-                ) : (
-                  <ActionButton
-                    url={`/api/admin/reports/${report.id}`}
-                    body={{ status: "resolved" }}
-                    size="xs"
-                  >
-                    {t("admin.reports.resolve")}
-                  </ActionButton>
-                )}
-              </Row>
+              <ReportQueueRow key={report.id} report={report} />
             ))}
           </Queue>
         ) : null}
@@ -237,6 +216,45 @@ export default async function AdminDashboardPage() {
         )}
       </p>
     </>
+  );
+}
+
+function createdAt(
+  entry:
+    { kind: "request"; request: RequestRow } | { kind: "ask"; ask: ReportRow },
+) {
+  return entry.kind === "request"
+    ? entry.request.createdAt
+    : entry.ask.createdAt;
+}
+
+/** A live report on the desk, fault or ask, with the one move that comes next. */
+async function ReportQueueRow({ report }: { report: ReportRow }) {
+  const t = await getTranslator();
+  return (
+    <Row
+      main={report.media.title}
+      waiting={report.waiting}
+      aside={t(`report.reason.${report.reason}` as TranslationKey)}
+    >
+      {report.status === "open" ? (
+        <ActionButton
+          url={`/api/admin/reports/${report.id}`}
+          body={{ status: "acknowledged" }}
+          size="xs"
+        >
+          {t("admin.reports.acknowledge")}
+        </ActionButton>
+      ) : (
+        <ActionButton
+          url={`/api/admin/reports/${report.id}`}
+          body={{ status: "resolved" }}
+          size="xs"
+        >
+          {t("admin.reports.resolve")}
+        </ActionButton>
+      )}
+    </Row>
   );
 }
 

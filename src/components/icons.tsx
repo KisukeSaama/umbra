@@ -34,6 +34,7 @@ import {
   SignOut,
   Sparkle,
   SquaresFour,
+  Star,
   Sun,
   Television,
   ThumbsDown,
@@ -128,6 +129,8 @@ export const WrenchIcon = icon(Wrench);
 export const HandHeartIcon = icon(HandHeart);
 export const ThumbsUpIcon = icon(ThumbsUp, "regular");
 export const ThumbsDownIcon = icon(ThumbsDown, "regular");
+/** Filled, so a score reads as a mark rather than as an empty rating to give. */
+export const StarIcon = icon(Star, "fill");
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

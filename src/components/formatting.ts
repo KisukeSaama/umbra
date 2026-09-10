@@ -25,6 +25,14 @@ export function formatPercent(ratio: number, locale: Locale): string {
   }).format(Number.isFinite(ratio) ? ratio : 0);
 }
 
+/** A score out of ten, with the decimal separator of the reader's language. */
+export function formatScore(score: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(score);
+}
+
 /**
  * Whole days from now to a date, rounded up, or `null` when there is no date.
  * Zero and below mean the moment has passed.

@@ -14,13 +14,19 @@ import {
 } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { isOnServer } from "@/lib/domain/availability";
-import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
+import {
+  availabilityFor,
+  ensureMedia,
+  seasonStates,
+  yearOf,
+} from "@/lib/domain/catalog";
 import {
   alternateCutFor,
   matchesProviderId,
   REAL_MATCH_FIRST,
 } from "@/lib/domain/library";
 import { notify } from "@/lib/domain/notifications";
+import { isSeasonReleased } from "@/lib/domain/seasons";
 import { trackSeries } from "@/lib/domain/series";
 import { settledAsksFor } from "@/lib/domain/settled";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
@@ -119,6 +125,20 @@ export async function createReport(input: {
   // that is not there is a request, and saying so is more useful than refusing.
   const availability = await availabilityFor(input.kind, input.providerId);
   if (!isOnServer(availability)) throw new ConflictError("error.notOnServer");
+
+  /*
+   * A season only announced is listed by the provider long before anything of
+   * it can be on the server. The page offers no ask on it, and the route says
+   * the same. Seasons that cannot be read leave the report through: an outage
+   * at the provider is not a reason to refuse one.
+   */
+  if (!cut && input.kind === "tv" && input.seasonNumber !== null) {
+    const season = (await seasonStates(input.providerId)).find(
+      (candidate) => candidate.seasonNumber === input.seasonNumber,
+    );
+    if (season && !isSeasonReleased(season))
+      throw new ConflictError("error.seasonNotReleased");
+  }
 
   /*
    * Asking again for what has just been answered.
@@ -427,13 +447,14 @@ export async function listReports(
   statuses?: ReportStatus[],
   /** The slice to read, when the caller pages. Everything, when it does not. */
   window?: { limit: number; offset: number },
+  nature?: ReportNature,
 ): Promise<ReportRow[]> {
   const query = db()
     .select(REPORT_COLUMNS)
     .from(reports)
     .innerJoin(media, eq(media.id, reports.mediaId))
     .leftJoin(accounts, eq(accounts.id, reports.reportedBy))
-    .where(statuses?.length ? inArray(reports.status, statuses) : undefined)
+    .where(and(statusFilter(statuses), natureFilter(nature)))
     .orderBy(desc(reports.createdAt));
 
   const rows = await (window
@@ -470,22 +491,30 @@ export async function waitingOnReports(
 }
 
 /** How many reports the queue holds, for the pager above it. */
-export async function countReports(statuses?: ReportStatus[]): Promise<number> {
+export async function countReports(
+  statuses?: ReportStatus[],
+  nature?: ReportNature,
+): Promise<number> {
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(reports)
-    .where(statuses?.length ? inArray(reports.status, statuses) : undefined);
+    .where(and(statusFilter(statuses), natureFilter(nature)));
   return row?.count ?? 0;
 }
 
+function statusFilter(statuses?: ReportStatus[]) {
+  return statuses?.length ? inArray(reports.status, statuses) : undefined;
+}
+
 /**
- * Reading a member's rows by the nature of the gesture that made them.
+ * Reading rows by the nature of the gesture that made them.
  *
- * Asking for a missing season and reporting a broken track are one table, one
- * queue and one lifecycle, but they are not one gesture, and the follow-up page
- * lists them under two different headings. The split is a reason filter rather
- * than a column, so nothing is written twice and an ask stays exactly the
- * report the administration already works on.
+ * Asking for a missing season and reporting a broken track are one table and
+ * one lifecycle, but they are not one gesture. The member's follow-up page and
+ * the administration both list asks with requests and faults as reports, so
+ * the same row never reads as a request on one side and a report on the other.
+ * The split is a reason filter rather than a column, so nothing is written
+ * twice and an ask keeps the report lifecycle it was filed with.
  */
 export type ReportNature = "ask" | "fault";
 
@@ -535,12 +564,8 @@ export async function countReportsFollowedBy(
   return row?.count ?? 0;
 }
 
-export async function countOpenReports(): Promise<number> {
-  const [row] = await db()
-    .select({ count: sql<number>`count(*)::int` })
-    .from(reports)
-    .where(inArray(reports.status, [...LIVE_REPORT_STATUSES]));
-  return row?.count ?? 0;
+export async function countOpenReports(nature?: ReportNature): Promise<number> {
+  return countReports([...LIVE_REPORT_STATUSES], nature);
 }
 
 /**
@@ -616,12 +641,16 @@ export async function updateReportStatus(
   adminNote?: string | null,
 ) {
   const [current] = await db()
-    .select({ status: reports.status, mediaId: reports.mediaId })
+    .select({
+      status: reports.status,
+      reason: reports.reason,
+      mediaId: reports.mediaId,
+    })
     .from(reports)
     .where(eq(reports.id, reportId))
     .limit(1);
   if (!current) throw new NotFoundError("error.reportNotFound");
-  if (!canTransition(current.status, status))
+  if (!canTransition(current.status, status, current.reason))
     throw new ConflictError("error.illegalTransition");
 
   const note = reportNoteFor(adminNote);

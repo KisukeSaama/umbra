@@ -4,6 +4,7 @@ import type { SeasonState } from "@/lib/domain/catalog";
 import {
   isSeasonComplete,
   isSeasonMissing,
+  isSeasonReleased,
   isSeriesIncomplete,
   isUnaired,
 } from "@/lib/domain/seasons";
@@ -73,6 +74,55 @@ describe("series completeness", () => {
 
   it("says nothing about a series whose seasons are unknown", () => {
     expect(isSeriesIncomplete([])).toBe(false);
+  });
+
+  it("does not count a season only announced as a shortfall", () => {
+    expect(
+      isSeriesIncomplete([
+        season({ seasonNumber: 1, airDate: "2024-01-05" }),
+        season({ seasonNumber: 2, episodeCount: 0, onServer: 0 }),
+      ]),
+    ).toBe(false);
+  });
+});
+
+describe("released seasons", () => {
+  const now = new Date("2026-09-09T18:00:00Z");
+
+  it("counts a dated season with episodes that has started", () => {
+    expect(
+      isSeasonReleased(season({ airDate: "2026-07-01", onServer: 0 }), now),
+    ).toBe(true);
+  });
+
+  it("does not count a season with no episode listed", () => {
+    expect(
+      isSeasonReleased(
+        season({ episodeCount: 0, airDate: "2026-07-01", onServer: 0 }),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("does not count a season with no date", () => {
+    expect(
+      isSeasonReleased(season({ airDate: null, onServer: 0 }), now),
+    ).toBe(false);
+  });
+
+  it("does not count a season dated in the future", () => {
+    expect(
+      isSeasonReleased(season({ airDate: "2026-10-01", onServer: 0 }), now),
+    ).toBe(false);
+  });
+
+  it("trusts the server over the provider", () => {
+    expect(
+      isSeasonReleased(
+        season({ episodeCount: 0, airDate: null, onServer: 2 }),
+        now,
+      ),
+    ).toBe(true);
   });
 });
 

@@ -1,15 +1,25 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type MouseEvent } from "react";
 
 import { PlayIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useTranslator } from "@/lib/i18n/client";
 
 const WEB = "https://app.plex.tv/desktop/";
-const ANDROID =
+const IOS_APP = "plex://";
+const IOS_STORE = "https://apps.apple.com/app/plex/id383457673";
+const ANDROID_STORE =
   "https://play.google.com/store/apps/details?id=com.plexapp.android";
-const IOS = "https://apps.apple.com/app/plex/id383457673";
+// An intent URL opens the installed app and lets Android itself fall back to
+// the store when it is missing, so no timer is needed there.
+const ANDROID = `intent://#Intent;package=com.plexapp.android;S.browser_fallback_url=${encodeURIComponent(ANDROID_STORE)};end`;
+
+// How long the page waits for iOS to hand over to the app before assuming it
+// is not installed.
+const IOS_FALLBACK_DELAY_MS = 1500;
+
+type Platform = "ios" | "android" | "web";
 
 function subscribe() {
   // The platform does not change under the visitor, so there is nothing to
@@ -17,7 +27,7 @@ function subscribe() {
   return () => {};
 }
 
-function platformHref() {
+function detectPlatform(): Platform {
   const agent = navigator.userAgent;
   // An iPad reports itself as a Mac, and is only told apart by the fact that it
   // is touched.
@@ -25,27 +35,63 @@ function platformHref() {
     /iPhone|iPad|iPod/.test(agent) ||
     (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
 
-  if (isIOS) return IOS;
-  if (/Android/.test(agent)) return ANDROID;
-  return WEB;
+  if (isIOS) return "ios";
+  if (/Android/.test(agent)) return "android";
+  return "web";
+}
+
+const HREF: Record<Platform, string> = {
+  ios: IOS_APP,
+  android: ANDROID,
+  web: WEB,
+};
+
+/**
+ * iOS has no intent URL: the custom scheme opens the app when it is installed,
+ * and the page goes to the background. If the page is still visible after a
+ * short delay, the app is not there and the store takes over.
+ */
+function openOnIOS(event: MouseEvent<HTMLAnchorElement>) {
+  event.preventDefault();
+
+  const fallback = window.setTimeout(() => {
+    if (document.visibilityState === "visible") {
+      window.location.href = IOS_STORE;
+    }
+  }, IOS_FALLBACK_DELAY_MS);
+  const cancel = () => {
+    if (document.visibilityState === "hidden") window.clearTimeout(fallback);
+  };
+  document.addEventListener("visibilitychange", cancel, { once: true });
+  window.addEventListener("pagehide", () => window.clearTimeout(fallback), {
+    once: true,
+  });
+
+  window.location.href = IOS_APP;
 }
 
 /**
  * Where the watching actually happens.
  *
  * Umbra is the front door, so the door has to open onto something: the web
- * player on a desktop, and on a phone the store page for the native app, which
- * is the only way to play anything there worth the name.
+ * player on a desktop, and on a phone the native app, which is the only way to
+ * play anything there worth the name. When the app is missing, the phone lands
+ * on its store page instead.
  *
  * The platform is read on the client because it is not in the request the page
  * was rendered from: the server snapshot is the web player, and hydration
- * swaps in the store on a phone. That order is deliberate, since the desktop
+ * swaps in the app on a phone. That order is deliberate, since the desktop
  * link works everywhere, so a visitor who taps before hydration still lands
  * somewhere usable.
  */
 export function OpenPlex() {
   const t = useTranslator();
-  const href = useSyncExternalStore(subscribe, platformHref, () => WEB);
+  const platform = useSyncExternalStore<Platform>(
+    subscribe,
+    detectPlatform,
+    () => "web",
+  );
+  const external = platform === "web";
 
   return (
     <Button
@@ -54,7 +100,13 @@ export function OpenPlex() {
       className="sm:w-auto sm:gap-1.5 sm:px-2.5"
       aria-label={t("nav.openPlex")}
       render={
-        <a href={href} target="_blank" rel="noreferrer noopener">
+        <a
+          href={HREF[platform]}
+          onClick={platform === "ios" ? openOnIOS : undefined}
+          {...(external
+            ? { target: "_blank", rel: "noreferrer noopener" }
+            : {})}
+        >
           <PlayIcon className="size-5 sm:size-4" />
           <span className="sr-only sm:not-sr-only">{t("nav.openPlex")}</span>
         </a>

@@ -25,6 +25,10 @@ export async function UpcomingEpisodes({
   personal: boolean;
 }) {
   const { t, locale } = await getI18n();
+  // A pill that reads the same on every row says nothing the date does not:
+  // it stays only while there is a difference to point at, an episode already
+  // out or one the server holds.
+  const uniform = episodes.every((episode) => episode.status === "scheduled");
 
   return (
     <Card>
@@ -67,9 +71,11 @@ export async function UpcomingEpisodes({
                       {formatAirDate(episode.airDate, locale)}
                     </time>
                   ) : null}
-                  <Badge variant={BADGE[episode.status]}>
-                    {t(LABEL[episode.status])}
-                  </Badge>
+                  {uniform ? null : (
+                    <Badge variant={BADGE[episode.status]}>
+                      {t(LABEL[episode.status])}
+                    </Badge>
+                  )}
                 </div>
               </li>
             ))}

@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { BadRequestError, NotFoundError, UpstreamError } from "@/lib/errors";
 import { janus } from "@/lib/janus";
 import {
+  type CastCredit,
   type DiscoverQuery,
   type EpisodeInfo,
   type Genre,
@@ -11,6 +12,10 @@ import {
   type MediaMetadataProvider,
   type MediaSummary,
   parseMediaKind,
+  type PersonCredit,
+  type PersonRef,
+  type PersonRole,
+  type TitleCredits,
 } from "@/lib/providers/metadata";
 
 /**
@@ -30,6 +35,31 @@ export function posterUrl(
 ) {
   return path ? `${IMAGE_BASE}/${size}${path}` : null;
 }
+
+/** A portrait is shown at card size at most, so the small rendition is enough. */
+export function profileUrl(path: string | null | undefined) {
+  return path ? `${IMAGE_BASE}/w185${path}` : null;
+}
+
+/**
+ * The genre that says a title is drawn. Everyone credited in its cast lends a
+ * voice rather than a face, whether or not the provider marks the role so.
+ */
+export const ANIMATION_GENRE_ID = 16;
+
+/**
+ * News and talk shows. An actor is credited on them for turning up as
+ * themselves, which is not a role, and a filmography full of late-night
+ * interviews buries the work.
+ */
+const APPEARANCE_GENRE_IDS = [10763, 10767];
+
+/** How TMDB marks a voice role inside the character name. */
+const VOICE_MARKER = /\s*\((?:voice|voix)\)\s*/i;
+
+/** A credit for playing oneself, in either language the provider answers in. */
+const SELF_CREDIT =
+  /^(?:self|himself|herself|themselves|lui-m[eê]me|elle-m[eê]me)\b/i;
 
 /**
  * TMDB expects a full locale; Umbra only carries a language. Calls made outside
@@ -280,7 +310,182 @@ export const tmdbProvider: MediaMetadataProvider = {
       .map(genreFromJson)
       .filter((genre): genre is Genre => genre !== null);
   },
+
+  async credits(kind, providerId, language) {
+    const id = numericId(providerId);
+    if (kind === "movie") {
+      const body = await get(`/movie/${id}/credits`, language);
+      return titleCreditsFromJson("movie", body, null);
+    }
+    // `/credits` on a show only lists the latest season; the aggregate is
+    // everyone across the whole run. The creators are on the show itself,
+    // which the title page has just asked for, so Janus answers from its cache.
+    const [body, show] = await Promise.all([
+      get(`/tv/${id}/aggregate_credits`, language),
+      get(`/tv/${id}`, language),
+    ]);
+    return titleCreditsFromJson("tv", body, show.created_by);
+  },
+
+  async person(personId, language) {
+    const body = await get(`/person/${numericId(personId)}`, language, {
+      append_to_response: "combined_credits",
+    });
+    const person = personRefFromJson(body);
+    if (!person) throw new NotFoundError("error.personNotFound");
+    return {
+      ...person,
+      knownFor: str(body, "known_for_department"),
+      credits: personCreditsFromJson(body.combined_credits),
+    };
+  },
 };
+
+export function personRefFromJson(row: unknown): PersonRef | null {
+  if (!isJson(row)) return null;
+  const personId = idOf(row);
+  const name = str(row, "name");
+  if (!personId || !name) return null;
+  return { personId, name, profilePath: str(row, "profile_path") };
+}
+
+/**
+ * One cast row. A film row carries `character`; an aggregated show row carries
+ * `roles`, one per character played, and the one played in the most episodes
+ * is the one the show is known for.
+ */
+export function castFromJson(row: unknown): CastCredit | null {
+  const person = personRefFromJson(row);
+  if (!person || !isJson(row)) return null;
+
+  const raw = str(row, "character") ?? mainRole(row);
+  const voice = raw !== null && VOICE_MARKER.test(raw);
+  const character = raw ? raw.replace(VOICE_MARKER, " ").trim() || null : null;
+  return { ...person, character, voice };
+}
+
+function mainRole(row: Json): string | null {
+  if (!Array.isArray(row.roles)) return null;
+  const roles = row.roles
+    .filter(isJson)
+    .sort(
+      (a, b) => (int(b, "episode_count") ?? 0) - (int(a, "episode_count") ?? 0),
+    );
+  for (const role of roles) {
+    const character = str(role, "character");
+    if (character) return character;
+  }
+  return null;
+}
+
+/**
+ * Who signs a title, and who is in it.
+ *
+ * A show is signed by its creators. Many shows name none, anime above all, and
+ * then the series director stands in: the per-episode directors are a crowd
+ * rather than a signature, so they are never read here.
+ */
+export function titleCreditsFromJson(
+  kind: MediaKind,
+  credits: unknown,
+  createdBy: unknown,
+): TitleCredits {
+  const body = isJson(credits) ? credits : {};
+  const cast = (Array.isArray(body.cast) ? body.cast : [])
+    .map(castFromJson)
+    .filter(present);
+  const crew = (Array.isArray(body.crew) ? body.crew : []).filter(isJson);
+
+  const leadJob = kind === "movie" ? "Director" : "Series Director";
+  const directors = crew
+    .filter((row) => jobsOf(row).includes(leadJob))
+    .map(personRefFromJson)
+    .filter(present);
+  const creators = (Array.isArray(createdBy) ? createdBy : [])
+    .map(personRefFromJson)
+    .filter(present);
+
+  return {
+    leads: uniquePeople(creators.length > 0 ? creators : directors),
+    cast: uniquePeople(cast),
+  };
+}
+
+/** A film crew row names one job; an aggregated show row lists several. */
+function jobsOf(row: Json): string[] {
+  const job = str(row, "job");
+  if (job) return [job];
+  if (!Array.isArray(row.jobs)) return [];
+  return row.jobs
+    .map((entry) => (isJson(entry) ? str(entry, "job") : null))
+    .filter(present);
+}
+
+/** Someone credited twice (director and writer, two characters) is one card. */
+function uniquePeople<T extends PersonRef>(people: T[]): T[] {
+  const seen = new Set<string>();
+  return people.filter((person) => {
+    if (seen.has(person.personId)) return false;
+    seen.add(person.personId);
+    return true;
+  });
+}
+
+/**
+ * Everything one person is credited on, as roles a member can browse by.
+ *
+ * Adult titles, talk shows and playing oneself are left out: none of them is
+ * work anybody comes to a person's page for. The same title can come back
+ * under two roles, directed and written, and it is kept under both.
+ */
+export function personCreditsFromJson(raw: unknown): PersonCredit[] {
+  const body = isJson(raw) ? raw : {};
+  const credits: PersonCredit[] = [];
+
+  for (const row of Array.isArray(body.cast) ? body.cast : []) {
+    const summary = workFrom(row);
+    if (!summary) continue;
+    const character = isJson(row) ? str(row, "character") : null;
+    if (character && SELF_CREDIT.test(character)) continue;
+    const voice =
+      (character !== null && VOICE_MARKER.test(character)) ||
+      summary.genreIds.includes(ANIMATION_GENRE_ID);
+    credits.push({ summary, role: voice ? "voice" : "cast" });
+  }
+
+  for (const row of Array.isArray(body.crew) ? body.crew : []) {
+    const summary = workFrom(row);
+    if (!summary || !isJson(row)) continue;
+    const role = roleOfJob(str(row, "job"), str(row, "department"));
+    if (role) credits.push({ summary, role });
+  }
+
+  return credits;
+}
+
+function workFrom(row: unknown): MediaSummary | null {
+  if (!isJson(row) || row.adult === true) return null;
+  const summary = summaryFromJson(row);
+  if (!summary) return null;
+  return summary.genreIds.some((id) => APPEARANCE_GENRE_IDS.includes(id))
+    ? null
+    : summary;
+}
+
+/** Only the jobs that sign a title; the rest of the crew is not browsed by. */
+function roleOfJob(
+  job: string | null,
+  department: string | null,
+): PersonRole | null {
+  if (job === "Director" || job === "Series Director") return "director";
+  if (job === "Creator") return "creator";
+  if (department === "Writing") return "writer";
+  return null;
+}
+
+function present<T>(value: T | null): value is T {
+  return value !== null;
+}
 
 function summariesOfKind(rows: unknown[] | undefined, kind: MediaKind) {
   return (rows ?? [])
@@ -353,6 +558,10 @@ export function summaryFromJsonWithKind(
       typeof row.vote_count === "number" && Number.isFinite(row.vote_count)
         ? row.vote_count
         : 0,
+    // Only a details payload names its genres, so a listing row stays without.
+    ...(Array.isArray(row.genres)
+      ? { genres: row.genres.map(genreFromJson).filter(present) }
+      : {}),
   };
 }
 

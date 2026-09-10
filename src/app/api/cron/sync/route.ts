@@ -4,7 +4,7 @@ import { route } from "@/lib/api";
 import { safeEquals } from "@/lib/auth/compare";
 import { env } from "@/lib/env";
 import { NotFoundError, UnauthorizedError } from "@/lib/errors";
-import { anyJobRunning, runSyncCycle } from "@/lib/jobs";
+import { runSyncCycle } from "@/lib/jobs";
 import { checkRate, clientAddress, perMinute } from "@/lib/rate-limit";
 
 /**
@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
 
     // A cycle already on its feet, started by hand or by a worker that ran
     // long, is left to finish. Skipping costs one interval; two cycles over
-    // the same library cost a fight over the same rows. This is the cheap
-    // answer, not the guard: each step is held by a unique index on its own
-    // running row, so a cycle that starts here anyway still cannot double up.
-    if (await anyJobRunning()) return { skipped: true, outcomes: [] };
+    // the same library cost a fight over the same rows. The cycle's own
+    // running row is what refuses the second one.
+    const outcomes = await runSyncCycle();
+    if (!outcomes) return { skipped: true, outcomes: [] };
 
-    return { outcomes: await runSyncCycle() };
+    return { outcomes };
   });
 }
 

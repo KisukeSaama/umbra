@@ -14,7 +14,11 @@ import { requireStaffPage } from "@/lib/auth/session";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
-import { jobStatus, type JobStatusRow } from "@/lib/jobs";
+import {
+  jobStatus,
+  syncCycleRunning,
+  type JobStatusRow,
+} from "@/lib/jobs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslator();
@@ -37,14 +41,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminSyncPage() {
   await requireStaffPage();
   const { t, locale } = await getI18n();
-  const jobs = await jobStatus();
+  const [jobs, cycling] = await Promise.all([jobStatus(), syncCycleRunning()]);
   const failing = jobs.filter((job) => job.lastStatus === "failure");
-  const working = jobs.some((job) => job.lastStatus === "running");
+  // The cycle covers the gaps between its steps; a step running on its own,
+  // the disk walk started from the storage page, counts as well.
+  const working = cycling || jobs.some((job) => job.lastStatus === "running");
 
   return (
     <>
-      {/* A cycle takes minutes. Left open, this page follows it rather than
-          freezing on the moment it was rendered. */}
+      {/* A cycle takes minutes. Left open, or opened again halfway through,
+          this page follows it rather than freezing on the moment it was
+          rendered. */}
       <AutoRefresh active={working} />
 
       <Card>

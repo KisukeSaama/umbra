@@ -23,7 +23,7 @@ import {
 } from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
-import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
+import type { Genre, MediaKind, MediaSummary } from "@/lib/providers/metadata";
 import { posterUrl, tmdbLanguage, tmdbProvider } from "@/lib/providers/tmdb";
 
 /** Search: the heart of Umbra. The states themselves live one file away. */
@@ -411,6 +411,11 @@ export const seasonStates = cache(async function seasonStates(
 /** A backdrop, for the one place a title gets a whole screen to itself. */
 export type TitleDetail = CatalogResult & {
   backdropUrl: string | null;
+  /** In the visitor's language, as the provider names them. */
+  genres: Genre[];
+  /** The provider score out of ten and the votes behind it: see `MediaSummary`. */
+  voteAverage: number | null;
+  voteCount: number;
   /**
    * Seasons the provider knows about, for a series. Empty for a re-cut: its
    * numbering is its own, so a ladder built on the provider calendar would
@@ -447,6 +452,9 @@ export const titleDetail = cache(async function titleDetail(
     backdropUrl: summary.backdropPath
       ? `https://image.tmdb.org/t/p/w780${summary.backdropPath}`
       : null,
+    genres: summary.genres ?? [],
+    voteAverage: summary.voteAverage,
+    voteCount: summary.voteCount,
     seasons,
   };
 });

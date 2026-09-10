@@ -131,6 +131,16 @@ export function CardSkeleton({ lines = 2 }: { lines?: number }) {
   );
 }
 
+/** A person before the provider has answered: the portrait and the name. */
+export function PersonSkeleton() {
+  return (
+    <div className="flex items-end gap-5">
+      <Skeleton className="aspect-[2/3] w-24 shrink-0 rounded-lg sm:w-32" />
+      <TextLine size="title" className="w-1/3" />
+    </div>
+  );
+}
+
 /**
  * A title before the provider has answered: the banner, the poster, the
  * heading and the paragraph, in the frame the title view draws them in. The

@@ -40,9 +40,54 @@ export type MediaSummary = {
    */
   voteAverage: number | null;
   voteCount: number;
+  /**
+   * Genres by name, in the visitor's language. Only a details payload carries
+   * them, so a listing row leaves this out and keeps `genreIds` alone.
+   */
+  genres?: Genre[];
 };
 
 export type Genre = { id: number; name: string };
+
+/** Someone who worked on a title, as much as a card needs. */
+export type PersonRef = {
+  personId: string;
+  name: string;
+  profilePath: string | null;
+};
+
+/**
+ * One line of a cast list. A voice role is still a role, but it is not the
+ * same work, and a member looking for who voiced a character reads it apart.
+ */
+export type CastCredit = PersonRef & {
+  character: string | null;
+  voice: boolean;
+};
+
+export type TitleCredits = {
+  /**
+   * Whoever signs the title: the directors of a film, the creators of a show.
+   * Empty when the provider names nobody, which is common for a show.
+   */
+  leads: PersonRef[];
+  /** Billing order, as the provider gives it. */
+  cast: CastCredit[];
+};
+
+export type PersonRole = "director" | "creator" | "writer" | "cast" | "voice";
+
+export type PersonCredit = { summary: MediaSummary; role: PersonRole };
+
+/**
+ * A person and the titles they worked on. Nothing about them is kept: it is
+ * read from the provider for the page that shows it, like a title is.
+ */
+export type PersonDetails = PersonRef & {
+  /** The provider department they are best known in (`Acting`, `Directing`...). */
+  knownFor: string | null;
+  credits: PersonCredit[];
+};
 
 /** How a shelf or the guided picker asks for titles it cannot name. */
 export type DiscoverQuery = {
@@ -144,6 +189,14 @@ export interface MediaMetadataProvider {
     language?: string,
   ): Promise<MediaSummary[]>;
   genres(kind: MediaKind, language?: string): Promise<Genre[]>;
+  /** Who signs a title and who plays in it. */
+  credits(
+    kind: MediaKind,
+    providerId: string,
+    language?: string,
+  ): Promise<TitleCredits>;
+  /** One person and everything they are credited on. */
+  person(personId: string, language?: string): Promise<PersonDetails>;
 }
 
 /** A finished show no longer needs a daily sync. */

@@ -138,7 +138,7 @@ export default async function AdminAnnouncementsPage({
                     {/* The list is a register, not the feed: the body is
                         summarised without its marks, and read as published on
                         /news. */}
-                    <p className="text-muted-foreground line-clamp-3 text-sm">
+                    <p className="text-muted-foreground line-clamp-3 text-sm whitespace-pre-line">
                       {plainText(announcement.content)}
                     </p>
 

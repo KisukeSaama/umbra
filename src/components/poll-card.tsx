@@ -4,9 +4,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { request, requestError } from "@/components/client-api";
-import { EmptyNote } from "@/components/empty-note";
 import { formatPercent } from "@/components/formatting";
-import { PollIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -81,19 +79,9 @@ export function PollCard({
     setJustVoted(false);
   }
 
-  if (!poll) {
-    if (bare) return null;
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("section.poll")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmptyNote icon={PollIcon}>{t("poll.none")}</EmptyNote>
-        </CardContent>
-      </Card>
-    );
-  }
+  // No question, no card: an empty note in a column of its own says nothing a
+  // member can act on, so the card leaves the page the way the shelves do.
+  if (!poll) return null;
 
   const hasVoted = poll.votedOptionId !== null;
   const closed = poll.closed;

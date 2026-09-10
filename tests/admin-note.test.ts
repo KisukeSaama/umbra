@@ -10,7 +10,7 @@ import { reportNoteFor } from "@/lib/domain/reports";
  */
 describe("the note left on a request", () => {
   it("keeps the note when a move does not carry one", () => {
-    expect(noteFor("processing", undefined)).toBeUndefined();
+    expect(noteFor("accepted", undefined)).toBeUndefined();
   });
 
   it("stores what was typed, trimmed", () => {
@@ -32,7 +32,6 @@ describe("the note left on a request", () => {
   it("stays writable for as long as it is shown", () => {
     expect(canCarryNote("requested")).toBe(true);
     expect(canCarryNote("accepted")).toBe(true);
-    expect(canCarryNote("processing")).toBe(true);
     expect(canCarryNote("rejected")).toBe(true);
     expect(canCarryNote("available")).toBe(false);
   });

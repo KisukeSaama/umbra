@@ -245,7 +245,6 @@ export const libraryItems = pgTable(
 export const REQUEST_STATUSES = [
   "requested",
   "accepted",
-  "processing",
   "available",
   "rejected",
 ] as const;
@@ -279,7 +278,7 @@ export const mediaRequests = pgTable(
     index("media_request_requester_idx").on(t.requestedBy, t.createdAt),
     check(
       "media_request_status_check",
-      sql`${t.status} IN ('requested', 'accepted', 'processing', 'available', 'rejected')`,
+      sql`${t.status} IN ('requested', 'accepted', 'available', 'rejected')`,
     ),
   ],
 );

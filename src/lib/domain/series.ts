@@ -74,13 +74,13 @@ export async function setSeriesEnabled(seriesId: string, enabled: boolean) {
 const activeRequest = sql`EXISTS (
   SELECT 1 FROM media_request r
    WHERE r.media_id = ${trackedSeries.mediaId}
-     AND r.status IN ('accepted', 'processing')
+     AND r.status = 'accepted'
 )`;
 
 /**
  * Takes a series off the watch for good, with its calendar and its tasks.
  *
- * Refused while a request for it is accepted or processing: the next cycle
+ * Refused while a request for it is accepted: the next cycle
  * would track it again (`trackAcceptedSeries`), so the delete would only look
  * like it worked. Pausing is the answer there. The condition sits in the
  * DELETE itself, so a request accepted in between cannot slip past it.
@@ -621,7 +621,7 @@ export async function trackAcceptedSeries(limit = 10): Promise<number> {
     .where(
       and(
         eq(media.mediaType, "tv"),
-        inArray(mediaRequests.status, ["accepted", "processing"]),
+        eq(mediaRequests.status, "accepted"),
         sql`NOT EXISTS (
           SELECT 1 FROM tracked_series AS s WHERE s.media_id = ${media.id}
         )`,

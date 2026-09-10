@@ -40,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const PER_PAGE = 10;
 
 /** Where an ask has got to, in the words a request uses for the same steps. */
-const ASK_STEPS = ["open", "acknowledged", "in_progress", "resolved"] as const;
+const ASK_STEPS = ["open", "acknowledged", "resolved"] as const;
 
 /**
  * Where a request stops disappearing.
@@ -265,7 +265,7 @@ async function RequestEntry({
     >
       <Timeline
         status={request.status}
-        steps={["requested", "accepted", "processing", "available"]}
+        steps={["requested", "accepted", "available"]}
         prefix="activity.timeline"
       />
       {request.adminNote ? <Note>{request.adminNote}</Note> : null}

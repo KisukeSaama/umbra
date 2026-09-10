@@ -79,22 +79,16 @@ describe.skipIf(!hasDatabase)("moving a request", () => {
     );
     expect(accepted.status).toBe("accepted");
     expect(accepted.adminNote).toBe("looking for a good copy");
-
-    const processing = await requests.updateRequestStatus(
-      requestId,
-      "processing",
-    );
-    expect(processing.status).toBe("processing");
   });
 
-  it("refuses to hand a fulfilled request back to the queue", async () => {
-    const { requestId, mediaId } = await openRequest();
+  it("leaves arriving to the sync, and never hands it back", async () => {
+    const { requestId } = await openRequest();
+    await requests.updateRequestStatus(requestId, "accepted");
 
-    // `available` is only allowed once the index has seen the title, which is
-    // the rule the administration cannot talk its way past.
+    // Nobody declares a title on the server: only the index can.
     await expect(
       requests.updateRequestStatus(requestId, "available"),
-    ).rejects.toThrow(/notOnServerYet/);
+    ).rejects.toThrow(/illegalTransition/);
 
     await db().insert(schema.libraryItems).values({
       ratingKey: "plex:1",
@@ -102,10 +96,7 @@ describe.skipIf(!hasDatabase)("moving a request", () => {
       title: "Alien",
       tmdbId: "1",
     });
-    void mediaId;
-
-    const done = await requests.updateRequestStatus(requestId, "available");
-    expect(done.status).toBe("available");
+    expect(await requests.closeRequestsPresentInLibrary()).toBe(1);
 
     await expect(
       requests.updateRequestStatus(requestId, "requested"),
