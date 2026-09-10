@@ -10,7 +10,7 @@
 export const en = {
   "brand.name": "Umbra",
   "brand.for": "for Kisuflix",
-  "brand.tagline": "The link between the Kisuflix server and its community.",
+  "brand.tagline": "The link between Kisuflix and its community.",
   "brand.alt":
     "The Umbra messenger: a wolf sitting with a letter held in its jaws.",
 
@@ -23,6 +23,8 @@ export const en = {
 
   "nav.home": "Home",
   "nav.openPlex": "Open Plex",
+  /* Beside the same triangle on a phone, where the header row is short. */
+  "nav.openPlexShort": "Plex",
   "nav.news": "News",
   "nav.admin": "Admin",
   "nav.signOut": "Sign out",
@@ -30,6 +32,9 @@ export const en = {
   "nav.theme.system": "System",
   "nav.theme.light": "Light",
   "nav.theme.dark": "Dark",
+  "nav.textSize": "Text size",
+  "nav.textSize.default": "Normal",
+  "nav.textSize.large": "Larger",
   "nav.language": "Language",
   "nav.language.auto": "Browser setting",
   "nav.language.en": "English",
@@ -41,7 +46,7 @@ export const en = {
   "section.comingThisWeek": "Coming this week",
   "section.poll": "Community poll",
   "section.announcement": "Announcement",
-  "section.storage": "Server storage",
+  "section.storage": "Kisuflix storage",
   "section.thisWeek": "This week",
   "section.results": "Results",
 
@@ -88,13 +93,16 @@ export const en = {
   "unit.minutes": "{value} min",
   "unit.minutesSeconds": "{minutes} min {seconds} s",
 
-  "status.available": "Available on the server",
-  "status.partial": "On the server, partly",
+  "status.available": "Available on Kisuflix",
+  "status.partial": "On Kisuflix, partly",
   "status.requested": "Request already recorded",
   "status.request": "Request",
   /* On a card, where the pill says what the title is rather than offering an
      action: "Request" there read as a button that does nothing. */
   "status.requestedShort": "Requested",
+  /* Under the title of a card, in words, what the mark on the poster says. */
+  "status.availableShort": "On Kisuflix",
+  "status.partialShort": "Partly on Kisuflix",
   "status.requestSent": "Request sent",
   "status.requestCancelled": "Request cancelled",
   "status.requestJoined": "Request joined",
@@ -105,14 +113,15 @@ export const en = {
     "Search, check whether it is already there, ask for it if not.",
   "search.noResults": "No result for this search.",
   "search.hint": "Type at least two characters.",
+  "search.shortcut": "opens this search from any page",
   "search.resultsCount": "{count} results",
   "search.resultsCount.one": "{count} result",
 
   "week.upcoming": "Scheduled",
   "week.missing": "To add",
-  "week.available": "On the server",
+  "week.available": "On Kisuflix",
   "week.calendarNote":
-    "Nothing you are watching airs this week. On the server's calendar:",
+    "Nothing you are watching airs this week. On the Kisuflix calendar:",
   "week.noEpisodes": "No episode scheduled in the coming days.",
 
   "poll.vote": "Vote now",
@@ -129,7 +138,7 @@ export const en = {
   "poll.endsToday": "Ends today",
 
   "news.title": "News",
-  "news.subtitle": "What is happening around the server.",
+  "news.subtitle": "What is happening around Kisuflix.",
   "news.none": "No announcement yet.",
   "news.category.information": "Information",
   "news.category.infrastructure": "Infrastructure",
@@ -153,13 +162,15 @@ export const en = {
   "auth.title": "Sign in",
   "auth.subtitle":
     "Umbra uses your Plex account. Nothing else is asked of you.",
+  "auth.beforeSignIn":
+    "A Plex page opens in a new tab. Confirm there, then come back here: this page signs you in on its own.",
   "auth.signIn": "Sign in with Plex",
   "auth.openPlex": "Open the Plex page",
   "auth.code": "Your code",
   "auth.waiting": "Waiting for confirmation on plex.tv...",
-  "auth.notMember": "This Plex account is not on the server.",
+  "auth.notMember": "This Plex account has no access to Kisuflix.",
   "auth.notMemberHint":
-    "Umbra is reserved for the people the server is shared with. Ask the administrator for access to the server, then sign in again.",
+    "Umbra is reserved for the people Kisuflix is shared with. Ask the administrator for access, then sign in again.",
   "auth.restart": "Start over",
   "auth.devLogin": "Development sign-in",
 
@@ -183,7 +194,7 @@ export const en = {
   "error.hint": "Try again in a moment.",
   "notFound.title": "This page does not exist.",
   "notFound.hint": "The link may be out of date.",
-  "error.alreadyAvailable": "This title is already on the server.",
+  "error.alreadyAvailable": "This title is already on Kisuflix.",
   "error.alreadyRequested": "This title has already been requested.",
   "error.pollClosed": "This poll is closed.",
   "error.pollNotFound": "Poll not found.",
@@ -456,7 +467,7 @@ export const en = {
   "section.inProgress": "Coming soon",
   "section.airing": "Airing right now",
   "section.becauseYouAsked": "Because you asked for {title}",
-  "section.onServer": "On the server",
+  "section.onServer": "On Kisuflix",
   "section.ideas": "Worth asking for",
   "section.myRequests": "My requests",
   "section.myReports": "My reports",
@@ -476,7 +487,7 @@ export const en = {
   "picker.restart": "Start over",
   "picker.result": "Here is what that gives",
   "picker.resultHint":
-    "The first ones are already on the server. The others can be asked for.",
+    "The first ones are already on Kisuflix. The others can be asked for.",
   "picker.mood.thrill": "A fright",
   "picker.mood.laugh": "A laugh",
   "picker.mood.adventure": "An adventure",
@@ -494,8 +505,8 @@ export const en = {
 
   "title.request": "Ask for it",
   "title.report": "Report a problem",
-  "title.onServer": "This is on the server",
-  "title.onServerPartly": "On the server, but not all of it",
+  "title.onServer": "This is on Kisuflix",
+  "title.onServerPartly": "On Kisuflix, but not all of it",
   "title.requestedByYou": "You asked for it",
   "title.waiting": "Popular pick: {count} people are already waiting for it.",
   "title.waiting.one": "Someone is already waiting for it.",
@@ -514,7 +525,7 @@ export const en = {
   "person.role.creator": "Created",
   "person.role.writer": "Writing",
   "person.empty": "Nothing to show for this person yet.",
-  "title.cut": "On the server in the {cut} cut",
+  "title.cut": "On Kisuflix in the {cut} cut",
   "title.cut.note":
     "This cut is the same story with the filler taken out and what is left renumbered, so it is here whole and there is no episode list to line up against the broadcast order.",
   "cut.kai": "Kai",
@@ -528,8 +539,8 @@ export const en = {
   "season.complete": "Complete",
   "season.partial": "{count} of {total} episodes",
   "season.partial.one": "{count} of {total} episodes",
-  "season.onServer": "On the server",
-  "season.notOnServer": "Not on the server",
+  "season.onServer": "On Kisuflix",
+  "season.notOnServer": "Not on Kisuflix",
   "season.upcoming": "Upcoming",
   "season.airsOn": "Airs on",
   "season.noEpisodes": "No episode listed for this season.",
@@ -546,9 +557,9 @@ export const en = {
   "report.step.what": "Which title?",
   "report.step.where": "Where exactly?",
   "report.step.why": "What is wrong?",
-  "report.searchPlaceholder": "A title already on the server",
-  "report.searchHint": "Only what is on the server can be reported.",
-  "report.noMatch": "Nothing on the server matches that.",
+  "report.searchPlaceholder": "A title already on Kisuflix",
+  "report.searchHint": "Only what is on Kisuflix can be reported.",
+  "report.noMatch": "Nothing on Kisuflix matches that.",
   "report.placeFailed": "The seasons could not be loaded.",
   "report.wholeSeries": "The whole series",
   "report.season": "Season {number}",
@@ -589,8 +600,8 @@ export const en = {
   "activity.requestedOn": "Asked on {date}",
   "activity.note": "From the team:",
   "activity.timeline.requested": "Asked",
-  "activity.timeline.accepted": "Being fetched",
-  "activity.timeline.available": "On the server",
+  "activity.timeline.accepted": "Being added",
+  "activity.timeline.available": "On Kisuflix",
   "activity.timeline.rejected": "Declined",
   /**
    * An ask for a missing season is a report row, and the follow-up page lists
@@ -598,8 +609,8 @@ export const en = {
    * steps of a fix: nobody asked for a season to be repaired.
    */
   "ask.timeline.open": "Asked",
-  "ask.timeline.acknowledged": "Being fetched",
-  "ask.timeline.resolved": "On the server",
+  "ask.timeline.acknowledged": "Being added",
+  "ask.timeline.resolved": "On Kisuflix",
   "ask.timeline.rejected": "Declined",
   "ask.timeline.duplicate": "Already asked for",
 
@@ -615,7 +626,7 @@ export const en = {
   "notifications.openUnread.one": "Notifications, {count} unread",
   "notifications.failed": "Notifications could not be loaded.",
   "notifications.request.accepted": "{title} is being fetched.",
-  "notifications.request.available": "{title} is on the server.",
+  "notifications.request.available": "{title} is on Kisuflix.",
   "notifications.request.rejected": "{title} was declined.",
   "notifications.report.acknowledged": "Your report on {title} was taken up.",
   "notifications.report.in_progress":
@@ -623,10 +634,12 @@ export const en = {
   "notifications.report.resolved": "Your report on {title} was fixed.",
   "notifications.report.rejected": "Your report on {title} was declined.",
   "notifications.report.duplicate": "Your report on {title} was already known.",
-  "notifications.ask.acknowledged": "What you asked for on {title} is being fetched.",
-  "notifications.ask.resolved": "What you asked for on {title} is on the server.",
+  "notifications.ask.acknowledged":
+    "What you asked for on {title} is being fetched.",
+  "notifications.ask.resolved": "What you asked for on {title} is on Kisuflix.",
   "notifications.ask.rejected": "What you asked for on {title} was declined.",
-  "notifications.ask.duplicate": "What you asked for on {title} was already asked for.",
+  "notifications.ask.duplicate":
+    "What you asked for on {title} was already asked for.",
   "notifications.announcement": "New announcement: {title}",
   "notifications.poll": "A poll is open: {title}",
   "notifications.episode": "{title} has a new episode.",
@@ -647,7 +660,7 @@ export const en = {
   "admin.reports.addNote": "Leave a word",
   "admin.reports.editNote": "Edit the word",
 
-  "error.notOnServer": "This title is not on the server.",
+  "error.notOnServer": "This title is not on Kisuflix.",
   "error.alreadyReported": "This has already been reported.",
   /**
    * The gap was answered and the index has not caught up: the ask would be for
@@ -655,7 +668,7 @@ export const en = {
    * the next scan is about to empty.
    */
   "error.askSettled":
-    "This has just been handled. It will show as soon as the server is scanned again.",
+    "This has just been handled. It will show at the next update.",
   "error.seasonNotReleased": "This season has not been released yet.",
   "error.reasonNotAllowed": "That reason does not apply here.",
   "error.reportNotFound": "Report not found.",
@@ -669,7 +682,7 @@ export type TranslationKey = keyof typeof en;
 export const fr: Record<TranslationKey, string> = {
   "brand.name": "Umbra",
   "brand.for": "pour Kisuflix",
-  "brand.tagline": "Le lien entre le serveur Kisuflix et sa communauté.",
+  "brand.tagline": "Le lien entre Kisuflix et sa communauté.",
   "brand.alt":
     "Le messager d'Umbra : un loup assis, une lettre serrée entre les crocs.",
 
@@ -678,6 +691,7 @@ export const fr: Record<TranslationKey, string> = {
 
   "nav.home": "Accueil",
   "nav.openPlex": "Ouvrir Plex",
+  "nav.openPlexShort": "Plex",
   "nav.news": "Actualités",
   "nav.admin": "Admin",
   "nav.signOut": "Se déconnecter",
@@ -685,18 +699,21 @@ export const fr: Record<TranslationKey, string> = {
   "nav.theme.system": "Système",
   "nav.theme.light": "Clair",
   "nav.theme.dark": "Sombre",
+  "nav.textSize": "Taille du texte",
+  "nav.textSize.default": "Normale",
+  "nav.textSize.large": "Plus grande",
   "nav.language": "Langue",
   "nav.language.auto": "Réglage du navigateur",
   "nav.language.en": "English",
   "nav.language.fr": "Français",
-  "home.title": "Que vas-tu découvrir ce soir ?",
+  "home.title": "Qu'allez-vous découvrir ce soir ?",
   "home.searchPlaceholder": "Rechercher un film, une série, un anime...",
 
   "section.recentlyAdded": "Ajoutés récemment",
   "section.comingThisWeek": "Cette semaine",
   "section.poll": "Sondage",
   "section.announcement": "Annonce",
-  "section.storage": "Stockage du serveur",
+  "section.storage": "Stockage de Kisuflix",
   "section.thisWeek": "Cette semaine",
   "section.results": "Résultats",
 
@@ -740,34 +757,37 @@ export const fr: Record<TranslationKey, string> = {
   "unit.minutes": "{value} min",
   "unit.minutesSeconds": "{minutes} min {seconds} s",
 
-  "status.available": "Disponible sur le serveur",
-  "status.partial": "Sur le serveur, en partie",
+  "status.available": "Disponible sur Kisuflix",
+  "status.partial": "Sur Kisuflix, en partie",
   "status.requested": "Demande déjà enregistrée",
   "status.request": "Demander",
   "status.requestedShort": "Demandé",
+  "status.availableShort": "Sur Kisuflix",
+  "status.partialShort": "En partie sur Kisuflix",
   "status.requestSent": "Demande envoyée",
   "status.requestCancelled": "Demande annulée",
   "status.requestJoined": "Demande rejointe",
   "status.reportWithdrawn": "Signalement retiré",
   "status.cancelling": "Annulation",
   "status.requesting": "Envoi",
-  "search.subtitle": "Cherche, vérifie si c'est déjà là, demande-le sinon.",
+  "search.subtitle": "Cherchez, vérifiez si c'est déjà là, demandez-le sinon.",
   "search.noResults": "Aucun résultat pour cette recherche.",
-  "search.hint": "Saisis au moins deux caractères.",
+  "search.hint": "Saisissez au moins deux caractères.",
+  "search.shortcut": "ouvre cette recherche depuis n'importe quelle page",
   "search.resultsCount": "{count} résultats",
   "search.resultsCount.one": "{count} résultat",
 
   "week.upcoming": "Diffusion prévue",
   "week.missing": "À ajouter",
-  "week.available": "Sur le serveur",
+  "week.available": "Sur Kisuflix",
   "week.calendarNote":
-    "Rien de ce que vous regardez ne sort cette semaine. Au calendrier du serveur :",
+    "Rien de ce que vous regardez ne sort cette semaine. Au calendrier de Kisuflix :",
   "week.noEpisodes": "Aucun épisode prévu dans les prochains jours.",
 
   "poll.vote": "Voter",
   "poll.changeVote": "Changer mon vote",
-  "poll.voted": "Ton vote est enregistré.",
-  "poll.voteChanged": "Ton vote a été modifié.",
+  "poll.voted": "Votre vote est enregistré.",
+  "poll.voteChanged": "Votre vote a été modifié.",
   "poll.votes": "{count} votes",
   "poll.votes.one": "{count} vote",
   "poll.votesOfMembers": "{count} votes sur {members} membres",
@@ -778,7 +798,7 @@ export const fr: Record<TranslationKey, string> = {
   "poll.endsToday": "Dernier jour",
 
   "news.title": "Actualités",
-  "news.subtitle": "Ce qui bouge autour du serveur.",
+  "news.subtitle": "Ce qui bouge autour de Kisuflix.",
   "news.none": "Aucune annonce pour le moment.",
   "news.category.information": "Information",
   "news.category.infrastructure": "Infrastructure",
@@ -801,14 +821,16 @@ export const fr: Record<TranslationKey, string> = {
 
   "auth.title": "Connexion",
   "auth.subtitle":
-    "Umbra utilise ton compte Plex. Rien d'autre ne t'est demandé.",
+    "Umbra utilise votre compte Plex. Rien d'autre ne vous est demandé.",
+  "auth.beforeSignIn":
+    "Une page Plex va s'ouvrir dans un nouvel onglet. Confirmez-y, puis revenez ici : cette page vous connectera d'elle-même.",
   "auth.signIn": "Se connecter avec Plex",
   "auth.openPlex": "Ouvrir la page Plex",
-  "auth.code": "Ton code",
+  "auth.code": "Votre code",
   "auth.waiting": "En attente de la validation sur plex.tv...",
-  "auth.notMember": "Ce compte Plex n'est pas sur le serveur.",
+  "auth.notMember": "Ce compte Plex n'a pas accès à Kisuflix.",
   "auth.notMemberHint":
-    "Umbra est réservé aux personnes avec qui le serveur est partagé. Demande l'accès au serveur à l'administrateur, puis reconnecte-toi.",
+    "Umbra est réservé aux personnes avec qui Kisuflix est partagé. Demandez l'accès à l'administrateur, puis reconnectez-vous.",
   "auth.restart": "Recommencer",
   "auth.devLogin": "Connexion de développement",
 
@@ -821,18 +843,18 @@ export const fr: Record<TranslationKey, string> = {
     "Kisuflix est l'endroit où l'on regarde. Umbra est l'endroit où l'on participe.",
 
   "error.badRequest": "Requête invalide.",
-  "error.unauthorized": "Connecte-toi pour continuer.",
-  "error.forbidden": "Tu n'as pas accès à ceci.",
+  "error.unauthorized": "Connectez-vous pour continuer.",
+  "error.forbidden": "Vous n'avez pas accès à ceci.",
   "error.notFound": "Introuvable.",
   "error.conflict": "Cette action n'est plus possible.",
-  "error.rateLimited": "Trop de tentatives. Réessaie dans un instant.",
+  "error.rateLimited": "Trop de tentatives. Réessayez dans un instant.",
   "error.upstream": "Un service externe n'a pas répondu.",
   "error.internal": "Quelque chose s'est mal passé de notre côté.",
   "error.title": "Quelque chose s'est mal passé.",
-  "error.hint": "Réessaie dans un instant.",
+  "error.hint": "Réessayez dans un instant.",
   "notFound.title": "Cette page n'existe pas.",
   "notFound.hint": "Le lien est peut-être périmé.",
-  "error.alreadyAvailable": "Ce titre est déjà sur le serveur.",
+  "error.alreadyAvailable": "Ce titre est déjà sur Kisuflix.",
   "error.alreadyRequested": "Ce titre a déjà été demandé.",
   "error.pollClosed": "Ce sondage est clos.",
   "error.pollNotFound": "Sondage introuvable.",
@@ -1034,7 +1056,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.storage.scanRoot": "volume {label}",
   "admin.storage.scanElapsed": "depuis {value}",
   "admin.storage.scanStarted":
-    "Mesure lancée. Elle continue même si tu quittes la page.",
+    "Mesure lancée. Elle continue même si vous quittez la page.",
   "admin.storage.scanDone": "Mesure terminée.",
   "admin.storage.notScanned":
     "Le disque n'a pas encore été parcouru. Le passage programmé le fait quelques fois par jour.",
@@ -1104,7 +1126,7 @@ export const fr: Record<TranslationKey, string> = {
   "section.inProgress": "Bientôt disponibles",
   "section.airing": "En cours de diffusion",
   "section.becauseYouAsked": "Parce que vous avez demandé {title}",
-  "section.onServer": "Sur le serveur",
+  "section.onServer": "Sur Kisuflix",
   "section.ideas": "À demander",
   "section.myRequests": "Mes demandes",
   "section.myReports": "Mes signalements",
@@ -1124,7 +1146,7 @@ export const fr: Record<TranslationKey, string> = {
   "picker.restart": "Recommencer",
   "picker.result": "Voilà ce que ça donne",
   "picker.resultHint":
-    "Les premiers sont déjà sur le serveur. Les autres peuvent être demandés.",
+    "Les premiers sont déjà sur Kisuflix. Les autres peuvent être demandés.",
   "picker.mood.thrill": "Une frayeur",
   "picker.mood.laugh": "Un fou rire",
   "picker.mood.adventure": "Une aventure",
@@ -1142,8 +1164,8 @@ export const fr: Record<TranslationKey, string> = {
 
   "title.request": "Le demander",
   "title.report": "Signaler un problème",
-  "title.onServer": "C'est sur le serveur",
-  "title.onServerPartly": "Sur le serveur, mais pas en entier",
+  "title.onServer": "C'est sur Kisuflix",
+  "title.onServerPartly": "Sur Kisuflix, mais pas en entier",
   "title.requestedByYou": "Vous l'avez demandé",
   "title.waiting": "Ce titre a du succès : {count} personnes l'attendent déjà.",
   "title.waiting.one": "Quelqu'un l'attend déjà.",
@@ -1162,7 +1184,7 @@ export const fr: Record<TranslationKey, string> = {
   "person.role.creator": "Création",
   "person.role.writer": "Scénario",
   "person.empty": "Rien à montrer pour cette personne pour l'instant.",
-  "title.cut": "Sur le serveur en version {cut}",
+  "title.cut": "Sur Kisuflix en version {cut}",
   "title.cut.note":
     "Cette version reprend la même histoire sans les épisodes de remplissage et renumérote ce qui reste : elle est donc ici en entier, et il n'y a pas de liste d'épisodes à aligner sur l'ordre de diffusion.",
   "cut.kai": "Kai",
@@ -1176,8 +1198,8 @@ export const fr: Record<TranslationKey, string> = {
   "season.complete": "Complète",
   "season.partial": "{count} épisodes sur {total}",
   "season.partial.one": "{count} épisode sur {total}",
-  "season.onServer": "Sur le serveur",
-  "season.notOnServer": "Pas sur le serveur",
+  "season.onServer": "Sur Kisuflix",
+  "season.notOnServer": "Pas sur Kisuflix",
   "season.upcoming": "À venir",
   "season.airsOn": "Diffusion prévue le",
   "season.noEpisodes": "Aucun épisode listé pour cette saison.",
@@ -1194,9 +1216,9 @@ export const fr: Record<TranslationKey, string> = {
   "report.step.what": "Quel titre ?",
   "report.step.where": "Où exactement ?",
   "report.step.why": "Qu'est-ce qui ne va pas ?",
-  "report.searchPlaceholder": "Un titre déjà sur le serveur",
-  "report.searchHint": "Seul ce qui est sur le serveur peut être signalé.",
-  "report.noMatch": "Rien sur le serveur ne correspond.",
+  "report.searchPlaceholder": "Un titre déjà sur Kisuflix",
+  "report.searchHint": "Seul ce qui est sur Kisuflix peut être signalé.",
+  "report.noMatch": "Rien sur Kisuflix ne correspond.",
   "report.placeFailed": "Les saisons n'ont pas pu être chargées.",
   "report.wholeSeries": "Toute la série",
   "report.season": "Saison {number}",
@@ -1227,7 +1249,7 @@ export const fr: Record<TranslationKey, string> = {
   "report.status.acknowledged": "Pris en compte",
   "report.status.in_progress": "En cours de correction",
   "report.status.resolved": "Corrigé",
-  "report.status.rejected": "Écarté",
+  "report.status.rejected": "Non retenu",
   "report.status.duplicate": "Déjà connu",
 
   "activity.title": "Mon suivi",
@@ -1237,12 +1259,12 @@ export const fr: Record<TranslationKey, string> = {
   "activity.requestedOn": "Demandé le {date}",
   "activity.note": "Mot de l'équipe :",
   "activity.timeline.requested": "Demandé",
-  "activity.timeline.accepted": "En récupération",
-  "activity.timeline.available": "Sur le serveur",
+  "activity.timeline.accepted": "En cours d'ajout",
+  "activity.timeline.available": "Sur Kisuflix",
   "activity.timeline.rejected": "Refusé",
   "ask.timeline.open": "Demandé",
-  "ask.timeline.acknowledged": "En récupération",
-  "ask.timeline.resolved": "Sur le serveur",
+  "ask.timeline.acknowledged": "En cours d'ajout",
+  "ask.timeline.resolved": "Sur Kisuflix",
   "ask.timeline.rejected": "Refusé",
   "ask.timeline.duplicate": "Déjà demandé",
 
@@ -1256,7 +1278,7 @@ export const fr: Record<TranslationKey, string> = {
   "notifications.openUnread.one": "Notifications, {count} non lue",
   "notifications.failed": "Les notifications n'ont pas pu être chargées.",
   "notifications.request.accepted": "{title} est en cours de récupération.",
-  "notifications.request.available": "{title} est sur le serveur.",
+  "notifications.request.available": "{title} est sur Kisuflix.",
   "notifications.request.rejected": "{title} a été refusé.",
   "notifications.report.acknowledged":
     "Votre signalement sur {title} a été pris en compte.",
@@ -1269,7 +1291,7 @@ export const fr: Record<TranslationKey, string> = {
     "Votre signalement sur {title} était déjà connu.",
   "notifications.ask.acknowledged":
     "Votre demande sur {title} est en cours de récupération.",
-  "notifications.ask.resolved": "Votre demande sur {title} est sur le serveur.",
+  "notifications.ask.resolved": "Votre demande sur {title} est sur Kisuflix.",
   "notifications.ask.rejected": "Votre demande sur {title} a été refusée.",
   "notifications.ask.duplicate": "Votre demande sur {title} était déjà faite.",
   "notifications.announcement": "Nouvelle annonce : {title}",
@@ -1292,10 +1314,10 @@ export const fr: Record<TranslationKey, string> = {
   "admin.reports.addNote": "Laisser un mot",
   "admin.reports.editNote": "Modifier le mot",
 
-  "error.notOnServer": "Ce titre n'est pas sur le serveur.",
+  "error.notOnServer": "Ce titre n'est pas sur Kisuflix.",
   "error.alreadyReported": "Cela a déjà été signalé.",
   "error.askSettled":
-    "Cela vient d'être traité. Ce sera visible dès la prochaine analyse du serveur.",
+    "Cela vient d'être traité. Ce sera visible à la prochaine mise à jour.",
   "error.seasonNotReleased": "Cette saison n'est pas encore sortie.",
   "error.reasonNotAllowed": "Ce motif ne s'applique pas ici.",
   "error.reportNotFound": "Signalement introuvable.",

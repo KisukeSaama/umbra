@@ -64,10 +64,15 @@ an action exists.
 
 | State     | What the member sees       | Action                                       |
 | --------- | -------------------------- | -------------------------------------------- |
-| Available | "Available on the server"  | none                                         |
-| Partial   | "On the server, partly"    | ask for the rest                             |
+| Available | "Available on Kisuflix"    | none                                         |
+| Partial   | "On Kisuflix, partly"      | ask for the rest                             |
 | Requested | "Request already recorded" | "Ask for it too", or none if already waiting |
 | Absent    | the title, and a button    | "Request", then "Request sent"               |
+
+Members never read the word "server": what is here is "on Kisuflix", the name
+they know the thing by, and the interface addresses them formally in French
+("vous", never "tu"). A private community is not a reason to sound like an
+app, and the people it is shared with are of every age.
 
 Partial exists because a series is the one thing the server can hold without
 holding whole: four episodes of a season of ten. Calling that "available" in

@@ -93,12 +93,13 @@ export function OpenPlex() {
   );
   const external = platform === "web";
 
+  // The word travels with the triangle at every width. It is the way out to
+  // the thing people actually came for, and an unlabelled triangle in a header
+  // is a guess for anyone who has not learnt it. A phone gets the short form.
   return (
     <Button
       variant="ghost"
-      size="icon"
-      className="sm:w-auto sm:gap-1.5 sm:px-2.5"
-      aria-label={t("nav.openPlex")}
+      className="gap-1.5 px-2.5"
       render={
         <a
           href={HREF[platform]}
@@ -107,8 +108,9 @@ export function OpenPlex() {
             ? { target: "_blank", rel: "noreferrer noopener" }
             : {})}
         >
-          <PlayIcon className="size-5 sm:size-4" />
-          <span className="sr-only sm:not-sr-only">{t("nav.openPlex")}</span>
+          <PlayIcon />
+          <span className="sm:hidden">{t("nav.openPlexShort")}</span>
+          <span className="hidden sm:inline">{t("nav.openPlex")}</span>
         </a>
       }
     />

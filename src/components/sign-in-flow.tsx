@@ -153,18 +153,25 @@ export function SignInFlow({ devLoginEnabled }: { devLoginEnabled: boolean }) {
           <p className="text-muted-foreground text-sm">{t("auth.subtitle")}</p>
 
           {phase === "idle" ? (
-            <Button
-              className="w-full"
-              onClick={() => void start()}
-              disabled={busy}
-            >
-              {busy ? <SpinnerIcon /> : null}
-              {t("auth.signIn")}
-            </Button>
+            <div className="space-y-4">
+              {/* What the button does, before it does it: a tab opening on its
+                  own is a surprise to anyone who has not done this before. */}
+              <p className="text-muted-foreground text-sm">
+                {t("auth.beforeSignIn")}
+              </p>
+              <Button
+                className="w-full"
+                onClick={() => void start()}
+                disabled={busy}
+              >
+                {busy ? <SpinnerIcon /> : null}
+                {t("auth.signIn")}
+              </Button>
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-secondary/60 rounded-lg px-4 py-3 text-center">
-                <p className="text-muted-foreground text-xs">
+                <p className="text-muted-foreground text-sm">
                   {t("auth.code")}
                 </p>
                 <p className="font-mono text-2xl tracking-[0.35em]">

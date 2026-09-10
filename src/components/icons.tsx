@@ -36,6 +36,7 @@ import {
   SquaresFour,
   Star,
   Sun,
+  TextAa,
   Television,
   ThumbsDown,
   ThumbsUp,
@@ -95,6 +96,7 @@ export const CloseIcon = icon(X, "bold");
 export const SignOutIcon = icon(SignOut, "regular");
 export const PersonIcon = icon(UserCircle);
 export const SunIcon = icon(Sun, "regular");
+export const TextSizeIcon = icon(TextAa, "regular");
 export const MoonIcon = icon(Moon, "regular");
 export const DisplayIcon = icon(Monitor, "regular");
 export const AnnounceIcon = icon(Megaphone);

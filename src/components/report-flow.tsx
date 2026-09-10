@@ -170,7 +170,7 @@ function ReportSteps({
       {/* The list is short here, and a short list with no reason given reads
           as a list that is missing something. */}
       {target.alternateCut ? (
-        <p className="text-muted-foreground text-xs">{t("report.cut.note")}</p>
+        <p className="text-muted-foreground text-sm">{t("report.cut.note")}</p>
       ) : null}
       <ul className="space-y-2">
         {reasons.map((reason) => (
@@ -254,7 +254,7 @@ function TitleStep({ onPick }: { onPick: (match: Target) => void }) {
       </div>
 
       {tooShort || results === null ? (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-sm">
           {t("report.searchHint")}
         </p>
       ) : results.length === 0 ? (
@@ -391,7 +391,7 @@ function PlaceStep({
           )}
         </div>
         {failed ? (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-sm">
             {t("report.placeFailed")}
           </p>
         ) : null}
@@ -423,7 +423,7 @@ function PlaceStep({
         )}
       </div>
       {failed ? (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-sm">
           {t("season.unavailable")}
         </p>
       ) : null}

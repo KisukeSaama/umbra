@@ -65,24 +65,20 @@ export async function TitleCard({
                 ? "status.partial"
                 : "status.available",
             )}
+
+            aria-hidden
           >
             {availability === "partial" ? (
               <CircleHalfIcon className="size-3" />
             ) : (
               <CheckIcon className="size-3" />
             )}
-            <span className="sr-only">
-              {t(
-                availability === "partial"
-                  ? "status.partial"
-                  : "status.available",
-              )}
-            </span>
           </span>
         ) : availability === "requested" ? (
           <span
-            className="bg-secondary text-muted-foreground absolute top-2 right-2 rounded-full px-2 py-0.5 text-[0.65rem] leading-4"
+            className="bg-secondary text-muted-foreground absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs leading-4"
             title={t("status.requested")}
+            aria-hidden
           >
             {/* A pill on a card says what the title is, so it says "requested":
                 "Request" here read as a button that does nothing. */}
@@ -104,6 +100,24 @@ export async function TitleCard({
         {kind === "movie" ? t("common.movie") : t("common.series")}
         {year ? ` · ${year}` : ""}
       </p>
+      {/* The mark on the poster, said in words: a dot in a corner is read at
+          a glance by someone who already knows the code and by nobody else.
+          Absent stays silent, since the button on the page is its answer. */}
+      {availability === "available" ? (
+        <p className="text-primary flex items-center gap-1 text-xs">
+          <CheckIcon className="size-3" aria-hidden />
+          {t("status.availableShort")}
+        </p>
+      ) : availability === "partial" ? (
+        <p className="text-muted-foreground flex items-center gap-1 text-xs">
+          <CircleHalfIcon className="size-3" aria-hidden />
+          {t("status.partialShort")}
+        </p>
+      ) : availability === "requested" ? (
+        <p className="text-muted-foreground text-xs">
+          {t("status.requestedShort")}
+        </p>
+      ) : null}
     </Link>
   );
 }

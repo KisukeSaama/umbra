@@ -283,7 +283,7 @@ function EpisodeRow({ episode }: { episode: EpisodeState }) {
           </time>
         </span>
       ) : (
-        <span className="text-muted-foreground/70 flex shrink-0 items-center gap-1.5 text-xs">
+        <span className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
           <CircleIcon />
           <span className="sr-only sm:not-sr-only">
             {t("season.notOnServer")}

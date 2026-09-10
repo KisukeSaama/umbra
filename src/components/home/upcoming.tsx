@@ -35,7 +35,7 @@ export async function UpcomingEpisodes({
       <CardHeader>
         <CardTitle>{t("section.comingThisWeek")}</CardTitle>
         {!personal && episodes.length > 0 ? (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-sm">
             {t("week.calendarNote")}
           </p>
         ) : null}

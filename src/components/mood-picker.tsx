@@ -143,7 +143,7 @@ export function MoodPicker() {
                   <p className="mt-2 truncate text-sm font-medium">
                     {item.title}
                   </p>
-                  <p className="text-primary text-xs">
+                  <p className="text-primary text-sm">
                     {t("status.available")}
                   </p>
                 </li>

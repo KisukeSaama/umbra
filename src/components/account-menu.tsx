@@ -6,6 +6,7 @@ import {
   PersonIcon,
   SignOutIcon,
   SunIcon,
+  TextSizeIcon,
 } from "@/components/icons";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
@@ -14,6 +15,11 @@ import { toast } from "sonner";
 
 import { request, requestError } from "@/components/client-api";
 import { Button } from "@/components/ui/button";
+import {
+  setTextSize,
+  type TextSize,
+  useTextSize,
+} from "@/components/text-size";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +52,7 @@ export function AccountMenu({
   const locale = useLocale();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const textSize = useTextSize();
   const [signingOut, setSigningOut] = useState(false);
   const [language, setLanguage] = useState<Locale | "auto">(
     localeOverride ?? "auto",
@@ -56,6 +63,11 @@ export function AccountMenu({
     { value: "system", label: t("nav.theme.system"), icon: DisplayIcon },
     { value: "light", label: t("nav.theme.light"), icon: SunIcon },
     { value: "dark", label: t("nav.theme.dark"), icon: MoonIcon },
+  ];
+
+  const textSizes: { value: TextSize; label: string }[] = [
+    { value: "default", label: t("nav.textSize.default") },
+    { value: "large", label: t("nav.textSize.large") },
   ];
 
   const languages: { value: Locale | "auto"; label: string }[] = [
@@ -144,6 +156,26 @@ export function AccountMenu({
               closeOnClick={false}
             >
               <option.icon />
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+
+        <DropdownMenuSeparator />
+        {/* Reading size sits with the look: the menu stays open here too, so
+            the change is read on the page behind it before it is kept. */}
+        <DropdownMenuRadioGroup
+          value={textSize}
+          onValueChange={(value) => setTextSize(value as TextSize)}
+        >
+          <DropdownMenuGroupLabel>{t("nav.textSize")}</DropdownMenuGroupLabel>
+          {textSizes.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              closeOnClick={false}
+            >
+              <TextSizeIcon />
               {option.label}
             </DropdownMenuRadioItem>
           ))}
