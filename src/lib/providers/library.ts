@@ -48,6 +48,8 @@ export type WatchEvent = {
 
 export interface MediaLibraryProvider {
   readonly name: string;
+  /** The server's own identifier, as plex.tv knows it. */
+  machineIdentifier(): Promise<string>;
   sections(): Promise<LibrarySection[]>;
   /** Movies or shows of a section (not episodes). */
   sectionItems(sectionKey: string): Promise<LibraryItem[]>;

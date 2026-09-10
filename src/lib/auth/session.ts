@@ -234,6 +234,21 @@ export async function revokeSessions(accountId: string) {
 }
 
 /**
+ * Ends every session of a Plex account, whether Umbra knows it or not.
+ *
+ * Called when a sign-in is refused because the server is no longer shared with
+ * that person: the attempt is also the moment their old cookie stops working.
+ */
+export async function revokeSessionsForPlexAccount(plexAccountId: string) {
+  const [account] = await db()
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.plexAccountId, plexAccountId))
+    .limit(1);
+  if (account) await revokeSessions(account.id);
+}
+
+/**
  * Creates or refreshes the local account matching a Plex account.
  *
  * The account named by `ADMIN_PLEX_ACCOUNT_ID` becomes the administrator, and

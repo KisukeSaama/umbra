@@ -156,6 +156,9 @@ export const en = {
   "auth.pendingHint":
     "The administrator has been notified. Come back a bit later.",
   "auth.blocked": "This account no longer has access.",
+  "auth.notMember": "This Plex account is not on the server.",
+  "auth.notMemberHint":
+    "Umbra is reserved for the people the server is shared with. Ask the administrator for access to the server, then sign in again.",
   "auth.restart": "Start over",
   "auth.devLogin": "Development sign-in",
 
@@ -345,6 +348,9 @@ export const en = {
   "admin.job.taste-profile": "Taste profiles",
   "admin.job.taste-profile.hint":
     "Rebuilds the favourite genres of the approved members. Replaced every time, never accumulated.",
+  "admin.job.membership-sweep": "Server members",
+  "admin.job.membership-sweep.hint":
+    "Signs out the accounts the server is no longer shared with. Does nothing until the owner slug is configured.",
   "admin.job.housekeeping": "Housekeeping",
   "admin.job.housekeeping.hint":
     "Deletes what nothing else deletes: expired sessions and codes, old run history, notifications long read.",
@@ -759,6 +765,9 @@ export const fr: Record<TranslationKey, string> = {
   "auth.pendingHint":
     "L'administrateur a été prévenu. Reviens un peu plus tard.",
   "auth.blocked": "Ce compte n'a plus accès à Umbra.",
+  "auth.notMember": "Ce compte Plex n'est pas sur le serveur.",
+  "auth.notMemberHint":
+    "Umbra est réservé aux personnes avec qui le serveur est partagé. Demande l'accès au serveur à l'administrateur, puis reconnecte-toi.",
   "auth.restart": "Recommencer",
   "auth.devLogin": "Connexion de développement",
 
@@ -948,6 +957,9 @@ export const fr: Record<TranslationKey, string> = {
   "admin.job.taste-profile": "Profils de goût",
   "admin.job.taste-profile.hint":
     "Recalcule les genres préférés des membres approuvés. Remplacés à chaque fois, jamais accumulés.",
+  "admin.job.membership-sweep": "Membres du serveur",
+  "admin.job.membership-sweep.hint":
+    "Déconnecte les comptes avec qui le serveur n'est plus partagé. Sans effet tant que le slug propriétaire n'est pas configuré.",
   "admin.job.housekeeping": "Ménage",
   "admin.job.housekeeping.hint":
     "Supprime ce que rien d'autre ne supprime : sessions et codes expirés, vieux historiques d'exécution, notifications lues depuis longtemps.",

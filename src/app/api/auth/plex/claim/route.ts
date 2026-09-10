@@ -2,10 +2,16 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
-import { createSession, upsertAccountFromPlex } from "@/lib/auth/session";
+import {
+  createSession,
+  revokeSessionsForPlexAccount,
+  upsertAccountFromPlex,
+} from "@/lib/auth/session";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { consumePin, livePin } from "@/lib/domain/auth-pins";
-import { accountOf, pollPin } from "@/lib/providers/plex-tv";
+import { env } from "@/lib/env";
+import { plexLibrary } from "@/lib/providers/plex";
+import { accountOf, hasServerAccess, pollPin } from "@/lib/providers/plex-tv";
 import { checkRate, clientAddress, perMinute } from "@/lib/rate-limit";
 
 const schema = z.object({ pinId: z.uuid() });
@@ -14,8 +20,12 @@ const schema = z.object({ pinId: z.uuid() });
  * Confirms a sign-in PIN.
  *
  * Answers `waiting` until the visitor validates on plex.tv. Once validated, the
- * Plex token is used to read the account id and immediately dropped: Umbra
- * never stores it.
+ * Plex token is used to read the account id, to ask plex.tv whether the server
+ * is currently shared with that person, and immediately dropped: Umbra never
+ * stores it.
+ *
+ * Someone the server is not shared with is answered `denied` and no account is
+ * created for them. See `docs/adr/0014-only-members-of-the-server.md`.
  */
 export async function POST(request: NextRequest) {
   return route(async () => {
@@ -40,6 +50,22 @@ export async function POST(request: NextRequest) {
     if (!token) return { status: "waiting" as const };
 
     const plexAccount = await accountOf(token);
+
+    /*
+     * Membership is read now, from the visitor's own token, rather than from
+     * anything Umbra keeps: a share taken back on plex.tv is already gone from
+     * that answer. An upstream failure refuses the sign-in rather than letting
+     * it through, which is why the switch exists at all.
+     */
+    if (env().REQUIRE_SERVER_MEMBERSHIP) {
+      const machineIdentifier = await plexLibrary.machineIdentifier();
+      if (!(await hasServerAccess(token, machineIdentifier))) {
+        await consumePin(pinId);
+        await revokeSessionsForPlexAccount(plexAccount.id);
+        return { status: "denied" as const };
+      }
+    }
+
     const account = await upsertAccountFromPlex(plexAccount);
 
     await consumePin(pinId);

@@ -320,8 +320,14 @@ account last signed in. The last one is a single timestamp, overwritten on every
 sign-in rather than added to, and it exists so the administration can tell an
 account somebody still uses from one nobody has opened in a year. It is not a
 history: not of visits, not of pages, not of anything. Sessions are stored as a
-digest, never as a token, and the visitor's Plex token is used once to read their
-account id and then dropped.
+digest, never as a token, and the visitor's Plex token is used twice on the way
+in, to read their account id and to ask plex.tv whether the server is currently
+shared with them, and then dropped.
+
+Who gets in follows the server: an account the server is not shared with is
+refused at sign-in, is not created, and does not join an approval queue. Taking
+a share back on plex.tv is therefore all it takes to close the door here too.
+See `docs/adr/0014-only-members-of-the-server.md`.
 
 Never stored: e-mail addresses, a list of what anyone watched, who searched for
 what, anything at all about who contributed to a fundraiser.
