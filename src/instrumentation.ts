@@ -22,8 +22,21 @@ export async function register() {
   // One connection, closed straight away: this is a boot task, not a pool.
   const sql = postgres(process.env.DATABASE_URL, { max: 1 });
   try {
-    await migrate(drizzle(sql), { migrationsFolder: "./drizzle" });
-    console.log("[migrate] schema is up to date");
+    /*
+     * One migration at a time, whoever boots first.
+     *
+     * Two containers starting together would otherwise apply the same pending
+     * migration at the same moment, and the second would fail on a statement
+     * the first had already run. Holding a lock on this connection makes the
+     * second wait and then find nothing left to do.
+     */
+    await sql`SELECT pg_advisory_lock(${MIGRATION_LOCK})`;
+    try {
+      await migrate(drizzle(sql), { migrationsFolder: "./drizzle" });
+      console.log("[migrate] schema is up to date");
+    } finally {
+      await sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK})`;
+    }
   } catch (error) {
     console.error("[migrate] failed", error);
     throw error;
@@ -31,3 +44,6 @@ export async function register() {
     await sql.end();
   }
 }
+
+/** The same number on both sides: see `src/lib/db/migrate.ts`. */
+const MIGRATION_LOCK = 0x756d6272;

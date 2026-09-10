@@ -33,7 +33,9 @@ const selectionSchema = z.object({
 
 export async function GET(request: NextRequest) {
   return route(async () => {
-    await requireStaff();
+    const account = await requireStaff();
+    // A read, so the cap is there to stop a loop rather than to count glances.
+    checkRate("admin-read", account.id, perMinute(120));
     const params = request.nextUrl.searchParams;
     const volume = params.get("volume") ?? "";
     const path = pathSchema.parse(params.getAll("path"));

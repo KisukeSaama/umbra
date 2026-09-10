@@ -36,12 +36,14 @@ import { cn } from "@/lib/utils";
  * server takes. Above the volumes sits one more floor, where the volumes are
  * the entries, so the whole disk still has a picture of its own.
  *
- * The map is pinned either way and never scrolls: on a narrow screen to the
- * top, with the list running under it as a frozen pane, and on a wide one to
- * the right of the list, which is the shape a list of results and a map have
- * always taken. The order in the document is the narrow one, the map first
- * where it has to be seen first; the wide layout swaps the two columns rather
- * than the markup, so the reading order stays what it is on a phone.
+ * On a wide screen the map is pinned to the right of the list, which is the
+ * shape a list of results and a map have always taken. On a phone it is not:
+ * the map, its trail and the sticky section bar above them took half of a
+ * 360px screen and left the listing reading through a letterbox, so there it
+ * simply hangs at the top of the page and scrolls away with it. The order in
+ * the document is the narrow one, the map first where it has to be seen first;
+ * the wide layout swaps the two columns rather than the markup, so the reading
+ * order stays what it is on a phone.
  */
 
 export type StorageAddress = { volume: string | null; path: string[] };
@@ -163,7 +165,7 @@ export function StorageBrowser({
           stretched half beside the list. Pinning the map to its own box would
           be pinning it to nothing, and it would scroll away with the page. */}
       <div className="contents lg:order-2 lg:block">
-        <div className="bg-card sticky top-28 z-20 mb-4 space-y-2 pt-1 pb-3 lg:top-20 lg:mb-0">
+        <div className="bg-card mb-4 space-y-2 pt-1 pb-3 lg:sticky lg:top-20 lg:z-20 lg:mb-0">
           <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
             {crumbs.map((crumb, index) => {
               const last = index === crumbs.length - 1;

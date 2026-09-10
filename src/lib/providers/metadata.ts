@@ -99,8 +99,6 @@ export type SeriesDetails = {
   status: string | null;
   inProduction: boolean;
   seasons: SeasonSummary[];
-  nextEpisode: EpisodeInfo | null;
-  lastEpisode: EpisodeInfo | null;
 };
 
 /**

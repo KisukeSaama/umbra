@@ -71,7 +71,7 @@ function Block({ block }: { block: BlockNode }) {
 
     case "quote":
       return (
-        <blockquote className="border-border/60 text-muted-foreground space-y-3 border-l-2 pl-4 italic">
+        <blockquote className="border-border/60 text-muted-foreground space-y-3 border-l pl-4 italic">
           {block.children.map((child, index) => (
             <Block key={index} block={child} />
           ))}

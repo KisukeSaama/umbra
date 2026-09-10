@@ -6,6 +6,7 @@ import { RecentlyAdded } from "@/components/home/recently-added";
 import { StorageCard } from "@/components/home/storage-card";
 import { UpcomingEpisodes } from "@/components/home/upcoming";
 import { WeekStats } from "@/components/home/week-stats";
+import { daysUntil } from "@/components/formatting";
 import { PollCard } from "@/components/poll-card";
 import { Shelf } from "@/components/shelf";
 import { ShelfSkeleton } from "@/components/skeletons";
@@ -66,7 +67,7 @@ export default async function HomePage() {
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             <UpcomingEpisodes episodes={upcoming} />
-            <PollCard poll={poll} />
+            <PollCard poll={poll} daysLeft={daysUntil(poll?.endsAt ?? null)} />
           </div>
           <div className="grid gap-6 md:items-start lg:grid-cols-2">
             <AnnouncementCard announcement={announcement} />

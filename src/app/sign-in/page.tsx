@@ -7,7 +7,10 @@ import { currentAccount } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { getTranslator } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Sign in" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t("auth.title") };
+}
 
 export default async function SignInPage() {
   const account = await currentAccount();

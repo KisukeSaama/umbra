@@ -30,9 +30,7 @@ describe("re-cut detection", () => {
     expect(alternateCutOf("Bleach KAÏ", ["Bleach"])).toBe("kai");
     expect(alternateCutOf("Bleach KAÏ", ["Bleach"])).toBe("kai");
     expect(alternateCutOf("Naruto Kaï", ["Naruto"])).toBe("kai");
-    expect(alternateCutOf("Dragon Ball Yabaï", ["Dragon Ball"])).toBe(
-      "yabai",
-    );
+    expect(alternateCutOf("Dragon Ball Yabaï", ["Dragon Ball"])).toBe("yabai");
   });
 
   it("leaves the titles on the server that only look like one alone", () => {
@@ -69,9 +67,7 @@ describe("re-cut detection", () => {
 describe("the series a re-cut is a re-cut of", () => {
   it("takes the marker word off, however it was typed", () => {
     expect(titleWithoutCut("Naruto Kaï")).toBe("Naruto");
-    expect(titleWithoutCut("Naruto Shippuden Kaï")).toBe(
-      "Naruto Shippuden",
-    );
+    expect(titleWithoutCut("Naruto Shippuden Kaï")).toBe("Naruto Shippuden");
     expect(titleWithoutCut("Bleach KAÏ")).toBe("Bleach");
     expect(titleWithoutCut("Dragon Ball Z Yabaï")).toBe("Dragon Ball Z");
     expect(titleWithoutCut("One Piece (Yabai)")).toBe("One Piece");

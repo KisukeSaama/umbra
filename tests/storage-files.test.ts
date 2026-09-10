@@ -263,3 +263,46 @@ describe("playback", () => {
     ).toBe("error.notPlayable");
   });
 });
+
+describe("what the root listing hides", () => {
+  /*
+   * The listing leaves the machine's working data out of a volume root, and
+   * naming it in a path used to reach it anyway: a deletion could then happen
+   * inside `data` or `lost+found`, which ADR 0012 says the page never offers.
+   */
+  it("refuses a path whose first name is not a library", async () => {
+    await expect(
+      listStorageDirectory("Media", ["data"], volumes),
+    ).rejects.toThrow(AppError);
+    await expect(
+      deleteStorageEntries("Media", ["lost+found"], ["anything"], volumes),
+    ).rejects.toThrow(AppError);
+  });
+
+  it("still allows the same name deeper down", async () => {
+    const listing = await listStorageDirectory(
+      "Media",
+      ["Series", "data"],
+      volumes,
+    );
+    expect(listing.entries).toEqual([]);
+  });
+});
+
+describe("the size of a selection", () => {
+  /*
+   * The depth of a path and the size of a selection are two different bounds,
+   * and they used to share one check: a selection of more than thirty-two
+   * names was refused although the documented cap is two hundred.
+   */
+  it("accepts more names than a path may have levels", async () => {
+    const names = Array.from({ length: 40 }, (_, index) => `absent-${index}`);
+    const weight = await weighStorageEntries(
+      "Media",
+      ["Movies"],
+      names,
+      volumes,
+    );
+    expect(weight.files).toBe(0);
+  });
+});

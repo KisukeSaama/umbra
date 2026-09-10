@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { route } from "@/lib/api";
+import { idParam, route } from "@/lib/api";
 import { requireMember } from "@/lib/auth/session";
 import { cancelRequest } from "@/lib/domain/requests";
 import { checkRate, perMinute } from "@/lib/rate-limit";
@@ -17,7 +17,7 @@ export async function DELETE(
     const account = await requireMember();
     checkRate("requests", account.id, perMinute(10));
 
-    const { id } = await params;
+    const id = await idParam(params);
     return cancelRequest(id, account.id);
   });
 }

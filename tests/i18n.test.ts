@@ -85,6 +85,12 @@ describe("plurals", () => {
 
   it("leaves keys without a singular variant untouched", () => {
     const en = createTranslator("en");
-    expect(en("search.resultsCount", { count: 1 })).toBe("1 results");
+    expect(en("admin.jobs.took", { value: "2s" })).toBe("in 2s");
+  });
+
+  it("uses the singular where one is written", () => {
+    const en = createTranslator("en");
+    expect(en("search.resultsCount", { count: 1 })).toBe("1 result");
+    expect(en("search.resultsCount", { count: 3 })).toBe("3 results");
   });
 });

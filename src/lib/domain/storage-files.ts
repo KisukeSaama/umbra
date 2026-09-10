@@ -82,9 +82,23 @@ export function isSafeName(name: string): boolean {
   return true;
 }
 
-function assertNames(names: string[]) {
+/** Each name in a path, and the depth of the path itself. */
+function assertPathNames(names: string[]) {
   if (!Array.isArray(names) || names.length > MAX_DEPTH)
     throw new BadRequestError("error.invalidPath");
+  assertEachName(names);
+}
+
+/**
+ * Each name in a selection.
+ *
+ * Kept apart from the path check on purpose: a selection is bounded by
+ * `MAX_BATCH`, a path by `MAX_DEPTH`. Sharing one function meant a selection of
+ * more than thirty-two entries was refused as though it were a path thirty-two
+ * directories deep, which is not what any caller was told.
+ */
+function assertEachName(names: string[]) {
+  if (!Array.isArray(names)) throw new BadRequestError("error.invalidPath");
   for (const name of names)
     if (!isSafeName(name)) throw new BadRequestError("error.invalidPath");
 }
@@ -104,7 +118,19 @@ async function locate(
 ): Promise<{ root: string; target: string }> {
   const volume = volumes.find((entry) => entry.label === volumeLabel);
   if (!volume) throw new NotFoundError("error.invalidPath");
-  assertNames(path);
+  assertPathNames(path);
+
+  /*
+   * What the root listing hides cannot be reached by naming it either.
+   *
+   * A volume root carries the libraries and, beside them, the file system's
+   * own furniture and the machine's working data. The listing leaves those out
+   * (see `isLibrary`), but a path is a request rather than a click, so the same
+   * rule is applied here: everything the explorer can do, it can only do
+   * inside a library.
+   */
+  if (path.length > 0 && !isLibrary(path[0]))
+    throw new NotFoundError("error.invalidPath");
 
   const root = resolve(volume.path);
   const target = resolve(root, ...path);
@@ -200,7 +226,7 @@ export async function weighStorageEntries(
   volumes = configuredVolumes(),
 ): Promise<StorageWeight> {
   const { target } = await locate(volume, path, volumes);
-  assertNames(names);
+  assertEachName(names);
   if (names.length > MAX_BATCH) throw new BadRequestError("error.invalidPath");
 
   const weight: StorageWeight = { bytes: 0, files: 0, partial: false };
@@ -244,7 +270,7 @@ export async function deleteStorageEntries(
   volumes = configuredVolumes(),
 ): Promise<StorageDeletion> {
   const { target } = await locate(volume, path, volumes);
-  assertNames(names);
+  assertEachName(names);
   if (names.length === 0 || names.length > MAX_BATCH)
     throw new BadRequestError("error.invalidPath");
   if (path.length < MIN_DELETE_DEPTH)

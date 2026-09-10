@@ -134,10 +134,11 @@ async function withPolls(
 }
 
 /** Everything the administration edits, drafts included. */
-export async function listAllAnnouncements(): Promise<
-  (AnnouncementView & { published: boolean; createdAt: Date })[]
-> {
-  const rows = await db()
+export async function listAllAnnouncements(
+  /** The slice to read, when the caller pages. Everything, when it does not. */
+  window?: { limit: number; offset: number },
+): Promise<(AnnouncementView & { published: boolean; createdAt: Date })[]> {
+  const query = db()
     .select({
       ...listedColumns,
       published: announcements.published,
@@ -146,12 +147,24 @@ export async function listAllAnnouncements(): Promise<
     .from(announcements)
     .orderBy(desc(announcements.createdAt));
 
+  const rows = await (window
+    ? query.limit(window.limit).offset(window.offset)
+    : query);
+
   const views = await withPolls(rows);
   return views.map((view, index) => ({
     ...view,
     published: rows[index].published,
     createdAt: rows[index].createdAt,
   }));
+}
+
+/** How many notes there are, drafts included, for the pager above them. */
+export async function countAllAnnouncements(): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(announcements);
+  return row?.count ?? 0;
 }
 
 export type AnnouncementInput = {
@@ -164,30 +177,47 @@ export type AnnouncementInput = {
 };
 
 export async function createAnnouncement(input: AnnouncementInput) {
-  const [row] = await db()
-    .insert(announcements)
-    .values({
-      title: input.title.trim(),
-      content: input.content.trim(),
-      category: input.category,
-      published: input.published,
-      publishedAt: input.published ? new Date() : null,
-      linkUrl: input.link?.url.trim() ?? null,
-      linkLabel: input.link?.label?.trim() || null,
-    })
-    .returning({ id: announcements.id });
+  /*
+   * The note and the question it carries are written together.
+   *
+   * A poll is an announcement asking something (see ADR 0011), so half of one
+   * is nothing at all: a published note whose question never made it would say
+   * "vote below" above an empty space, and nothing in the administration knows
+   * how to finish it afterwards.
+   */
+  const row = await db().transaction(async (tx) => {
+    const [created] = await tx
+      .insert(announcements)
+      .values({
+        title: input.title.trim(),
+        content: input.content.trim(),
+        category: input.category,
+        published: input.published,
+        publishedAt: input.published ? new Date() : null,
+        linkUrl: input.link?.url.trim() ?? null,
+        linkLabel: input.link?.label?.trim() || null,
+      })
+      .returning({ id: announcements.id });
 
-  // A poll opens with the note that carries it: an unpublished draft asks
-  // nobody anything.
-  if (input.poll)
-    await attachPoll({
-      announcementId: row.id,
-      question: input.poll.question,
-      options: input.poll.options,
-      endsAt: input.poll.endsAt ?? null,
-      active: input.published,
-    });
+    // A poll opens with the note that carries it: an unpublished draft asks
+    // nobody anything.
+    if (input.poll)
+      await attachPoll(
+        {
+          announcementId: created.id,
+          question: input.poll.question,
+          options: input.poll.options,
+          endsAt: input.poll.endsAt ?? null,
+          active: input.published,
+        },
+        tx,
+      );
 
+    return created;
+  });
+
+  // Outside the transaction: the bell is a consequence of the note existing,
+  // and a fan-out over every account has no business holding one open.
   if (input.published)
     await announceToEveryone(row.id, input.title, input.category);
   return row;
@@ -205,6 +235,8 @@ export async function updateAnnouncement(
 ) {
   const [existing] = await db()
     .select({
+      title: announcements.title,
+      category: announcements.category,
       published: announcements.published,
       publishedAt: announcements.publishedAt,
     })
@@ -236,23 +268,43 @@ export async function updateAnnouncement(
     .where(eq(announcements.id, id))
     .returning({ id: announcements.id });
 
+  const [poll] = await db()
+    .select({ id: polls.id })
+    .from(polls)
+    .where(eq(polls.announcementId, id))
+    .limit(1);
+
   const firstPublish = Boolean(input.published) && !existing.published;
+  const withdrawn = input.published === false && existing.published;
+
   if (firstPublish) {
     // The question opens with the note, so publishing a draft that carries one
     // opens it rather than leaving a poll nobody can answer.
-    const [poll] = await db()
-      .select({ id: polls.id })
-      .from(polls)
-      .where(eq(polls.announcementId, id))
-      .limit(1);
     if (poll) await setPollActive(poll.id, true, { notify: false });
 
+    /*
+     * What the bell carries is what the note says, and this call is the one
+     * place that used not to read it. Publishing a draft is a body of
+     * `{ published: true }` and nothing else, so the fan-out went out with an
+     * empty title and the category of a note nobody wrote.
+     */
     await announceToEveryone(
       id,
-      input.title ?? "",
-      input.category ?? "information",
+      input.title ?? existing.title,
+      input.category ?? existing.category,
     );
   }
+
+  /*
+   * A note taken back takes its question with it.
+   *
+   * The poll is the note asking something, so leaving it open behind a note
+   * that is no longer there left a question on the home page with nothing to
+   * explain it, still collecting answers. Nothing is announced: a withdrawal
+   * is not news.
+   */
+  if (withdrawn && poll) await setPollActive(poll.id, false, { notify: false });
+
   return row;
 }
 

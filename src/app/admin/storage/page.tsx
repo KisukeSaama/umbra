@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
+
 import { StatStrip } from "@/components/admin/stat-strip";
 import { StorageBrowser } from "@/components/admin/storage-browser";
 import { StorageScan } from "@/components/admin/storage-scan";
+import { formatPercent } from "@/components/formatting";
 import {
   Card,
   CardContent,
@@ -12,8 +15,13 @@ import { Progress } from "@/components/ui/progress";
 import { requireStaffPage } from "@/lib/auth/session";
 import { storageDetail, storageTree } from "@/lib/domain/storage";
 import { formatBytes, formatDateTime } from "@/lib/format";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { runningJob } from "@/lib/jobs";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t("meta.admin", { section: t("admin.nav.storage") }) };
+}
 
 /**
  * Storage, in full.
@@ -56,6 +64,8 @@ export default async function AdminStoragePage() {
       </Card>
     );
 
+  // The bar takes the figure, the label takes the sentence: a percentage is
+  // punctuated by the language, and French sets a space before the sign.
   const percent = Math.round(detail.usedRatio * 100);
 
   return (
@@ -67,7 +77,9 @@ export default async function AdminStoragePage() {
             value: formatBytes(detail.totalBytes, locale),
           },
           {
-            label: t("storage.used", { percent: `${percent}%` }),
+            label: t("storage.used", {
+              percent: formatPercent(detail.usedRatio, locale),
+            }),
             value: formatBytes(detail.usedBytes, locale),
           },
           {

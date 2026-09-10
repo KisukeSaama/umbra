@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { request, requestError } from "@/components/client-api";
 import { EmptyNote } from "@/components/empty-note";
+import { formatPercent } from "@/components/formatting";
 import { PollIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +16,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { PollView } from "@/lib/domain/polls";
-import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
+import type { Translator } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,20 +37,49 @@ import { cn } from "@/lib/utils";
  * touched, and it should look like it.
  */
 export function PollCard({
-  poll: initialPoll,
+  poll: serverPoll,
+  daysLeft = null,
   bare = false,
 }: {
   poll: PollView | null;
+  /**
+   * Whole days until the question closes, counted by the server, or `null` when
+   * it has no end date. It is not counted here: a clock read while rendering
+   * and read again while hydrating gives two different answers for the same
+   * screen.
+   */
+  daysLeft?: number | null;
   bare?: boolean;
 }) {
   const t = useTranslator();
   const locale = useLocale();
 
-  const [poll, setPoll] = useState(initialPoll);
+  const [poll, setPoll] = useState(serverPoll);
   const [selected, setSelected] = useState<string | null>(
-    initialPoll?.votedOptionId ?? null,
+    serverPoll?.votedOptionId ?? null,
   );
   const [submitting, setSubmitting] = useState(false);
+  // The split is only revealed in motion when the vote just landed here; a
+  // poll already voted on an earlier visit is simply read.
+  const [justVoted, setJustVoted] = useState(false);
+  const options = useRef<(HTMLButtonElement | null)[]>([]);
+
+  /**
+   * The poll the page came with wins over the one this card is holding.
+   *
+   * Anything that calls `router.refresh()`, a vote elsewhere or a notification
+   * arriving, re-renders the server component above with a newer poll. Seeding
+   * state from props only once meant a question closed in the administration
+   * stayed open here until the tab was reloaded, and the fill animation replayed
+   * on every refresh because the props no longer matched what was on screen.
+   */
+  const [shownFor, setShownFor] = useState(serverPoll);
+  if (shownFor !== serverPoll) {
+    setShownFor(serverPoll);
+    setPoll(serverPoll);
+    setSelected(serverPoll?.votedOptionId ?? null);
+    setJustVoted(false);
+  }
 
   if (!poll) {
     if (bare) return null;
@@ -68,38 +99,57 @@ export function PollCard({
   const closed = poll.closed;
   const showResults = hasVoted || closed;
   const canChange = hasVoted && selected !== poll.votedOptionId;
-  // The split is only revealed in motion when the vote just landed here; a
-  // poll already voted on an earlier visit is simply read.
-  const justVoted = poll !== initialPoll;
-  const timeLeft = daysLeftLabel(poll, t);
+  const timeLeft = timeLeftLabel(poll, daysLeft, t);
+  // One tab stop for the group, on the option that is chosen or on the first:
+  // a radio group is one control, and Tab is for leaving it.
+  const focused = Math.max(
+    0,
+    poll.options.findIndex((option) => option.id === selected),
+  );
 
   async function vote() {
     if (!poll || !selected || closed) return;
     if (poll.votedOptionId === selected) return;
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/polls/${poll.id}/vote`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ optionId: selected }),
-      });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
-
-      const next = body.poll as PollView;
-      setPoll(next);
-      setSelected(next.votedOptionId);
+      const body = await request<{ poll: PollView }>(
+        `/api/polls/${poll.id}/vote`,
+        { method: "POST", body: { optionId: selected } },
+      );
+      setPoll(body.poll);
+      setSelected(body.poll.votedOptionId);
+      setJustVoted(true);
       toast.success(t(hasVoted ? "poll.voteChanged" : "poll.voted"));
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /**
+   * Arrows walk the group and carry the choice with them, which is what a
+   * radio group does everywhere else: the roles were already declared here,
+   * and only Tab answered them.
+   */
+  function onOptionKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
+    if (!poll || closed) return;
+    const step =
+      event.key === "ArrowDown" || event.key === "ArrowRight"
+        ? 1
+        : event.key === "ArrowUp" || event.key === "ArrowLeft"
+          ? -1
+          : 0;
+    if (step === 0) return;
+
+    event.preventDefault();
+    const total = poll.options.length;
+    const next = (index + step + total) % total;
+    setSelected(poll.options[next].id);
+    options.current[next]?.focus();
   }
 
   const question = (
@@ -129,7 +179,7 @@ export function PollCard({
         aria-label={poll.question}
         aria-disabled={closed || undefined}
       >
-        {poll.options.map((option) => {
+        {poll.options.map((option, index) => {
           const chosen = selected === option.id;
           const isOwnVote = poll.votedOptionId === option.id;
           const share = Math.round(option.share * 100);
@@ -139,8 +189,13 @@ export function PollCard({
               type="button"
               role="radio"
               aria-checked={chosen}
+              tabIndex={index === focused ? 0 : -1}
+              ref={(node) => {
+                options.current[index] = node;
+              }}
               disabled={closed || submitting}
               onClick={() => setSelected(option.id)}
+              onKeyDown={(event) => onOptionKeyDown(event, index)}
               className={cn(
                 "focus-visible:ring-ring/50 w-full rounded-lg px-3 py-2 text-left transition-colors outline-none focus-visible:ring-3",
                 closed
@@ -165,7 +220,7 @@ export function PollCard({
                 <span className="flex-1 text-sm">{option.label}</span>
                 {showResults ? (
                   <span className="text-muted-foreground text-sm tabular-nums">
-                    {share}%
+                    {formatPercent(option.share, locale)}
                   </span>
                 ) : null}
               </span>
@@ -228,13 +283,14 @@ export function PollCard({
   );
 }
 
-function daysLeftLabel(poll: PollView, t: ReturnType<typeof useTranslator>) {
+function timeLeftLabel(
+  poll: PollView,
+  daysLeft: number | null,
+  t: Translator,
+): string {
   if (poll.closed) return t("poll.closed");
-  if (!poll.endsAt) return "";
-  const days = Math.ceil(
-    (new Date(poll.endsAt).getTime() - Date.now()) / 86_400_000,
-  );
-  if (days <= 0) return t("poll.closed");
-  if (days === 1) return t("poll.endsToday");
-  return t("poll.daysLeft", { count: days });
+  if (daysLeft === null) return "";
+  if (daysLeft <= 0) return t("poll.closed");
+  if (daysLeft === 1) return t("poll.endsToday");
+  return t("poll.daysLeft", { count: daysLeft });
 }

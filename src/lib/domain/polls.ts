@@ -2,9 +2,9 @@ import "server-only";
 
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { db, type Queryable } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
-import { pollOptions, polls, votes } from "@/lib/db/schema";
+import { announcements, pollOptions, polls, votes } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { notifyApprovedAccounts } from "@/lib/domain/notifications";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
@@ -37,11 +37,16 @@ export type PollView = {
 
 export async function activePoll(accountId?: string): Promise<PollView | null> {
   const [poll] = await db()
-    .select()
+    .select({ id: polls.id })
     .from(polls)
+    // A poll is an announcement asking something (see ADR 0011), so it is only
+    // live while the note carrying it is. Asked here as well as when the note
+    // is taken back, because a note can also be withdrawn by other means.
+    .innerJoin(announcements, eq(announcements.id, polls.announcementId))
     .where(
       and(
         eq(polls.active, true),
+        eq(announcements.published, true),
         sql`(${polls.startsAt} IS NULL OR ${polls.startsAt} <= now())`,
         sql`(${polls.endsAt} IS NULL OR ${polls.endsAt} > now())`,
       ),
@@ -179,41 +184,54 @@ export async function castVote(
  * it: there is no way to create a poll without the announcement that carries
  * it, which is what keeps the two from drifting into separate feeds again.
  */
-export async function attachPoll(input: {
-  announcementId: string;
-  question: string;
-  options: string[];
-  active?: boolean;
-  endsAt?: Date | null;
-}) {
+export async function attachPoll(
+  input: {
+    announcementId: string;
+    question: string;
+    options: string[];
+    active?: boolean;
+    endsAt?: Date | null;
+  },
+  /** The transaction to write in, when the caller has one. */
+  on: Queryable = db(),
+) {
   const labels = input.options.map((label) => label.trim()).filter(Boolean);
   if (labels.length < 2) throw new BadRequestError("error.pollNeedsTwoOptions");
 
-  // Only one poll is active at a time: activating a new one closes the others.
-  if (input.active)
-    await db()
-      .update(polls)
-      .set({ active: false })
-      .where(eq(polls.active, true));
+  /*
+   * A question and its answers are one thing.
+   *
+   * Written apart, a failure between the two left a poll with no options: a
+   * question on the home page that nobody could answer and that no page had
+   * any way to take back.
+   */
+  return on.transaction(async (tx) => {
+    // Only one poll is active at a time: activating a new one closes the others.
+    if (input.active)
+      await tx
+        .update(polls)
+        .set({ active: false })
+        .where(eq(polls.active, true));
 
-  const [poll] = await db()
-    .insert(polls)
-    .values({
-      announcementId: input.announcementId,
-      question: input.question.trim(),
-      active: input.active ?? false,
-      startsAt: new Date(),
-      endsAt: input.endsAt ?? null,
-    })
-    .returning({ id: polls.id });
+    const [poll] = await tx
+      .insert(polls)
+      .values({
+        announcementId: input.announcementId,
+        question: input.question.trim(),
+        active: input.active ?? false,
+        startsAt: new Date(),
+        endsAt: input.endsAt ?? null,
+      })
+      .returning({ id: polls.id });
 
-  await db()
-    .insert(pollOptions)
-    .values(
-      labels.map((label, position) => ({ pollId: poll.id, label, position })),
-    );
+    await tx
+      .insert(pollOptions)
+      .values(
+        labels.map((label, position) => ({ pollId: poll.id, label, position })),
+      );
 
-  return poll;
+    return poll;
+  });
 }
 
 /**
@@ -228,21 +246,30 @@ export async function setPollActive(
   active: boolean,
   options: { notify?: boolean } = {},
 ) {
-  if (active)
-    await db()
-      .update(polls)
-      .set({ active: false })
-      .where(eq(polls.active, true));
+  /*
+   * Closing the others and opening this one are one move.
+   *
+   * Apart, a question that turned out not to exist left the community with no
+   * open question at all: the first statement had already closed the one that
+   * was running.
+   */
+  const [row] = await db().transaction(async (tx) => {
+    if (active)
+      await tx
+        .update(polls)
+        .set({ active: false })
+        .where(eq(polls.active, true));
 
-  const [row] = await db()
-    .update(polls)
-    .set({ active })
-    .where(eq(polls.id, pollId))
-    .returning({
-      id: polls.id,
-      active: polls.active,
-      question: polls.question,
-    });
+    return tx
+      .update(polls)
+      .set({ active })
+      .where(eq(polls.id, pollId))
+      .returning({
+        id: polls.id,
+        active: polls.active,
+        question: polls.question,
+      });
+  });
   if (!row) throw new NotFoundError("error.pollNotFound");
 
   // Opening a poll is worth an entry; closing one is not, since there is

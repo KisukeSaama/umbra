@@ -140,7 +140,7 @@ export function CardSkeleton({ lines = 2 }: { lines?: number }) {
 export function TitleSkeleton() {
   return (
     <div className="space-y-6">
-      <Skeleton className="-mx-4 -mb-2 h-36 rounded-none sm:-mx-6 sm:h-52" />
+      <Skeleton className="-mx-4 -mb-6 h-44 rounded-none sm:-mx-6 sm:h-64 lg:-mx-10" />
       <div className="flex flex-col gap-5 sm:flex-row">
         <Skeleton className="aspect-[2/3] w-32 shrink-0 rounded-lg sm:w-40" />
         <div className="min-w-0 flex-1 space-y-3">

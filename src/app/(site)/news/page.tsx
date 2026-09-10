@@ -16,6 +16,7 @@ import {
 } from "@/components/icons";
 import { Markdown } from "@/components/markdown";
 import { Pagination } from "@/components/pagination";
+import { daysUntil } from "@/components/formatting";
 import { PollCard } from "@/components/poll-card";
 import { Button } from "@/components/ui/button";
 import { requireMemberPage } from "@/lib/auth/session";
@@ -29,7 +30,10 @@ import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
 
-export const metadata: Metadata = { title: "News" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("news.title") };
+}
 
 /** Notes per page: about a screenful of a feed nobody scrolls for hours. */
 const PER_PAGE = 10;
@@ -150,7 +154,11 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
                       id={announcement.poll.id}
                       className="scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)]"
                     >
-                      <PollCard poll={announcement.poll} bare />
+                      <PollCard
+                        poll={announcement.poll}
+                        daysLeft={daysUntil(announcement.poll.endsAt)}
+                        bare
+                      />
                     </div>
                   ) : null}
                 </div>

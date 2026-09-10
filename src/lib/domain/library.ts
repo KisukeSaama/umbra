@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { libraryItems } from "@/lib/db/schema";
+import { libraryItems, type LibraryKind } from "@/lib/db/schema";
 import {
   alternateCutOf,
   beginsWithTitle,
@@ -86,8 +86,9 @@ export async function syncLibrary(): Promise<{
     const sectionItems = await plexLibrary.sectionItems(section.key);
     items += await upsertItems(sectionItems);
 
+    let sectionEpisodes: LibraryItem[] = [];
     if (section.kind === "show") {
-      const sectionEpisodes = await plexLibrary.sectionEpisodes(section.key);
+      sectionEpisodes = await plexLibrary.sectionEpisodes(section.key);
       episodeCount += await upsertItems(sectionEpisodes);
     }
 
@@ -98,20 +99,37 @@ export async function syncLibrary(): Promise<{
      * read while the server is restarting, comes back empty without failing: a
      * sweep over the whole table would then erase it, and with it every request
      * and every report attached to those titles.
+     *
+     * The two listings are swept apart because they are two answers. A show
+     * section names its shows in one call and its episodes in another, and an
+     * empty answer to the second one, which is what a server mid-scan gives,
+     * would otherwise take every episode of a section whose shows had just
+     * confirmed themselves.
      */
-    if (sectionItems.length > 0) {
-      await db()
-        .delete(libraryItems)
-        .where(
-          and(
-            eq(libraryItems.sectionKey, section.key),
-            lt(libraryItems.syncedAt, startedAt),
-          ),
-        );
-    }
+    if (sectionItems.length > 0)
+      await sweepSection(section.key, startedAt, ["movie", "show", "season"]);
+    if (sectionEpisodes.length > 0)
+      await sweepSection(section.key, startedAt, ["episode"]);
   }
 
   return { items, episodes: episodeCount };
+}
+
+/** Entries of these kinds that this pass did not see again, in one section. */
+async function sweepSection(
+  sectionKey: string,
+  startedAt: Date,
+  kinds: LibraryKind[],
+) {
+  await db()
+    .delete(libraryItems)
+    .where(
+      and(
+        eq(libraryItems.sectionKey, sectionKey),
+        lt(libraryItems.syncedAt, startedAt),
+        inArray(libraryItems.kind, kinds),
+      ),
+    );
 }
 
 async function upsertItems(entries: LibraryItem[]): Promise<number> {
@@ -176,45 +194,6 @@ export async function recentlyAdded(limit = 12): Promise<RecentItem[]> {
   return rows.map(toRecentItem);
 }
 
-/** Latest episodes added, for the admin side and the weekly summary. */
-export async function recentEpisodes(limit = 12): Promise<RecentItem[]> {
-  const rows = await db()
-    .select()
-    .from(libraryItems)
-    .where(eq(libraryItems.kind, "episode"))
-    .orderBy(desc(libraryItems.addedAt))
-    .limit(limit);
-
-  return rows.map(toRecentItem);
-}
-
-export async function libraryCounts() {
-  const rows = await db()
-    .select({ kind: libraryItems.kind, count: sql<number>`count(*)::int` })
-    .from(libraryItems)
-    .groupBy(libraryItems.kind);
-
-  const counts = { movie: 0, show: 0, season: 0, episode: 0 };
-  for (const row of rows) counts[row.kind] = row.count;
-  return counts;
-}
-
-/** Episodes of a tracked show that the server already holds. */
-export async function episodePresence(showRatingKey: string) {
-  return db()
-    .select({
-      seasonNumber: libraryItems.seasonNumber,
-      episodeNumber: libraryItems.episodeNumber,
-    })
-    .from(libraryItems)
-    .where(
-      and(
-        eq(libraryItems.kind, "episode"),
-        eq(libraryItems.grandparentRatingKey, showRatingKey),
-      ),
-    );
-}
-
 /**
  * Fills in what the media server does not say: the poster, and the genres.
  *
@@ -228,7 +207,19 @@ export async function episodePresence(showRatingKey: string) {
  * for the same reason, and it is what lets the half of the picker drawn from
  * the server hold the same bar as the half drawn from the provider.
  */
+/**
+ * How long a row the pass could not complete waits before it is tried again.
+ *
+ * A poster can appear at the provider months after the title did, so a row is
+ * never given up on for good; it simply stops being asked for on every run.
+ */
+const ENRICH_RETRY_DAYS = 30;
+
 export async function enrichLibraryPosters(limit = 120): Promise<number> {
+  const retryBefore = new Date(
+    Date.now() - ENRICH_RETRY_DAYS * 24 * 60 * 60 * 1000,
+  );
+
   const rows = await db()
     .select({
       id: libraryItems.id,
@@ -251,12 +242,27 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
           isNotNull(libraryItems.cutProviderId),
         ),
         inArray(libraryItems.kind, ["movie", "show"]),
+        /*
+         * A row this pass has already looked at waits before it is looked at
+         * again. Some titles can never be completed, because the provider has
+         * no poster for them, and without this they would hold the newest
+         * places in the queue forever and the rest of the index would never
+         * fill in.
+         */
+        or(
+          isNull(libraryItems.enrichedAt),
+          lt(libraryItems.enrichedAt, retryBefore),
+        ),
       ),
     )
-    // Newest first: those are the ones on screen, so they fill in first.
-    .orderBy(desc(libraryItems.addedAt))
+    // Never looked at first, then newest: those are the ones on screen.
+    .orderBy(
+      sql`${libraryItems.enrichedAt} ASC NULLS FIRST`,
+      desc(libraryItems.addedAt),
+    )
     .limit(limit);
 
+  const now = new Date();
   let filled = 0;
   for (const row of rows) {
     const providerId = row.tmdbId ?? row.cutProviderId;
@@ -269,6 +275,7 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
       await db()
         .update(libraryItems)
         .set({
+          enrichedAt: now,
           posterPath: summary.posterPath ?? undefined,
           // An empty list is still an answer: it stops the row coming back on
           // every run for a title the provider has no genres for.
@@ -283,6 +290,12 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
       filled += 1;
     } catch (error) {
       console.warn(`[library] lookup failed tmdbId=${providerId}`, error);
+      // Stamped even so: a title the provider keeps refusing must not be asked
+      // for again on every run at the cost of the rows behind it.
+      await db()
+        .update(libraryItems)
+        .set({ enrichedAt: now })
+        .where(eq(libraryItems.id, row.id));
     }
   }
   return filled;
@@ -297,6 +310,17 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
  * are left out, since without one there is no stable identity to attach a
  * report to.
  */
+/**
+ * What was typed, as a `LIKE` pattern that matches it literally.
+ *
+ * `%` and `_` are wildcards and the backslash is the escape character, so a
+ * query of "%" would otherwise list the newest titles rather than the titles
+ * with a percent sign in their name.
+ */
+export function containsPattern(value: string): string {
+  return `%${value.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+}
+
 export async function searchLibrary(
   query: string,
   limit = 12,
@@ -322,7 +346,7 @@ export async function searchLibrary(
           isNotNull(libraryItems.tmdbId),
           isNotNull(libraryItems.cutProviderId),
         ),
-        ilike(libraryItems.title, `%${trimmed}%`),
+        ilike(libraryItems.title, containsPattern(trimmed)),
       ),
     )
     .orderBy(desc(libraryItems.addedAt))
@@ -344,6 +368,37 @@ export async function searchLibrary(
     }),
   );
 }
+
+/**
+ * Finds a title by either of the two ids it can be known by.
+ *
+ * The media server gives one, in `tmdb_id`, and a re-cut it matched to nothing
+ * has the other, in `cut_provider_id`, worked out from its name by
+ * `linkUnmatchedCuts`. Three different reads needed the same pair of
+ * conditions, and they must stay the same pair: a title reachable by one of
+ * them and not the other is a title that is on the server while search still
+ * offers to request it.
+ */
+export function matchesProviderId(providerId: string) {
+  return or(
+    eq(libraryItems.tmdbId, providerId),
+    eq(libraryItems.cutProviderId, providerId),
+  );
+}
+
+/** The same question, asked of several ids at once. */
+export function matchesAnyProviderId(providerIds: string[]) {
+  return or(
+    inArray(libraryItems.tmdbId, providerIds),
+    inArray(libraryItems.cutProviderId, providerIds),
+  );
+}
+
+/**
+ * A server that matched the series itself answers before one Umbra had to work
+ * out, so a library holding both reads as the series rather than the re-cut.
+ */
+export const REAL_MATCH_FIRST = sql`${libraryItems.tmdbId} NULLS LAST`;
 
 /**
  * The re-cut a title on the server is in, or nothing.
@@ -384,18 +439,8 @@ async function libraryTitleOf(providerId: string): Promise<string | null> {
   const [row] = await db()
     .select({ title: libraryItems.title })
     .from(libraryItems)
-    .where(
-      and(
-        eq(libraryItems.kind, "show"),
-        or(
-          eq(libraryItems.tmdbId, providerId),
-          eq(libraryItems.cutProviderId, providerId),
-        ),
-      ),
-    )
-    // A server that matched the series itself answers before one Umbra had to
-    // work out, so a library holding both never reads as the re-cut.
-    .orderBy(sql`${libraryItems.tmdbId} NULLS LAST`)
+    .where(and(eq(libraryItems.kind, "show"), matchesProviderId(providerId)))
+    .orderBy(REAL_MATCH_FIRST)
     .limit(1);
   return row?.title ?? null;
 }

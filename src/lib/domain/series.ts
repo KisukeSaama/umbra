@@ -1,12 +1,13 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
   episodeTasks,
   episodes,
   media,
+  mediaRequests,
   trackedSeries,
   type EpisodeStatus,
 } from "@/lib/db/schema";
@@ -75,6 +76,7 @@ export async function syncSeriesEpisodes(seriesId: string, providerId: string) {
       season.seasonNumber,
     );
     if (seasonEpisodes.length === 0) continue;
+    const numbers = seasonEpisodes.map((episode) => episode.episodeNumber);
 
     await db()
       .insert(episodes)
@@ -101,16 +103,44 @@ export async function syncSeriesEpisodes(seriesId: string, providerId: string) {
           updatedAt: new Date(),
         },
       });
+    /*
+     * A provider that renumbers a season, or drops an episode it had
+     * announced, leaves a row behind. Nothing ever aired under that number, so
+     * it would sit as `aired_missing` with a task open against it for good.
+     *
+     * Scoped to the seasons that just answered, and never to the ones that did
+     * not: a season whose call failed or came back empty keeps everything it
+     * had rather than being taken as an answer of "no episodes".
+     */
+    await db()
+      .delete(episodes)
+      .where(
+        and(
+          eq(episodes.seriesId, seriesId),
+          eq(episodes.seasonNumber, season.seasonNumber),
+          notInArray(episodes.episodeNumber, numbers),
+        ),
+      );
+
     count += seasonEpisodes.length;
   }
 
+  /*
+   * A finished show stays tracked but stops asking for attention, and a show
+   * that comes back starts again. Written only when the provider's own answer
+   * changes, though: writing it on every sync overruled the administrator, who
+   * could turn an ended series back on and find it off twelve hours later.
+   */
   await db()
     .update(trackedSeries)
     .set({
       lastSyncedAt: new Date(),
       providerStatus: details.status,
-      // A finished show stays tracked but stops asking for attention.
-      enabled: isRunning(details),
+      enabled: sql`CASE
+        WHEN ${trackedSeries.providerStatus} IS DISTINCT FROM ${details.status}
+        THEN ${isRunning(details)}
+        ELSE ${trackedSeries.enabled}
+      END`,
     })
     .where(eq(trackedSeries.id, seriesId));
 
@@ -147,7 +177,44 @@ export async function reconcileEpisodes(): Promise<{
        AND e.plex_available = FALSE
   `);
 
-  // 2. What has aired but is absent. No dependency on when this runs: an
+  /*
+   * 2. What the server no longer holds.
+   *
+   * Presence used to be a one-way door: an episode marked available stayed
+   * available even after its file was deleted, so the gap never reappeared in
+   * the calendar, no task was raised, and a report saying the series was
+   * behind could resolve itself against a calendar that claimed everything was
+   * there.
+   *
+   * Only for a series whose entry on the server is known, and read as an
+   * absence from the index rather than as an answer from the server: a sync
+   * that failed leaves the index as it was, so nothing here flips.
+   */
+  await db().execute(sql`
+    UPDATE episode AS e
+       SET plex_available = FALSE,
+           plex_checked_at = now(),
+           status = CASE
+             WHEN e.air_date IS NOT NULL AND e.air_date <= CURRENT_DATE
+             THEN 'aired_missing'
+             ELSE 'scheduled'
+           END,
+           updated_at = now()
+      FROM tracked_series AS s
+     WHERE e.series_id = s.id
+       AND e.plex_available = TRUE
+       AND s.plex_rating_key IS NOT NULL
+       AND NOT EXISTS (
+             SELECT 1
+               FROM library_item AS l
+              WHERE l.grandparent_rating_key = s.plex_rating_key
+                AND l.kind = 'episode'
+                AND l.season_number = e.season_number
+                AND l.episode_number = e.episode_number
+           )
+  `);
+
+  // 3. What has aired but is absent. No dependency on when this runs: an
   //    episode released during downtime is caught on the next pass.
   const missingResult = await db().execute(sql`
     UPDATE episode AS e
@@ -160,7 +227,7 @@ export async function reconcileEpisodes(): Promise<{
        AND e.status <> 'aired_missing'
   `);
 
-  // 3. One task per missing episode. `ON CONFLICT DO NOTHING` on the episode
+  // 4. One task per missing episode. `ON CONFLICT DO NOTHING` on the episode
   //    key means a rerun never creates a duplicate.
   const openedResult = await db().execute(sql`
     INSERT INTO episode_task (episode_id)
@@ -172,7 +239,7 @@ export async function reconcileEpisodes(): Promise<{
     ON CONFLICT (episode_id) DO NOTHING
   `);
 
-  // 4. Tasks whose episode has arrived close themselves.
+  // 5. Tasks whose episode has arrived close themselves.
   await db().execute(sql`
     UPDATE episode_task AS t
        SET status = 'done',
@@ -181,6 +248,26 @@ export async function reconcileEpisodes(): Promise<{
      WHERE t.episode_id = e.id
        AND t.status = 'open'
        AND e.plex_available = TRUE
+  `);
+
+  /*
+   * 6. A task whose episode has gone away again opens back up.
+   *
+   * There is one task per episode for the life of that episode, so a closed
+   * one is the only thing that can carry the shortfall a second time. A task
+   * the administration dismissed is left alone: that was an answer, and this
+   * is not the place to argue with it.
+   */
+  await db().execute(sql`
+    UPDATE episode_task AS t
+       SET status = 'open',
+           completed_at = NULL
+      FROM episode AS e
+      JOIN tracked_series AS s ON s.id = e.series_id
+     WHERE t.episode_id = e.id
+       AND t.status = 'done'
+       AND e.status = 'aired_missing'
+       AND s.enabled = TRUE
   `);
 
   return {
@@ -251,8 +338,11 @@ export async function upcomingEpisodes(
     .limit(limit);
 }
 
-export async function listTrackedSeries() {
-  return db()
+export async function listTrackedSeries(
+  /** The slice to read, when the caller pages. Everything, when it does not. */
+  window?: { limit: number; offset: number },
+) {
+  const query = db()
     .select({
       id: trackedSeries.id,
       title: media.title,
@@ -270,26 +360,41 @@ export async function listTrackedSeries() {
     .from(trackedSeries)
     .innerJoin(media, eq(media.id, trackedSeries.mediaId))
     .orderBy(asc(media.title));
+
+  return window ? query.limit(window.limit).offset(window.offset) : query;
+}
+
+/** How many series are under watch, for the pager above the list. */
+export async function countTrackedSeries(): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(trackedSeries);
+  return row?.count ?? 0;
 }
 
 export async function listOpenEpisodeTasks() {
-  return db()
-    .select({
-      id: episodeTasks.id,
-      createdAt: episodeTasks.createdAt,
-      seriesTitle: media.title,
-      posterPath: media.posterPath,
-      seasonNumber: episodes.seasonNumber,
-      episodeNumber: episodes.episodeNumber,
-      episodeTitle: episodes.title,
-      airDate: episodes.airDate,
-    })
-    .from(episodeTasks)
-    .innerJoin(episodes, eq(episodes.id, episodeTasks.episodeId))
-    .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
-    .innerJoin(media, eq(media.id, trackedSeries.mediaId))
-    .where(eq(episodeTasks.status, "open"))
-    .orderBy(asc(episodes.airDate));
+  return (
+    db()
+      .select({
+        id: episodeTasks.id,
+        createdAt: episodeTasks.createdAt,
+        seriesTitle: media.title,
+        posterPath: media.posterPath,
+        seasonNumber: episodes.seasonNumber,
+        episodeNumber: episodes.episodeNumber,
+        episodeTitle: episodes.title,
+        airDate: episodes.airDate,
+      })
+      .from(episodeTasks)
+      .innerJoin(episodes, eq(episodes.id, episodeTasks.episodeId))
+      .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
+      .innerJoin(media, eq(media.id, trackedSeries.mediaId))
+      .where(eq(episodeTasks.status, "open"))
+      .orderBy(asc(episodes.airDate))
+      // Bounded: a tracker catching up on a long-running show can raise hundreds
+      // of these, and the page is a working queue rather than an archive.
+      .limit(200)
+  );
 }
 
 export async function closeEpisodeTask(
@@ -322,7 +427,14 @@ export async function linkSeriesToLibrary(): Promise<number> {
   return result.count ?? 0;
 }
 
-/** Shows due for a resync: active ones first, oldest sync first. */
+/**
+ * Shows due for a resync: active ones first, oldest sync first.
+ *
+ * A show that is off is looked at too, once a week rather than twice a day.
+ * Without that it could never come back: the provider is the only thing that
+ * knows a finished series has been renewed, and a series nobody resyncs is
+ * never asked about again.
+ */
 export async function seriesDueForSync(limit = 20) {
   return db()
     .select({
@@ -333,11 +445,57 @@ export async function seriesDueForSync(limit = 20) {
     .from(trackedSeries)
     .innerJoin(media, eq(media.id, trackedSeries.mediaId))
     .where(
+      sql`(
+        ${trackedSeries.lastSyncedAt} IS NULL
+        OR ${trackedSeries.lastSyncedAt} < now() - CASE
+             WHEN ${trackedSeries.enabled} THEN INTERVAL '12 hours'
+             ELSE INTERVAL '7 days'
+           END
+      )`,
+    )
+    .orderBy(
+      desc(trackedSeries.enabled),
+      sql`${trackedSeries.lastSyncedAt} NULLS FIRST`,
+    )
+    .limit(limit);
+}
+
+/**
+ * Series an accepted request should have put under watch, and did not.
+ *
+ * Accepting is what starts the tracker, and that call reaches the metadata
+ * provider: when it does not answer, the decision still stands and the series
+ * is left untracked. Rather than fail the decision, this picks up the leftovers
+ * on the next cycle. Idempotent, since tracking a series that is already
+ * tracked is an upsert.
+ */
+export async function trackAcceptedSeries(limit = 10): Promise<number> {
+  const rows = await db()
+    .select({ providerId: media.providerId })
+    .from(mediaRequests)
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .where(
       and(
-        eq(trackedSeries.enabled, true),
-        sql`(${trackedSeries.lastSyncedAt} IS NULL OR ${trackedSeries.lastSyncedAt} < now() - INTERVAL '12 hours')`,
+        eq(media.mediaType, "tv"),
+        inArray(mediaRequests.status, ["accepted", "processing"]),
+        sql`NOT EXISTS (
+          SELECT 1 FROM tracked_series AS s WHERE s.media_id = ${media.id}
+        )`,
       ),
     )
-    .orderBy(sql`${trackedSeries.lastSyncedAt} NULLS FIRST`)
     .limit(limit);
+
+  let tracked = 0;
+  for (const row of rows) {
+    try {
+      await trackSeries(row.providerId);
+      tracked += 1;
+    } catch (error) {
+      console.warn(
+        `[series] deferred tracking failed providerId=${row.providerId}`,
+        error,
+      );
+    }
+  }
+  return tracked;
 }

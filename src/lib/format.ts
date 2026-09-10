@@ -46,6 +46,23 @@ export function toDate(value: Date | string): Date {
   return typeof value === "string" ? new Date(`${value}T12:00:00Z`) : value;
 }
 
+/**
+ * Today, as a date-only key: `2026-09-09`.
+ *
+ * The one calendar everything is judged against. The database asks
+ * `air_date <= CURRENT_DATE`, which is the day where the server stands, so a
+ * page that compared an air date with an instant instead read a different day
+ * for part of every day: the calendar said an episode had aired and raised a
+ * task for it while the page still called it scheduled. Both sides now ask the
+ * same question of the same clock.
+ */
+export function dayKey(value: Date = new Date()): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 /** `9 Sept 2026`, or the long month when the date is the point of the line. */
 export function formatDate(
   value: Date | string,
