@@ -143,11 +143,11 @@ components:
     padding: "8px 16px"
   hero-search:
     backgroundColor: "{colors.sheet}"
-    textColor: "{colors.ink}"
+    textColor: "{colors.muted-ink}"
     rounded: "{rounded.full}"
-    padding: "8px"
-    height: "60px"
-    width: "768px"
+    padding: "0 24px"
+    height: "56px"
+    width: "576px"
 ---
 
 # Design System: Umbra
@@ -268,7 +268,7 @@ shadow: the hero search field. Floating layers the user summoned (dialogs,
 dropdowns, toasts) keep the elevation their primitives ship with.
 
 - **Card ring**: `ring-1 ring-foreground/10`, that is `0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent)`. Every card, at rest and on hover. A contour, not a shadow.
-- **Hero lift**: `shadow-lg`, the home search field only.
+- **Hero lift**: `shadow-lg`, the home search field only. The field is drawn as the field it stands for, loupe, placeholder and key caps, full width on a phone and 36rem at most, and opens the one palette in the header: a front door is recognised by its shape, and a button that says "Search" is not one.
 - **Moon glow**: `.umbra-glow`, two radial gradients (primary at 78 percent horizontal, moon blue at 12 percent, both bleeding off the top edge). Atmosphere, not elevation. Full strength (22 and 14 percent) on the home hero, on sign-in and on the not-found screen; `.umbra-dawn` drops it to 7 and 5 percent for the band the site layout hangs at the top of every other page, and the band steps aside wherever a hero already carries the full one. The point is continuity: the top of a page is never flat paper on one screen and weather on the next, so moving between them changes the brightness of the sky rather than swapping one background for another.
 
 **The Flat-By-Default Rule.** Reaching for `shadow-md` on a card means you want a

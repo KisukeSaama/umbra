@@ -221,11 +221,13 @@ export function CommandPalette() {
         {t("common.search")}
       </DialogTrigger>
 
-      {/* Hung from the top of a phone rather than centred on it: the keyboard
-          takes the lower half the moment the field is focused, and a centred
-          panel is then pushed about under it. Centred from the small
-          breakpoint, where there is room. */}
-      <DialogContent className="top-[max(1rem,env(safe-area-inset-top))] translate-y-0 sm:top-1/2 sm:max-w-2xl sm:-translate-y-1/2">
+      {/* Hung from the top rather than centred, at every width. On a phone the
+          keyboard takes the lower half the moment the field is focused, and a
+          centred panel is pushed about under it; on a desk a centred panel
+          re-centres every time the list under the field grows or shrinks,
+          so the field the eye is on jumps with each keystroke. Anchored, the
+          panel grows downwards and the field stays put. */}
+      <DialogContent className="top-[max(1rem,env(safe-area-inset-top))] translate-y-0 sm:top-[12vh] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("common.search")}</DialogTitle>
           <DialogDescription>{t("search.subtitle")}</DialogDescription>
