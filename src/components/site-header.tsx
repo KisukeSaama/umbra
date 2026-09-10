@@ -44,7 +44,7 @@ export async function SiteHeader({
     <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
       <div
         className={cn(
-          "flex h-16 items-center justify-between gap-4",
+          "flex h-16 items-center justify-between gap-2 sm:gap-4",
           full ? "w-full px-4 sm:px-6 lg:px-8" : "umbra-container",
         )}
       >
@@ -52,14 +52,17 @@ export async function SiteHeader({
           href="/"
           className="focus-visible:ring-ring/50 rounded-lg outline-none focus-visible:ring-3"
         >
-          <UmbraWordmark forLabel={t("brand.for")} compact />
+          {/* On a phone the mark stands alone: the row now carries the words
+              "search" and "Plex" beside their icons, and the lockup's two lines
+              are the one thing on it that the hero says again below. */}
+          <UmbraWordmark forLabel={t("brand.for")} compact markOnlyBelowSm />
         </Link>
 
         <div className="hidden md:block">
           <MainNav isStaff={isStaff} />
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           {account ? (
             <>
               {/* Search lives here now, one keystroke from every page: checking
@@ -87,7 +90,7 @@ export async function SiteHeader({
           administrator's fifth entry does not fit, rather than being clipped. */}
       {narrow ? null : (
         <div className="umbra-container flex overflow-x-auto pb-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
-          <div className="mx-auto shrink-0">
+          <div className="mx-auto w-full min-w-fit">
             <MainNav isStaff={isStaff} />
           </div>
         </div>

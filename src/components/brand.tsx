@@ -61,19 +61,27 @@ export function UmbraWordmark({
   className,
   compact = false,
   withMark = true,
+  markOnlyBelowSm = false,
 }: {
   forLabel: string;
   className?: string;
   compact?: boolean;
   /** Dropped where the full figure already stands above, to show one dog, not two. */
   withMark?: boolean;
+  /** On a phone, the mark alone: for a header row that needs the room. */
+  markOnlyBelowSm?: boolean;
 }) {
   return (
     <span className={cn("flex items-center gap-2.5", className)}>
       {withMark ? (
         <UmbraMark className={compact ? "size-9" : "size-11"} />
       ) : null}
-      <span className="flex flex-col leading-none">
+      <span
+        className={cn(
+          "flex flex-col leading-none",
+          markOnlyBelowSm && "hidden sm:flex",
+        )}
+      >
         <span
           className={cn(
             "font-semibold tracking-[0.22em] uppercase",
