@@ -304,16 +304,29 @@ render and dropped (see `docs/adr/0015-suggestions-seeded-on-titles.md`). Every
 card carries its state, so "is this already here" is answered by looking rather
 than by searching.
 
-The guided picker, for the evenings where even a shelf is too much. Four closed
-questions, then a small selection in two halves: what is already on the server,
-so the evening can start now, and what is not, so there is something to ask for.
-It replaced a die that returned one random title, which was a shrug rather than
-an answer. Both halves start from the same ranking as the personal shelf,
-filtered by the answers, so "make me laugh" answers with comedies close to what
-the member watches rather than the best rated comedies in the world, and the
-mood alone fills what that ranking cannot. Anime is one of those four questions and not one of the moods: a mood
-is what a title is about, anime is how it is made, so a romance can be asked for
-without anime, with anime, or only in anime.
+The guided picker asks for format, genre, then Animation or Live Action, with an
+indifferent answer on every axis. Animation includes every country and style.
+Each selected answer reveals a short explanation below its buttons. Films then
+ask for under two hours or unrestricted length; series ask for a finished single
+season of up to ten episodes, multiple seasons, or any commitment. Choosing
+either format skips this final constraint. A separate button submits the answers,
+so the final explanation remains readable before results replace the questions.
+
+The selection has two halves: titles on the server and titles worth requesting.
+Both start from the personal ranking and are completed by matching listings.
+Runtime and series commitment are checked against provider details in both halves;
+unknown details never qualify for a constraint. TV horror and romance use provider
+keywords because TV does not have those genre categories.
+
+"Surprise me" bypasses the questions, using familiar genres from the taste profile
+and the existing personal ranking. Without a profile, the fallback is a varied
+selection. It stores no additional viewing data.
+
+The personal shelf uses the same familiar-genre queries as "Surprise me".
+Recommendations outside those genres are removed before the shelf limit, while
+the ranking from recent titles, saga diversity and exclusion of watched titles
+are preserved. If nothing qualifies, matching genre listings fill the shelf and
+still exclude titles known to have been watched in the current window.
 
 Everything Umbra puts forward on its own has to be worth the evening. A shelf and
 a picker are recommendations, not results, so both halves of a selection sit

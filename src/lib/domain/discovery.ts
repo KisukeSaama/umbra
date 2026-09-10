@@ -31,6 +31,7 @@ import {
 import {
   discoverQueriesFor,
   matchesQuery,
+  matchesCommitment,
   type Mood,
   type PickerChoice,
 } from "@/lib/discovery/moods";
@@ -40,7 +41,7 @@ import type {
   MediaKind,
   MediaSummary,
 } from "@/lib/providers/metadata";
-import { plexLibrary } from "@/lib/providers/plex";
+import { plexDetailsUrl, plexLibrary } from "@/lib/providers/plex";
 import { RATING_FLOOR, tmdbProvider } from "@/lib/providers/tmdb";
 
 /**
@@ -159,14 +160,19 @@ export const forYouShelf = cache(async function forYouShelf(
   accountId: string,
   language?: string,
 ): Promise<CatalogResult[]> {
-  const personal = await personalAnswers(accountId, language);
-  if (!personal) return genreShelf(accountId, language);
+  const [personal, queries] = await Promise.all([
+    personalAnswers(accountId, language),
+    familiarQueries(accountId),
+  ]);
+  if (!personal) return genreShelf(queries, language);
 
   const shelf = blend(personal.answers, {
     watched: personal.watched,
     ratingFloor: RATING_FLOOR,
+    accepts: (item) => queries.some((query) => matchesQuery(item, query)),
   });
-  if (shelf.length === 0) return genreShelf(accountId, language);
+  if (shelf.length === 0)
+    return genreShelf(queries, language, personal.watched);
   return quietly(async () => shelf);
 });
 
@@ -294,39 +300,32 @@ async function rows(
  * It asks for both kinds and interleaves them.
  */
 async function genreShelf(
-  accountId: string,
+  queries: DiscoverQuery[],
   language?: string,
+  watched = new Set<string>(),
 ): Promise<CatalogResult[]> {
-  const [movieGenres, showGenres] = await Promise.all([
-    topGenres(accountId, "movie"),
-    topGenres(accountId, "tv"),
-  ]);
-  if (movieGenres.length === 0 && showGenres.length === 0) return [];
-
-  const [movies, shows] = await Promise.all([
-    movieGenres.length
-      ? quietly(() =>
-          tmdbProvider.discoverBy({
-            kind: "movie",
-            genreIds: movieGenres,
-            sortBy: "rating",
-            language,
-          }),
-        )
-      : Promise.resolve([]),
-    showGenres.length
-      ? quietly(() =>
-          tmdbProvider.discoverBy({
-            kind: "tv",
-            genreIds: showGenres,
-            sortBy: "rating",
-            language,
-          }),
-        )
-      : Promise.resolve([]),
-  ]);
+  const [movies, shows] = await Promise.all(
+    queries.map((query) =>
+      quietly(async () =>
+        (await tmdbProvider.discoverBy({ ...query, language })).filter(
+          (item) => !watched.has(keyOf(item)),
+        ),
+      ),
+    ),
+  );
 
   return interleave(movies, shows).slice(0, 18);
+}
+
+/** Shared comfort zone for the personal shelf and the surprise shortcut. */
+async function familiarQueries(accountId: string): Promise<DiscoverQuery[]> {
+  return Promise.all(
+    (["movie", "tv"] as const).map(async (kind) => ({
+      kind,
+      genreIds: await topGenres(accountId, kind),
+      sortBy: "rating" as const,
+    })),
+  );
 }
 
 export const genreOptions = cache(async function genreOptions(
@@ -343,7 +342,7 @@ export const genreOptions = cache(async function genreOptions(
 
 export type GuidedSelection = {
   /** Already here: the evening can start now. */
-  tonight: RecentItem[];
+  tonight: (RecentItem & { plexUrl: string | null })[];
   /** Not here: worth asking for. */
   ideas: CatalogResult[];
 };
@@ -360,10 +359,13 @@ export async function guidedSelection(
   choice: PickerChoice,
   language?: string,
   accountId?: string,
+  surprise = false,
 ): Promise<GuidedSelection> {
-  const queries = discoverQueriesFor(choice);
+  const queries =
+    surprise && accountId
+      ? await familiarQueries(accountId)
+      : discoverQueriesFor(choice);
   const personal = accountId ? await personalRanking(accountId, language) : [];
-  const count = queries.length > 1 ? 2 : 3;
 
   /*
    * Each half starts from the member and is completed by the mood.
@@ -376,35 +378,91 @@ export async function guidedSelection(
    */
   const halves = await Promise.all(
     queries.map(async (query) => {
-      const fits = personal.filter((item) => matchesQuery(item, query));
+      const fits = personal.filter((item) =>
+        matchesQuery(item, { ...query, runtimeLte: undefined }),
+      );
       const [onServer, random, rolled, fitting] = await Promise.all([
         availableByProviderIds(
           query.kind,
           fits.map((item) => item.providerId),
         ),
-        randomAvailableByGenres(
-          query.kind,
-          query.genreIds ?? [],
-          count * 2,
-          query.excludeGenreIds ?? [],
-          query.requireGenreIds ?? [],
-        ),
+        query.keyword
+          ? Promise.resolve([])
+          : randomAvailableByGenres(
+              query.kind,
+              query.genreIds ?? [],
+              12,
+              query.excludeGenreIds ?? [],
+              query.requireGenreIds ?? [],
+            ),
         rolledPage(query, language),
         quietly(async () => fits),
       ]);
 
+      // Details are checked before either half is cut down to its display size.
+      const commitment = choice.commitment ?? "any";
+      const needsDetails =
+        query.runtimeLte !== undefined ||
+        (query.kind === "tv" && commitment !== "any");
+      const eligible = async <T extends { providerId: string | null }>(
+        items: T[],
+      ): Promise<T[]> => {
+        if (!needsDetails) return items;
+        const accepted: T[] = [];
+        // Bound work and concurrency; Janus owns response caching and retries.
+        for (let offset = 0; offset < Math.min(items.length, 24); offset += 4) {
+          const batch = items.slice(offset, offset + 4);
+          const checks = await Promise.all(
+            batch.map(async (item) => {
+              if (!item.providerId) return false;
+              try {
+                if (query.kind === "tv")
+                  return matchesCommitment(
+                    await tmdbProvider.seriesDetails(item.providerId, language),
+                    commitment,
+                  );
+                const details = await tmdbProvider.details(
+                  "movie",
+                  item.providerId,
+                  language,
+                );
+                return (
+                  typeof details.runtime === "number" &&
+                  details.runtime > 0 &&
+                  details.runtime <= query.runtimeLte!
+                );
+              } catch (error) {
+                console.warn("[discovery] picker details unavailable", error);
+                return false;
+              }
+            }),
+          );
+          accepted.push(...batch.filter((_, index) => checks[index]));
+        }
+        return accepted;
+      };
+      const listedOnServer = await availableByProviderIds(
+        query.kind,
+        rolled.map((item) => item.providerId),
+      );
+      const [eligibleServer, eligibleIdeas] = await Promise.all([
+        eligible(
+          uniqueBy(
+            [...onServer, ...listedOnServer, ...random],
+            (item) => item.ratingKey,
+          ),
+        ),
+        eligible(uniqueBy([...fitting, ...rolled], (item) => item.providerId)),
+      ]);
       const tonight = uniqueBy(
-        [...sampleTop(onServer, count, PERSONAL_POOL), ...random],
+        sampleTop(eligibleServer, PICKS_PER_SECTION, PERSONAL_POOL),
         (item) => item.ratingKey,
-      ).slice(0, count);
+      ).slice(0, PICKS_PER_SECTION);
 
       const absent = (items: CatalogResult[]) =>
         items.filter((item) => item.availability === "absent");
       const ideas = uniqueBy(
-        [
-          ...sampleTop(absent(fitting), IDEAS / queries.length, PERSONAL_POOL),
-          ...absent(rolled),
-        ],
+        [...sampleTop(absent(eligibleIdeas), PICKS_PER_SECTION, PERSONAL_POOL)],
         (item) => `${item.kind}:${item.providerId}`,
       );
 
@@ -412,23 +470,39 @@ export async function guidedSelection(
     }),
   );
 
-  // Nothing is substituted when the server holds nothing for this mood. Three
+  // Nothing is substituted when the server holds nothing for this mood. Unrelated
   // titles drawn at random under a heading that answers a question they were
   // not chosen for is worse than an empty half: it reads as the answer, and it
   // is what made "make me laugh" reply with a horror film. The picker shows the
   // half it has.
   const [first, second] = halves;
+  const tonight = (
+    second ? interleave(first.tonight, second.tonight) : first.tonight
+  ).slice(0, PICKS_PER_SECTION);
+  let machineIdentifier: string | null = null;
+  if (tonight.length > 0) {
+    try {
+      machineIdentifier = await plexLibrary.machineIdentifier();
+    } catch (error) {
+      console.warn("[discovery] Plex link unavailable", error);
+    }
+  }
   return {
-    tonight: halves.flatMap((half) => half.tonight).slice(0, 3),
+    tonight: tonight.map((item) => ({
+      ...item,
+      plexUrl: machineIdentifier
+        ? plexDetailsUrl(machineIdentifier, item.ratingKey)
+        : null,
+    })),
     ideas: (second ? interleave(first.ideas, second.ideas) : first.ideas).slice(
       0,
-      IDEAS,
+      PICKS_PER_SECTION,
     ),
   };
 }
 
-/** How many ideas the picker shows. */
-const IDEAS = 6;
+/** Both sections offer the same number of choices when enough titles qualify. */
+const PICKS_PER_SECTION = 6;
 
 /** How far down the personal ranking a roll may draw. */
 const PERSONAL_POOL = 8;

@@ -198,12 +198,15 @@ export function blend(
     ratingFloor,
     size = SHELF_SIZE,
     perSeed = PER_SEED,
+    accepts = () => true,
   }: {
     watched: Set<string>;
     ratingFloor: number;
     size?: number;
     /** The picker filters afterwards, so it asks for the whole ranking. */
     perSeed?: number;
+    /** Apply preferences before the shelf limit without changing provider rank. */
+    accepts?: (item: MediaSummary) => boolean;
   },
 ): MediaSummary[] {
   const saga = sagasOf(answers);
@@ -213,7 +216,12 @@ export function blend(
     const group = saga.get(keyOf(seed)) ?? keyOf(seed);
     items.forEach((item, position) => {
       const key = keyOf(item);
-      if (watched.has(key) || !worthSuggesting(item, ratingFloor)) return;
+      if (
+        watched.has(key) ||
+        !worthSuggesting(item, ratingFloor) ||
+        !accepts(item)
+      )
+        return;
 
       const share = seed.weight / (1 + position * POSITION_DECAY);
       const tally = tallies.get(key) ?? { item, bySaga: new Map() };

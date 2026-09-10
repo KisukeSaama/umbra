@@ -2,12 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import {
   itemsFrom,
+  plexDetailsUrl,
   sectionId,
   serverAccountId,
   watchEventsFrom,
 } from "@/lib/providers/plex";
 
 describe("library parsing", () => {
+  it("links to the exact Plex metadata key without credentials or autoplay", () => {
+    const url = new URL(plexDetailsUrl("server-id", "1234"));
+    expect(url.origin).toBe("https://app.plex.tv");
+    expect(url.hash).toBe(
+      "#!/server/server-id/details?key=%2Flibrary%2Fmetadata%2F1234",
+    );
+    expect(url.search).toBe("");
+  });
+
   it("reads a movie and its provider mappings", () => {
     const items = itemsFrom(
       {

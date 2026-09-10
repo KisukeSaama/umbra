@@ -21,6 +21,33 @@ import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
 
 const FLOOR = 6.5;
 
+describe("familiar genres", () => {
+  it("filters before the shelf limit while preserving ranked familiar choices", () => {
+    const shelf = blend(
+      [
+        {
+          seed: seed("source"),
+          items: [
+            title("unfamiliar", { genreIds: [27] }),
+            title("familiar-1", { genreIds: [35] }),
+            title("familiar-2", { genreIds: [35, 18] }),
+          ],
+        },
+      ],
+      {
+        watched: new Set(),
+        ratingFloor: FLOOR,
+        size: 2,
+        accepts: (item) => item.genreIds.includes(35),
+      },
+    );
+    expect(shelf.map((item) => item.providerId)).toEqual([
+      "familiar-1",
+      "familiar-2",
+    ]);
+  });
+});
+
 function title(
   id: string,
   over: Partial<MediaSummary> = {},

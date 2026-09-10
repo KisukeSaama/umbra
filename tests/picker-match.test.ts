@@ -40,7 +40,7 @@ describe("reading a row against a query", () => {
     expect(matchesQuery({ kind: "tv", genreIds: [35] }, laughFilm)).toBe(false);
   });
 
-  it("holds 'only anime' to the origin, not the genre alone", () => {
+  it("accepts animation regardless of original language", () => {
     const [onlyAnime] = discoverQueriesFor({
       mood: "adventure",
       anime: "only",
@@ -59,7 +59,7 @@ describe("reading a row against a query", () => {
         { kind: "movie", genreIds: drawn, originalLanguage: "en" },
         onlyAnime,
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       matchesQuery(
         { kind: "movie", genreIds: [12], originalLanguage: "ja" },
