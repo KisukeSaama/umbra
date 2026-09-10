@@ -1,7 +1,6 @@
-import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { db } from "@/lib/db";
+import { ping } from "@/lib/db";
 
 /**
  * Liveness for the container healthcheck.
@@ -12,7 +11,7 @@ import { db } from "@/lib/db";
  */
 export async function GET() {
   try {
-    await db().execute(sql`SELECT 1`);
+    await ping();
     return NextResponse.json({ status: "ok" });
   } catch (error) {
     console.error("[health] database unreachable", error);

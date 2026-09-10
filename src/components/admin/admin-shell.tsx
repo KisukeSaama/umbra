@@ -11,8 +11,14 @@ import {
   isCurrent,
   type AdminLink,
 } from "@/components/admin/nav-links";
-import { ChevronLeftIcon, CloseIcon, MenuIcon } from "@/components/icons";
+import { ChevronLeftIcon, MenuIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import type { AdminCounts } from "@/lib/domain/admin";
 import { useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -32,6 +38,13 @@ import { cn } from "@/lib/utils";
  * The assistants share this workspace minus what hands out access: the accounts
  * section is not drawn for them. Hiding is a courtesy, not the guard, and the
  * page and the route check for themselves.
+ *
+ * The drawer is a real dialog rather than a panel that says it is one. It used
+ * to announce `aria-modal` while leaving focus behind on the page underneath,
+ * so Tab walked out of the open menu into the content it was covering and
+ * closing it left the keyboard nowhere. Moving the focus, trapping it and
+ * giving it back is exactly what the dialog primitive already does, and it
+ * brings the Escape key and the scroll lock with it.
  */
 export function AdminShell({
   counts,
@@ -58,63 +71,55 @@ export function AdminShell({
     setOpen(false);
   }
 
+  // From the large breakpoint the sidebar is there at rest and the drawer has
+  // nothing left to open, so a window growing past it closes the drawer: a
+  // modal dialog left open under a layout that no longer needs it would hold
+  // the focus in a menu with no reason left to be there. Only the crossing is
+  // watched, never the current width, because the only way in is a button that
+  // exists below that breakpoint alone.
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+    const wide = window.matchMedia("(min-width: 64rem)");
+    const onChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setOpen(false);
     };
-    document.addEventListener("keydown", onKey);
-    // Nothing should scroll behind an open drawer.
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
+    wide.addEventListener("change", onChange);
+    return () => wide.removeEventListener("change", onChange);
   }, [open]);
 
   return (
-    <div className="flex w-full flex-1">
-      {/* Resting sidebar, wide screens only. Sticky under the site header, with
-          its own scroll so a long list never pushes the page down. */}
-      <aside className="border-border/60 sticky top-16 hidden h-[calc(100svh-4rem)] w-60 shrink-0 flex-col overflow-y-auto border-r px-3 py-6 lg:flex">
-        <NavList links={links} counts={counts} pathname={pathname} />
-        <BackToSite />
-      </aside>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <div className="flex w-full flex-1">
+        {/* Resting sidebar, wide screens only. Sticky under the site header,
+            with its own scroll so a long list never pushes the page down. */}
+        <aside className="border-border/60 sticky top-16 hidden h-[calc(100svh-4rem)] w-60 shrink-0 flex-col overflow-y-auto border-r px-3 py-6 lg:flex">
+          <NavList links={links} counts={counts} pathname={pathname} />
+          <BackToSite className="mt-auto" />
+        </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <SectionBar
-          current={current}
-          counts={counts}
-          onOpen={() => setOpen(true)}
-        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <SectionBar current={current} counts={counts} />
 
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-          <div className="mb-6 lg:mb-8">
-            <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
-              {t("admin.title")}
-            </p>
-            <h1 className="mt-1 text-3xl tracking-tight sm:text-4xl">
-              {t(current.key)}
-            </h1>
-            <p className="text-muted-foreground mt-2 max-w-prose text-sm">
-              {t(current.hint)}
-            </p>
-          </div>
+          <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+            <div className="mb-6 lg:mb-8">
+              <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
+                {t("admin.title")}
+              </p>
+              <h1 className="mt-1 text-3xl tracking-tight sm:text-4xl">
+                {t(current.key)}
+              </h1>
+              <p className="text-muted-foreground mt-2 max-w-prose text-sm">
+                {t(current.hint)}
+              </p>
+            </div>
 
-          <div className="space-y-6">{children}</div>
-        </main>
+            <div className="space-y-6">{children}</div>
+          </main>
+        </div>
+
+        <Drawer links={links} counts={counts} pathname={pathname} />
       </div>
-
-      {open ? (
-        <Drawer
-          links={links}
-          counts={counts}
-          pathname={pathname}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
-    </div>
+    </Dialog>
   );
 }
 
@@ -127,21 +132,19 @@ export function AdminShell({
 function SectionBar({
   current,
   counts,
-  onOpen,
 }: {
   current: AdminLink;
   counts: AdminCounts;
-  onOpen: () => void;
 }) {
   const t = useTranslator();
   const Icon = current.icon;
 
   return (
     <div className="border-border/60 bg-background/80 sticky top-16 z-30 flex items-center gap-2 border-b px-4 py-2 backdrop-blur sm:px-6 lg:hidden">
-      <Button variant="ghost" size="sm" onClick={onOpen} aria-haspopup="dialog">
+      <DialogTrigger render={<Button variant="ghost" size="sm" />}>
         <MenuIcon />
         {t("admin.nav.sections")}
-      </Button>
+      </DialogTrigger>
 
       <span className="text-muted-foreground ml-auto flex min-w-0 items-center gap-1.5 text-sm">
         <Icon className="shrink-0" />
@@ -152,51 +155,35 @@ function SectionBar({
   );
 }
 
+/**
+ * The sections, as a sheet down the left edge.
+ *
+ * The same panel as before, on the dialog primitive: it travels in from the
+ * side rather than growing out of the middle, so the geometry and the one
+ * motion the panel has are all that is restyled. The heading is the dialog
+ * title, which is what names the drawer to a reader who cannot see it, and the
+ * close button is the primitive's own.
+ */
 function Drawer({
   links,
   counts,
   pathname,
-  onClose,
 }: {
   links: AdminLink[];
   counts: AdminCounts;
   pathname: string;
-  onClose: () => void;
 }) {
   const t = useTranslator();
 
   return (
-    <div className="fixed inset-0 z-50 lg:hidden">
-      <button
-        type="button"
-        aria-label={t("common.close")}
-        onClick={onClose}
-        className="bg-foreground/20 absolute inset-0 backdrop-blur-[2px]"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("admin.title")}
-        className="bg-card ring-foreground/10 absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto px-3 py-4 ring-1 duration-200 motion-safe:animate-in motion-safe:slide-in-from-left"
-      >
-        <div className="mb-2 flex items-center justify-between px-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
-            {t("admin.title")}
-          </p>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            aria-label={t("common.close")}
-          >
-            <CloseIcon />
-          </Button>
-        </div>
+    <DialogContent className="top-0 bottom-0 left-0 max-h-none w-72 max-w-[85vw] translate-x-0 translate-y-0 rounded-none rounded-r-xl data-open:zoom-in-100 data-open:slide-in-from-left data-closed:zoom-out-100 data-closed:slide-out-to-left">
+      <DialogTitle className="text-muted-foreground px-2 pr-10 text-xs font-medium tracking-[0.18em] uppercase">
+        {t("admin.title")}
+      </DialogTitle>
 
-        <NavList links={links} counts={counts} pathname={pathname} />
-        <BackToSite />
-      </div>
-    </div>
+      <NavList links={links} counts={counts} pathname={pathname} />
+      <BackToSite />
+    </DialogContent>
   );
 }
 
@@ -281,13 +268,22 @@ function Count({ link, counts }: { link: AdminLink; counts: AdminCounts }) {
   );
 }
 
-/** The way out. A workspace that cannot be left is a trap, not a workspace. */
-function BackToSite() {
+/**
+ * The way out. A workspace that cannot be left is a trap, not a workspace.
+ *
+ * It sits at the foot of the sidebar, which is a column tall enough to have a
+ * foot. In the drawer it simply follows the sections, since a sheet is as tall
+ * as what is in it.
+ */
+function BackToSite({ className }: { className?: string }) {
   const t = useTranslator();
   return (
     <Link
       href="/"
-      className="text-muted-foreground hover:bg-secondary/60 hover:text-foreground focus-visible:ring-ring/50 mt-auto flex items-center gap-2 rounded-lg px-3 py-2 pt-2 text-sm transition-colors outline-none focus-visible:ring-3"
+      className={cn(
+        "text-muted-foreground hover:bg-secondary/60 hover:text-foreground focus-visible:ring-ring/50 flex items-center gap-2 rounded-lg px-3 py-2 pt-2 text-sm transition-colors outline-none focus-visible:ring-3",
+        className,
+      )}
     >
       <ChevronLeftIcon className="shrink-0" />
       {t("admin.backToSite")}

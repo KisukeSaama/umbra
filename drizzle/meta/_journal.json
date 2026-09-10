@@ -71,6 +71,13 @@
       "when": 1788985414906,
       "tag": "0009_library_item_cut_link",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789030760328,
+      "tag": "0010_enrichment_stamp_and_job_lock",
+      "breakpoints": true
     }
   ]
 }

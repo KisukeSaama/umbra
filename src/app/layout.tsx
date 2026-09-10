@@ -6,7 +6,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/lib/i18n/client";
-import { getLocale } from "@/lib/i18n/server";
+import { getLocale, getTranslator } from "@/lib/i18n/server";
 
 /**
  * Type pairing: an editorial serif for the few large lines that carry the mood,
@@ -26,28 +26,36 @@ const code = JetBrains_Mono({ variable: "--font-code", subsets: ["latin"] });
  * Umbra is a private hub. It is never meant to be indexed, so the whole app
  * carries `noindex` on top of `robots.txt` and the `X-Robots-Tag` header set in
  * `next.config.ts`.
+ *
+ * Resolved per request rather than declared once, because the description is a
+ * sentence and every sentence here is read in the language of whoever asked
+ * for the page. The layout already reads the language to set `lang`, so this
+ * costs nothing beyond the translator.
  */
-export const metadata: Metadata = {
-  // Read straight from the process rather than through `env()`: root metadata is
-  // evaluated at build time, where the validated configuration is deliberately
-  // absent. Only the icon and preview URLs depend on it, and a wrong origin
-  // costs a broken thumbnail, never a broken build.
-  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
-  title: { default: "Umbra", template: "%s - Umbra" },
-  description: "Private media community hub.",
-  applicationName: "Umbra",
-  appleWebApp: {
-    title: "Umbra",
-    capable: true,
-    statusBarStyle: "black-translucent",
-  },
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true,
-    googleBot: { index: false, follow: false },
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+
+  return {
+    // Read straight from the process rather than through `env()`: only the icon
+    // and preview URLs depend on it, and a wrong origin costs a broken
+    // thumbnail rather than a broken page.
+    metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
+    title: { default: "Umbra", template: "%s - Umbra" },
+    description: t("meta.description"),
+    applicationName: "Umbra",
+    appleWebApp: {
+      title: "Umbra",
+      capable: true,
+      statusBarStyle: "black-translucent",
+    },
+    robots: {
+      index: false,
+      follow: false,
+      nocache: true,
+      googleBot: { index: false, follow: false },
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [

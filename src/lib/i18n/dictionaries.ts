@@ -14,6 +14,14 @@ export const en = {
   "brand.alt":
     "The Umbra messenger: a wolf sitting with a letter held in its jaws.",
 
+  /* Page titles and the one description, resolved per request like everything
+     else the reader sees: a browser tab is interface too. */
+  "meta.description": "The private hub of the Kisuflix community.",
+  "meta.pending": "Pending",
+  /* Every administration page is named after its own section and says which
+     desk it belongs to: six tabs all reading "Umbra" name nothing at all. */
+  "meta.admin": "{section}, administration",
+
   "nav.home": "Home",
   "nav.openPlex": "Open Plex",
   "nav.news": "News",
@@ -59,17 +67,35 @@ export const en = {
   "common.confirmDelete": "Delete this? It cannot be undone.",
   "common.skipToContent": "Skip to content",
 
+  "rail.scrollLeft": "Scroll left",
+  "rail.scrollRight": "Scroll right",
+
   "pagination.previous": "Newer",
   "pagination.next": "Older",
   "pagination.position": "Page {page} of {pages}",
   "pagination.news": "News pages",
   "pagination.requests": "Request pages",
   "pagination.reports": "Report pages",
+  "pagination.accounts": "Account pages",
+  "pagination.announcements": "Announcement pages",
+  "pagination.series": "Tracked series pages",
+  "pagination.tasks": "Episode task pages",
+
+  /* A unit is punctuation as much as it is a word: French sets a no-break
+     space between the figure and the symbol where English sets none, so a
+     duration is written here rather than glued together in a component. */
+  "unit.milliseconds": "{value} ms",
+  "unit.seconds": "{value} s",
+  "unit.minutes": "{value} min",
+  "unit.minutesSeconds": "{minutes} min {seconds} s",
 
   "status.available": "Available on the server",
   "status.partial": "On the server, partly",
   "status.requested": "Request already recorded",
   "status.request": "Request",
+  /* On a card, where the pill says what the title is rather than offering an
+     action: "Request" there read as a button that does nothing. */
+  "status.requestedShort": "Requested",
   "status.requestSent": "Request sent",
   "status.requestCancelled": "Request cancelled",
   "status.reportWithdrawn": "Report withdrawn",
@@ -80,6 +106,7 @@ export const en = {
   "search.noResults": "No result for this search.",
   "search.hint": "Type at least two characters.",
   "search.resultsCount": "{count} results",
+  "search.resultsCount.one": "{count} result",
 
   "week.upcoming": "Scheduled",
   "week.missing": "To add",
@@ -349,6 +376,8 @@ export const en = {
   "admin.storage.name": "Name",
   "admin.storage.size": "Size",
   "admin.storage.measuredSize": "Size from the last measurement.",
+  "admin.storage.approxSize": "about {value}",
+  "admin.storage.tile": "{name}, {size}",
   "admin.storage.modified": "Modified",
   "admin.storage.up": "Up one level",
   "admin.storage.emptyDir": "This folder is empty.",
@@ -476,6 +505,7 @@ export const en = {
   "report.searchPlaceholder": "A title already on the server",
   "report.searchHint": "Only what is on the server can be reported.",
   "report.noMatch": "Nothing on the server matches that.",
+  "report.placeFailed": "The seasons could not be loaded.",
   "report.wholeSeries": "The whole series",
   "report.season": "Season {number}",
   "report.episode": "Episode {number}",
@@ -537,6 +567,11 @@ export const en = {
   "notifications.markRead": "Mark all as read",
   "notifications.unread": "{count} unread",
   "notifications.unread.one": "{count} unread",
+  /* The bell says how many are waiting in its own label: a dot is nothing at
+     all to a reader who cannot see it. */
+  "notifications.openUnread": "Notifications, {count} unread",
+  "notifications.openUnread.one": "Notifications, {count} unread",
+  "notifications.failed": "Notifications could not be loaded.",
   "notifications.request.accepted": "{title} was accepted.",
   "notifications.request.processing": "{title} is being fetched.",
   "notifications.request.available": "{title} is on the server.",
@@ -579,7 +614,7 @@ export const en = {
   "error.reasonNotAllowed": "That reason does not apply here.",
   "error.reportNotFound": "Report not found.",
   "error.reportClosed": "This report is closed.",
-  "error.illegalTransition": "This report cannot move that way.",
+  "error.illegalTransition": "This cannot move that way any more.",
   "error.noteNotEditable": "There is nothing left to say here.",
 } as const;
 
@@ -591,6 +626,10 @@ export const fr: Record<TranslationKey, string> = {
   "brand.tagline": "Le lien entre le serveur Kisuflix et sa communauté.",
   "brand.alt":
     "Le messager d'Umbra : un loup assis, une lettre serrée entre les crocs.",
+
+  "meta.description": "Le portail privé de la communauté Kisuflix.",
+  "meta.pending": "En attente",
+  "meta.admin": "{section}, administration",
 
   "nav.home": "Accueil",
   "nav.openPlex": "Ouvrir Plex",
@@ -637,17 +676,30 @@ export const fr: Record<TranslationKey, string> = {
   "common.confirmDelete": "Supprimer ceci ? L'action est définitive.",
   "common.skipToContent": "Aller au contenu",
 
+  "rail.scrollLeft": "Défiler vers la gauche",
+  "rail.scrollRight": "Défiler vers la droite",
+
   "pagination.previous": "Plus récentes",
   "pagination.next": "Plus anciennes",
   "pagination.position": "Page {page} sur {pages}",
   "pagination.news": "Pages des actualités",
   "pagination.requests": "Pages des demandes",
   "pagination.reports": "Pages des signalements",
+  "pagination.accounts": "Pages des comptes",
+  "pagination.announcements": "Pages des annonces",
+  "pagination.series": "Pages des séries suivies",
+  "pagination.tasks": "Pages des épisodes à traiter",
+
+  "unit.milliseconds": "{value} ms",
+  "unit.seconds": "{value} s",
+  "unit.minutes": "{value} min",
+  "unit.minutesSeconds": "{minutes} min {seconds} s",
 
   "status.available": "Disponible sur le serveur",
   "status.partial": "Sur le serveur, en partie",
   "status.requested": "Demande déjà enregistrée",
   "status.request": "Demander",
+  "status.requestedShort": "Demandé",
   "status.requestSent": "Demande envoyée",
   "status.requestCancelled": "Demande annulée",
   "status.reportWithdrawn": "Signalement retiré",
@@ -657,6 +709,7 @@ export const fr: Record<TranslationKey, string> = {
   "search.noResults": "Aucun résultat pour cette recherche.",
   "search.hint": "Saisis au moins deux caractères.",
   "search.resultsCount": "{count} résultats",
+  "search.resultsCount.one": "{count} résultat",
 
   "week.upcoming": "Diffusion prévue",
   "week.missing": "À ajouter",
@@ -926,6 +979,8 @@ export const fr: Record<TranslationKey, string> = {
   "admin.storage.name": "Nom",
   "admin.storage.size": "Taille",
   "admin.storage.measuredSize": "Taille issue de la dernière mesure.",
+  "admin.storage.approxSize": "environ {value}",
+  "admin.storage.tile": "{name}, {size}",
   "admin.storage.modified": "Modifié",
   "admin.storage.up": "Remonter d'un niveau",
   "admin.storage.emptyDir": "Ce dossier est vide.",
@@ -1053,6 +1108,7 @@ export const fr: Record<TranslationKey, string> = {
   "report.searchPlaceholder": "Un titre déjà sur le serveur",
   "report.searchHint": "Seul ce qui est sur le serveur peut être signalé.",
   "report.noMatch": "Rien sur le serveur ne correspond.",
+  "report.placeFailed": "Les saisons n'ont pas pu être chargées.",
   "report.wholeSeries": "Toute la série",
   "report.season": "Saison {number}",
   "report.episode": "Épisode {number}",
@@ -1109,6 +1165,9 @@ export const fr: Record<TranslationKey, string> = {
   "notifications.markRead": "Tout marquer comme lu",
   "notifications.unread": "{count} non lues",
   "notifications.unread.one": "{count} non lue",
+  "notifications.openUnread": "Notifications, {count} non lues",
+  "notifications.openUnread.one": "Notifications, {count} non lue",
+  "notifications.failed": "Les notifications n'ont pas pu être chargées.",
   "notifications.request.accepted": "{title} a été accepté.",
   "notifications.request.processing": "{title} est en cours de récupération.",
   "notifications.request.available": "{title} est sur le serveur.",
@@ -1149,7 +1208,7 @@ export const fr: Record<TranslationKey, string> = {
   "error.reasonNotAllowed": "Ce motif ne s'applique pas ici.",
   "error.reportNotFound": "Signalement introuvable.",
   "error.reportClosed": "Ce signalement est clos.",
-  "error.illegalTransition": "Ce signalement ne peut pas passer par là.",
+  "error.illegalTransition": "Cela ne peut plus passer par là.",
   "error.noteNotEditable": "Il n'y a plus rien à dire ici.",
 };
 

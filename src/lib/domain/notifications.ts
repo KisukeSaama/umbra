@@ -5,7 +5,6 @@ import { cache } from "react";
 
 import { db } from "@/lib/db";
 import {
-  accounts,
   notifications,
   type NotificationKind,
   type NotificationPayload,
@@ -118,13 +117,6 @@ export async function notifyApprovedAccounts(
 }
 
 /** Everyone approved, for a fan-out that needs the ids rather than a statement. */
-export async function approvedAccountIds(): Promise<string[]> {
-  const rows = await db()
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.status, "approved"));
-  return rows.map((row) => row.id);
-}
 
 export async function listNotifications(
   accountId: string,

@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { request, requestError } from "@/components/client-api";
 import { CheckIcon, SpinnerIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { ReportReason } from "@/lib/db/schema";
-import { translateError, type TranslationKey } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import type { MediaKind } from "@/lib/providers/metadata";
 
@@ -54,20 +55,19 @@ export function UpdateAsk({
   async function send() {
     setSending(true);
     try {
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind,
-          providerId,
-          seasonNumber,
-          episodeNumber: null,
-          reason,
-        }),
-      });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
+      const body = await request<{ reportId: string; joined: boolean }>(
+        "/api/reports",
+        {
+          method: "POST",
+          body: {
+            kind,
+            providerId,
+            seasonNumber,
+            episodeNumber: null,
+            reason,
+          },
+        },
+      );
 
       setSent(true);
       // Undoing belongs to the moment right after the press, exactly as it does
@@ -75,15 +75,11 @@ export function UpdateAsk({
       toast.success(t(body.joined ? "update.joined" : "update.sent"), {
         action: {
           label: t("report.withdraw"),
-          onClick: () => void withdraw(body.reportId as string),
+          onClick: () => void withdraw(body.reportId),
         },
       });
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     } finally {
       setSending(false);
     }
@@ -91,21 +87,11 @@ export function UpdateAsk({
 
   async function withdraw(reportId: string) {
     try {
-      const response = await fetch(`/api/reports/${reportId}`, {
-        method: "DELETE",
-      });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
-
+      await request(`/api/reports/${reportId}`, { method: "DELETE" });
       setSent(false);
       toast.success(t("status.reportWithdrawn"));
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     }
   }
 

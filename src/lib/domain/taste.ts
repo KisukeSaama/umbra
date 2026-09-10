@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -151,14 +151,6 @@ export const topGenres = cache(async function topGenres(
 });
 
 /** Whether an account has enough of a profile for a shelf to be worth showing. */
-export async function hasTasteProfile(accountId: string): Promise<boolean> {
-  const [row] = await db()
-    .select({ count: sql<number>`count(*)::int` })
-    .from(tasteProfiles)
-    .where(eq(tasteProfiles.accountId, accountId))
-    .limit(1);
-  return (row?.count ?? 0) > 0;
-}
 
 /* ------------------------------------------------------- followed shows -- */
 

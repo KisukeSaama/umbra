@@ -195,8 +195,6 @@ export const tmdbProvider: MediaMetadataProvider = {
         .filter(
           (season): season is NonNullable<typeof season> => season !== null,
         ),
-      nextEpisode: episodeFromJson(body.next_episode_to_air),
-      lastEpisode: episodeFromJson(body.last_episode_to_air),
     };
   },
 

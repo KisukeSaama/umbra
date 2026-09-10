@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { request, requestError } from "@/components/client-api";
 import { FlagIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
+import { LoadingRegion } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,10 +16,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ReportReason } from "@/lib/db/schema";
 import type { AlternateCut } from "@/lib/domain/cuts";
 import type { LibraryMatch } from "@/lib/domain/library";
-import { translateError, type TranslationKey } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import { reasonsFor, reasonsForCut, targetOf } from "@/lib/reports/reasons";
 
@@ -95,36 +98,31 @@ function ReportSteps({
     if (!target) return;
     setSending(true);
     try {
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: target.kind,
-          providerId: target.providerId,
-          seasonNumber,
-          episodeNumber,
-          reason,
-        }),
-      });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
+      const body = await request<{ reportId: string; joined: boolean }>(
+        "/api/reports",
+        {
+          method: "POST",
+          body: {
+            kind: target.kind,
+            providerId: target.providerId,
+            seasonNumber,
+            episodeNumber,
+            reason,
+          },
+        },
+      );
 
       // The undo is offered here rather than on the dialog: the flow closes on
       // the last choice, so the moment right after it is the toast.
       toast.success(t(body.joined ? "report.joined" : "report.sent"), {
         action: {
           label: t("report.withdraw"),
-          onClick: () => void withdraw(body.reportId as string),
+          onClick: () => void withdraw(body.reportId),
         },
       });
       onDone();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     } finally {
       setSending(false);
     }
@@ -133,20 +131,10 @@ function ReportSteps({
   /** Leaves the report just made, or just joined. */
   async function withdraw(reportId: string) {
     try {
-      const response = await fetch(`/api/reports/${reportId}`, {
-        method: "DELETE",
-      });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
-
+      await request(`/api/reports/${reportId}`, { method: "DELETE" });
       toast.success(t("status.reportWithdrawn"));
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     }
   }
 
@@ -206,6 +194,7 @@ function ReportSteps({
 /** Step one: which title, searched in the local index and nowhere else. */
 function TitleStep({ onPick }: { onPick: (match: Target) => void }) {
   const t = useTranslator();
+  const locale = useLocale();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<LibraryMatch[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -220,11 +209,17 @@ function TitleStep({ onPick }: { onPick: (match: Target) => void }) {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await fetch(
+        const body = await request<{ results: LibraryMatch[] }>(
           `/api/library/search?q=${encodeURIComponent(trimmed)}`,
         );
-        const body = await response.json();
-        if (current && response.ok) setResults(body.results as LibraryMatch[]);
+        if (current) setResults(body.results);
+      } catch (error) {
+        // An empty list plus a word is the honest answer: without the catch
+        // this was an unhandled rejection and a step that never came back.
+        if (current) {
+          setResults([]);
+          toast.error(requestError(locale, error));
+        }
       } finally {
         if (current) setLoading(false);
       }
@@ -234,7 +229,7 @@ function TitleStep({ onPick }: { onPick: (match: Target) => void }) {
       current = false;
       clearTimeout(timer);
     };
-  }, [trimmed, tooShort]);
+  }, [trimmed, tooShort, locale]);
 
   return (
     <div className="space-y-3">
@@ -295,7 +290,14 @@ function TitleStep({ onPick }: { onPick: (match: Target) => void }) {
   );
 }
 
-/** Step two: where in the series, from what the server actually holds. */
+/**
+ * Step two: where in the series, from what the server actually holds.
+ *
+ * The seasons are asked for on the way in, so the step opens on a list it does
+ * not have yet: it says so with the shape of what is coming rather than
+ * offering "the whole series" as if that were the only answer, and a refusal
+ * says so too instead of leaving that half-truth on screen for good.
+ */
 function PlaceStep({
   providerId,
   onPick,
@@ -304,40 +306,63 @@ function PlaceStep({
   onPick: (season: number | null, episode: number | null) => void;
 }) {
   const t = useTranslator();
+  const locale = useLocale();
   const [seasons, setSeasons] = useState<number[] | null>(null);
   const [season, setSeason] = useState<number | null>(null);
   const [episodes, setEpisodes] = useState<
     { episodeNumber: number; title: string }[] | null
   >(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let current = true;
     void (async () => {
-      const response = await fetch(
-        `/api/library/search?providerId=${encodeURIComponent(providerId)}`,
-      );
-      const body = await response.json();
-      if (current && response.ok) setSeasons(body.seasons as number[]);
+      try {
+        const body = await request<{ seasons: number[] }>(
+          `/api/library/search?providerId=${encodeURIComponent(providerId)}`,
+        );
+        if (current) setSeasons(body.seasons);
+      } catch (error) {
+        if (current) {
+          setFailed(true);
+          toast.error(requestError(locale, error));
+        }
+      }
     })();
     return () => {
       current = false;
     };
-  }, [providerId]);
+  }, [providerId, locale]);
+
+  /** A move between the two lists starts the next one from nothing. */
+  function chooseSeason(next: number | null) {
+    setEpisodes(null);
+    setFailed(false);
+    setSeason(next);
+  }
 
   useEffect(() => {
     if (season === null) return;
     let current = true;
     void (async () => {
-      const response = await fetch(
-        `/api/library/search?providerId=${encodeURIComponent(providerId)}&season=${season}`,
-      );
-      const body = await response.json();
-      if (current && response.ok) setEpisodes(body.episodes);
+      try {
+        const body = await request<{
+          episodes: { episodeNumber: number; title: string }[];
+        }>(
+          `/api/library/search?providerId=${encodeURIComponent(providerId)}&season=${season}`,
+        );
+        if (current) setEpisodes(body.episodes);
+      } catch (error) {
+        if (current) {
+          setFailed(true);
+          toast.error(requestError(locale, error));
+        }
+      }
     })();
     return () => {
       current = false;
     };
-  }, [providerId, season]);
+  }, [providerId, season, locale]);
 
   if (season === null)
     return (
@@ -346,19 +371,30 @@ function PlaceStep({
           {t("report.step.where")}
         </p>
         <div className="flex flex-wrap gap-2">
+          {/* The series as a whole is an answer whatever happens to the
+              seasons, so it is drawn for real from the first paint. */}
           <Button variant="secondary" onClick={() => onPick(null, null)}>
             {t("report.wholeSeries")}
           </Button>
-          {(seasons ?? []).map((number) => (
-            <Button
-              key={number}
-              variant="outline"
-              onClick={() => setSeason(number)}
-            >
-              {t("report.season", { number })}
-            </Button>
-          ))}
+          {seasons === null && !failed ? (
+            <PlaceSkeleton label={t("common.loading")} />
+          ) : (
+            (seasons ?? []).map((number) => (
+              <Button
+                key={number}
+                variant="outline"
+                onClick={() => chooseSeason(number)}
+              >
+                {t("report.season", { number })}
+              </Button>
+            ))
+          )}
         </div>
+        {failed ? (
+          <p className="text-muted-foreground text-xs">
+            {t("report.placeFailed")}
+          </p>
+        ) : null}
       </div>
     );
 
@@ -371,20 +407,43 @@ function PlaceStep({
         <Button variant="secondary" onClick={() => onPick(season, null)}>
           {t("report.wholeSeason")}
         </Button>
-        {(episodes ?? []).map((episode) => (
-          <Button
-            key={episode.episodeNumber}
-            variant="outline"
-            size="sm"
-            onClick={() => onPick(season, episode.episodeNumber)}
-          >
-            {t("report.episode", { number: episode.episodeNumber })}
-          </Button>
-        ))}
+        {episodes === null && !failed ? (
+          <PlaceSkeleton label={t("common.loading")} />
+        ) : (
+          (episodes ?? []).map((episode) => (
+            <Button
+              key={episode.episodeNumber}
+              variant="outline"
+              size="sm"
+              onClick={() => onPick(season, episode.episodeNumber)}
+            >
+              {t("report.episode", { number: episode.episodeNumber })}
+            </Button>
+          ))
+        )}
       </div>
-      <Button variant="ghost" size="sm" onClick={() => setSeason(null)}>
+      {failed ? (
+        <p className="text-muted-foreground text-xs">
+          {t("season.unavailable")}
+        </p>
+      ) : null}
+      <Button variant="ghost" size="sm" onClick={() => chooseSeason(null)}>
         {t("common.back")}
       </Button>
     </div>
+  );
+}
+
+/**
+ * The choices before they are known: a handful of pills the size of the ones
+ * about to land, so the row does not jump when they do.
+ */
+function PlaceSkeleton({ label }: { label: string }) {
+  return (
+    <LoadingRegion label={label} className="flex flex-wrap gap-2">
+      {[0, 1, 2, 3].map((index) => (
+        <Skeleton key={index} className="h-9 w-24 rounded-lg" />
+      ))}
+    </LoadingRegion>
   );
 }

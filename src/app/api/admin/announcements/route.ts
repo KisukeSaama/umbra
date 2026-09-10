@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/auth/session";
 import { linkSchema } from "@/app/api/admin/announcements/schema";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/db/schema";
 import { createAnnouncement } from "@/lib/domain/announcements";
+import { checkRate, perMinute } from "@/lib/rate-limit";
 
 const schema = z.object({
   title: z.string().min(2).max(120),
@@ -24,7 +25,8 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   return route(async () => {
-    await requireStaff();
+    const account = await requireStaff();
+    checkRate("admin", account.id, perMinute(30));
     const input = await jsonBody(request, schema);
     return createAnnouncement({
       ...input,

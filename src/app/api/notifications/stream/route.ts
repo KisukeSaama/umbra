@@ -119,7 +119,12 @@ export async function GET(request: NextRequest) {
         return;
       }
 
-      const unsubscribe = onNotificationFor(accountId, () => schedule(true));
+      // A stream the account has too many of is told to end, and ending it is
+      // the same close as a client hanging up.
+      const unsubscribe = onNotificationFor(accountId, (event) => {
+        if (event === "evicted") close();
+        else schedule(true);
+      });
       const heartbeat = setInterval(() => send(": ping\n\n"), HEARTBEAT_MS);
       request.signal.addEventListener("abort", close);
       // The signal may have fired while those two were being set up.

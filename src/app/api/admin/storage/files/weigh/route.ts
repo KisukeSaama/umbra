@@ -4,6 +4,7 @@ import { z } from "zod";
 import { jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
 import { MAX_BATCH, weighStorageEntries } from "@/lib/domain/storage-files";
+import { checkRate, perMinute } from "@/lib/rate-limit";
 
 /**
  * What a selection weighs, asked when the confirmation opens.
@@ -21,7 +22,8 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   return route(async () => {
-    await requireStaff();
+    const account = await requireStaff();
+    checkRate("admin", account.id, perMinute(5));
     const { volume, path, names } = await jsonBody(request, schema);
     return weighStorageEntries(volume, path, names);
   });

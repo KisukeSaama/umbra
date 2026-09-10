@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonBody, route } from "@/lib/api";
+import { idParam, jsonBody, route } from "@/lib/api";
 import { requireMember } from "@/lib/auth/session";
 import { castVote } from "@/lib/domain/polls";
 import { checkRate, perMinute } from "@/lib/rate-limit";
@@ -17,7 +17,7 @@ export async function POST(
     const account = await requireMember();
     checkRate("vote", account.id, perMinute(10));
 
-    const { id } = await params;
+    const id = await idParam(params);
     const { optionId } = await jsonBody(request, schema);
     return { poll: await castVote(id, optionId, account.id) };
   });

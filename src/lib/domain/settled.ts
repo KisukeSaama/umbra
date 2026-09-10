@@ -108,6 +108,11 @@ export async function settledIndex(
       and(
         inArray(media.providerId, providerIds),
         inArray(reports.reason, [...ASK_REASONS]),
+        // The same rule the title page applies: an ask that named one episode
+        // settles nothing a single word could carry, and a search that stopped
+        // saying "partly here" on the strength of it would promise what the
+        // page it leads to immediately takes back.
+        isNull(reports.episodeNumber),
         eq(reports.status, "resolved"),
         gt(reports.closedAt, LAST_SCAN),
         notExists(

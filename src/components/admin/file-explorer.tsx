@@ -356,9 +356,9 @@ export function FileExplorer({
                           })}
                         >
                           {volume === null ? (
-                            <DiskIcon className="text-primary size-4 shrink-0" />
+                            <DiskIcon className="text-muted-foreground size-4 shrink-0" />
                           ) : (
-                            <FolderIcon className="text-primary size-4 shrink-0" />
+                            <FolderIcon className="text-muted-foreground size-4 shrink-0" />
                           )}
                           <span className="truncate">{row.name}</span>
                         </button>
@@ -377,7 +377,9 @@ export function FileExplorer({
                           className="opacity-80"
                           title={t("admin.storage.measuredSize")}
                         >
-                          {`~ ${formatBytes(row.bytes, locale)}`}
+                          {t("admin.storage.approxSize", {
+                            value: formatBytes(row.bytes, locale),
+                          })}
                         </span>
                       ) : (
                         formatBytes(row.bytes, locale)
@@ -689,7 +691,7 @@ function PlayerDialog({
             controls
             autoPlay
             preload="metadata"
-            className="aspect-video w-full rounded-md bg-black"
+            className="bg-background aspect-video w-full rounded-md"
             onError={() => setFailed(true)}
           />
         ) : null}

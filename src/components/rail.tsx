@@ -15,6 +15,11 @@ import { useTranslator } from "@/lib/i18n/client";
  * trackpad-less mouse with nowhere to go. They disappear at the ends rather than
  * sitting there disabled, which is also what tells the eye there is more to the
  * side: the cards themselves are cut cleanly by the edge, never faded out.
+ *
+ * They say which way they go, and they are flat: a card surface on a hairline
+ * ring, like everything else at rest. They were named "Back" and "View all",
+ * which is what happens when a control borrows a wording instead of asking for
+ * one.
  */
 export function Rail({ children }: { children: React.ReactNode }) {
   const track = useRef<HTMLDivElement>(null);
@@ -64,9 +69,9 @@ export function Rail({ children }: { children: React.ReactNode }) {
           type="button"
           variant="secondary"
           size="icon-sm"
-          aria-label={t("common.back")}
+          aria-label={t("rail.scrollLeft")}
           onClick={() => nudge(-1)}
-          className="absolute top-1/3 -left-3 hidden rounded-full shadow-md ring-1 ring-black/10 md:flex"
+          className="bg-card ring-foreground/10 absolute top-1/3 -left-3 hidden rounded-full ring-1 md:flex"
         >
           <ChevronLeftIcon />
         </Button>
@@ -76,9 +81,9 @@ export function Rail({ children }: { children: React.ReactNode }) {
           type="button"
           variant="secondary"
           size="icon-sm"
-          aria-label={t("common.viewAll")}
+          aria-label={t("rail.scrollRight")}
           onClick={() => nudge(1)}
-          className="absolute top-1/3 -right-3 hidden rounded-full shadow-md ring-1 ring-black/10 md:flex"
+          className="bg-card ring-foreground/10 absolute top-1/3 -right-3 hidden rounded-full ring-1 md:flex"
         >
           <ChevronRightIcon />
         </Button>

@@ -104,10 +104,20 @@ async function latestSnapshot() {
   return row ?? null;
 }
 
-/** Latest measurement without per-volume detail. Public. */
-export async function storageOverview(): Promise<StorageOverview | null> {
-  const row = await latestSnapshot();
-  if (!row) return null;
+/**
+ * The public half of a measurement: how full the disk is, and when.
+ *
+ * The two readers below differ by one field, and the difference is the point:
+ * what a member sees carries no per-volume detail, because the shape of the
+ * server's storage is not theirs to read. Written once so the public answer
+ * cannot grow a field by being edited in the wrong place.
+ */
+function overviewOf(row: {
+  totalBytes: number;
+  usedBytes: number;
+  availableBytes: number;
+  recordedAt: Date;
+}): StorageOverview {
   return {
     totalBytes: row.totalBytes,
     usedBytes: row.usedBytes,
@@ -117,18 +127,16 @@ export async function storageOverview(): Promise<StorageOverview | null> {
   };
 }
 
+/** Latest measurement without per-volume detail. Public. */
+export async function storageOverview(): Promise<StorageOverview | null> {
+  const row = await latestSnapshot();
+  return row ? overviewOf(row) : null;
+}
+
 /** Detailed measurement, admin only. */
 export async function storageDetail(): Promise<StorageDetail | null> {
   const row = await latestSnapshot();
-  if (!row) return null;
-  return {
-    totalBytes: row.totalBytes,
-    usedBytes: row.usedBytes,
-    availableBytes: row.availableBytes,
-    usedRatio: row.totalBytes > 0 ? row.usedBytes / row.totalBytes : 0,
-    recordedAt: row.recordedAt,
-    volumes: row.volumes,
-  };
+  return row ? { ...overviewOf(row), volumes: row.volumes } : null;
 }
 
 /** History, for the admin trend view. */

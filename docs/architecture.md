@@ -98,6 +98,11 @@ Uniqueness lives in the database, never in a read-then-write:
   never collide in Postgres, so without it "the whole series" would duplicate on
   every click. The query builder cannot name an expression as a conflict target,
   which is why creating a report is one hand-written statement.
+- `job_run_single_running_idx`, partial unique on `job_name` where the status is
+  `running`: asking whether a step is going and then starting it is two
+  statements, and the worker's call can land between the administrator's. The
+  second insert fails instead, which the runner reads as "someone else holds
+  this step" rather than as an error.
 - `notification_unique_idx` on `(account_id, dedup_key)`. The key spells the
   subject and the step it announces, so a fan-out can be replayed with
   `ON CONFLICT DO NOTHING` and a request going accepted then available says both
@@ -130,8 +135,10 @@ does not stop the others: a metadata outage must not prevent a storage snapshot.
    enough to load: the files of the folder being drawn come from the live
    listing. The walk never follows a symbolic link and never takes a path from
    a request.
-6. **taste-profile**: rebuild each opted-in account profile from a rolling window
-   of the media server history, replacing the rows rather than adding to them.
+6. **taste-profile**: rebuild the profile of every approved account from a
+   rolling window of the media server history, replacing the rows rather than
+   adding to them. There is no account it skips: personalisation has no switch,
+   see `docs/adr/0013-personalisation-is-not-optional.md`.
 7. **housekeeping**: delete what nothing else deletes, bounded per run so a
    backlog drains over several passes: expired sessions and pins, old job runs,
    disk maps past a week except the latest, read notifications past a month and
@@ -142,10 +149,16 @@ when it answered with something. A section whose storage is not mounted comes
 back empty without failing, and a sweep over the whole table would then erase it,
 taking every request and report attached to those titles with it.
 
-A cycle and a disk walk are minutes of work, so neither the button nor the
-scheduled route holds a request open for one. Both check `job_run` for a step
-already on its feet, refuse or skip if there is one, then start the work and
-return: the run is the record, not the response. A long step writes where it is
+A cycle and a disk walk are minutes of work, so neither button in the
+administration holds a request open for one. Each checks `job_run` for a step
+already on its feet, refuses with a conflict if there is one, then starts the
+work and returns: the run is the record, not the response. The scheduled route
+is the one that waits. It asks the same question and skips its turn when a cycle
+is already going, but the cycle it does start is awaited inside the request, so
+what the worker logs is what each step did. Nothing in the application bounds
+that wait, since `maxDuration` is read by a platform this application is not
+deployed on; what bounds it is the caller, the worker giving up on the answer
+after fifteen minutes while the server carries on. A long step writes where it is
 into `job_state.cursor` at most every second and a half, which is what the
 administration reads to say "twelve thousand files walked" instead of showing a
 spinner. A run still marked running after forty-five minutes was interrupted by

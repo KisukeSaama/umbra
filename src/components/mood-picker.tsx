@@ -127,10 +127,19 @@ export function MoodPicker() {
             <h3 className="mb-3 text-sm font-semibold">
               {t("section.onServer")}
             </h3>
-            <ul className="grid grid-cols-3 gap-4 sm:grid-cols-3">
+            {/* The same grid as the second half: two lists on one screen with
+                three columns on one and six on the other made the posters of
+                the evening bigger than the posters to ask for, for no reason
+                either of them could give. */}
+            <ul className="grid grid-cols-3 gap-4 sm:grid-cols-6">
               {selection.tonight.map((item) => (
                 <li key={item.ratingKey}>
-                  <Poster src={item.posterUrl} alt={item.title} sizes="10rem" />
+                  <Poster
+                    src={item.posterUrl}
+                    alt={item.title}
+                    captioned
+                    sizes="8rem"
+                  />
                   <p className="mt-2 truncate text-sm font-medium">
                     {item.title}
                   </p>
@@ -156,9 +165,10 @@ export function MoodPicker() {
                     <Poster
                       src={item.posterUrl}
                       alt={item.title}
+                      captioned
                       sizes="8rem"
                     />
-                    <p className="group-hover:text-primary mt-2 truncate text-sm font-medium transition-colors">
+                    <p className="mt-2 truncate text-sm font-medium group-hover:underline">
                       {item.title}
                     </p>
                   </Link>
@@ -257,6 +267,9 @@ function Question({
           <Button
             key={option.value}
             variant={selected === option.value ? "default" : "outline"}
+            // The ochre fill is the whole answer on screen, and it is not one a
+            // screen reader is told about unless the button says so.
+            aria-pressed={selected === option.value}
             onClick={() => onPick(option.value)}
             className="rounded-full"
           >

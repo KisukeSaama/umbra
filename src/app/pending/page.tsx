@@ -6,7 +6,10 @@ import { SiteHeader } from "@/components/site-header";
 import { currentAccount } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Pending" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t("meta.pending") };
+}
 
 /**
  * Where an account that is not approved lands.
@@ -24,7 +27,11 @@ export default async function PendingPage() {
 
   return (
     <>
-      <SiteHeader />
+      {/* The member header is a row of doors this visitor cannot open: the nav
+          links all lead back here, the palette searches a route the guard
+          refuses, and the bell opens a stream it refuses too. What is left is
+          the wordmark and the way out. */}
+      <SiteHeader minimal />
       <main className="flex-1">
         <div className="umbra-container flex min-h-[50vh] flex-col items-center justify-center gap-3 py-16 text-center">
           <h1 className="text-2xl tracking-tight text-balance sm:text-3xl">

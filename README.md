@@ -10,22 +10,28 @@ community.
 ## What it does
 
 **Community.** Shelves to browse and a search palette one keystroke away, with
-three possible answers on every card: already on the server, already requested, or
-requestable. Request a missing title, once per title ever, with no vote pile-up.
-Report a problem on something that is there, down to the episode, as three closed
-choices and never a sentence. Follow your requests and reports on one page, with a
-bell for what moved. A guided picker for the evenings with no idea, and shelves
-shaped in part by an aggregated taste profile you can switch off. Recent
-additions, what airs this week, the news feed with its polls, storage and the
-funding goal.
+the state of every card written on it: already on the server, on the server but
+not whole, already requested, or requestable. Request a missing title, once per
+title ever, with no vote pile-up. Ask for the season a series is short of, from
+the line that shows the gap. Report a problem on something that is there, down to
+the episode, as three closed choices and never a sentence. Follow your requests
+and reports on one page, with a bell for what moved. A guided picker for the
+evenings with no idea, and shelves shaped in part by an aggregated taste profile,
+which has no switch: it is a handful of weighted genre ids, rebuilt on every sync,
+and it is what makes personalisation possible without keeping a history. Recent
+additions, what airs this week, the news feed with its polls, and the storage
+gauge.
 
 **Administrator.** A queue of everything waiting on a decision: new requests, open
 reports, episodes to add and accounts waiting for approval, each with its action
 on the row. A series tracker: broadcast calendar from the metadata provider,
 compared against the server, a task raised for every aired episode still missing
-and closed by itself when it arrives. Announcements, polls, storage detail and
-history with an "Open in Episort" link that hands a folder to the desktop sorter,
-funding goal with a manual history, job status.
+and closed by itself when it arrives. Announcements, each able to carry one
+outward link, which is how a fundraiser is told about: Umbra handles no money and
+holds no amount, so the page where it happens is somewhere else. Polls. Storage
+detail and history, a map of what fills the disk and a file explorer to take room
+back, with an "Open in Episort" link that hands a folder to the desktop sorter.
+Job status.
 
 **Deliberately absent.** Comments, chat, reviews, profiles, uptime monitoring,
 browser push, payments, a stored list of what anyone watched, a second copy of the
@@ -66,28 +72,40 @@ the worker profile and real Plex sign-in are in
 No third-party API key belongs in this repository. TMDB and Plex credentials live
 in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 
-| Variable                | Required | Purpose                                            |
-| ----------------------- | -------- | -------------------------------------------------- |
-| `DATABASE_URL`          | yes      | PostgreSQL connection                              |
-| `JANUS_URL`             | yes      | Gateway address                                    |
-| `JANUS_APPLICATION_ID`  | yes      | This service, in Janus. Not a secret               |
-| `JANUS_API_KEY`         | yes      | This service's key. Secret                         |
-| `JANUS_LIBRARY_SLUG`    | no       | Media library slug, default `kisuflix`             |
-| `JANUS_METADATA_SLUG`   | no       | Metadata slug, default `tmdb-v3`                   |
-| `JANUS_PLEX_TV_SLUG`    | no       | plex.tv slug for sign-in, default `plex-tv`        |
-| `ADMIN_PLEX_ACCOUNT_ID` | no       | Plex account promoted to admin on first sign-in    |
-| `AUTO_APPROVE_MEMBERS`  | no       | Skip manual approval of new accounts               |
-| `SESSION_TTL_DAYS`      | no       | Session lifetime, default 30                       |
-| `DEV_LOGIN`             | no       | Opens the development sign-in. Never in production |
-| `STORAGE_PATHS`         | no       | Published volumes, `Label:/path`, comma separated  |
-| `CRON_SECRET`           | for sync | Shared by the worker and `POST /api/cron/sync`     |
-| `SYNC_INTERVAL_MINUTES` | no       | Worker interval, default 30                        |
+| Variable                     | Required | Purpose                                            |
+| ---------------------------- | -------- | -------------------------------------------------- |
+| `DATABASE_URL`               | yes      | PostgreSQL connection                              |
+| `JANUS_URL`                  | yes      | Gateway address                                    |
+| `JANUS_APPLICATION_ID`       | yes      | This service, in Janus. Not a secret               |
+| `JANUS_API_KEY`              | yes      | This service's key. Secret                         |
+| `JANUS_LIBRARY_SLUG`         | no       | Media library slug, default `kisuflix`             |
+| `JANUS_METADATA_SLUG`        | no       | Metadata slug, default `tmdb-v3`                   |
+| `JANUS_PLEX_TV_SLUG`         | no       | plex.tv slug for sign-in, default `plex-tv`        |
+| `ADMIN_PLEX_ACCOUNT_ID`      | no       | Plex account promoted to admin on first sign-in    |
+| `AUTO_APPROVE_MEMBERS`       | no       | Skip manual approval of new accounts, default off  |
+| `SESSION_TTL_DAYS`           | no       | Session lifetime, default 30                       |
+| `DEV_LOGIN`                  | no       | Opens the development sign-in. Never in production |
+| `STORAGE_PATHS`              | no       | Published volumes, `Label:/path`, comma separated  |
+| `PLEX_PRODUCT`               | no       | Product name sent to plex.tv, default `Umbra`      |
+| `PLEX_CLIENT_ID`             | no       | Client id sent to plex.tv, default `umbra-hub`     |
+| `APP_URL`                    | no       | Public origin, for absolute icon and preview URLs  |
+| `CRON_SECRET`                | for sync | Shared by the worker and `POST /api/cron/sync`     |
+| `SYNC_INTERVAL_MINUTES`      | no       | Worker interval, default 30                        |
+| `SYNC_STARTUP_DELAY_SECONDS` | no       | Worker wait before its first call, default 45      |
+
+`AUTO_APPROVE_MEMBERS` and `DEV_LOGIN` are spelled `true` or `false` and read as
+those words rather than for the truthiness of a string, so the `false` the
+deployment writes is genuinely off. Absent or empty falls back to the default,
+which is off for both, and a word neither of them recognises fails the boot
+rather than being guessed at: a switch that guards who gets in is not a place to
+be lenient.
 
 ## Commands
 
-`npm run dev | build | lint | typecheck | format`, `npm test` (Vitest),
-`npm run db:generate` to regenerate migrations from the schema and
-`npm run db:migrate` to apply them.
+`npm run dev | build | start | lint | typecheck | format | format:check`,
+`npm test` and `npm run test:watch` (Vitest), `npm run db:generate` to regenerate
+migrations from the schema, `npm run db:migrate` to apply them and
+`npm run db:studio` to open Drizzle Studio against the database.
 
 ## Repository
 

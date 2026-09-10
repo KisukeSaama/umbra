@@ -1,7 +1,7 @@
 import "server-only";
 
 import { env } from "@/lib/env";
-import { BadRequestError } from "@/lib/errors";
+import { BadRequestError, UpstreamError } from "@/lib/errors";
 import { janus } from "@/lib/janus";
 import {
   type LibraryItem,
@@ -109,8 +109,18 @@ export const plexLibrary: MediaLibraryProvider = {
  */
 const PAGE_SIZE = 400;
 /** A safety net, so a misbehaving listing cannot loop forever. */
-const MAX_PAGES = 100;
+const MAX_PAGES = 250;
 
+/**
+ * Walks a listing to its end, or refuses to answer at all.
+ *
+ * The page is measured in rows as the server sent them, never in the items
+ * that survived parsing: one row without a type or a rating key would make a
+ * full page look short, the walk would stop there, and the sweep that follows
+ * a sync would then delete everything the walk never reached. For the same
+ * reason, running out of pages is an upstream failure rather than the end of
+ * the listing: a partial answer treated as complete is what empties the index.
+ */
 async function paged(
   path: string,
   sectionKey: string | null,
@@ -123,12 +133,15 @@ async function paged(
       "X-Plex-Container-Start": page * PAGE_SIZE,
       "X-Plex-Container-Size": PAGE_SIZE,
     });
-    const batch = itemsFrom(body, sectionKey);
-    items.push(...batch);
-    if (batch.length < PAGE_SIZE) break;
+    const rows = containerRows(body, "Metadata");
+    items.push(...rowsToItems(rows, sectionKey));
+    if (rows.length < PAGE_SIZE) return items;
   }
 
-  return items;
+  throw new UpstreamError(
+    env().JANUS_LIBRARY_SLUG,
+    `listing ${path} did not end within ${MAX_PAGES * PAGE_SIZE} entries`,
+  );
 }
 
 /** Section keys are numeric: nothing else is ever concatenated into a path. */
@@ -142,7 +155,11 @@ export function itemsFrom(
   body: unknown,
   sectionKey: string | null,
 ): LibraryItem[] {
-  return containerRows(body, "Metadata")
+  return rowsToItems(containerRows(body, "Metadata"), sectionKey);
+}
+
+function rowsToItems(rows: Json[], sectionKey: string | null): LibraryItem[] {
+  return rows
     .map((row) => itemFromJson(row, sectionKey))
     .filter((item): item is LibraryItem => item !== null);
 }

@@ -83,7 +83,7 @@ export async function createRequest(
     throw new ConflictError("error.alreadyRequested");
 
   const summary = await tmdbProvider.details(kind, providerId, language);
-  const mediaId = await ensureMedia(summary);
+  const mediaId = await ensureMedia(summary, language);
 
   try {
     const [row] = await db()
@@ -146,46 +146,22 @@ export async function cancelRequest(requestId: string, accountId: string) {
   throw new ConflictError("error.requestUnderway");
 }
 
-/**
- * Whether the server holds the title of the request being read.
- *
- * Asked as an existence rather than as a join: one library row is enough, and a
- * join would repeat the request once per matching row.
- */
-const inLibraryColumn = sql<boolean>`exists (
-  select 1
-    from library_item as l
-   where l.tmdb_id = ${media.providerId}
-     and l.kind = case ${media.mediaType} when 'movie' then 'movie' else 'show' end
-)`;
-
-export async function listRequests(
-  statuses?: RequestStatus[],
-): Promise<RequestRow[]> {
-  const rows = await db()
-    .select({
-      id: mediaRequests.id,
-      status: mediaRequests.status,
-      createdAt: mediaRequests.createdAt,
-      updatedAt: mediaRequests.updatedAt,
-      adminNote: mediaRequests.adminNote,
-      requestedBy: accounts.username,
-      providerId: media.providerId,
-      mediaType: media.mediaType,
-      title: media.title,
-      releaseDate: media.releaseDate,
-      posterPath: media.posterPath,
-      inLibrary: inLibraryColumn,
-    })
-    .from(mediaRequests)
-    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
-    .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
-    .where(
-      statuses?.length ? inArray(mediaRequests.status, statuses) : undefined,
-    )
-    .orderBy(desc(mediaRequests.createdAt));
-
-  return rows.map((row) => ({
+/** One row, as both lists shape it: the queue and a member's own follow-up. */
+function toRequestRow(row: {
+  id: string;
+  status: RequestStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  adminNote: string | null;
+  requestedBy: string | null;
+  inLibrary: boolean;
+  providerId: string;
+  mediaType: MediaKind;
+  title: string;
+  releaseDate: string | null;
+  posterPath: string | null;
+}): RequestRow {
+  return {
     id: row.id,
     status: row.status,
     createdAt: row.createdAt,
@@ -200,26 +176,57 @@ export async function listRequests(
       year: yearOf(row.releaseDate),
       posterUrl: posterUrl(row.posterPath),
     },
-  }));
+  };
 }
 
-export async function countRequestsByStatus(): Promise<
-  Record<RequestStatus, number>
-> {
-  const rows = await db()
-    .select({ status: mediaRequests.status, count: sql<number>`count(*)::int` })
-    .from(mediaRequests)
-    .groupBy(mediaRequests.status);
+/**
+ * Whether the server holds the title of the request being read.
+ *
+ * Asked as an existence rather than as a join: one library row is enough, and a
+ * join would repeat the request once per matching row.
+ */
+const inLibraryColumn = sql<boolean>`exists (
+  select 1
+    from library_item as l
+   where l.tmdb_id = ${media.providerId}
+     and l.kind = case ${media.mediaType} when 'movie' then 'movie' else 'show' end
+)`;
 
-  const counts = {
-    requested: 0,
-    accepted: 0,
-    processing: 0,
-    available: 0,
-    rejected: 0,
-  } satisfies Record<RequestStatus, number>;
-  for (const row of rows) counts[row.status] = row.count;
-  return counts;
+const REQUEST_COLUMNS = {
+  id: mediaRequests.id,
+  status: mediaRequests.status,
+  createdAt: mediaRequests.createdAt,
+  updatedAt: mediaRequests.updatedAt,
+  adminNote: mediaRequests.adminNote,
+  requestedBy: accounts.username,
+  providerId: media.providerId,
+  mediaType: media.mediaType,
+  title: media.title,
+  releaseDate: media.releaseDate,
+  posterPath: media.posterPath,
+  inLibrary: inLibraryColumn,
+};
+
+export async function listRequests(
+  statuses?: RequestStatus[],
+  /** The slice to read, when the caller pages. Everything, when it does not. */
+  window?: { limit: number; offset: number },
+): Promise<RequestRow[]> {
+  const query = db()
+    .select(REQUEST_COLUMNS)
+    .from(mediaRequests)
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
+    .where(
+      statuses?.length ? inArray(mediaRequests.status, statuses) : undefined,
+    )
+    .orderBy(desc(mediaRequests.createdAt));
+
+  const rows = await (window
+    ? query.limit(window.limit).offset(window.offset)
+    : query);
+
+  return rows.map(toRequestRow);
 }
 
 /** Requests still on the desk, for the figure the navigation carries. */
@@ -228,6 +235,19 @@ export async function countLiveRequests(): Promise<number> {
     .select({ count: sql<number>`count(*)::int` })
     .from(mediaRequests)
     .where(inArray(mediaRequests.status, [...LIVE_REQUEST_STATUSES]));
+  return row?.count ?? 0;
+}
+
+/** How many requests the queue holds, for the pager above it. */
+export async function countRequests(
+  statuses?: RequestStatus[],
+): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(mediaRequests)
+    .where(
+      statuses?.length ? inArray(mediaRequests.status, statuses) : undefined,
+    );
   return row?.count ?? 0;
 }
 
@@ -293,6 +313,42 @@ export function canCarryNote(status: RequestStatus): boolean {
 }
 
 /**
+ * Where a request may go from where it is.
+ *
+ * The lifecycle in `docs/product.md` only ever moves forward, and it used to be
+ * a drawing rather than a rule: any status was accepted from any status. Two of
+ * those moves did real damage. `available` back to `requested` handed a title
+ * that is on the server back to the queue and told the member about a step they
+ * had already been told about; `rejected` back to a live status collided with
+ * the partial unique index that carries "one live request per title", which
+ * answered the administrator with a server error.
+ *
+ * Refusing something declined is not a dead end for the member: a rejected
+ * request leaves the title askable, so what happens next is a new request
+ * rather than a resurrection of the old one.
+ */
+const TRANSITIONS = {
+  requested: ["accepted", "processing", "available", "rejected"],
+  accepted: ["processing", "available", "rejected"],
+  processing: ["available", "rejected"],
+  available: [],
+  rejected: [],
+} satisfies Record<RequestStatus, RequestStatus[]>;
+
+export function nextRequestStatuses(
+  from: RequestStatus,
+): readonly RequestStatus[] {
+  return TRANSITIONS[from];
+}
+
+export function canMoveRequest(
+  from: RequestStatus,
+  to: RequestStatus,
+): boolean {
+  return nextRequestStatuses(from).includes(to);
+}
+
+/**
  * Moves a request to another status.
  *
  * Accepting a series starts tracking it: this is where the Series Tracker takes
@@ -314,6 +370,7 @@ export async function updateRequestStatus(
 
   const [subject] = await db()
     .select({
+      status: mediaRequests.status,
       providerId: media.providerId,
       mediaType: media.mediaType,
       title: media.title,
@@ -324,6 +381,8 @@ export async function updateRequestStatus(
     .limit(1);
 
   if (!subject) throw new NotFoundError("error.requestNotFound");
+  if (!canMoveRequest(subject.status, status))
+    throw new ConflictError("error.illegalTransition");
 
   if (
     status === "available" &&
@@ -338,7 +397,15 @@ export async function updateRequestStatus(
       ...(note === undefined ? {} : { adminNote: note }),
       updatedAt: new Date(),
     })
-    .where(eq(mediaRequests.id, requestId))
+    // The status this move started from is part of the condition: two people
+    // on the queue at once would otherwise both pass the check above and the
+    // second write would quietly overwrite the first decision.
+    .where(
+      and(
+        eq(mediaRequests.id, requestId),
+        eq(mediaRequests.status, subject.status),
+      ),
+    )
     .returning({
       id: mediaRequests.id,
       mediaId: mediaRequests.mediaId,
@@ -346,10 +413,27 @@ export async function updateRequestStatus(
       adminNote: mediaRequests.adminNote,
     });
 
-  if (!updated) throw new NotFoundError("error.requestNotFound");
+  if (!updated) throw new ConflictError("error.illegalTransition");
 
-  if (status === "accepted" && subject.mediaType === "tv")
-    await trackSeries(subject.providerId);
+  /*
+   * Starting the tracker is a consequence of the decision, not part of it.
+   *
+   * It calls the metadata provider, and a provider that does not answer used
+   * to take the whole move down with it: the row had already changed, the
+   * administrator saw a gateway error, and the member was never told. So a
+   * failure here is recorded and left to `trackAcceptedSeries`, which picks up
+   * on the next cycle exactly the series this should have started.
+   */
+  if (status === "accepted" && subject.mediaType === "tv") {
+    try {
+      await trackSeries(subject.providerId);
+    } catch (error) {
+      console.warn(
+        `[requests] tracking deferred providerId=${subject.providerId}`,
+        error,
+      );
+    }
+  }
 
   await notifyRequester(requestId, status, subject.title, updated.adminNote);
   return updated;
@@ -434,20 +518,7 @@ export async function listRequestsBy(
   window?: { limit: number; offset: number },
 ): Promise<RequestRow[]> {
   const query = db()
-    .select({
-      id: mediaRequests.id,
-      status: mediaRequests.status,
-      createdAt: mediaRequests.createdAt,
-      updatedAt: mediaRequests.updatedAt,
-      adminNote: mediaRequests.adminNote,
-      requestedBy: accounts.username,
-      providerId: media.providerId,
-      mediaType: media.mediaType,
-      title: media.title,
-      releaseDate: media.releaseDate,
-      posterPath: media.posterPath,
-      inLibrary: inLibraryColumn,
-    })
+    .select(REQUEST_COLUMNS)
     .from(mediaRequests)
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
     .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
@@ -459,22 +530,7 @@ export async function listRequestsBy(
     ? query.limit(window.limit).offset(window.offset)
     : query);
 
-  return rows.map((row) => ({
-    id: row.id,
-    status: row.status,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    adminNote: row.adminNote,
-    requestedBy: row.requestedBy,
-    inLibrary: row.inLibrary,
-    media: {
-      providerId: row.providerId,
-      kind: row.mediaType,
-      title: row.title,
-      year: yearOf(row.releaseDate),
-      posterUrl: posterUrl(row.posterPath),
-    },
-  }));
+  return rows.map(toRequestRow);
 }
 
 /** How many requests this account has ever sent, whatever became of them. */

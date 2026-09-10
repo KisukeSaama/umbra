@@ -1,6 +1,7 @@
 # 0009 - One administrator, and assistants who help
 
-Status: accepted
+Status: accepted, amended by `docs/adr/0010-no-funding-goal.md` (there is no
+funding goal for an assistant to edit; the scope itself is unchanged)
 
 ## Context
 

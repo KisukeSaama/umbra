@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { UmbraFigure } from "@/components/brand";
-import { CommandPalette } from "@/components/command-palette";
+import { SearchField } from "@/components/command-palette";
 import { SparkleIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { RecentItem } from "@/lib/domain/library";
@@ -24,7 +24,10 @@ import { getTranslator } from "@/lib/i18n/server";
  */
 export async function Hero({ posters }: { posters: RecentItem[] }) {
   const t = await getTranslator();
-  const wall = posters.filter((item) => item.posterUrl).slice(0, 10);
+  // Six is as many as the wall can show once it is this far out of focus, and
+  // the home page is the heaviest one there is: four fewer requests for a
+  // picture nobody looks at directly.
+  const wall = posters.filter((item) => item.posterUrl).slice(0, 6);
 
   return (
     <section
@@ -40,7 +43,7 @@ export async function Hero({ posters }: { posters: RecentItem[] }) {
                   src={item.posterUrl as string}
                   alt=""
                   fill
-                  sizes="20vw"
+                  sizes="10vw"
                   className="object-cover"
                 />
               </div>
@@ -67,10 +70,9 @@ export async function Hero({ posters }: { posters: RecentItem[] }) {
         </h1>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          {/* The same palette as the header, given a field you can read: on
-              arrival the question is usually "is this already here", and the
-              answer should not need a destination, so it comes first. */}
-          <CommandPalette variant="hero" />
+          {/* A field you can read, opening the one palette the page has, in
+              the header: two dialogs meant one shortcut opened both. */}
+          <SearchField />
           <Button
             size="lg"
             className="rounded-full px-6"

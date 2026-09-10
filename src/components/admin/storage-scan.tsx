@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { formatElapsed } from "@/components/admin/duration";
 import { SpinnerIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/format";
@@ -155,15 +156,8 @@ export function StorageScan({
       ) : null}
 
       <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-        {t("admin.storage.scanElapsed", { value: elapsedLabel(elapsed) })}
+        {t("admin.storage.scanElapsed", { value: formatElapsed(elapsed, t) })}
       </span>
     </div>
   );
-}
-
-/** `4 s`, then `2 min 10 s`. Nobody counts a disk walk in milliseconds. */
-function elapsedLabel(ms: number) {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds} s`;
-  return `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, "0")} s`;
 }

@@ -41,7 +41,9 @@ before changing behaviour and `docs/architecture.md` before changing structure.
 6. **Code and documentation in English.** The interface is bilingual and detected
    from `Accept-Language`; every user-visible string lives in
    `src/lib/i18n/dictionaries.ts`.
-7. **No em dashes, no emoji**, anywhere: code, comments, documentation, UI copy.
+7. **No em dashes, no emoji**, anywhere: code, comments, documentation, UI copy,
+   the one exception being the generated block at the top of this file, which
+   `next dev` writes back with its two em dashes every time they are taken out.
 
 ## Shape of the code
 

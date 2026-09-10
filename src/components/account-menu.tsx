@@ -10,7 +10,9 @@ import {
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
+import { request, requestError } from "@/components/client-api";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LOCALES, type Locale } from "@/lib/i18n";
-import { useTranslator } from "@/lib/i18n/client";
+import { useLocale, useTranslator } from "@/lib/i18n/client";
 
 /**
  * Everything about "you" lives here: who you are, how the site looks, and the
@@ -41,6 +43,7 @@ export function AccountMenu({
   localeOverride: Locale | null;
 }) {
   const t = useTranslator();
+  const locale = useLocale();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
@@ -72,24 +75,37 @@ export function AccountMenu({
     const previous = language;
     setLanguage(value);
     startRefresh(async () => {
-      const response = await fetch("/api/locale", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ locale: value }),
-      });
-      if (!response.ok) {
+      try {
+        await request("/api/locale", {
+          method: "POST",
+          body: { locale: value },
+        });
+        router.refresh();
+      } catch (error) {
         setLanguage(previous);
-        return;
+        toast.error(requestError(locale, error));
       }
-      router.refresh();
     });
   }
 
+  /**
+   * The way out.
+   *
+   * A logout that was refused or never answered used to leave the item
+   * disabled on an unhandled rejection, so the menu looked as though it were
+   * still leaving. The session is only gone when the server says so: until
+   * then nothing moves and the refusal is said out loud.
+   */
   async function signOut() {
     setSigningOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/sign-in");
-    router.refresh();
+    try {
+      await request("/api/auth/logout", { method: "POST" });
+      router.replace("/sign-in");
+      router.refresh();
+    } catch (error) {
+      setSigningOut(false);
+      toast.error(requestError(locale, error));
+    }
   }
 
   return (

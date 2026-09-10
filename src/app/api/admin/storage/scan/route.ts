@@ -2,6 +2,7 @@ import { route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
 import { ConflictError } from "@/lib/errors";
 import { runningJob, runStorageScan } from "@/lib/jobs";
+import { checkRate, perMinute } from "@/lib/rate-limit";
 
 /**
  * Measures the disk now.
@@ -19,7 +20,8 @@ import { runningJob, runStorageScan } from "@/lib/jobs";
  */
 export async function POST() {
   return route(async () => {
-    await requireStaff();
+    const account = await requireStaff();
+    checkRate("admin", account.id, perMinute(5));
 
     // One walk at a time. Two would read the same disk twice, fight for the
     // same input and write two snapshots of the same moment.
@@ -35,10 +37,16 @@ export async function POST() {
   });
 }
 
-/** Where the walk is, polled by the page while it runs. */
+/**
+ * Where the walk is, polled by the page while it runs.
+ *
+ * Polled every two seconds, so its quota is the reading kind rather than the
+ * writing kind: the cap is there to stop a loop, not to count glances.
+ */
 export async function GET() {
   return route(async () => {
-    await requireStaff();
+    const account = await requireStaff();
+    checkRate("admin-read", account.id, perMinute(120));
     const running = await runningJob("storage-scan");
     return {
       running: running !== null,

@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { CutIcon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Poster } from "@/components/poster";
@@ -46,11 +48,16 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
           className="umbra-banner relative -mx-4 -mb-6 h-44 overflow-hidden sm:-mx-6 sm:h-64 lg:-mx-10"
           aria-hidden
         >
-          {/* Decoration, so it is a background rather than an image with a
-              caption nobody needs. */}
-          <div
-            className="h-full w-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${detail.backdropUrl})` }}
+          {/* Decoration, so it carries no alternative text: it is a
+              background rather than an image with a caption nobody needs. It
+              still goes through the optimiser, because a CSS background asks
+              every phone for the original the provider stores. */}
+          <Image
+            src={detail.backdropUrl}
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover"
           />
         </div>
       ) : null}
@@ -60,7 +67,12 @@ export async function TitleView({ detail }: { detail: TitleDetail }) {
           which is what the poster already did on its own. */}
       <div className="relative flex flex-col gap-5 sm:flex-row">
         <div className="w-32 shrink-0 sm:w-40">
-          <Poster src={detail.posterUrl} alt={detail.title} sizes="10rem" />
+          <Poster
+            src={detail.posterUrl}
+            alt={detail.title}
+            captioned
+            sizes="10rem"
+          />
         </div>
 
         <div className="min-w-0 flex-1 space-y-3">

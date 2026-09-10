@@ -10,8 +10,8 @@ and what is missing.
 **Members**: people who already have access to the server. Their experience is
 deliberately small and it is a loop: find something, ask for it or say what is
 wrong with it, follow what happens, read what is going on. Every one of those is
-a choice from a list rather than a form. No account management, no profile, one
-switch in the account menu.
+a choice from a list rather than a form. No account management, no profile, and
+nothing in the account menu but appearance and language.
 
 **The administrator**: one person, with a workspace built around actions rather
 than metrics, showing what needs a decision today and the tools to act on it.
@@ -144,8 +144,13 @@ requested -> accepted -> processing -> available
 - **accepted**: agreed. For a series, this also starts tracking it.
 - **processing**: being fetched.
 - **available**: on the server. Set by hand, or automatically when the library
-  sync finds the title.
-- **rejected**: declined. The title can be requested again later.
+  sync finds the title. By hand only once the index holds it: this is the one
+  step search reads as "stop offering this", so declaring it before the sync
+  agrees would close the request and hand the title back to the next member to
+  ask for.
+- **rejected**: declined. The title can be requested again later, as a new
+  request rather than a revival of the old one: the lifecycle only moves
+  forward, and a step it does not allow is refused rather than written.
 
 Accepting a request may carry an optional word from the administration: why it
 will take a while, which season is missing, what is being looked for. It reaches
@@ -310,9 +315,13 @@ the next run sees every date that has passed and catches up.
 
 ## Privacy
 
-Stored: a Plex account id, a display name, a role, a status. Sessions are stored
-as a digest, never as a token, and the visitor's Plex token is used once to read
-their account id and then dropped.
+Stored: a Plex account id, a display name, a role, a status, and when that
+account last signed in. The last one is a single timestamp, overwritten on every
+sign-in rather than added to, and it exists so the administration can tell an
+account somebody still uses from one nobody has opened in a year. It is not a
+history: not of visits, not of pages, not of anything. Sessions are stored as a
+digest, never as a token, and the visitor's Plex token is used once to read their
+account id and then dropped.
 
 Never stored: e-mail addresses, a list of what anyone watched, who searched for
 what, anything at all about who contributed to a fundraiser.

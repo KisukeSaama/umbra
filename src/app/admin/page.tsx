@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ActionButton } from "@/components/admin/action-button";
 import { StatStrip } from "@/components/admin/stat-strip";
+import { formatPercent } from "@/components/formatting";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
@@ -16,8 +18,13 @@ import { listOpenEpisodeTasks } from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
 import { formatDateTime, formatEpisodeCode } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { LIVE_REPORT_STATUSES } from "@/lib/reports/reasons";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t("meta.admin", { section: t("admin.nav.dashboard") }) };
+}
 
 /**
  * The dashboard.
@@ -90,7 +97,7 @@ export default async function AdminDashboardPage() {
           {
             label: t("section.storage"),
             value: storage
-              ? `${Math.round(storage.usedRatio * 100)}%`
+              ? formatPercent(storage.usedRatio, locale)
               : t("storage.unknown"),
           },
         ]}
@@ -274,10 +281,7 @@ function Queue({
   return (
     <Card className="gap-3">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <span className="bg-primary size-1.5 rounded-full" aria-hidden />
-          {title}
-        </CardTitle>
+        <CardTitle className="text-sm">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {children ? (
@@ -285,7 +289,7 @@ function Queue({
         ) : null}
         <Link
           href={href}
-          className="text-muted-foreground hover:text-primary focus-visible:ring-ring/50 mt-3 inline-block rounded-md text-xs transition-colors outline-none focus-visible:ring-3"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 mt-3 inline-block rounded-md text-xs transition-colors outline-none focus-visible:ring-3"
         >
           {label}
           {more > 0 ? ` (+${more})` : ""}

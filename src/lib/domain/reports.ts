@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -15,7 +15,11 @@ import {
 import { bumpMetric } from "@/lib/domain/analytics";
 import { isOnServer } from "@/lib/domain/availability";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
-import { alternateCutFor } from "@/lib/domain/library";
+import {
+  alternateCutFor,
+  matchesProviderId,
+  REAL_MATCH_FIRST,
+} from "@/lib/domain/library";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
 import { settledAsksFor } from "@/lib/domain/settled";
@@ -134,7 +138,7 @@ export async function createReport(input: {
     input.providerId,
     input.language,
   );
-  const mediaId = await ensureMedia(summary);
+  const mediaId = await ensureMedia(summary, input.language);
   const ratingKey = await serverKeyFor(input.kind, input.providerId);
 
   const rows = await db().execute<{ report_id: string; created: boolean }>(sql`
@@ -174,14 +178,63 @@ export async function createReport(input: {
   `);
 
   const row = rows[0];
-  if (!row) throw new ConflictError("error.alreadyReported");
+  if (row) {
+    await bumpMetric("reports_created");
+    return {
+      reportId: row.report_id,
+      title: summary.title,
+      joined: !row.created,
+    };
+  }
+
+  /*
+   * The one case the statement above cannot answer for itself.
+   *
+   * Two members reporting the same thing in the same instant: the second
+   * insert waits for the first to commit and then does nothing, as it should,
+   * but the branch that looks for the report to join reads the snapshot this
+   * statement started with, where that report does not exist yet. So it is
+   * looked for again, now that the other one has landed, and the person joins
+   * what they were told about instead of being refused something they never
+   * saw.
+   */
+  const joined = await joinLiveReport(mediaId, input, input.accountId);
+  if (!joined) throw new ConflictError("error.alreadyReported");
 
   await bumpMetric("reports_created");
-  return {
-    reportId: row.report_id,
-    title: summary.title,
-    joined: !row.created,
-  };
+  return { reportId: joined, title: summary.title, joined: true };
+}
+
+/** Attaches somebody to the live report for one title, place and reason. */
+async function joinLiveReport(
+  mediaId: string,
+  place: {
+    seasonNumber: number | null;
+    episodeNumber: number | null;
+    reason: ReportReason;
+  },
+  accountId: string,
+): Promise<string | null> {
+  const [live] = await db()
+    .select({ id: reports.id })
+    .from(reports)
+    .where(
+      and(
+        eq(reports.mediaId, mediaId),
+        sql`coalesce(${reports.seasonNumber}, -1) = coalesce(${place.seasonNumber}::int, -1)`,
+        sql`coalesce(${reports.episodeNumber}, -1) = coalesce(${place.episodeNumber}::int, -1)`,
+        eq(reports.reason, place.reason),
+        inArray(reports.status, [...LIVE_REPORT_STATUSES]),
+      ),
+    )
+    .limit(1);
+  if (!live) return null;
+
+  await db()
+    .insert(reportFollowers)
+    .values({ reportId: live.id, accountId })
+    .onConflictDoNothing();
+  return live.id;
 }
 
 /** The server key of a title, kept on the report so the admin can find it. */
@@ -194,13 +247,10 @@ async function serverKeyFor(kind: MediaKind, providerId: string) {
         eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
         // A re-cut is reachable by the id Umbra worked out from its name, and
         // the administration has to be able to find the entry it points at.
-        or(
-          eq(libraryItems.tmdbId, providerId),
-          eq(libraryItems.cutProviderId, providerId),
-        ),
+        matchesProviderId(providerId),
       ),
     )
-    .orderBy(sql`${libraryItems.tmdbId} NULLS LAST`)
+    .orderBy(REAL_MATCH_FIRST)
     .limit(1);
   return row?.ratingKey ?? null;
 }
@@ -363,15 +413,30 @@ function toRow(row: {
 
 export async function listReports(
   statuses?: ReportStatus[],
+  /** The slice to read, when the caller pages. Everything, when it does not. */
+  window?: { limit: number; offset: number },
 ): Promise<ReportRow[]> {
-  const rows = await db()
+  const query = db()
     .select(REPORT_COLUMNS)
     .from(reports)
     .innerJoin(media, eq(media.id, reports.mediaId))
     .leftJoin(accounts, eq(accounts.id, reports.reportedBy))
     .where(statuses?.length ? inArray(reports.status, statuses) : undefined)
     .orderBy(desc(reports.createdAt));
+
+  const rows = await (window
+    ? query.limit(window.limit).offset(window.offset)
+    : query);
   return rows.map(toRow);
+}
+
+/** How many reports the queue holds, for the pager above it. */
+export async function countReports(statuses?: ReportStatus[]): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(reports)
+    .where(statuses?.length ? inArray(reports.status, statuses) : undefined);
+  return row?.count ?? 0;
 }
 
 /**
@@ -449,15 +514,16 @@ export async function countOpenReports(): Promise<number> {
  * the outcome can be read, whether the problem was fixed, refused or already
  * known. So closing carries a note like any other move, and the way to correct
  * an ageing one is to replace it: there is one note per report, never a thread.
+ *
+ * Which is why the status is not a parameter here, where `noteFor` on requests
+ * needs one: no move a report can make changes what happens to its note.
  */
 export function reportNoteFor(
-  status: ReportStatus,
   adminNote?: string | null,
 ): string | null | undefined {
   if (adminNote === undefined) return undefined;
   return adminNote?.trim() || null;
 }
-
 
 /**
  * Rewrites the note alone, without moving the report.
@@ -494,6 +560,14 @@ export async function setReportNote(
  * does: without a calendar the two reasons that could settle themselves never
  * would, and the report would sit open for nothing.
  *
+ * A re-cut is the exception, and it matters: what a re-cut is filed under is
+ * the provider id of the series it was cut from, so putting that series under
+ * watch pulls the calendar of a thousand episodes for a hundred the edit kept
+ * on purpose. Every one of them then reads as aired and absent, one task is
+ * opened per episode, and the report can never settle because the calendar it
+ * would be measured against is not its own. A re-cut has no calendar to be
+ * late on: see `docs/product.md`.
+ *
  * Taking one up may carry a word for everyone waiting on it, which reaches them
  * in their notification and on their follow-up page.
  */
@@ -511,7 +585,7 @@ export async function updateReportStatus(
   if (!canTransition(current.status, status))
     throw new ConflictError("error.illegalTransition");
 
-  const note = reportNoteFor(status, adminNote);
+  const note = reportNoteFor(adminNote);
   const now = new Date();
   const closing =
     status === "resolved" || status === "rejected" || status === "duplicate";
@@ -524,12 +598,17 @@ export async function updateReportStatus(
       acknowledgedAt: status === "acknowledged" ? now : undefined,
       closedAt: closing ? now : undefined,
     })
-    .where(eq(reports.id, reportId))
+    // The status this move started from is part of the condition: two people on
+    // the queue at once would otherwise both pass the check above, and the
+    // second write would quietly bury the first decision.
+    .where(and(eq(reports.id, reportId), eq(reports.status, current.status)))
     .returning({
       id: reports.id,
       status: reports.status,
       adminNote: reports.adminNote,
     });
+
+  if (!updated) throw new ConflictError("error.illegalTransition");
 
   if (status === "acknowledged") {
     const [row] = await db()
@@ -537,7 +616,23 @@ export async function updateReportStatus(
       .from(media)
       .where(eq(media.id, current.mediaId))
       .limit(1);
-    if (row?.mediaType === "tv") await trackSeries(row.providerId);
+
+    if (row?.mediaType === "tv") {
+      const cut = await alternateCutFor("tv", row.providerId);
+      if (!cut) {
+        // A provider that does not answer must not undo the decision that has
+        // just been written: `trackAcceptedSeries` is not this row's keeper, so
+        // this is said out loud and the administration can take it up again.
+        try {
+          await trackSeries(row.providerId);
+        } catch (error) {
+          console.warn(
+            `[reports] tracking failed providerId=${row.providerId}`,
+            error,
+          );
+        }
+      }
+    }
   }
 
   await notifyReportFollowers(reportId, status);

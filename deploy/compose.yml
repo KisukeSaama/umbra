@@ -89,6 +89,18 @@ services:
       - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}.service=${APP_SUBDOMAIN}-${DEPLOY_ENV}
       - traefik.http.services.${APP_SUBDOMAIN}-${DEPLOY_ENV}.loadbalancer.server.port=3000
       - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}.middlewares=${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers
+      # The scheduled endpoint is not part of the public surface. The worker
+      # calls it over the internal network, by container name, so nothing
+      # legitimate ever arrives here through Traefik: a router of its own, at a
+      # higher priority, answers everything that tries. The shared secret still
+      # guards the route itself; this is one door fewer to knock on.
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}-cron.rule=Host(`${APP_HOST}`) && PathPrefix(`/api/cron`)
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}-cron.entrypoints=websecure
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}-cron.tls=true
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}-cron.priority=100
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}-cron.service=${APP_SUBDOMAIN}-${DEPLOY_ENV}
+      - traefik.http.routers.${APP_SUBDOMAIN}-${DEPLOY_ENV}-cron.middlewares=${APP_SUBDOMAIN}-${DEPLOY_ENV}-nopublic
+      - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-nopublic.ipallowlist.sourcerange=127.0.0.1/32
       - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.contentTypeNosniff=true
       - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.frameDeny=true
       - traefik.http.middlewares.${APP_SUBDOMAIN}-${DEPLOY_ENV}-headers.headers.referrerPolicy=strict-origin-when-cross-origin

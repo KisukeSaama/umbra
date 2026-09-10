@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonBody, route } from "@/lib/api";
+import { idParam, jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
 import { REQUEST_STATUSES } from "@/lib/db/schema";
 import { setRequestNote, updateRequestStatus } from "@/lib/domain/requests";
+import { checkRate, perMinute } from "@/lib/rate-limit";
 
 /**
  * Moves a request, or rewrites the word left on it.
@@ -24,8 +25,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return route(async () => {
-    await requireStaff();
-    const { id } = await params;
+    const account = await requireStaff();
+    checkRate("admin", account.id, perMinute(60));
+    const id = await idParam(params);
     const { status, adminNote } = await jsonBody(request, schema);
     return status === undefined
       ? setRequestNote(id, adminNote ?? null)

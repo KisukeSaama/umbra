@@ -1,14 +1,10 @@
 import "server-only";
 
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import {
-  analyticsDaily,
-  episodes,
-  libraryItems,
-  mediaRequests,
-} from "@/lib/db/schema";
+import { analyticsDaily, libraryItems, mediaRequests } from "@/lib/db/schema";
+import { dayKey } from "@/lib/format";
 
 /**
  * Usage statistics.
@@ -79,33 +75,9 @@ export async function weeklyStats(): Promise<WeeklyStats> {
   };
 }
 
-export type UsageSeries = { metric: string; day: string; count: number }[];
-
-/** Raw time series, admin only. */
-export async function usageOverDays(days = 30): Promise<UsageSeries> {
-  const since = daysAgo(days).toISOString().slice(0, 10);
-  return db()
-    .select({
-      metric: analyticsDaily.metric,
-      day: analyticsDaily.day,
-      count: analyticsDaily.count,
-    })
-    .from(analyticsDaily)
-    .where(gte(analyticsDaily.day, since))
-    .orderBy(desc(analyticsDaily.day));
-}
-
-/** Tracked episodes whose broadcast has passed and that are still missing. */
-export async function missingEpisodeCount(): Promise<number> {
-  const [row] = await db()
-    .select({ count: sql<number>`count(*)::int` })
-    .from(episodes)
-    .where(eq(episodes.status, "aired_missing"));
-  return row?.count ?? 0;
-}
-
+// The day where the server stands, which is the day the database counts in.
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return dayKey();
 }
 
 function daysAgo(days: number) {

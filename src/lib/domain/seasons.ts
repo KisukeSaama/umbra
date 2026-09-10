@@ -1,5 +1,5 @@
 import type { SeasonState } from "@/lib/domain/catalog";
-import { toDate } from "@/lib/format";
+import { dayKey } from "@/lib/format";
 
 /**
  * "Is it all there", in one place.
@@ -42,5 +42,7 @@ export function isUnaired(
   now: Date = new Date(),
 ): boolean {
   if (!airDate) return false;
-  return toDate(airDate).getTime() > now.getTime();
+  // Compared as days rather than as instants, so this says the same thing as
+  // the reconciliation that raises the task: see `dayKey`.
+  return airDate > dayKey(now);
 }

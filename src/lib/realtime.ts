@@ -28,7 +28,14 @@ const CHANNEL = "umbra_notification";
  */
 const IDS_PER_MESSAGE = 100;
 
-type Listener = () => void;
+/**
+ * What an open stream is told.
+ *
+ * `nudge`: something landed for this account, go and read it. `evicted`: this
+ * stream is being let go, because the account holds too many, and it should
+ * end itself rather than be left half attached.
+ */
+type Listener = (event: "nudge" | "evicted") => void;
 
 /**
  * Kept on `globalThis` for the same reason as the connection pool: Next
@@ -74,6 +81,18 @@ export async function publishNotified(accountIds: string[]): Promise<void> {
 }
 
 /**
+ * How many streams one account may hold open at once.
+ *
+ * A person is a handful of tabs, not a hundred: a few on a desktop, one on a
+ * phone. Opening one is rate limited, but nothing used to bound how many
+ * stayed open, and every one of them costs a timer, a listener and two queries
+ * on every nudge. Past the cap the oldest is closed rather than the newest
+ * refused, so the tab somebody is actually looking at is the one that keeps
+ * working.
+ */
+const MAX_STREAMS_PER_ACCOUNT = 5;
+
+/**
  * Registers a stream and hands back the way to take it off again.
  *
  * The caller must call the returned function when its stream ends, otherwise
@@ -88,13 +107,27 @@ export function onNotificationFor(
   if (existing) existing.add(listener);
   else map.set(accountId, new Set([listener]));
 
+  const current = map.get(accountId);
+  if (current) {
+    // A `Set` keeps insertion order, so the first entries are the oldest.
+    while (current.size > MAX_STREAMS_PER_ACCOUNT) {
+      const [oldest] = current;
+      current.delete(oldest);
+      try {
+        oldest("evicted");
+      } catch (error) {
+        console.error("[realtime] eviction failed", error);
+      }
+    }
+  }
+
   ensureListening();
 
   return () => {
-    const current = map.get(accountId);
-    if (!current) return;
-    current.delete(listener);
-    if (current.size === 0) map.delete(accountId);
+    const set = map.get(accountId);
+    if (!set) return;
+    set.delete(listener);
+    if (set.size === 0) map.delete(accountId);
   };
 }
 
@@ -131,7 +164,7 @@ function dispatch(message: string): void {
   for (const accountId of accountIds) {
     for (const listener of map.get(String(accountId)) ?? []) {
       try {
-        listener();
+        listener("nudge");
       } catch (error) {
         console.error("[realtime] listener failed", error);
       }

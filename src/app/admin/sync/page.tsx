@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
+
 import { ActionButton } from "@/components/admin/action-button";
 import { AutoRefresh } from "@/components/admin/auto-refresh";
+import { formatDuration } from "@/components/admin/duration";
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -10,8 +13,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { jobStatus, type JobStatusRow } from "@/lib/jobs";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t("meta.admin", { section: t("admin.nav.sync") }) };
+}
 
 /**
  * Synchronisation.
@@ -127,7 +135,9 @@ function JobCard({
                 ? t("admin.jobs.items", { count: job.lastItems })
                 : null,
               job.lastDurationMs !== null
-                ? t("admin.jobs.took", { value: duration(job.lastDurationMs) })
+                ? t("admin.jobs.took", {
+                    value: formatDuration(job.lastDurationMs, t),
+                  })
                 : null,
             ]
               .filter(Boolean)
@@ -147,13 +157,6 @@ function JobCard({
       </CardContent>
     </Card>
   );
-}
-
-/** Seconds under a minute, minutes above it. Nobody reads 184000 ms. */
-function duration(ms: number) {
-  if (ms < 1000) return `${ms} ms`;
-  if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
-  return `${Math.round(ms / 60_000)} min`;
 }
 
 /**

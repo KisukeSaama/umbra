@@ -16,10 +16,16 @@ the container labels.
 One image, three containers:
 
 - `web`: the Next.js server. The only one on the `traefik` network. Applies
-  migrations at boot, mounts `/mnt/plex` read only so the storage gauge has
-  something to measure.
+  migrations at boot and mounts the media root (`/mnt/plex` unless `paths.env`
+  says otherwise) read-write, because the storage page both measures it and
+  deletes from it (see `docs/adr/0012-files-are-deleted-from-the-storage-page.md`).
+  The container still runs as uid 10001 with every capability dropped, so the
+  media has to be writable by that user or its group; if it is not, a deletion
+  answers read-only and changes nothing, which is a safe failure rather than a
+  silent one.
 - `worker`: the same image running `scripts/sync-worker.mjs`, calling the sync
-  endpoint on a loop. No public surface.
+  endpoint on a loop. No public surface, and `MIGRATE_ON_START=false`, because
+  only the web container owns the schema.
 - `postgres`: state under `/home/kisuke/umbra/<env>/postgres`, bind mounted so
   backups can see it.
 
@@ -40,7 +46,17 @@ One image, three containers:
    | `UMBRA_CRON_SECRET`           | yes         | At least 16 characters                 |
    | `UMBRA_ADMIN_PLEX_ACCOUNT_ID` | recommended | The account that becomes admin         |
    | `UMBRA_STORAGE_PATHS`         | no          | Defaults to `Media:/mnt/plex`          |
-   | `UMBRA_AUTO_APPROVE_MEMBERS`  | no          | `true` skips manual approval           |
+   | `UMBRA_AUTO_APPROVE_MEMBERS`  | no          | `true` or `false`; unset means `false` |
+   | `UMBRA_JANUS_URL`             | no          | Overrides the gateway address          |
+
+   `AUTO_APPROVE_MEMBERS` is read as the word it is spelled with rather than for
+   the truthiness of a string, so `false` is genuinely off and a word the
+   application does not recognise stops the boot instead of being guessed at.
+   The pipeline writes `false` when the variable is unset, which is the state to
+   leave it in: every account then waits for a decision. The slugs, the database
+   name and user and the sync interval have `UMBRA_*` overrides of their own,
+   listed at the top of `.gitlab-ci.yml`, and their defaults are what dev and
+   prod both run on.
 
 3. **Check the disk.** The root filesystem on that host runs close to full;
    `docker builder prune -af` before a first build is often what makes it pass.

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { jobRuns, jobState } from "@/lib/db/schema";
@@ -24,6 +24,7 @@ import {
   reconcileEpisodes,
   seriesDueForSync,
   syncSeriesEpisodes,
+  trackAcceptedSeries,
 } from "@/lib/domain/series";
 import { recordStorageSnapshot, scanStorageTree } from "@/lib/domain/storage";
 import { accountsForTaste, refreshTasteProfile } from "@/lib/domain/taste";
@@ -48,7 +49,16 @@ export const JOB_NAMES = [
 ] as const;
 export type JobName = (typeof JOB_NAMES)[number];
 
-export type JobOutcome = { job: JobName; items: number; error?: string };
+export type JobOutcome = {
+  job: JobName;
+  items: number;
+  error?: string;
+  /**
+   * The step did not run. Either another cycle holds it, or it is not due yet:
+   * both are ordinary, and neither is a success to be recorded as one.
+   */
+  skipped?: true;
+};
 
 /**
  * What a long step is doing right now.
@@ -84,10 +94,25 @@ async function runJob(
   job: JobName,
   work: (report: Report) => Promise<number>,
 ): Promise<JobOutcome> {
+  // A row left behind by a restarted process would otherwise hold the step for
+  // good, since the insert below is what refuses a second run.
+  await closeStaleRuns(job);
+
+  /*
+   * The row is the lock.
+   *
+   * `job_run_single_running_idx` allows one running row per step, so a second
+   * cycle laid over the first, by a worker call and a button in the same
+   * moment, inserts nothing and is told so here. Asking first and starting
+   * after would leave exactly the window this closes.
+   */
   const [run] = await db()
     .insert(jobRuns)
     .values({ jobName: job })
+    .onConflictDoNothing()
     .returning({ id: jobRuns.id });
+
+  if (!run) return { job, items: 0, skipped: true };
 
   // Progress is written at most every second and a half, and never awaited by
   // the work itself: a step must not run at the speed of its own reporting.
@@ -157,6 +182,9 @@ export async function runningJob(job: JobName): Promise<{
   startedAt: Date;
   progress: JobProgress | null;
 } | null> {
+  // Closed rather than reported: whatever was doing this is gone.
+  await closeStaleRuns(job);
+
   const [run] = await db()
     .select({ id: jobRuns.id, startedAt: jobRuns.startedAt })
     .from(jobRuns)
@@ -164,20 +192,6 @@ export async function runningJob(job: JobName): Promise<{
     .orderBy(desc(jobRuns.startedAt))
     .limit(1);
   if (!run) return null;
-
-  if (Date.now() - run.startedAt.getTime() > STALE_AFTER_MS) {
-    // Closed rather than reported: whatever was doing this is gone.
-    await db()
-      .update(jobRuns)
-      .set({
-        status: "failure",
-        finishedAt: new Date(),
-        error: "interrupted",
-      })
-      .where(eq(jobRuns.id, run.id));
-    await writeProgress(job, null);
-    return null;
-  }
 
   const [state] = await db()
     .select({ cursor: jobState.cursor })
@@ -189,6 +203,31 @@ export async function runningJob(job: JobName): Promise<{
     startedAt: run.startedAt,
     progress: (state?.cursor as JobProgress | null) ?? null,
   };
+}
+
+/**
+ * Closes runs of one step that have been under way too long.
+ *
+ * A process that died mid-walk leaves a row nothing will ever finish. Since the
+ * database is what refuses a second run of a step, that row would block the
+ * next attempt for good, so it is closed on the way past rather than by a
+ * sweeper nobody runs. Bounded by the clock, like everything else here.
+ */
+async function closeStaleRuns(job: JobName) {
+  const stale = new Date(Date.now() - STALE_AFTER_MS);
+  const closed = await db()
+    .update(jobRuns)
+    .set({ status: "failure", finishedAt: new Date(), error: "interrupted" })
+    .where(
+      and(
+        eq(jobRuns.jobName, job),
+        eq(jobRuns.status, "running"),
+        lt(jobRuns.startedAt, stale),
+      ),
+    )
+    .returning({ id: jobRuns.id });
+
+  if (closed.length > 0) await writeProgress(job, null);
 }
 
 /**
@@ -263,13 +302,30 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
       // A missing episode is answered by the index, so this is the pass that
       // can watch it arrive.
       await closeReportsSolvedByLibrary();
-      await enrichLibraryPosters();
+      /*
+       * Posters, genres and scores come last and cannot fail the step.
+       *
+       * What this step stamps is the moment the index and the server agreed,
+       * which is what decides how long an answered ask speaks for the index
+       * (see `@/lib/domain/settled`). A poster that did not arrive has no
+       * business holding that stamp back, and holding it back is what would
+       * make an ask trusted for as long as the provider stayed unreachable.
+       */
+      try {
+        await enrichLibraryPosters();
+      } catch (error) {
+        console.warn("[jobs] library-sync enrichment skipped", error);
+      }
       return items + episodes;
     }),
   );
 
   outcomes.push(
     await runJob("series-sync", async () => {
+      // Accepting a series is what starts its tracking, and that call can fail
+      // while the decision stands. This is where those catch up.
+      await trackAcceptedSeries();
+
       const due = await seriesDueForSync();
       let synced = 0;
       for (const series of due) {
@@ -304,13 +360,20 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
    * than by the half hour, so the step is due on a clock of its own. It is a
    * date compared against now like everything else here: a week of downtime
    * costs one late walk, not seven.
+   *
+   * The question is asked out here rather than inside the step, and this is
+   * not a matter of taste: a step that returns without working returns a
+   * success, a success stamps `last_success_at`, and a stamp refreshed every
+   * half hour means the six hours never elapse. The walk then happened once
+   * and never again.
    */
   outcomes.push(
-    await runJob("storage-scan", async (report) => {
-      if (!(await due("storage-scan", SCAN_INTERVAL_HOURS))) return 0;
-      const tree = await scanStorageTree(report);
-      return tree?.fileCount ?? 0;
-    }),
+    (await due("storage-scan", SCAN_INTERVAL_HOURS))
+      ? await runJob("storage-scan", async (report) => {
+          const tree = await scanStorageTree(report);
+          return tree?.fileCount ?? 0;
+        })
+      : { job: "storage-scan", items: 0, skipped: true },
   );
 
   /*
@@ -410,7 +473,6 @@ export async function jobStatus(): Promise<JobStatusRow[]> {
       finishedAt: jobRuns.finishedAt,
       itemsProcessed: jobRuns.itemsProcessed,
       error: jobRuns.error,
-      rank: sql<number>`row_number() OVER (PARTITION BY ${jobRuns.jobName} ORDER BY ${jobRuns.startedAt} DESC)`,
     })
     .from(jobRuns)
     .orderBy(desc(jobRuns.startedAt))

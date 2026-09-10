@@ -11,6 +11,27 @@ import { z } from "zod";
  * Validation is lazy so that `next build` can run without a production
  * environment being present.
  */
+/**
+ * A boolean spelled out in the environment.
+ *
+ * `z.coerce.boolean()` is `Boolean(value)`, which reads the string "false" as
+ * true, so a flag the deployment spells out as false would be on. The words are
+ * therefore parsed rather than the truthiness of the string, and a variable
+ * that is absent or empty falls back to the default rather than stopping the
+ * boot, because Compose passes an unset variable through as an empty string. A
+ * value that is neither true nor false is a typo in a security switch and fails
+ * the boot loudly.
+ */
+function flag(fallback: boolean) {
+  return z
+    .string()
+    .optional()
+    .transform((value) =>
+      value === undefined || value.trim() === "" ? undefined : value.trim(),
+    )
+    .pipe(z.stringbool().default(fallback));
+}
+
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
 
@@ -27,12 +48,12 @@ const schema = z.object({
   /** Plex account promoted to admin on its first sign-in. */
   ADMIN_PLEX_ACCOUNT_ID: z.string().optional(),
   /** Approve every authenticated Plex account automatically. */
-  AUTO_APPROVE_MEMBERS: z.coerce.boolean().default(false),
+  AUTO_APPROVE_MEMBERS: flag(false),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   PLEX_PRODUCT: z.string().min(1).default("Umbra"),
   PLEX_CLIENT_ID: z.string().min(1).default("umbra-hub"),
   /** Opens the development sign-in route. Never enabled in production. */
-  DEV_LOGIN: z.coerce.boolean().default(false),
+  DEV_LOGIN: flag(false),
 
   /** `Movies:/data/movies,Series:/data/series` */
   STORAGE_PATHS: z.string().default(""),
