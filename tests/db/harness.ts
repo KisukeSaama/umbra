@@ -54,7 +54,8 @@ export async function emptyDatabase(): Promise<void> {
   const sql = postgres(DATABASE_URL, { max: 1 });
   try {
     await sql`
-      TRUNCATE account, media, library_item, media_request, tracked_series,
+      TRUNCATE account, media, library_item, media_request, request_follower,
+               tracked_series,
                episode, episode_task, report, report_follower, notification,
                taste_profile, announcement, storage_snapshot,
                storage_tree_snapshot, job_run, job_state, analytics_daily,

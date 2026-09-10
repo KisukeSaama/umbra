@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 
 import { ActionButton } from "@/components/admin/action-button";
+import { WaitingList } from "@/components/admin/waiting-list";
 import { Pagination } from "@/components/pagination";
 import { Poster } from "@/components/poster";
 import { Badge } from "@/components/ui/badge";
 import { requireStaffPage } from "@/lib/auth/session";
 import type { ReportStatus } from "@/lib/db/schema";
-import { countReports, listReports } from "@/lib/domain/reports";
+import {
+  countReports,
+  listReports,
+  waitingOnReports,
+} from "@/lib/domain/reports";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
@@ -30,6 +35,10 @@ const PER_PAGE = 20;
  *
  * Taking up a report about a series is also what starts tracking it, which is
  * what lets the sync close it by itself later.
+ *
+ * A row is one title, place and reason, however many members pointed at it:
+ * the row names the first of them and how many others, the whole list one
+ * press away.
  *
  * Every move may carry a word for the members waiting on it, which reaches them
  * in their notification and on their follow-up page. Unlike a request, a report
@@ -55,6 +64,7 @@ export default async function AdminReportsPage({
     limit: page.perPage,
     offset: page.offset,
   });
+  const waiting = await waitingOnReports(reports.map(({ id }) => id));
 
   if (total === 0)
     return (
@@ -94,7 +104,11 @@ export default async function AdminReportsPage({
 
               <p className="text-muted-foreground text-xs">
                 {formatDate(report.createdAt, locale)}
-                {report.reportedBy ? ` · ${report.reportedBy}` : ""}
+                <WaitingList
+                  names={waiting.get(report.id) ?? []}
+                  title={report.media.title}
+                  lead=" · "
+                />
                 {report.libraryRatingKey ? (
                   <span className="font-mono">
                     {" "}

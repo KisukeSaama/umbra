@@ -126,6 +126,7 @@ export default async function AdminDashboardPage() {
               <Row
                 key={request.id}
                 main={request.media.title}
+                waiting={request.waiting}
                 aside={
                   request.status === "requested"
                     ? request.media.year
@@ -189,6 +190,7 @@ export default async function AdminDashboardPage() {
               <Row
                 key={report.id}
                 main={report.media.title}
+                waiting={report.waiting}
                 aside={t(`report.reason.${report.reason}` as TranslationKey)}
               >
                 {report.status === "open" ? (
@@ -299,18 +301,27 @@ function Queue({
   );
 }
 
-function Row({
+async function Row({
   main,
   aside,
+  waiting = 1,
   children,
 }: {
   main: string;
   aside?: string;
+  /** Members waiting on the row. Said only when it is more than one. */
+  waiting?: number;
   children?: React.ReactNode;
 }) {
+  const t = await getTranslator();
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
       <span className="min-w-0 flex-1 truncate text-sm">{main}</span>
+      {waiting > 1 ? (
+        <Badge variant="secondary" className="shrink-0">
+          {t("admin.waiting", { count: waiting })}
+        </Badge>
+      ) : null}
       {aside ? (
         <Badge variant="outline" className="shrink-0">
           {aside}

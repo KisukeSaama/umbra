@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ActionButton } from "@/components/admin/action-button";
+import { WaitingList } from "@/components/admin/waiting-list";
 import { Pagination } from "@/components/pagination";
 import { Poster } from "@/components/poster";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import {
   canMoveRequest,
   countRequests,
   listRequests,
+  waitingOnRequests,
 } from "@/lib/domain/requests";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
@@ -34,6 +36,11 @@ const PER_PAGE = 20;
 
 /**
  * Requests, newest first.
+ *
+ * A row is one title, however many members want it: a second ask joins the
+ * first, and the row names who is waiting: the first of them and how many
+ * others, the whole list one press away.
+ * Every move and every word on it reaches all of them.
  *
  * Accepting a series is also what starts its tracking, so the buttons here are
  * the entry point of the whole episode pipeline.
@@ -61,6 +68,7 @@ export default async function AdminRequestsPage({
     limit: page.perPage,
     offset: page.offset,
   });
+  const waiting = await waitingOnRequests(requests.map(({ id }) => id));
 
   if (requests.length === 0) {
     return <p className="text-muted-foreground text-sm">{t("common.empty")}</p>;
@@ -104,7 +112,11 @@ export default async function AdminRequestsPage({
 
               <p className="text-muted-foreground text-xs">
                 {formatDate(request.createdAt, locale)}
-                {request.requestedBy ? ` · ${request.requestedBy}` : ""}
+                <WaitingList
+                  names={waiting.get(request.id) ?? []}
+                  title={request.media.title}
+                  lead=" · "
+                />
               </p>
 
               {request.adminNote ? (

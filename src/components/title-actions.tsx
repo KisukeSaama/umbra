@@ -8,6 +8,7 @@ import { request, requestError } from "@/components/client-api";
 import { CheckIcon, CircleHalfIcon, SpinnerIcon } from "@/components/icons";
 import { ReportFlow } from "@/components/report-flow";
 import { Button } from "@/components/ui/button";
+import type { RequestStatus } from "@/lib/db/schema";
 import { isOnServer, type Availability } from "@/lib/domain/availability";
 import type { AlternateCut } from "@/lib/domain/cuts";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
@@ -25,18 +26,25 @@ import { cn } from "@/lib/utils";
  * gap, and nowhere else: an ask for the series as a whole sat here too, saying
  * the same thing in other words, and a member could send both for the very
  * same shortfall.
+ *
+ * A title somebody else has already asked for is not a dead end: the member
+ * can ask for it too, which joins that request rather than opening a second
+ * one, and from then on they hear about it like whoever asked first.
  */
 export function TitleActions({
   kind,
   providerId,
   title,
   availability,
+  followed = null,
   alternateCut = null,
 }: {
   kind: MediaKind;
   providerId: string;
   title: string;
   availability: Availability;
+  /** The live request this member is waiting on for the title, if any. */
+  followed?: { id: string; status: RequestStatus } | null;
   /** The re-cut the server holds it in, so the report says only what applies. */
   alternateCut?: AlternateCut | null;
 }) {
@@ -47,26 +55,29 @@ export function TitleActions({
   const [state, setState] = useState<Availability>(availability);
   const [sending, setSending] = useState(false);
   /**
-   * Set only by the call that has just been made, never read from the page.
-   *
-   * Undoing is offered to the person who has just pressed the button, because
-   * a title that shows as requested on arrival may well have been asked for by
-   * somebody else. Everything after that moment happens on the follow-up page,
-   * where the request is known to be theirs.
+   * The request this member is waiting on, as the page read it and as the
+   * last call left it. Leaving is offered only while nobody has acted on it,
+   * which the domain checks again anyway.
    */
-  const [requestId, setRequestId] = useState<string | null>(null);
+  const [own, setOwn] = useState(followed);
   const [cancelling, setCancelling] = useState(false);
 
   async function ask() {
     setSending(true);
     try {
-      const body = await request<{ requestId: string }>("/api/requests", {
+      const body = await request<{
+        requestId: string;
+        status: RequestStatus;
+        joined: boolean;
+      }>("/api/requests", {
         method: "POST",
         body: { kind, providerId },
       });
-      setRequestId(body.requestId);
+      setOwn({ id: body.requestId, status: body.status });
       setState("requested");
-      toast.success(t("status.requestSent"));
+      toast.success(
+        t(body.joined ? "status.requestJoined" : "status.requestSent"),
+      );
       router.refresh();
     } catch (error) {
       toast.error(requestError(locale, error));
@@ -76,12 +87,16 @@ export function TitleActions({
   }
 
   async function cancel() {
-    if (!requestId) return;
+    if (!own) return;
     setCancelling(true);
     try {
-      await request(`/api/requests/${requestId}`, { method: "DELETE" });
-      setRequestId(null);
-      setState("absent");
+      const body = await request<{ removed: boolean }>(
+        `/api/requests/${own.id}`,
+        { method: "DELETE" },
+      );
+      setOwn(null);
+      // Others still waiting keep the request alive, and the title with it.
+      if (body.removed) setState("absent");
       toast.success(t("status.requestCancelled"));
       router.refresh();
     } catch (error) {
@@ -112,11 +127,13 @@ export function TitleActions({
     );
   }
 
-  if (state === "requested")
+  if (state === "requested" && own)
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <p className="text-muted-foreground text-sm">{t("title.requested")}</p>
-        {requestId ? (
+        <p className="text-muted-foreground text-sm">
+          {t("title.requestedByYou")}
+        </p>
+        {own.status === "requested" ? (
           <Button
             variant="ghost"
             size="sm"
@@ -127,6 +144,22 @@ export function TitleActions({
             {cancelling ? t("status.cancelling") : t("title.cancelRequest")}
           </Button>
         ) : null}
+      </div>
+    );
+
+  if (state === "requested")
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-muted-foreground text-sm">{t("title.requested")}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void ask()}
+          disabled={sending}
+        >
+          {sending ? <SpinnerIcon /> : null}
+          {sending ? t("status.requesting") : t("title.requestToo")}
+        </Button>
       </div>
     );
 

@@ -9,6 +9,7 @@ import {
   libraryItems,
   media,
   mediaRequests,
+  requestFollowers,
   type MediaType,
 } from "@/lib/db/schema";
 import { type CatalogResult, decorate } from "@/lib/domain/catalog";
@@ -119,10 +120,11 @@ export const becauseYouAsked = cache(async function becauseYouAsked(
       mediaType: media.mediaType,
       title: media.title,
     })
-    .from(mediaRequests)
+    .from(requestFollowers)
+    .innerJoin(mediaRequests, eq(mediaRequests.id, requestFollowers.requestId))
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
-    .where(eq(mediaRequests.requestedBy, accountId))
-    .orderBy(desc(mediaRequests.createdAt))
+    .where(eq(requestFollowers.accountId, accountId))
+    .orderBy(desc(requestFollowers.createdAt))
     .limit(1);
 
   if (!seed) return null;

@@ -45,6 +45,6 @@ validates the same closed sets again at the boundary.
 - One live report per title, place and reason, enforced by a partial unique
   index over an expression rather than by a read. A second member reporting the
   same thing joins the existing one and is told what happens to it.
-- The number of people waiting on a report exists in the database and is never
-  shown, in the administration included. It routes notifications; it is not a
-  popularity score, and `docs/product.md` still rules those out.
+- The number of people waiting on a report routes notifications, and since
+  `docs/adr/0016-requests-have-followers.md` it is also shown to the staff to
+  set priorities. Members never see it: it is not a popularity score.

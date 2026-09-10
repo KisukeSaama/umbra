@@ -63,6 +63,9 @@ describe.skipIf(!hasDatabase)("moving a request", () => {
       .insert(schema.mediaRequests)
       .values({ mediaId: film.id, requestedBy: account.id })
       .returning({ id: schema.mediaRequests.id });
+    await db()
+      .insert(schema.requestFollowers)
+      .values({ requestId: request.id, accountId: account.id });
 
     return { accountId: account.id, mediaId: film.id, requestId: request.id };
   }
@@ -169,6 +172,103 @@ describe.skipIf(!hasDatabase)("moving a request", () => {
       offset: 0,
     });
     expect(page).toHaveLength(2);
+  });
+});
+
+/**
+ * Several members wanting the same title.
+ *
+ * The queue holds one row per title, and everybody who asked is waiting on it:
+ * a second ask joins rather than being refused, every step reaches everyone,
+ * and leaving keeps the request alive for whoever stays.
+ */
+describe.skipIf(!hasDatabase)("sharing a request", () => {
+  beforeEach(emptyDatabase);
+
+  async function member(id: number) {
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({
+        plexAccountId: `test:${id}`,
+        username: `member${id}`,
+        status: "approved",
+      })
+      .returning({ id: schema.accounts.id });
+    return account.id;
+  }
+
+  /** A film on the list, asked for by the first member. */
+  async function askedFilm() {
+    const first = await member(1);
+    const [film] = await db()
+      .insert(schema.media)
+      .values({ providerId: "1", mediaType: "movie", title: "Alien" })
+      .returning({ id: schema.media.id });
+    const [request] = await db()
+      .insert(schema.mediaRequests)
+      .values({ mediaId: film.id, requestedBy: first })
+      .returning({ id: schema.mediaRequests.id });
+    await db()
+      .insert(schema.requestFollowers)
+      .values({ requestId: request.id, accountId: first });
+    return { first, requestId: request.id };
+  }
+
+  it("joins the live request instead of refusing a second member", async () => {
+    const { requestId } = await askedFilm();
+    const second = await member(2);
+
+    const outcome = await requests.createRequest("movie", "1", second);
+    expect(outcome).toMatchObject({ requestId, joined: true });
+
+    // Asking twice is still one person waiting.
+    await requests.createRequest("movie", "1", second);
+
+    const [row] = await requests.listRequests();
+    expect(row.waiting).toBe(2);
+    expect(await requests.countRequests()).toBe(1);
+    expect(await requests.countRequestsBy(second)).toBe(1);
+  });
+
+  it("tells everyone waiting about each step", async () => {
+    const { requestId } = await askedFilm();
+    const second = await member(2);
+    await requests.createRequest("movie", "1", second);
+
+    await requests.updateRequestStatus(requestId, "accepted");
+
+    const told = await db()
+      .select({ accountId: schema.notifications.accountId })
+      .from(schema.notifications)
+      .where(eq(schema.notifications.subjectId, requestId));
+    expect(told).toHaveLength(2);
+  });
+
+  it("keeps the request for those who stay, and hands it on", async () => {
+    const { first, requestId } = await askedFilm();
+    const second = await member(2);
+    await requests.createRequest("movie", "1", second);
+
+    const left = await requests.withdrawRequest(requestId, first);
+    expect(left.removed).toBe(false);
+
+    const [row] = await requests.listRequests();
+    expect(row.waiting).toBe(1);
+    expect(row.requestedBy).toBe("member2");
+
+    // The last one leaving an untouched request takes it away with them.
+    const last = await requests.withdrawRequest(requestId, second);
+    expect(last.removed).toBe(true);
+    expect(await requests.countRequests()).toBe(0);
+  });
+
+  it("refuses to leave once the request is taken up", async () => {
+    const { first, requestId } = await askedFilm();
+    await requests.updateRequestStatus(requestId, "accepted");
+
+    await expect(requests.withdrawRequest(requestId, first)).rejects.toThrow(
+      /requestUnderway/,
+    );
   });
 });
 

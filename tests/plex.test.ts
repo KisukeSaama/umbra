@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { itemsFrom, sectionId, watchEventsFrom } from "@/lib/providers/plex";
+import {
+  itemsFrom,
+  sectionId,
+  serverAccountId,
+  watchEventsFrom,
+} from "@/lib/providers/plex";
 
 describe("library parsing", () => {
   it("reads a movie and its provider mappings", () => {
@@ -70,6 +75,21 @@ describe("library parsing", () => {
   it("refuses a section key that is not numeric", () => {
     expect(() => sectionId("../../secret")).toThrow();
     expect(sectionId("3")).toBe(3);
+  });
+});
+
+describe("watch history account", () => {
+  it("asks for the owner under the server's local account", () => {
+    expect(serverAccountId("5551234", "5551234")).toBe(1);
+  });
+
+  it("asks for a member under their plex.tv id", () => {
+    expect(serverAccountId("9876543", "5551234")).toBe(9876543);
+    expect(serverAccountId("9876543", undefined)).toBe(9876543);
+  });
+
+  it("has nothing to ask for an account that is not a number", () => {
+    expect(serverAccountId("dev:alice", "dev:alice")).toBeNull();
   });
 });
 
