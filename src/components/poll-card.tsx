@@ -244,7 +244,13 @@ export function PollCard({
 
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-xs tabular-nums">
-          {t("poll.votes", { count: poll.totalVotes })}
+          {/* Out of the people who could answer, never out of the whole server. */}
+          {poll.memberCount > 0
+            ? t("poll.votesOfMembers", {
+                count: poll.totalVotes,
+                members: poll.memberCount,
+              })
+            : t("poll.votes", { count: poll.totalVotes })}
         </span>
         {/* A closed question already says so next to the question itself. */}
         {closed ? null : hasVoted && !canChange ? (

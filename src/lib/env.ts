@@ -44,11 +44,25 @@ const schema = z.object({
   JANUS_METADATA_SLUG: z.string().min(1).default("tmdb-v3"),
   /** plex.tv slug, used by the PIN sign-in flow. */
   JANUS_PLEX_TV_SLUG: z.string().min(1).default("plex-tv"),
+  /**
+   * plex.tv again, under a slug where Janus adds the owner's token.
+   *
+   * Only the membership sweep uses it, and it is optional: without it the
+   * sweep does nothing and access still follows the server at each sign-in.
+   */
+  JANUS_PLEX_OWNER_SLUG: z.string().optional(),
 
   /** Plex account promoted to admin on its first sign-in. */
   ADMIN_PLEX_ACCOUNT_ID: z.string().optional(),
   /** Approve every authenticated Plex account automatically. */
   AUTO_APPROVE_MEMBERS: flag(false),
+  /**
+   * Only sign in a Plex account the server is currently shared with.
+   *
+   * On by default: the site exists for the people who have the server, and a
+   * share taken back on plex.tv closes the door on the next sign-in attempt.
+   */
+  REQUIRE_SERVER_MEMBERSHIP: flag(true),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   PLEX_PRODUCT: z.string().min(1).default("Umbra"),
   PLEX_CLIENT_ID: z.string().min(1).default("umbra-hub"),

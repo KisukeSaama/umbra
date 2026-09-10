@@ -26,8 +26,9 @@ Two levels above a member, and nothing to compose.
 
 - **`admin`**: exactly one, still designated by `ADMIN_PLEX_ACCOUNT_ID`. Not
   granted from a screen, and not taken away from one either.
-- **`assistant`**: a member the administrator named. Same workspace, minus the
-  accounts page: an assistant works the queues, and does not hand out access.
+- **`assistant`**: a member the administrator named. Same workspace, and the
+  accounts page in reading only: an assistant works the queues and can see who
+  is here, but does not hand out access.
 
 Uniqueness of the administrator is enforced by the database, like every other
 uniqueness rule here: `account_single_admin_idx`, a unique index over the role
@@ -36,9 +37,10 @@ someone else, the previous administrator steps down to assistant on the next
 sign-in rather than every sign-in failing.
 
 Two guards carry the distinction. `requireStaff` opens the administration side
-to both roles, and `requireAdmin` keeps the accounts page and its route for the
-administrator alone. Hiding the accounts entry from the navigation is a
-courtesy; the page and the route check for themselves.
+to both roles, the accounts page included, and `requireAdmin` keeps the route
+behind its buttons for the administrator alone. An assistant is drawn no button
+there, which is a courtesy: the route checks for itself, so the page owes its
+safety to the guard rather than to what it chose to draw.
 
 ## Consequences
 

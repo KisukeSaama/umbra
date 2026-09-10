@@ -4,9 +4,10 @@ import { ActionButton } from "@/components/admin/action-button";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { countAccounts, listAccounts } from "@/lib/domain/accounts";
+import { serverMemberCount } from "@/lib/domain/membership";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
-import { requireAdminPage } from "@/lib/auth/session";
+import { requireStaffPage } from "@/lib/auth/session";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
 
@@ -24,6 +25,10 @@ const PER_PAGE = 30;
  * A Plex identity, a status, and nothing else: no e-mail, no profile, no
  * activity trail. Approving is the only gate into the community.
  *
+ * An assistant reads this page and changes nothing on it: knowing who is here
+ * is part of helping, handing out access is not. The buttons are not drawn for
+ * them and the route behind those buttons asks for the administrator anyway.
+ *
  * This is also where help is handed out. An approved member can be named an
  * assistant, which opens the workspace to them, and unnamed again. The
  * administrator is not on that list: there is one, decided by configuration,
@@ -37,11 +42,17 @@ const PER_PAGE = 30;
 export default async function AdminAccountsPage({
   searchParams,
 }: PageProps<"/admin/accounts">) {
-  await requireAdminPage();
+  // An assistant reads this page; only the administrator acts on it, here and
+  // in the route behind the buttons.
+  const actor = await requireStaffPage();
+  const isAdmin = actor.role === "admin";
   const { t, locale } = await getI18n();
 
   const params = toSearchParams(await searchParams);
   const total = await countAccounts();
+  // How many people have the server, against how many of them ever opened
+  // Umbra. Counted by the membership sweep, so this page waits on no gateway.
+  const onServer = await serverMemberCount();
   const page = paginate(total, parsePage(params.get("page")), PER_PAGE);
   const accounts = await listAccounts({
     limit: page.perPage,
@@ -54,6 +65,12 @@ export default async function AdminAccountsPage({
 
   return (
     <>
+      {onServer !== null ? (
+        <p className="text-muted-foreground mb-4 text-sm">
+          {t("admin.accounts.reach", { members: onServer, accounts: total })}
+        </p>
+      ) : null}
+
       <ul className="divide-border/60 divide-y">
         {accounts.map((account) => (
           <li
@@ -69,6 +86,12 @@ export default async function AdminAccountsPage({
               </p>
             </div>
 
+            {account.onServer === false ? (
+              <Badge variant="destructive">
+                {t("admin.accounts.offServer")}
+              </Badge>
+            ) : null}
+
             <Badge
               variant={
                 account.status === "pending"
@@ -81,7 +104,9 @@ export default async function AdminAccountsPage({
               {t(`admin.accounts.status.${account.status}` as TranslationKey)}
             </Badge>
 
-            {account.status !== "approved" && account.role !== "admin" ? (
+            {isAdmin &&
+            account.status !== "approved" &&
+            account.role !== "admin" ? (
               <ActionButton
                 url={`/api/admin/accounts/${account.id}`}
                 body={{ status: "approved" }}
@@ -91,7 +116,9 @@ export default async function AdminAccountsPage({
               </ActionButton>
             ) : null}
 
-            {account.status !== "blocked" && account.role !== "admin" ? (
+            {isAdmin &&
+            account.status !== "blocked" &&
+            account.role !== "admin" ? (
               <ActionButton
                 url={`/api/admin/accounts/${account.id}`}
                 body={{ status: "blocked" }}
@@ -102,7 +129,9 @@ export default async function AdminAccountsPage({
               </ActionButton>
             ) : null}
 
-            {account.status === "approved" && account.role === "member" ? (
+            {isAdmin &&
+            account.status === "approved" &&
+            account.role === "member" ? (
               <ActionButton
                 url={`/api/admin/accounts/${account.id}`}
                 body={{ role: "assistant" }}
@@ -113,7 +142,7 @@ export default async function AdminAccountsPage({
               </ActionButton>
             ) : null}
 
-            {account.role === "assistant" ? (
+            {isAdmin && account.role === "assistant" ? (
               <ActionButton
                 url={`/api/admin/accounts/${account.id}`}
                 body={{ role: "member" }}

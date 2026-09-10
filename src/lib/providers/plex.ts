@@ -34,6 +34,28 @@ async function get<T = Json>(
 export const plexLibrary: MediaLibraryProvider = {
   name: PLEX_PROVIDER,
 
+  /**
+   * Read from the server rather than configured, so the two sides can never
+   * disagree: this is the identifier a member's own plex.tv resource list
+   * carries when the server is shared with them.
+   */
+  async machineIdentifier() {
+    const body = await get("/identity");
+    const container =
+      isJson(body) && isJson(body.MediaContainer)
+        ? body.MediaContainer
+        : isJson(body)
+          ? body
+          : {};
+    const id = attr(container, "machineIdentifier");
+    if (!id)
+      throw new UpstreamError(
+        env().JANUS_LIBRARY_SLUG,
+        "server identity without machineIdentifier",
+      );
+    return id;
+  },
+
   async sections() {
     const body = await get("/library/sections");
     return containerRows(body, "Directory")

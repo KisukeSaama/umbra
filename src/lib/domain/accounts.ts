@@ -9,6 +9,7 @@ import {
   type AccountRole,
   type AccountStatus,
 } from "@/lib/db/schema";
+import { serverMembersOrNull, stillOnServer } from "@/lib/domain/membership";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 
 /**
@@ -26,6 +27,14 @@ export type AccountRow = {
   status: AccountStatus;
   createdAt: Date;
   lastSeenAt: Date;
+  /**
+   * Whether the media server is still shared with this person, or `null` when
+   * the share list cannot be had and the question stays unanswered.
+   *
+   * The Plex id it is computed from stays here: the administration is shown an
+   * answer, never an identifier it has no use for.
+   */
+  onServer: boolean | null;
 };
 
 export async function listAccounts(
@@ -35,6 +44,7 @@ export async function listAccounts(
   const query = db()
     .select({
       id: accounts.id,
+      plexAccountId: accounts.plexAccountId,
       username: accounts.username,
       role: accounts.role,
       status: accounts.status,
@@ -44,7 +54,15 @@ export async function listAccounts(
     .from(accounts)
     .orderBy(desc(accounts.createdAt));
 
-  return window ? query.limit(window.limit).offset(window.offset) : query;
+  const [rows, shared] = await Promise.all([
+    window ? query.limit(window.limit).offset(window.offset) : query,
+    serverMembersOrNull(),
+  ]);
+
+  return rows.map(({ plexAccountId, ...row }) => ({
+    ...row,
+    onServer: stillOnServer(plexAccountId, shared),
+  }));
 }
 
 /** How many accounts there are, for the pager above the list. */
@@ -52,6 +70,21 @@ export async function countAccounts(): Promise<number> {
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(accounts);
+  return row?.count ?? 0;
+}
+
+/**
+ * How many people can actually take part: approved accounts.
+ *
+ * The denominator of a participation rate. Not the number of people the server
+ * is shared with, which is larger and always will be: having the server does
+ * not mean having opened Umbra, and a question is only asked of those who did.
+ */
+export async function approvedAccountCount(): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(accounts)
+    .where(eq(accounts.status, "approved"));
   return row?.count ?? 0;
 }
 

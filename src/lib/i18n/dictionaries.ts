@@ -120,6 +120,8 @@ export const en = {
   "poll.voteChanged": "Your vote has been changed.",
   "poll.votes": "{count} votes",
   "poll.votes.one": "{count} vote",
+  "poll.votesOfMembers": "{count} votes out of {members} members",
+  "poll.votesOfMembers.one": "{count} vote out of {members} members",
   "poll.closed": "This poll is closed.",
   "poll.none": "No poll running right now.",
   "poll.daysLeft": "{count} days left",
@@ -156,6 +158,9 @@ export const en = {
   "auth.pendingHint":
     "The administrator has been notified. Come back a bit later.",
   "auth.blocked": "This account no longer has access.",
+  "auth.notMember": "This Plex account is not on the server.",
+  "auth.notMemberHint":
+    "Umbra is reserved for the people the server is shared with. Ask the administrator for access to the server, then sign in again.",
   "auth.restart": "Start over",
   "auth.devLogin": "Development sign-in",
 
@@ -304,6 +309,9 @@ export const en = {
   "admin.polls.deactivate": "Close poll",
   "admin.polls.closed": "Closed",
   "admin.accounts.approve": "Approve",
+  "admin.accounts.reach":
+    "{members} people have the server, {accounts} of them opened Umbra.",
+  "admin.accounts.offServer": "Off the server",
   "admin.accounts.block": "Block",
   "admin.accounts.status.pending": "Pending",
   "admin.accounts.status.approved": "Approved",
@@ -345,6 +353,9 @@ export const en = {
   "admin.job.taste-profile": "Taste profiles",
   "admin.job.taste-profile.hint":
     "Rebuilds the favourite genres of the approved members. Replaced every time, never accumulated.",
+  "admin.job.membership-sweep": "Server members",
+  "admin.job.membership-sweep.hint":
+    "Signs out the accounts the server is no longer shared with. Does nothing until the owner slug is configured.",
   "admin.job.housekeeping": "Housekeeping",
   "admin.job.housekeeping.hint":
     "Deletes what nothing else deletes: expired sessions and codes, old run history, notifications long read.",
@@ -723,6 +734,8 @@ export const fr: Record<TranslationKey, string> = {
   "poll.voteChanged": "Ton vote a été modifié.",
   "poll.votes": "{count} votes",
   "poll.votes.one": "{count} vote",
+  "poll.votesOfMembers": "{count} votes sur {members} membres",
+  "poll.votesOfMembers.one": "{count} vote sur {members} membres",
   "poll.closed": "Ce sondage est clos.",
   "poll.none": "Aucun sondage en cours.",
   "poll.daysLeft": "encore {count} jours",
@@ -759,6 +772,9 @@ export const fr: Record<TranslationKey, string> = {
   "auth.pendingHint":
     "L'administrateur a été prévenu. Reviens un peu plus tard.",
   "auth.blocked": "Ce compte n'a plus accès à Umbra.",
+  "auth.notMember": "Ce compte Plex n'est pas sur le serveur.",
+  "auth.notMemberHint":
+    "Umbra est réservé aux personnes avec qui le serveur est partagé. Demande l'accès au serveur à l'administrateur, puis reconnecte-toi.",
   "auth.restart": "Recommencer",
   "auth.devLogin": "Connexion de développement",
 
@@ -907,6 +923,9 @@ export const fr: Record<TranslationKey, string> = {
   "admin.polls.deactivate": "Clore le sondage",
   "admin.polls.closed": "Clos",
   "admin.accounts.approve": "Approuver",
+  "admin.accounts.reach":
+    "{members} personnes ont le serveur, {accounts} d'entre elles ont ouvert Umbra.",
+  "admin.accounts.offServer": "Plus sur le serveur",
   "admin.accounts.block": "Bloquer",
   "admin.accounts.status.pending": "En attente",
   "admin.accounts.status.approved": "Approuvé",
@@ -948,6 +967,9 @@ export const fr: Record<TranslationKey, string> = {
   "admin.job.taste-profile": "Profils de goût",
   "admin.job.taste-profile.hint":
     "Recalcule les genres préférés des membres approuvés. Remplacés à chaque fois, jamais accumulés.",
+  "admin.job.membership-sweep": "Membres du serveur",
+  "admin.job.membership-sweep.hint":
+    "Déconnecte les comptes avec qui le serveur n'est plus partagé. Sans effet tant que le slug propriétaire n'est pas configuré.",
   "admin.job.housekeeping": "Ménage",
   "admin.job.housekeeping.hint":
     "Supprime ce que rien d'autre ne supprime : sessions et codes expirés, vieux historiques d'exécution, notifications lues depuis longtemps.",

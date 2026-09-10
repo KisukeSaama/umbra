@@ -4,6 +4,7 @@ import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { jobRuns, jobState } from "@/lib/db/schema";
+import { revokeDepartedMembers } from "@/lib/domain/membership";
 import {
   enrichLibraryPosters,
   linkUnmatchedCuts,
@@ -45,6 +46,7 @@ export const JOB_NAMES = [
   "storage-snapshot",
   "storage-scan",
   "taste-profile",
+  "membership-sweep",
   "housekeeping",
 ] as const;
 export type JobName = (typeof JOB_NAMES)[number];
@@ -406,6 +408,16 @@ export async function runSyncCycle(): Promise<JobOutcome[]> {
    * so a failed deletion shows up as a failed deletion, instead of hiding
    * inside a run that was about something entirely different.
    */
+  /*
+   * Access follows the server, and this is the pass that says so between two
+   * sign-ins. Its own step, because it reaches plex.tv and must be able to fail
+   * on its own: a gateway that is down has nothing to do with the deletions
+   * below, and must not stop them.
+   */
+  outcomes.push(
+    await runJob("membership-sweep", async () => revokeDepartedMembers()),
+  );
+
   outcomes.push(
     await runJob("housekeeping", async () => {
       let removed = await purgeNotifications();

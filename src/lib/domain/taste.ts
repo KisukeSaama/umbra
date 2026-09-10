@@ -4,6 +4,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
+import { serverMembersOrNull, stillOnServer } from "@/lib/domain/membership";
 import {
   accounts,
   libraryItems,
@@ -115,14 +116,29 @@ async function weighKeys(keys: string[]): Promise<TasteWeight[]> {
   return [...totals.values()].sort((a, b) => b.weight - a.weight).slice(0, 24);
 }
 
-/** Every account the profile job has something to do for. */
+/**
+ * Every account the profile job has something to do for.
+ *
+ * Somebody the server is no longer shared with is left out: their history is
+ * not ours to read any more, and the profile would be rebuilt for a person who
+ * cannot sign in. When the share list cannot be had the question is not asked,
+ * and every approved account is served as before.
+ */
 export async function accountsForTaste(): Promise<
   { id: string; plexAccountId: string }[]
 > {
-  return db()
-    .select({ id: accounts.id, plexAccountId: accounts.plexAccountId })
-    .from(accounts)
-    .where(eq(accounts.status, "approved"));
+  const [approved, shared] = await Promise.all([
+    db()
+      .select({ id: accounts.id, plexAccountId: accounts.plexAccountId })
+      .from(accounts)
+      .where(eq(accounts.status, "approved")),
+    serverMembersOrNull(),
+  ]);
+
+  if (!shared) return approved;
+  return approved.filter(
+    (account) => stillOnServer(account.plexAccountId, shared) !== false,
+  );
 }
 
 /**
