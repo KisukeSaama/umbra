@@ -19,11 +19,11 @@ export default async function DiscoverLoading() {
   return (
     <LoadingRegion
       label={t("common.loading")}
-      className="umbra-container space-y-14 py-10"
+      className="umbra-container space-y-10 py-8 sm:space-y-14 sm:py-10"
     >
       <PageHeaderSkeleton />
 
-      <div className="border-border/60 bg-card/40 rounded-xl border p-5 sm:p-6">
+      <div className="border-border/60 bg-card/40 rounded-xl border p-4 sm:p-6">
         <TextLine size="h2" className="mb-1 w-48 max-w-full" />
         <TextLine size="sm" className="mb-5 w-64 max-w-full" />
         <TextLine size="sm" className="mb-3 w-40" />

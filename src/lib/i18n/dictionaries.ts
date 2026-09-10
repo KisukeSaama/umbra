@@ -454,6 +454,9 @@ export const en = {
 
   "nav.discover": "Discover",
   "nav.activity": "My follow-up",
+  /* The tab bar on a phone has five cells at most and a word each. */
+  "nav.activityShort": "Follow-up",
+  "nav.primary": "Main navigation",
 
   "home.greeting.morning": "Good morning.",
   "home.greeting.afternoon": "Good afternoon.",
@@ -1160,6 +1163,8 @@ export const fr: Record<TranslationKey, string> = {
 
   "nav.discover": "Découvrir",
   "nav.activity": "Mon suivi",
+  "nav.activityShort": "Suivi",
+  "nav.primary": "Navigation principale",
 
   "home.greeting.morning": "Bonjour.",
   "home.greeting.afternoon": "Bon après-midi.",

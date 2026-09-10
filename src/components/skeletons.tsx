@@ -151,16 +151,19 @@ export function TitleSkeleton() {
   return (
     <div className="space-y-6">
       <Skeleton className="-mx-4 -mb-6 h-44 rounded-none sm:-mx-6 sm:h-64 lg:-mx-10" />
-      <div className="flex flex-col gap-5 sm:flex-row">
-        <Skeleton className="aspect-[2/3] w-32 shrink-0 rounded-lg sm:w-40" />
-        <div className="min-w-0 flex-1 space-y-3">
+      <div className="relative grid grid-cols-[6rem_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-x-5 sm:gap-y-3">
+        <Skeleton className="aspect-[2/3] w-full rounded-lg sm:row-span-2" />
+        <div className="min-w-0 self-end sm:self-auto">
           <TextLine size="title" className="w-2/3" />
+          <TextLine size="sm" className="w-1/3" />
+        </div>
+        <div className="col-span-2 min-w-0 space-y-3 sm:col-span-1 sm:col-start-2">
           <div>
             <TextLine size="sm" className="w-full" />
             <TextLine size="sm" className="w-full" />
             <TextLine size="sm" className="w-3/4" />
           </div>
-          <Skeleton className="h-8 w-36 rounded-lg" />
+          <Skeleton className="h-9 w-full rounded-lg pointer-coarse:h-10 sm:w-36" />
         </div>
       </div>
     </div>

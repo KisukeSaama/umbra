@@ -39,7 +39,7 @@ export function BackToTop() {
       aria-hidden={!visible}
       tabIndex={visible ? undefined : -1}
       className={cn(
-        "fixed right-4 bottom-4 z-30 rounded-full transition-opacity sm:right-6 sm:bottom-6",
+        "fixed right-4 bottom-[calc(1rem+var(--umbra-tabbar))] z-30 rounded-full transition-opacity sm:right-6 lg:bottom-6",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
       )}
       onClick={() =>

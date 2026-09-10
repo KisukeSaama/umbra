@@ -21,6 +21,7 @@ import {
   FolderSimple,
   HandHeart,
   HardDrives,
+  House,
   Info,
   List,
   ListChecks,
@@ -110,6 +111,7 @@ export const ChevronLeftIcon = icon(CaretLeft, "bold");
 export const BellIcon = icon(Bell);
 export const FlagIcon = icon(Flag);
 export const CompassIcon = icon(Compass);
+export const HouseIcon = icon(House);
 export const FollowUpIcon = icon(ListChecks);
 export const SparkleIcon = icon(Sparkle);
 export const MovieIcon = icon(FilmSlate);

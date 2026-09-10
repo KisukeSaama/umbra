@@ -1,5 +1,6 @@
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { TabBar } from "@/components/tab-bar";
 import { requireMemberPage } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
 
@@ -12,7 +13,7 @@ import { getTranslator } from "@/lib/i18n/server";
  * each page calls the same guard for itself.
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
-  await requireMemberPage();
+  const account = await requireMemberPage();
   const t = await getTranslator();
 
   return (
@@ -43,6 +44,10 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
         {children}
       </main>
       <SiteFooter />
+      {/* Room for the tab bar, which floats over the foot of the page on a
+          phone: without it the credits end under the bar. Zero elsewhere. */}
+      <div className="h-(--umbra-tabbar) shrink-0" aria-hidden />
+      <TabBar isStaff={account.role !== "member"} />
     </>
   );
 }

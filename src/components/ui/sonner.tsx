@@ -17,6 +17,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // On a phone the tab bar owns the foot of the screen, so a toast lands
+      // just above it rather than under it. The variable is zero wherever the
+      // bar is not.
+      mobileOffset={{ bottom: "calc(var(--umbra-tabbar) + 1rem)" }}
       icons={{
         success: <CheckCircleIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

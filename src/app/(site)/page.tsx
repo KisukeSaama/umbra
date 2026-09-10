@@ -51,7 +51,7 @@ export default async function HomePage() {
     <>
       <Hero posters={recent} />
 
-      <div className="umbra-container space-y-12 py-12">
+      <div className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12">
         <WeekStats stats={stats} />
         <RecentlyAdded items={recent} />
 

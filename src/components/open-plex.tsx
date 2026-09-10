@@ -148,8 +148,16 @@ export function OpenPlex() {
       render={
         <a {...anchor}>
           <PlayIcon />
-          <span className="sm:hidden">{t("nav.openPlexShort")}</span>
-          <span className="hidden sm:inline">{t("nav.openPlex")}</span>
+          {/* The short form again between the large and extra-large
+              breakpoints: that is where the nav pill joins the row, and the
+              lockup, five destinations and four actions do not all fit at
+              1024px with the long one. */}
+          <span className="sm:hidden lg:inline xl:hidden">
+            {t("nav.openPlexShort")}
+          </span>
+          <span className="hidden sm:inline lg:hidden xl:inline">
+            {t("nav.openPlex")}
+          </span>
         </a>
       }
     />

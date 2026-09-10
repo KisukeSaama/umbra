@@ -324,10 +324,19 @@ colour at 50 percent, drops to 50 percent opacity, blocks the cursor.
 blur, items fully rounded with 12 to 16px horizontal padding; active is foreground
 text plus a one-pixel ochre underline inset to the item padding, inactive is muted
 ink hovering to foreground on Quiet Sand at 60 percent, and the admin entry shows
-only for the administrator and the assistants. On mobile it does not collapse into a burger: it moves to
-its own row below the wordmark, where the four share the width equally in a
-44px row, because four items fit and one tap beats two; a fifth, the admin
-entry, makes the row scroll rather than wrap. Header actions carry their word at
+only for the administrator and the assistants. Below the large breakpoint it
+does not collapse into a burger and it does not take a second row under the
+header either, which cost a quarter of a phone screen to a sticky band: it
+becomes a tab bar at the foot of the screen, 56px plus the home-indicator
+inset, the same four destinations sharing the width with a glyph over a 13px
+word, the admin entry making five for the staff; a tablet held upright gets it
+too, since the pill, the lockup and the four header actions do not share 768px
+without something being clipped. Active is the filled glyph,
+ink text and the same one-pixel ochre line, so the pill and the bar read as one
+nav; the bar blurs, since the page scrolls under it. It publishes its height
+as `--umbra-tabbar`, zero wherever it is absent, and everything that sits at
+the foot of the screen (the title dock, the back-to-top button, the toasts)
+adds that rather than asking whether the bar is there. Header actions carry their word at
 every width: "Search" beside the loupe, "Open Plex" beside the triangle ("Plex"
 on a phone), because an icon alone is a guess for anyone who has not learnt it,
 and the way out to the thing people came for must not be a guess. To make room,
@@ -399,7 +408,7 @@ screen.
 **Do**
 
 - Give every interactive element its full state set: default, hover, focus-visible, active, disabled, and where relevant loading and invalid.
-- Use skeletons shaped like the content that is coming, never a spinner parked mid-page.
+- Use skeletons shaped like the content that is coming, never a spinner parked mid-page. They do not pulse: one light passes over every block on the page at once, every three seconds or so, and rests in between (`.umbra-shimmer`). A block that pulses says something is off; a light crossing it says something is on its way.
 - Add every new user-visible string to both dictionaries in `src/lib/i18n/dictionaries.ts`. French is typed against English, so a missing translation fails the build.
 - Let a section remove itself when it has nothing to show, the way the week strip does.
 - Write empty states that name the next action: "no request yet, search for a title".

@@ -42,7 +42,7 @@ export default async function DiscoverPage({
   const { q } = await searchParams;
 
   return (
-    <div className="umbra-container space-y-14 py-10">
+    <div className="umbra-container space-y-10 py-8 sm:space-y-14 sm:py-10">
       {typeof q === "string" && q ? <SearchOnArrival query={q} /> : null}
       <header>
         <h1 className="text-3xl tracking-tight sm:text-4xl">
@@ -51,7 +51,7 @@ export default async function DiscoverPage({
         <p className="text-muted-foreground mt-1">{t("discover.subtitle")}</p>
       </header>
 
-      <section className="border-border/60 bg-card/40 rounded-xl border p-5 sm:p-6">
+      <section className="border-border/60 bg-card/40 rounded-xl border p-4 sm:p-6">
         <h2 className="mb-1 text-lg font-semibold tracking-tight">
           {t("picker.title")}
         </h2>

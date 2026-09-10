@@ -70,7 +70,7 @@ export function TitleDock({
         inert={!docked}
         className={cn(
           "bg-background/80 ring-foreground/10 fixed inset-x-0 z-30 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-1 rounded-full p-1.5 shadow-lg ring-1 backdrop-blur",
-          "bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-6",
+          "bottom-[max(1rem,env(safe-area-inset-bottom),calc(var(--umbra-tabbar)+0.75rem))] lg:bottom-6",
           "transition-[opacity,translate] duration-250 ease-(--ease-out-quint) motion-reduce:transition-opacity",
           docked
             ? "translate-y-0 opacity-100"

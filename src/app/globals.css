@@ -156,7 +156,24 @@
      * dialog scrolls inside itself with nothing above it, so it sets this back
      * to zero for everything it contains.
      */
-    --umbra-sticky-top: 4rem;
+    --umbra-sticky-top: calc(4rem + env(safe-area-inset-top));
+    /*
+     * The bottom tab bar, on a phone. Zero everywhere else, so anything that
+     * sits at the foot of the screen (the title dock, the back-to-top button,
+     * a toast) can add it without asking whether the bar is there. Set from
+     * the bar itself: see `.umbra-tabbar` below.
+     */
+    --umbra-tabbar: 0px;
+  }
+  /*
+   * The bar exists below the large breakpoint, on the member pages only, so
+   * the variable follows the element rather than a breakpoint: the workspace
+   * and the sign-in page have no bar and leave the foot of the screen alone.
+   */
+  @media (width < 64rem) {
+    body:has(.umbra-tabbar) {
+      --umbra-tabbar: calc(3.5rem + env(safe-area-inset-bottom));
+    }
   }
   /* Tailwind v4 gives buttons the arrow cursor; everything a member can press
      shows the hand instead, and a disabled control keeps the arrow. */
@@ -367,6 +384,63 @@
   .umbra-fill {
     transform-origin: left;
     animation: umbra-fill 500ms var(--ease-out-quint) both;
+  }
+
+  /*
+   * A skeleton waits under a light that passes over it.
+   *
+   * A block that pulses says "something is off"; a light sweeping across it
+   * says "something is on its way", which is the message. It crosses once
+   * every few seconds and rests in between, because a sheen that never stops
+   * is a screen that never settles, and every block on a page catches the same
+   * light at the same moment, since they were all drawn together. The sheen
+   * is a wash of the sheet by day and a lift of the ink by night: the same
+   * light, read against a different paper.
+   */
+  .umbra-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .umbra-shimmer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    /*
+     * As wide as the screen rather than as the block, and travelling a screen
+     * width: sized to the block, a short bar flashed in a tenth of the time
+     * the banner took, and a page of them read as a dozen lights. The band
+     * now crosses every block at one speed, at nearly the same moment.
+     */
+    width: 100vw;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      var(--umbra-sheen) 50%,
+      transparent 70%
+    );
+    transform: translateX(-100vw);
+    animation: umbra-shimmer 3.4s linear infinite;
+  }
+}
+
+:root {
+  --umbra-sheen: color-mix(in oklab, var(--card) 75%, transparent);
+}
+.dark {
+  --umbra-sheen: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+@keyframes umbra-shimmer {
+  0% {
+    transform: translateX(-100vw);
+  }
+  /* The light takes the first half of the cycle and the rest is still. */
+  50%,
+  100% {
+    transform: translateX(100vw);
   }
 }
 

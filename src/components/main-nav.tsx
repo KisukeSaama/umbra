@@ -13,6 +13,10 @@ import { cn } from "@/lib/utils";
  * what you asked for, read what is going on. Polls moved into the news feed,
  * because a poll is news you can answer, and search left the nav entirely: it
  * is a key you press, not a place you go.
+ *
+ * This is the pill in the header, from the large breakpoint up. Below it the
+ * same destinations are the tab bar at the foot of the screen, in `tab-bar.tsx`,
+ * so the header stays one row on a phone.
  */
 const LINKS = [
   { href: "/", key: "nav.home" },
@@ -30,7 +34,7 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
     : LINKS;
 
   return (
-    <nav className="border-border/60 bg-card/60 flex w-full items-center gap-0.5 rounded-full border p-1 backdrop-blur md:w-auto md:gap-1">
+    <nav className="border-border/60 bg-card/60 flex items-center gap-1 rounded-full border p-1 backdrop-blur">
       {links.map((link) => {
         const active =
           link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
@@ -40,9 +44,7 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              // On a phone the four share the width equally and never scroll
-              // out of sight; a finger also gets a 44px row there.
-              "focus-visible:ring-ring/50 relative flex-1 rounded-full px-2 py-2.5 text-center text-[0.9375rem] whitespace-nowrap transition-colors outline-none focus-visible:ring-3 sm:px-4 md:flex-none md:py-1.5 md:text-sm",
+              "focus-visible:ring-ring/50 relative rounded-full px-3 py-1.5 text-sm whitespace-nowrap xl:px-4 transition-colors outline-none focus-visible:ring-3",
               active
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
@@ -50,7 +52,7 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
           >
             {t(link.key)}
             {active ? (
-              <span className="bg-primary absolute inset-x-2 -bottom-px h-px rounded-full sm:inset-x-4" />
+              <span className="bg-primary absolute inset-x-3 -bottom-px h-px rounded-full xl:inset-x-4" />
             ) : null}
           </Link>
         );

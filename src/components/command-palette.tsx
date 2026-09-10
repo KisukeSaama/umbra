@@ -221,7 +221,11 @@ export function CommandPalette() {
         {t("common.search")}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-2xl">
+      {/* Hung from the top of a phone rather than centred on it: the keyboard
+          takes the lower half the moment the field is focused, and a centred
+          panel is then pushed about under it. Centred from the small
+          breakpoint, where there is room. */}
+      <DialogContent className="top-[max(1rem,env(safe-area-inset-top))] translate-y-0 sm:top-1/2 sm:max-w-2xl sm:-translate-y-1/2">
         <DialogHeader>
           <DialogTitle>{t("common.search")}</DialogTitle>
           <DialogDescription>{t("search.subtitle")}</DialogDescription>
@@ -393,16 +397,34 @@ function ShortcutHint() {
  */
 export function SearchField() {
   const t = useTranslator();
+  const apple = useSyncExternalStore(
+    () => () => {},
+    isApplePlatform,
+    () => false,
+  );
+  // Drawn as the field it stands for, placeholder and all, rather than as a
+  // button that says "Search": a front door is recognised by its shape. It is
+  // the one resting element allowed a shadow. A button underneath, since it
+  // opens a dialog rather than taking the text itself.
   return (
-    <Button
-      variant="outline"
-      size="lg"
-      className="rounded-full px-6"
+    <button
+      type="button"
       onClick={() => openPalette()}
+      title={t("home.searchHint")}
+      className="bg-card text-muted-foreground ring-foreground/10 hover:text-foreground focus-visible:ring-ring/50 flex h-12 w-full items-center gap-3 rounded-full px-5 text-left text-sm shadow-lg ring-1 transition-colors outline-none focus-visible:ring-3 sm:h-14 sm:px-6"
     >
-      <SearchIcon />
-      {t("common.search")}
-    </Button>
+      <SearchIcon className="size-5 shrink-0" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">
+        {t("home.searchPlaceholder")}
+      </span>
+      <span
+        className="hidden shrink-0 items-center gap-1 sm:pointer-fine:flex"
+        aria-hidden
+      >
+        <kbd>{apple ? "Cmd" : "Ctrl"}</kbd>
+        <kbd>K</kbd>
+      </span>
+    </button>
   );
 }
 

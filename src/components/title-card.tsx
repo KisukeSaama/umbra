@@ -48,7 +48,9 @@ export async function TitleCard({
       href={`/title/${kind}/${providerId}`}
       className="group focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-3"
     >
-      <div className="relative">
+      {/* A finger gets an answer the moment it lands: the poster gives a
+          little under the press, before the page has moved. */}
+      <div className="relative transition-transform duration-200 ease-(--ease-out-quart) group-active:scale-[0.97]">
         <Poster
           src={posterUrl}
           alt={title}
