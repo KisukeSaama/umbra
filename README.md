@@ -23,7 +23,7 @@ additions, what airs this week, the news feed with its polls, and the storage
 gauge.
 
 **Administrator.** A queue of everything waiting on a decision: new requests, open
-reports, episodes to add and accounts waiting for approval, each with its action
+reports and episodes to add, each with its action
 on the row. A series tracker: broadcast calendar from the metadata provider,
 compared against the server, a task raised for every aired episode still missing
 and closed by itself when it arrives. Announcements, each able to carry one
@@ -82,7 +82,6 @@ in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 | `JANUS_METADATA_SLUG`        | no       | Metadata slug, default `tmdb-v3`                   |
 | `JANUS_PLEX_TV_SLUG`         | no       | plex.tv slug for sign-in, default `plex-tv`        |
 | `ADMIN_PLEX_ACCOUNT_ID`      | no       | Plex account promoted to admin on first sign-in    |
-| `AUTO_APPROVE_MEMBERS`       | no       | Skip manual approval of new accounts, default off  |
 | `SESSION_TTL_DAYS`           | no       | Session lifetime, default 30                       |
 | `DEV_LOGIN`                  | no       | Opens the development sign-in. Never in production |
 | `STORAGE_PATHS`              | no       | Published volumes, `Label:/path`, comma separated  |
@@ -93,10 +92,9 @@ in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 | `SYNC_INTERVAL_MINUTES`      | no       | Worker interval, default 30                        |
 | `SYNC_STARTUP_DELAY_SECONDS` | no       | Worker wait before its first call, default 45      |
 
-`AUTO_APPROVE_MEMBERS` and `DEV_LOGIN` are spelled `true` or `false` and read as
-those words rather than for the truthiness of a string, so the `false` the
-deployment writes is genuinely off. Absent or empty falls back to the default,
-which is off for both, and a word neither of them recognises fails the boot
+`DEV_LOGIN` is spelled `true` or `false` and read as that word rather than for
+the truthiness of a string, so `false` is genuinely off. Absent or empty falls
+back to the default, which is off, and a word neither of them recognises fails the boot
 rather than being guessed at: a switch that guards who gets in is not a place to
 be lenient.
 

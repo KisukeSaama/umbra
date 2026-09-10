@@ -93,7 +93,7 @@ export async function notify(
  * Every parameter is cast, because the driver sends them untyped and Postgres
  * cannot guess a type for a bare parameter in a select list.
  */
-export async function notifyApprovedAccounts(
+export async function notifyAllAccounts(
   entry: NotificationEntry,
 ): Promise<number> {
   const rows = await db().execute<{ account_id: string }>(sql`
@@ -104,7 +104,6 @@ export async function notifyApprovedAccounts(
            ${dedupKeyFor(entry)}::text,
            ${JSON.stringify(entry.payload)}::jsonb
       FROM account AS a
-     WHERE a.status = 'approved'
     ON CONFLICT (account_id, dedup_key) DO NOTHING
     RETURNING account_id
   `);
@@ -115,8 +114,6 @@ export async function notifyApprovedAccounts(
   await publishNotified(accountIds);
   return accountIds.length;
 }
-
-/** Everyone approved, for a fan-out that needs the ids rather than a statement. */
 
 export async function listNotifications(
   accountId: string,

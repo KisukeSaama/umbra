@@ -25,13 +25,19 @@ server's `machineIdentifier`, read from the server itself, is not in that list,
 the sign-in is refused: no account is created, nothing is queued for approval,
 and any session that account still had is ended on the spot.
 
-`REQUIRE_SERVER_MEMBERSHIP` governs this and is on by default. An upstream
-failure refuses the sign-in rather than letting it through.
+This is the only gate. There is no approval, no pending state, no blocking and
+no switch to turn the check off: an account carries no status at all, and a
+session exists only for somebody the check let through. An upstream failure
+refuses the sign-in rather than letting it through.
 
 ## Consequences
 
 - Access follows the share. Removing someone on plex.tv removes them from Umbra
   at their next sign-in, without a second list to maintain.
+- Approval by hand is gone, and with it `AUTO_APPROVE_MEMBERS`, the
+  `/pending` screen and the `status` column: the share was the only thing
+  approval ever confirmed. Keeping somebody out of Umbra means taking the share
+  back on plex.tv.
 - Nothing new is stored and no owner credential is introduced: the token used is
   the visitor's, for one call, and dropped like the one before it.
 - A person whose share is taken back would otherwise keep their cookie until it
@@ -42,6 +48,7 @@ failure refuses the sign-in rather than letting it through.
   plex.tv has no OAuth2 flow, so this is an application credential rather than a
   connected account. Without that slug the sweep does nothing and
   `SESSION_TTL_DAYS` bounds the window instead.
-- The sweep withdraws sessions and never touches a status: sharing the server
-  again is enough to let somebody back in, with the standing they had.
-- If plex.tv is unreachable, nobody signs in. The switch is the way out.
+- The sweep withdraws sessions and leaves the account alone: sharing the server
+  again is enough to let somebody back in, with the role they had.
+- If plex.tv is unreachable, nobody new signs in. Sessions already open keep
+  working until they expire.

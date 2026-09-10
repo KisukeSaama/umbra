@@ -9,7 +9,6 @@ import {
 } from "@/lib/auth/session";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { consumePin, livePin } from "@/lib/domain/auth-pins";
-import { env } from "@/lib/env";
 import { plexLibrary } from "@/lib/providers/plex";
 import { accountOf, hasServerAccess, pollPin } from "@/lib/providers/plex-tv";
 import { checkRate, clientAddress, perMinute } from "@/lib/rate-limit";
@@ -54,26 +53,19 @@ export async function POST(request: NextRequest) {
     /*
      * Membership is read now, from the visitor's own token, rather than from
      * anything Umbra keeps: a share taken back on plex.tv is already gone from
-     * that answer. An upstream failure refuses the sign-in rather than letting
-     * it through, which is why the switch exists at all.
+     * that answer. It is the only gate, so an upstream failure refuses the
+     * sign-in rather than letting it through.
      */
-    if (env().REQUIRE_SERVER_MEMBERSHIP) {
-      const machineIdentifier = await plexLibrary.machineIdentifier();
-      if (!(await hasServerAccess(token, machineIdentifier))) {
-        await consumePin(pinId);
-        await revokeSessionsForPlexAccount(plexAccount.id);
-        return { status: "denied" as const };
-      }
+    const machineIdentifier = await plexLibrary.machineIdentifier();
+    if (!(await hasServerAccess(token, machineIdentifier))) {
+      await consumePin(pinId);
+      await revokeSessionsForPlexAccount(plexAccount.id);
+      return { status: "denied" as const };
     }
 
     const account = await upsertAccountFromPlex(plexAccount);
 
     await consumePin(pinId);
-
-    if (account.status !== "approved") {
-      return { status: "pending" as const };
-    }
-
     await createSession(account.id);
     await bumpMetric("logins");
 

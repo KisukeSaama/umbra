@@ -92,7 +92,6 @@ export const ADMIN_LINKS: AdminLink[] = [
     hint: "admin.nav.accounts.hint",
     icon: AccountsIcon,
     group: "community",
-    count: "accounts",
   },
   {
     href: "/admin/storage",

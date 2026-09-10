@@ -66,17 +66,16 @@ export async function serverMemberCount(): Promise<number | null> {
  * that window, and it needs the owner's view of the shares, so it does nothing
  * at all until `JANUS_PLEX_OWNER_SLUG` is configured.
  *
- * Statuses are left alone on purpose: nothing here decides anything, it only
- * withdraws what plex.tv has already withdrawn. Sharing the server again is
- * therefore enough to let somebody back in, with the standing they had. Their
+ * The account itself is left alone on purpose: nothing here decides anything,
+ * it only withdraws what plex.tv has already withdrawn. Sharing the server
+ * again is therefore enough to let somebody back in, with the role they had. Their
  * taste profile is not kept for that day: it is rebuilt from a rolling window
  * on every sync anyway, and keeping it for somebody who left would be keeping
  * more than the minimum (see `docs/adr/0007-aggregated-taste-profile.md`).
  */
 export async function revokeDepartedMembers(): Promise<number> {
   const config = env();
-  if (!config.JANUS_PLEX_OWNER_SLUG || !config.REQUIRE_SERVER_MEMBERSHIP)
-    return 0;
+  if (!config.JANUS_PLEX_OWNER_SLUG) return 0;
 
   const { slug, ids } = await shares();
 

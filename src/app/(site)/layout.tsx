@@ -4,12 +4,12 @@ import { requireMemberPage } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
 
 /**
- * Umbra is private: everything under this layout needs an approved account.
+ * Umbra is private: everything under this layout needs a member's session,
+ * which only somebody the server is shared with is ever handed.
  *
  * The check here is the first line, not the only one. A layout does not stop
  * the page under it from rendering and is not re-run on every navigation, so
- * each page calls the same guard for itself. An account that is not approved
- * is sent to its own screen, `/pending`.
+ * each page calls the same guard for itself.
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
   await requireMemberPage();

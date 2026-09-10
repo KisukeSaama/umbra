@@ -329,7 +329,7 @@ the next run sees every date that has passed and catches up.
 
 ## Privacy
 
-Stored: a Plex account id, a display name, a role, a status, and when that
+Stored: a Plex account id, a display name, a role, and when that
 account last signed in. The last one is a single timestamp, overwritten on every
 sign-in rather than added to, and it exists so the administration can tell an
 account somebody still uses from one nobody has opened in a year. It is not a
@@ -339,8 +339,9 @@ in, to read their account id and to ask plex.tv whether the server is currently
 shared with them, and then dropped.
 
 Who gets in follows the server: an account the server is not shared with is
-refused at sign-in, is not created, and does not join an approval queue. Taking
-a share back on plex.tv is therefore all it takes to close the door here too.
+refused at sign-in and is not created; one it is shared with is in, with no
+approval to wait for. Taking a share back on plex.tv is therefore all it takes
+to close the door here too, and the only way.
 See `docs/adr/0014-only-members-of-the-server.md`.
 
 Never stored: e-mail addresses, a list of what anyone watched, who searched for

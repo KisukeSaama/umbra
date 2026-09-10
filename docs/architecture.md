@@ -189,7 +189,7 @@ reconnection, and a stream refused outright, a session that expired while the ta
 stayed open, is not retried at all.
 
 What joins the write to the stream is Postgres `LISTEN`/`NOTIFY`, in
-`src/lib/realtime.ts`. `notify()` and `notifyApprovedAccounts()` publish the
+`src/lib/realtime.ts`. `notify()` and `notifyAllAccounts()` publish the
 account ids their `RETURNING` clause actually inserted, so a replayed job stays
 as silent on the wire as it stays in the table, and one `LISTEN` per process
 dispatches to the streams that are open. The channel carries account ids and
@@ -208,9 +208,11 @@ plex.tv; Umbra polls, receives a Plex token, reads the account id with it, and
 drops the token, which is never stored and never logged; a session token is set in
 an `HttpOnly` cookie and only its SHA-256 digest is stored.
 
-A new account lands as `pending` unless it is the designated administrator or
-`AUTO_APPROVE_MEMBERS` is on. A blocked account stays blocked whatever the
-configuration says.
+Membership is the only gate, and there is no account status. A sign-in is
+refused unless plex.tv confirms the server is shared with that account, and an
+account that passes gets a session on the spot; the membership sweep ends the
+sessions of whoever the share list no longer names. Holding a session is
+therefore being a member, and the accounts page only names assistants.
 
 Three roles, and only one of them is granted from a screen. `requireStaff` gates
 the administration side, which the administrator shares with the assistants they

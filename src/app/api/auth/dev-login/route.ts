@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
 
     await createSession(account.id);
     return {
-      status: "approved" as const,
       account: {
         id: account.id,
         username: account.username,

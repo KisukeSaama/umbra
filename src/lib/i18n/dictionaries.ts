@@ -17,7 +17,6 @@ export const en = {
   /* Page titles and the one description, resolved per request like everything
      else the reader sees: a browser tab is interface too. */
   "meta.description": "The private hub of the Kisuflix community.",
-  "meta.pending": "Pending",
   /* Every administration page is named after its own section and says which
      desk it belongs to: six tabs all reading "Umbra" name nothing at all. */
   "meta.admin": "{section}, administration",
@@ -155,10 +154,6 @@ export const en = {
   "auth.openPlex": "Open the Plex page",
   "auth.code": "Your code",
   "auth.waiting": "Waiting for confirmation on plex.tv...",
-  "auth.pending": "Your account is waiting for approval.",
-  "auth.pendingHint":
-    "The administrator has been notified. Come back a bit later.",
-  "auth.blocked": "This account no longer has access.",
   "auth.notMember": "This Plex account is not on the server.",
   "auth.notMemberHint":
     "Umbra is reserved for the people the server is shared with. Ask the administrator for access to the server, then sign in again.",
@@ -183,7 +178,6 @@ export const en = {
   "error.hint": "Try again in a moment.",
   "notFound.title": "This page does not exist.",
   "notFound.hint": "The link may be out of date.",
-  "error.accountPending": "Your account is waiting for approval.",
   "error.alreadyAvailable": "This title is already on the server.",
   "error.notOnServerYet": "The sync has not seen this title on the server yet.",
   "error.alreadyRequested": "This title has already been requested.",
@@ -237,7 +231,6 @@ export const en = {
   "admin.stat.requests": "Open requests",
   "admin.stat.reports": "Open reports",
   "admin.stat.episodes": "Episodes to add",
-  "admin.stat.accounts": "Accounts waiting",
   "admin.inbox.requests": "{count} requests to handle",
   "admin.inbox.requests.one": "{count} request to handle",
   "admin.waiting": "{count} waiting",
@@ -245,8 +238,6 @@ export const en = {
   "admin.waitingOthers.one": "{name} and {count} other",
   "admin.inbox.episodes": "{count} episodes to add",
   "admin.inbox.episodes.one": "{count} episode to add",
-  "admin.inbox.accounts": "{count} accounts waiting",
-  "admin.inbox.accounts.one": "{count} account waiting",
   "admin.inbox.clear": "Nothing waiting. Everything is up to date.",
   "admin.inbox.lastSubmission": "Last member submission received on",
   "admin.inbox.noSubmission": "No submission yet",
@@ -312,14 +303,9 @@ export const en = {
   "admin.polls.activate": "Open poll",
   "admin.polls.deactivate": "Close poll",
   "admin.polls.closed": "Closed",
-  "admin.accounts.approve": "Approve",
   "admin.accounts.reach":
     "{members} people have the server, {accounts} of them opened Umbra.",
   "admin.accounts.offServer": "Off the server",
-  "admin.accounts.block": "Block",
-  "admin.accounts.status.pending": "Pending",
-  "admin.accounts.status.approved": "Approved",
-  "admin.accounts.status.blocked": "Blocked",
   "admin.accounts.promote": "Make assistant",
   "admin.accounts.demote": "Remove assistant",
   "admin.accounts.role.admin": "Administrator",
@@ -645,7 +631,6 @@ export const fr: Record<TranslationKey, string> = {
     "Le messager d'Umbra : un loup assis, une lettre serrée entre les crocs.",
 
   "meta.description": "Le portail privé de la communauté Kisuflix.",
-  "meta.pending": "En attente",
   "meta.admin": "{section}, administration",
 
   "nav.home": "Accueil",
@@ -775,10 +760,6 @@ export const fr: Record<TranslationKey, string> = {
   "auth.openPlex": "Ouvrir la page Plex",
   "auth.code": "Ton code",
   "auth.waiting": "En attente de la validation sur plex.tv...",
-  "auth.pending": "Ton compte attend une approbation.",
-  "auth.pendingHint":
-    "L'administrateur a été prévenu. Reviens un peu plus tard.",
-  "auth.blocked": "Ce compte n'a plus accès à Umbra.",
   "auth.notMember": "Ce compte Plex n'est pas sur le serveur.",
   "auth.notMemberHint":
     "Umbra est réservé aux personnes avec qui le serveur est partagé. Demande l'accès au serveur à l'administrateur, puis reconnecte-toi.",
@@ -803,7 +784,6 @@ export const fr: Record<TranslationKey, string> = {
   "error.hint": "Réessaie dans un instant.",
   "notFound.title": "Cette page n'existe pas.",
   "notFound.hint": "Le lien est peut-être périmé.",
-  "error.accountPending": "Ton compte attend une approbation.",
   "error.alreadyAvailable": "Ce titre est déjà sur le serveur.",
   "error.notOnServerYet":
     "La synchronisation n'a pas encore vu ce titre sur le serveur.",
@@ -857,7 +837,6 @@ export const fr: Record<TranslationKey, string> = {
   "admin.stat.requests": "Demandes ouvertes",
   "admin.stat.reports": "Signalements ouverts",
   "admin.stat.episodes": "Épisodes à ajouter",
-  "admin.stat.accounts": "Comptes en attente",
   "admin.inbox.requests": "{count} demandes à traiter",
   "admin.inbox.requests.one": "{count} demande à traiter",
   "admin.waiting": "{count} en attente",
@@ -865,8 +844,6 @@ export const fr: Record<TranslationKey, string> = {
   "admin.waitingOthers.one": "{name} et {count} autre personne",
   "admin.inbox.episodes": "{count} épisodes à ajouter",
   "admin.inbox.episodes.one": "{count} épisode à ajouter",
-  "admin.inbox.accounts": "{count} comptes en attente",
-  "admin.inbox.accounts.one": "{count} compte en attente",
   "admin.inbox.clear": "Rien en attente. Tout est à jour.",
   "admin.inbox.lastSubmission": "Dernière sollicitation reçue le",
   "admin.inbox.noSubmission": "Aucune sollicitation pour le moment",
@@ -932,14 +909,9 @@ export const fr: Record<TranslationKey, string> = {
   "admin.polls.activate": "Activer le sondage",
   "admin.polls.deactivate": "Clore le sondage",
   "admin.polls.closed": "Clos",
-  "admin.accounts.approve": "Approuver",
   "admin.accounts.reach":
     "{members} personnes ont le serveur, {accounts} d'entre elles ont ouvert Umbra.",
   "admin.accounts.offServer": "Plus sur le serveur",
-  "admin.accounts.block": "Bloquer",
-  "admin.accounts.status.pending": "En attente",
-  "admin.accounts.status.approved": "Approuvé",
-  "admin.accounts.status.blocked": "Bloqué",
   "admin.accounts.promote": "Nommer assistant",
   "admin.accounts.demote": "Retirer l'assistant",
   "admin.accounts.role.admin": "Administrateur",

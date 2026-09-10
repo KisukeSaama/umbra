@@ -50,7 +50,6 @@ describe.skipIf(!hasDatabase)("moving a request", () => {
       .values({
         plexAccountId: "test:1",
         username: "test",
-        status: "approved",
       })
       .returning({ id: schema.accounts.id });
 
@@ -191,7 +190,6 @@ describe.skipIf(!hasDatabase)("sharing a request", () => {
       .values({
         plexAccountId: `test:${id}`,
         username: `member${id}`,
-        status: "approved",
       })
       .returning({ id: schema.accounts.id });
     return account.id;
@@ -438,14 +436,12 @@ describe.skipIf(!hasDatabase)("signing in with a Plex account", () => {
 
   const visitor = { id: "plex:99", username: "kisuke" };
 
-  it("creates a pending account and keeps it pending", async () => {
+  it("creates a member once and finds it again", async () => {
     const first = await session.upsertAccountFromPlex(visitor);
-    expect(first.status).toBe("pending");
     expect(first.role).toBe("member");
 
     const again = await session.upsertAccountFromPlex(visitor);
     expect(again.id).toBe(first.id);
-    expect(again.status).toBe("pending");
   });
 
   it("survives two first sign-ins landing together", async () => {
@@ -459,18 +455,17 @@ describe.skipIf(!hasDatabase)("signing in with a Plex account", () => {
     expect(rows).toHaveLength(1);
   });
 
-  it("keeps a blocked account blocked, and its name up to date", async () => {
+  it("keeps the role and brings the name up to date", async () => {
     const created = await session.upsertAccountFromPlex(visitor);
     await db()
       .update(schema.accounts)
-      .set({ status: "blocked", role: "assistant" })
+      .set({ role: "assistant" })
       .where(eq(schema.accounts.id, created.id));
 
     const back = await session.upsertAccountFromPlex({
       ...visitor,
       username: "kisuke-renamed",
     });
-    expect(back.status).toBe("blocked");
     // The role somebody was given is not handed back by signing in again.
     expect(back.role).toBe("assistant");
     expect(back.username).toBe("kisuke-renamed");

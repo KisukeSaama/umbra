@@ -54,15 +54,6 @@ const schema = z.object({
 
   /** Plex account promoted to admin on its first sign-in. */
   ADMIN_PLEX_ACCOUNT_ID: z.string().optional(),
-  /** Approve every authenticated Plex account automatically. */
-  AUTO_APPROVE_MEMBERS: flag(false),
-  /**
-   * Only sign in a Plex account the server is currently shared with.
-   *
-   * On by default: the site exists for the people who have the server, and a
-   * share taken back on plex.tv closes the door on the next sign-in attempt.
-   */
-  REQUIRE_SERVER_MEMBERSHIP: flag(true),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   PLEX_PRODUCT: z.string().min(1).default("Umbra"),
   PLEX_CLIENT_ID: z.string().min(1).default("umbra-hub"),

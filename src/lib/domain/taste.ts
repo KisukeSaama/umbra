@@ -122,21 +122,20 @@ async function weighKeys(keys: string[]): Promise<TasteWeight[]> {
  * Somebody the server is no longer shared with is left out: their history is
  * not ours to read any more, and the profile would be rebuilt for a person who
  * cannot sign in. When the share list cannot be had the question is not asked,
- * and every approved account is served as before.
+ * and every account is served as before.
  */
 export async function accountsForTaste(): Promise<
   { id: string; plexAccountId: string }[]
 > {
-  const [approved, shared] = await Promise.all([
+  const [known, shared] = await Promise.all([
     db()
       .select({ id: accounts.id, plexAccountId: accounts.plexAccountId })
-      .from(accounts)
-      .where(eq(accounts.status, "approved")),
+      .from(accounts),
     serverMembersOrNull(),
   ]);
 
-  if (!shared) return approved;
-  return approved.filter(
+  if (!shared) return known;
+  return known.filter(
     (account) => stillOnServer(account.plexAccountId, shared) !== false,
   );
 }

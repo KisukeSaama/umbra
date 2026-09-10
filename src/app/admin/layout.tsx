@@ -19,7 +19,7 @@ import { adminCounts } from "@/lib/domain/admin";
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const viewer = await requireStaffPage();
   const isAdmin = viewer.role === "admin";
-  const counts = await adminCounts(isAdmin);
+  const counts = await adminCounts();
 
   return (
     <>

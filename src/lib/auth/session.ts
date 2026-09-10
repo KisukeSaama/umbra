@@ -9,12 +9,7 @@ import { cache } from "react";
 
 import { safeEquals } from "@/lib/auth/compare";
 import { db } from "@/lib/db";
-import {
-  accounts,
-  sessions,
-  type AccountRole,
-  type AccountStatus,
-} from "@/lib/db/schema";
+import { accounts, sessions, type AccountRole } from "@/lib/db/schema";
 import { env, isProduction } from "@/lib/env";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import type { PlexAccount } from "@/lib/providers/plex-tv";
@@ -25,7 +20,6 @@ export type CurrentAccount = {
   id: string;
   username: string;
   role: AccountRole;
-  status: AccountStatus;
 };
 
 /**
@@ -108,7 +102,6 @@ export const currentAccount = cache(
         id: accounts.id,
         username: accounts.username,
         role: accounts.role,
-        status: accounts.status,
       })
       .from(sessions)
       .innerJoin(accounts, eq(accounts.id, sessions.accountId))
@@ -124,12 +117,17 @@ export const currentAccount = cache(
   },
 );
 
-/** Approved member. Everything on the community side goes through this. */
+/**
+ * A member. Everything on the community side goes through this.
+ *
+ * A session is only ever handed to somebody plex.tv has just confirmed the
+ * server is shared with, and the membership sweep ends the sessions of those it
+ * no longer is: holding one is being a member. See
+ * `docs/adr/0014-only-members-of-the-server.md`.
+ */
 export async function requireMember(): Promise<CurrentAccount> {
   const account = await currentAccount();
   if (!account) throw new UnauthorizedError();
-  if (account.status !== "approved")
-    throw new ForbiddenError("error.accountPending");
   return account;
 }
 
@@ -162,7 +160,6 @@ export async function requireAdmin(): Promise<CurrentAccount> {
 export async function requireMemberPage(): Promise<CurrentAccount> {
   const account = await currentAccount();
   if (!account) redirect("/sign-in");
-  if (account.status !== "approved") redirect("/pending");
   return account;
 }
 
@@ -190,12 +187,7 @@ export async function upsertDevAccount(
   role: AccountRole,
 ): Promise<CurrentAccount> {
   const plexAccountId = `dev:${username}`;
-  const values = {
-    plexAccountId,
-    username,
-    role,
-    status: "approved" as const,
-  };
+  const values = { plexAccountId, username, role };
 
   // There is room for one administrator, so the previous one steps aside
   // rather than the insert failing on the unique index.
@@ -219,15 +211,15 @@ export async function upsertDevAccount(
       id: accounts.id,
       username: accounts.username,
       role: accounts.role,
-      status: accounts.status,
     });
 
   return account;
 }
 
 /**
- * Ends every session of an account. Called when access is withdrawn, so a
- * blocked or demoted account does not keep a working cookie until it expires.
+ * Ends every session of an account. Called when access is withdrawn, so
+ * somebody the server is no longer shared with does not keep a working cookie
+ * until it expires.
  */
 export async function revokeSessions(accountId: string) {
   await db().delete(sessions).where(eq(sessions.accountId, accountId));
@@ -252,9 +244,12 @@ export async function revokeSessionsForPlexAccount(plexAccountId: string) {
  * Creates or refreshes the local account matching a Plex account.
  *
  * The account named by `ADMIN_PLEX_ACCOUNT_ID` becomes the administrator, and
- * any previous one steps down to assistant. Others land as pending unless
- * `AUTO_APPROVE_MEMBERS` is set, and keep the role they already had: an
- * assistant stays an assistant across sign-ins.
+ * any previous one steps down to assistant. Others keep the role they already
+ * had: an assistant stays an assistant across sign-ins.
+ *
+ * Only called once plex.tv has confirmed the server is shared with this person,
+ * which is the whole of what it takes to be a member: there is no approval, and
+ * no status to keep.
  */
 export async function upsertAccountFromPlex(
   plexAccount: PlexAccount,
@@ -283,10 +278,7 @@ export async function upsertAccountFromPlex(
     id: accounts.id,
     username: accounts.username,
     role: accounts.role,
-    status: accounts.status,
   };
-
-  const approveOnSight = isDesignatedAdmin || config.AUTO_APPROVE_MEMBERS;
 
   /*
    * One statement, because a sign-in is not a conversation.
@@ -296,8 +288,7 @@ export async function upsertAccountFromPlex(
    * second was refused by the unique index and the person was shown a server
    * error on the way in. What is being said here is unchanged, only said in
    * SQL: an account keeps the role it already had unless the configuration
-   * names it as the administrator, and a blocked account stays blocked
-   * whatever the configuration says.
+   * names it as the administrator.
    */
   const [account] = await db()
     .insert(accounts)
@@ -305,7 +296,6 @@ export async function upsertAccountFromPlex(
       plexAccountId: plexAccount.id,
       username: plexAccount.username,
       role: isDesignatedAdmin ? "admin" : "member",
-      status: approveOnSight ? "approved" : "pending",
     })
     .onConflictDoUpdate({
       target: accounts.plexAccountId,
@@ -313,11 +303,6 @@ export async function upsertAccountFromPlex(
         username: plexAccount.username,
         lastSeenAt: new Date(),
         role: isDesignatedAdmin ? sql`'admin'` : sql`${accounts.role}`,
-        status: sql`CASE
-          WHEN ${accounts.status} = 'blocked' THEN 'blocked'
-          WHEN ${approveOnSight} THEN 'approved'
-          ELSE ${accounts.status}
-        END`,
       },
     })
     .returning(columns);

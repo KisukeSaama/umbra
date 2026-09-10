@@ -2,29 +2,25 @@ import "server-only";
 
 import { desc, eq, sql } from "drizzle-orm";
 
-import { revokeSessions } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import {
-  accounts,
-  type AccountRole,
-  type AccountStatus,
-} from "@/lib/db/schema";
+import { accounts, type AccountRole } from "@/lib/db/schema";
 import { serverMembersOrNull, stillOnServer } from "@/lib/domain/membership";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 
 /**
  * Accounts.
  *
- * An account is a Plex identity plus a status. There is no profile, no e-mail
- * and no public presence: the only reason accounts exist is to keep the place
- * private and to count one vote per person.
+ * An account is a Plex identity plus a role. There is no profile, no e-mail, no
+ * public presence and no status: it exists because plex.tv confirmed the server
+ * is shared with that person, and that is all it takes to be a member. What
+ * accounts are for is keeping the place private and counting one vote per
+ * person.
  */
 
 export type AccountRow = {
   id: string;
   username: string;
   role: AccountRole;
-  status: AccountStatus;
   createdAt: Date;
   lastSeenAt: Date;
   /**
@@ -47,7 +43,6 @@ export async function listAccounts(
       plexAccountId: accounts.plexAccountId,
       username: accounts.username,
       role: accounts.role,
-      status: accounts.status,
       createdAt: accounts.createdAt,
       lastSeenAt: accounts.lastSeenAt,
     })
@@ -65,7 +60,14 @@ export async function listAccounts(
   }));
 }
 
-/** How many accounts there are, for the pager above the list. */
+/**
+ * How many accounts there are: the pager above the list, and the denominator
+ * of a participation rate.
+ *
+ * Not the number of people the server is shared with, which is larger and
+ * always will be: having the server does not mean having opened Umbra, and a
+ * question is only asked of those who did.
+ */
 export async function countAccounts(): Promise<number> {
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
@@ -74,52 +76,25 @@ export async function countAccounts(): Promise<number> {
 }
 
 /**
- * How many people can actually take part: approved accounts.
- *
- * The denominator of a participation rate. Not the number of people the server
- * is shared with, which is larger and always will be: having the server does
- * not mean having opened Umbra, and a question is only asked of those who did.
- */
-export async function approvedAccountCount(): Promise<number> {
-  const [row] = await db()
-    .select({ count: sql<number>`count(*)::int` })
-    .from(accounts)
-    .where(eq(accounts.status, "approved"));
-  return row?.count ?? 0;
-}
-
-export async function pendingAccountCount(): Promise<number> {
-  const [row] = await db()
-    .select({ count: sql<number>`count(*)::int` })
-    .from(accounts)
-    .where(eq(accounts.status, "pending"));
-  return row?.count ?? 0;
-}
-
-/**
- * Approves, blocks, or names an assistant.
+ * Names an assistant, or unnames one.
  *
  * The administrator is not a role this hands out: there is one, decided by
  * `ADMIN_PLEX_ACCOUNT_ID` and enforced by the database. What can be granted here
- * is help, `member` to `assistant` and back.
+ * is help, `member` to `assistant` and back. Access itself is not decided here
+ * at all: it follows the share on plex.tv.
  */
-export async function updateAccount(
+export async function updateAccountRole(
   accountId: string,
-  input: { status?: AccountStatus; role?: AccountRole },
+  role: AccountRole,
   actingAccountId: string,
 ) {
-  if (input.status === undefined && input.role === undefined) {
-    throw new BadRequestError("error.badRequest");
-  }
-
-  // An administrator cannot lock themselves out of their own instance.
   if (accountId === actingAccountId) {
     throw new BadRequestError("error.badRequest");
   }
 
   // The administrator is designated by configuration, never promoted from a
   // list, and never demoted from one either.
-  if (input.role === "admin") throw new BadRequestError("error.badRequest");
+  if (role === "admin") throw new BadRequestError("error.badRequest");
 
   const [target] = await db()
     .select({ role: accounts.role })
@@ -129,22 +104,13 @@ export async function updateAccount(
   if (!target) throw new NotFoundError("error.notFound");
   if (target.role === "admin") throw new BadRequestError("error.badRequest");
 
+  // A role change ends no session: the role is read on every request.
   const [row] = await db()
     .update(accounts)
-    .set(input)
+    .set({ role })
     .where(eq(accounts.id, accountId))
-    .returning({
-      id: accounts.id,
-      status: accounts.status,
-      role: accounts.role,
-    });
+    .returning({ id: accounts.id, role: accounts.role });
   if (!row) throw new NotFoundError("error.notFound");
-
-  // Withdrawing access ends the sessions that carried it: the next request
-  // from that browser starts from the sign-in screen, not from a stale cookie.
-  // A role change needs nothing: the role is read on every request.
-  if (input.status !== undefined && input.status !== "approved")
-    await revokeSessions(accountId);
 
   return row;
 }
