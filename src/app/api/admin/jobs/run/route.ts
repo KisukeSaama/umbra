@@ -2,6 +2,7 @@ import { route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
 import { ConflictError } from "@/lib/errors";
 import { anyJobRunning, runSyncCycle } from "@/lib/jobs";
+import { checkRate, perMinute } from "@/lib/rate-limit";
 
 /**
  * Runs a sync cycle now, from the synchronisation page.
@@ -13,7 +14,8 @@ import { anyJobRunning, runSyncCycle } from "@/lib/jobs";
  */
 export async function POST() {
   return route(async () => {
-    await requireStaff();
+    const account = await requireStaff();
+    checkRate("admin", account.id, perMinute(5));
 
     // A second cycle would fight the first for the same library and the same
     // rows. The scheduled route asks the same question and skips its turn.

@@ -10,9 +10,28 @@
  */
 const target = process.env.UMBRA_INTERNAL_URL ?? "http://web:3000";
 const secret = process.env.CRON_SECRET;
-const intervalMinutes = Number(process.env.SYNC_INTERVAL_MINUTES ?? 30);
+
+/**
+ * A duration read from the environment, or the default.
+ *
+ * `Number("")` is zero and `Number("half an hour")` is `NaN`, and a timer given
+ * either fires at once: an empty or mistyped variable would turn this loop into
+ * a flood against the sync endpoint. So anything that is not a positive number
+ * is refused and the default stands.
+ */
+function positiveNumber(raw, fallback) {
+  const value = Number(raw);
+  if (raw === undefined || raw === null || raw === "") return fallback;
+  if (!Number.isFinite(value) || value <= 0) {
+    console.warn(`[worker] ignoring invalid duration "${raw}"`);
+    return fallback;
+  }
+  return value;
+}
+
+const intervalMinutes = positiveNumber(process.env.SYNC_INTERVAL_MINUTES, 30);
 const startupDelayMs =
-  Number(process.env.SYNC_STARTUP_DELAY_SECONDS ?? 45) * 1000;
+  positiveNumber(process.env.SYNC_STARTUP_DELAY_SECONDS, 45) * 1000;
 
 if (!secret) {
   console.error("[worker] CRON_SECRET is not set");

@@ -14,12 +14,20 @@ import { cn } from "@/lib/utils";
 export function Poster({
   src,
   alt,
+  captioned = false,
   className,
   sizes = "(min-width: 1024px) 12rem, (min-width: 640px) 20vw, 40vw",
   priority = false,
 }: {
   src: string | null;
   alt: string;
+  /**
+   * The title is printed next to the frame, so the picture carries no
+   * alternative text of its own: a screen reader that reads both says the
+   * title twice. The empty frame still names it, since there is nothing else
+   * there to read.
+   */
+  captioned?: boolean;
   className?: string;
   sizes?: string;
   priority?: boolean;
@@ -34,7 +42,7 @@ export function Poster({
       {src ? (
         <Image
           src={src}
-          alt={alt}
+          alt={captioned ? "" : alt}
           fill
           sizes={sizes}
           priority={priority}

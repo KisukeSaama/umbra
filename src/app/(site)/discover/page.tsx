@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { SearchOnArrival } from "@/components/command-palette";
 import { MoodPicker } from "@/components/mood-picker";
 import { Shelf } from "@/components/shelf";
 import { ShelfSkeleton } from "@/components/skeletons";
@@ -14,7 +15,10 @@ import {
 } from "@/lib/domain/discovery";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Discover" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("discover.title") };
+}
 
 /**
  * The cosy half of Umbra.
@@ -25,13 +29,21 @@ export const metadata: Metadata = { title: "Discover" };
  *
  * Each shelf streams on its own. That is not a performance trick: the gateway
  * can refuse one listing and this way it costs a rail rather than the page.
+ *
+ * An address carrying a query comes from `/request?q=`, the page requesting
+ * used to be, and it opens the search palette on that query: the old link
+ * promised a search, so it has to be one.
  */
-export default async function DiscoverPage() {
+export default async function DiscoverPage({
+  searchParams,
+}: PageProps<"/discover">) {
   const account = await requireMemberPage();
   const { t, locale } = await getI18n();
+  const { q } = await searchParams;
 
   return (
     <div className="umbra-container space-y-14 py-10">
+      {typeof q === "string" && q ? <SearchOnArrival query={q} /> : null}
       <header>
         <h1 className="text-3xl tracking-tight sm:text-4xl">
           {t("discover.title")}

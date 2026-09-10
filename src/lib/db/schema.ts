@@ -142,6 +142,14 @@ export const media = pgTable(
   ],
 );
 
+/**
+ * The media server's own vocabulary.
+ *
+ * `season` is in the list because the server files one and the index accepts
+ * it, not because anything writes one: the two listings a sync reads answer
+ * with shows and with episodes. It stays so that a row arriving under that
+ * name is stored rather than dropped.
+ */
 export const LIBRARY_KINDS = ["movie", "show", "season", "episode"] as const;
 export type LibraryKind = (typeof LIBRARY_KINDS)[number];
 
@@ -204,6 +212,18 @@ export const libraryItems = pgTable(
      * told apart from one it gave up on.
      */
     cutCheckedAt: timestamp("cut_checked_at", { withTimezone: true }),
+    /**
+     * When the enrichment pass last looked at this row.
+     *
+     * Without it the pass starved. A title the provider has no poster for
+     * leaves `poster_path` null forever, the selection asks for rows that are
+     * still missing something newest first, and once a screenful of those sat
+     * at the top the same rows were fetched on every run while the older ones
+     * behind them never got their genres or their score. Stamped whether the
+     * call answered or not, so a row that cannot be filled waits its turn
+     * instead of taking everyone else's.
+     */
+    enrichedAt: timestamp("enriched_at", { withTimezone: true }),
     addedAt: timestamp("added_at", { withTimezone: true }),
     syncedAt: timestamp("synced_at", { withTimezone: true })
       .notNull()
@@ -211,6 +231,8 @@ export const libraryItems = pgTable(
   },
   (t) => [
     index("library_item_tmdb_idx").on(t.tmdbId, t.kind),
+    // What the sweep at the end of every sync reads.
+    index("library_item_section_synced_idx").on(t.sectionKey, t.syncedAt),
     index("library_item_cut_idx").on(t.cutProviderId, t.kind),
     index("library_item_added_idx").on(t.addedAt),
     index("library_item_episode_idx").on(
@@ -260,6 +282,8 @@ export const mediaRequests = pgTable(
       .on(t.mediaId)
       .where(sql`status <> 'rejected'`),
     index("media_request_status_idx").on(t.status, t.createdAt),
+    // The follow-up page and the discover shelves both read a person's own.
+    index("media_request_requester_idx").on(t.requestedBy, t.createdAt),
     check(
       "media_request_status_check",
       sql`${t.status} IN ('requested', 'accepted', 'processing', 'available', 'rejected')`,
@@ -544,6 +568,17 @@ export const jobRuns = pgTable(
   },
   (t) => [
     index("job_run_name_idx").on(t.jobName, t.startedAt),
+    /*
+     * One run of a step at a time, and the database is what says so.
+     *
+     * Asking "is anything running" and then starting is two statements, and
+     * the worker's call and the administrator's button can land between them.
+     * A second insert now fails instead, which the runner reads as "someone
+     * else holds this step" rather than as an error.
+     */
+    uniqueIndex("job_run_single_running_idx")
+      .on(t.jobName)
+      .where(sql`status = 'running'`),
     check(
       "job_run_status_check",
       sql`${t.status} IN ('running', 'success', 'failure')`,
@@ -700,6 +735,14 @@ export const NOTIFICATION_KINDS = [
   "report_status",
   "announcement",
   "poll_open",
+  /*
+   * An episode arriving on its own is not announced today, and this is
+   * deliberate rather than unfinished: the tracker knows, but telling every
+   * member about every episode of every series they once asked for is a feed,
+   * not a bell. The kind stays because the check constraint is the vocabulary
+   * of the table, and widening it later is a migration where keeping it is
+   * free.
+   */
   "episode_available",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];

@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { request, requestError } from "@/components/client-api";
 import { SpinnerIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { translateError, type TranslationKey } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 
 /**
@@ -34,19 +35,11 @@ export function WithdrawButton({
   async function send() {
     setSending(true);
     try {
-      const response = await fetch(endpoint, { method: "DELETE" });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
-
+      await request(endpoint, { method: "DELETE" });
       toast.success(t(done));
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     } finally {
       setSending(false);
     }

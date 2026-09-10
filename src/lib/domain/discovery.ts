@@ -154,21 +154,6 @@ export const forYouShelf = cache(async function forYouShelf(
   return interleave(movies, shows).slice(0, 18);
 });
 
-export const genreShelf = cache(async function genreShelf(
-  kind: MediaKind,
-  genreId: number,
-  language?: string,
-): Promise<CatalogResult[]> {
-  return quietly(() =>
-    tmdbProvider.discoverBy({
-      kind,
-      genreIds: [genreId],
-      sortBy: "rating",
-      language,
-    }),
-  );
-});
-
 export const genreOptions = cache(async function genreOptions(
   kind: MediaKind,
   language?: string,

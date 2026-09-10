@@ -46,39 +46,35 @@ describe("the note left on a request", () => {
  */
 describe("the note left on a report", () => {
   it("keeps the note when a move does not carry one", () => {
-    expect(reportNoteFor("in_progress", undefined)).toBeUndefined();
+    expect(reportNoteFor(undefined)).toBeUndefined();
   });
 
   it("stores what was typed, trimmed", () => {
-    expect(reportNoteFor("acknowledged", "  re-encoding it  ")).toBe(
-      "re-encoding it",
-    );
+    expect(reportNoteFor("  re-encoding it  ")).toBe("re-encoding it");
   });
 
   it("treats an empty box as an erasure rather than an empty sentence", () => {
-    expect(reportNoteFor("acknowledged", "   ")).toBeNull();
-    expect(reportNoteFor("acknowledged", null)).toBeNull();
+    expect(reportNoteFor("   ")).toBeNull();
+    expect(reportNoteFor(null)).toBeNull();
   });
 
   it("keeps the outcome readable once the problem is fixed", () => {
-    expect(reportNoteFor("resolved", "re-encoded and back")).toBe(
-      "re-encoded and back",
-    );
-    expect(reportNoteFor("resolved", undefined)).toBeUndefined();
+    expect(reportNoteFor("re-encoded and back")).toBe("re-encoded and back");
+    expect(reportNoteFor(undefined)).toBeUndefined();
   });
 
   it("replaces the ageing word rather than adding to it", () => {
-    expect(reportNoteFor("resolved", "  the season is complete  ")).toBe(
+    expect(reportNoteFor("  the season is complete  ")).toBe(
       "the season is complete",
     );
-    expect(reportNoteFor("resolved", "")).toBeNull();
+    expect(reportNoteFor("")).toBeNull();
   });
 
   it("keeps a refusal explained", () => {
-    expect(reportNoteFor("rejected", "not something we index")).toBe(
+    expect(reportNoteFor("not something we index")).toBe(
       "not something we index",
     );
-    expect(reportNoteFor("duplicate", "already reported elsewhere")).toBe(
+    expect(reportNoteFor("already reported elsewhere")).toBe(
       "already reported elsewhere",
     );
   });

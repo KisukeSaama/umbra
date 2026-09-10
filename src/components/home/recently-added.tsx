@@ -41,6 +41,7 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
                 <Poster
                   src={item.posterUrl}
                   alt={item.title}
+                  captioned
                   sizes="10rem"
                   priority={index < 4}
                 />

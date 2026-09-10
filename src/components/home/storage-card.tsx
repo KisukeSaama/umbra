@@ -1,4 +1,5 @@
 import { EmptyNote } from "@/components/empty-note";
+import { formatPercent } from "@/components/formatting";
 import { GlyphTile } from "@/components/glyph-tile";
 import { DiskIcon } from "@/components/icons";
 import {
@@ -36,7 +37,11 @@ export async function StorageCard({
         </CardTitle>
         {storage ? (
           <CardAction className="self-center text-sm font-medium tabular-nums">
-            {t("storage.used", { percent: `${percent}%` })}
+            {/* The sign is punctuated by the language: French wants a narrow
+                no-break space in front of it, English wants none. */}
+            {t("storage.used", {
+              percent: formatPercent(storage.usedRatio, locale),
+            })}
           </CardAction>
         ) : null}
       </CardHeader>

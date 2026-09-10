@@ -1,11 +1,9 @@
-import { and, eq, ne } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
-import { createSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
-import { ACCOUNT_ROLES, accounts } from "@/lib/db/schema";
+import { createSession, upsertDevAccount } from "@/lib/auth/session";
+import { ACCOUNT_ROLES } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { NotFoundError } from "@/lib/errors";
 
@@ -32,41 +30,17 @@ export async function POST(request: NextRequest) {
       throw new NotFoundError();
 
     const body = await jsonBody(request, schema);
-    const username = body.username;
     const role = body.role ?? (body.admin ? "admin" : "member");
-    const plexAccountId = `dev:${username}`;
-    const values = {
-      plexAccountId,
-      username,
-      role,
-      status: "approved" as const,
-    };
-
-    // There is room for one administrator, so the previous one steps aside
-    // rather than the insert failing on the unique index.
-    if (role === "admin") {
-      await db()
-        .update(accounts)
-        .set({ role: "assistant" })
-        .where(
-          and(
-            eq(accounts.role, "admin"),
-            ne(accounts.plexAccountId, plexAccountId),
-          ),
-        );
-    }
-
-    const [account] = await db()
-      .insert(accounts)
-      .values(values)
-      .onConflictDoUpdate({ target: accounts.plexAccountId, set: values })
-      .returning({
-        id: accounts.id,
-        username: accounts.username,
-        role: accounts.role,
-      });
+    const account = await upsertDevAccount(body.username, role);
 
     await createSession(account.id);
-    return { status: "approved" as const, account };
+    return {
+      status: "approved" as const,
+      account: {
+        id: account.id,
+        username: account.username,
+        role: account.role,
+      },
+    };
   });
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -18,11 +18,13 @@ import {
   alternateCutFor,
   episodeCountsBySeason,
   episodesOnServer,
+  matchesAnyProviderId,
+  REAL_MATCH_FIRST,
 } from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
 import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
-import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
+import { posterUrl, tmdbLanguage, tmdbProvider } from "@/lib/providers/tmdb";
 
 /** Search: the heart of Umbra. The states themselves live one file away. */
 export type { Availability };
@@ -219,16 +221,11 @@ async function libraryIndex(
         // A re-cut the media server matched to nothing carries the id Umbra
         // worked out from its name instead. Without this the title is here and
         // the search still offers to request it: see `linkUnmatchedCuts`.
-        or(
-          inArray(libraryItems.tmdbId, providerIds),
-          inArray(libraryItems.cutProviderId, providerIds),
-        ),
+        matchesAnyProviderId(providerIds),
         inArray(libraryItems.kind, ["movie", "show"] as const),
       ),
     )
-    // A server that matched the series itself answers before one Umbra had to
-    // work out, so a library holding both reads as the series, not the re-cut.
-    .orderBy(sql`${libraryItems.tmdbId} NULLS LAST`);
+    .orderBy(REAL_MATCH_FIRST);
 
   const index = new Map<string, string>();
   for (const row of rows) {
@@ -513,17 +510,34 @@ export function yearOf(releaseDate: string | null | undefined): number | null {
 /**
  * Records (or refreshes) a title on the Umbra side and returns its id. Not a
  * provider cache: only requested or tracked titles ever land here.
+ *
+ * `language` is the language the summary was fetched in, when it was fetched
+ * for somebody in particular. The row is written in one language whatever
+ * language it was asked in: it is what the administration reads in its queues
+ * and what every notification carries, so a French member's request used to
+ * rename the title for everyone, and the next English report renamed it back.
+ * The canonical summary is asked for instead, which Janus answers from its
+ * cache, and the wording the member sees is the one their own call returned.
  */
-export async function ensureMedia(summary: MediaSummary): Promise<string> {
+export async function ensureMedia(
+  summary: MediaSummary,
+  language?: string,
+): Promise<string> {
+  const localised =
+    language !== undefined && tmdbLanguage(language) !== tmdbLanguage();
+  const canonical = localised
+    ? await tmdbProvider.details(summary.kind, summary.providerId)
+    : summary;
+
   const values = {
-    provider: summary.provider,
-    providerId: summary.providerId,
-    mediaType: summary.kind as MediaType,
-    title: summary.title,
-    originalTitle: summary.originalTitle,
-    overview: summary.overview,
-    releaseDate: summary.releaseDate,
-    posterPath: summary.posterPath,
+    provider: canonical.provider,
+    providerId: canonical.providerId,
+    mediaType: canonical.kind as MediaType,
+    title: canonical.title,
+    originalTitle: canonical.originalTitle,
+    overview: canonical.overview,
+    releaseDate: canonical.releaseDate,
+    posterPath: canonical.posterPath,
   };
 
   const [row] = await db()

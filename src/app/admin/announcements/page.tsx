@@ -1,14 +1,30 @@
+import type { Metadata } from "next";
+
 import { ActionButton } from "@/components/admin/action-button";
 import { AnnouncementForm } from "@/components/admin/announcement-form";
+import { formatPercent } from "@/components/formatting";
 import { ExternalLinkIcon, PollIcon } from "@/components/icons";
+import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
-import { listAllAnnouncements } from "@/lib/domain/announcements";
+import {
+  countAllAnnouncements,
+  listAllAnnouncements,
+} from "@/lib/domain/announcements";
 import { formatDate } from "@/lib/format";
 import { plainText } from "@/lib/markdown";
 import type { TranslationKey } from "@/lib/i18n";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, getTranslator } from "@/lib/i18n/server";
+import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t("meta.admin", { section: t("admin.nav.announcements") }) };
+}
+
+/** Notes per page, the same handful the feed on /news shows. */
+const PER_PAGE = 10;
 
 /**
  * Everything the administration says, in one place.
@@ -17,17 +33,31 @@ import { getI18n } from "@/lib/i18n/server";
  * lists and a community reading two feeds for what is one act: telling people
  * something. A question is now a block on the note that carries it, and this
  * page is the whole of it, drafts included.
+ *
+ * The register is read one page at a time, since it only ever grows and every
+ * row carries the buttons that publish, activate and delete. The slice is cut
+ * here rather than in the query: `listAllAnnouncements` reads the table whole,
+ * and this page does not own the domain layer.
  */
-export default async function AdminAnnouncementsPage() {
+export default async function AdminAnnouncementsPage({
+  searchParams,
+}: PageProps<"/admin/announcements">) {
   await requireStaffPage();
   const { t, locale } = await getI18n();
-  const announcements = await listAllAnnouncements();
+
+  const params = toSearchParams(await searchParams);
+  const total = await countAllAnnouncements();
+  const page = paginate(total, parsePage(params.get("page")), PER_PAGE);
+  const announcements = await listAllAnnouncements({
+    limit: page.perPage,
+    offset: page.offset,
+  });
 
   return (
     <>
       <AnnouncementForm />
 
-      {announcements.length === 0 ? (
+      {total === 0 ? (
         <p className="text-muted-foreground text-sm">{t("news.none")}</p>
       ) : (
         <ul className="space-y-3">
@@ -124,7 +154,7 @@ export default async function AdminAnnouncementsPage() {
                               {option.votes}
                             </span>
                             <span className="text-muted-foreground w-9 shrink-0 text-right text-xs tabular-nums">
-                              {Math.round(option.share * 100)}%
+                              {formatPercent(option.share, locale)}
                             </span>
                           </div>
                         ))}
@@ -172,6 +202,13 @@ export default async function AdminAnnouncementsPage() {
           })}
         </ul>
       )}
+
+      <Pagination
+        page={page}
+        pathname="/admin/announcements"
+        params={params}
+        label={t("pagination.announcements")}
+      />
     </>
   );
 }

@@ -28,8 +28,11 @@ export type AccountRow = {
   lastSeenAt: Date;
 };
 
-export async function listAccounts(): Promise<AccountRow[]> {
-  return db()
+export async function listAccounts(
+  /** The slice to read, when the caller pages. Everything, when it does not. */
+  window?: { limit: number; offset: number },
+): Promise<AccountRow[]> {
+  const query = db()
     .select({
       id: accounts.id,
       username: accounts.username,
@@ -40,6 +43,16 @@ export async function listAccounts(): Promise<AccountRow[]> {
     })
     .from(accounts)
     .orderBy(desc(accounts.createdAt));
+
+  return window ? query.limit(window.limit).offset(window.offset) : query;
+}
+
+/** How many accounts there are, for the pager above the list. */
+export async function countAccounts(): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(accounts);
+  return row?.count ?? 0;
 }
 
 export async function pendingAccountCount(): Promise<number> {

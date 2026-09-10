@@ -1,9 +1,14 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 
-import { AppError, RateLimitedError } from "@/lib/errors";
+import {
+  AppError,
+  BadRequestError,
+  NotFoundError,
+  RateLimitedError,
+} from "@/lib/errors";
 
 /**
  * Shared wrapper for route handlers: an application error becomes a stable JSON
@@ -54,15 +59,51 @@ export function errorResponse(error: unknown): NextResponse {
   );
 }
 
+/**
+ * The identifier in a path, validated.
+ *
+ * Every row Umbra addresses from a URL is keyed by a `uuid`, and a segment that
+ * is not one used to reach Postgres as a query and come back as "invalid input
+ * syntax", which this layer could only read as an unexpected fault: a 500 in
+ * the logs for what is a malformed request, and a way for anyone to fill those
+ * logs with noise real faults then hide in.
+ */
+export async function idParam(
+  params: Promise<{ id: string }>,
+): Promise<string> {
+  const { id } = await params;
+  const parsed = z.uuid().safeParse(id);
+  if (!parsed.success) throw new NotFoundError();
+  return parsed.data;
+}
+
+/**
+ * The largest body any route here accepts.
+ *
+ * Nothing Umbra takes in is bigger than a note and a handful of poll options:
+ * the longest field in the whole surface is four thousand characters. The cap
+ * is what stops a body being read into memory before the schema gets to say
+ * how short it should have been.
+ */
+const MAX_BODY_BYTES = 64 * 1024;
+
 /** Validated JSON body, or a 400. */
 export async function jsonBody<T>(
   request: Request,
   schema: { parse: (value: unknown) => T },
 ): Promise<T> {
+  const declared = Number(request.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES)
+    throw new BadRequestError();
+
   let raw: unknown;
   try {
-    raw = await request.json();
-  } catch {
+    const text = await request.text();
+    // A caller that declares nothing, or lies about it, is measured instead.
+    if (text.length > MAX_BODY_BYTES) throw new BadRequestError();
+    raw = text === "" ? {} : JSON.parse(text);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
     raw = {};
   }
   return schema.parse(raw);

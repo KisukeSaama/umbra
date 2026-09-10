@@ -139,12 +139,17 @@ export function StorageTreemap({
 
   return (
     <div className="space-y-2">
-      {/* Tall on a phone, wide on a desk: a treemap wants the room the screen
-          actually has, not a fixed shape it has to be squeezed into. */}
+      {/* Tall on a phone, wide on a desk: the ratios `docs/DESIGN.md` gives the
+          map, so it keeps its shape at every width instead of being squeezed
+          into a band of fixed height. The cap is for the middle of the range,
+          where the box is the full width of a tablet and four thirds of that
+          is taller than the screen it is read on; the layout is measured in
+          pixels, so a clamped box is a correct map of a wider rectangle
+          rather than a stretched one. */}
       <div
         ref={box}
         onMouseLeave={() => onHover(null)}
-        className="border-border/60 bg-card relative h-56 w-full overflow-hidden rounded-xl border sm:h-72 lg:h-[min(60svh,32rem)]"
+        className="border-border/60 bg-card relative aspect-[3/4] max-h-[32rem] w-full overflow-hidden rounded-xl border sm:aspect-[4/3] lg:aspect-[2/1]"
       >
         {roots.length === 0 ? (
           <p className="text-muted-foreground absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-balance">
@@ -210,6 +215,7 @@ function Tile({
   onHover?: (name: string | null) => void;
   onOpen?: () => void;
 }) {
+  const t = useTranslator();
   const isDirectory = node.kind === "directory";
   const showLabel = node.w >= LABEL_MIN_WIDTH && node.h >= LABEL_MIN_HEIGHT;
   const nestable =
@@ -284,12 +290,22 @@ function Tile({
       }
     : {};
 
+  // A tile too small for a name carried one in a `title` alone, which a screen
+  // reader announces at best inconsistently. The name and the size are the
+  // accessible name of the tile itself, whether it is drawn or not.
+  const label = t("admin.storage.tile", {
+    name: node.name,
+    size: formatBytes(node.bytes, locale),
+  });
+
   if (!isDirectory || !onOpen)
     return (
       <div
+        role="img"
         className={className}
         style={style}
-        title={`${node.name} - ${formatBytes(node.bytes, locale)}`}
+        title={label}
+        aria-label={label}
         {...pointer}
       >
         {content}
@@ -300,7 +316,8 @@ function Tile({
     <button
       type="button"
       onClick={onOpen}
-      title={`${node.name} - ${formatBytes(node.bytes, locale)}`}
+      title={label}
+      aria-label={label}
       className={cn(
         className,
         "focus-visible:ring-ring/50 cursor-pointer text-left outline-none hover:brightness-105 focus-visible:ring-3 dark:hover:brightness-125",

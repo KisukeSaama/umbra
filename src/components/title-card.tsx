@@ -43,7 +43,13 @@ export async function TitleCard({
       className="group focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-3"
     >
       <div className="relative">
-        <Poster src={posterUrl} alt={title} priority={priority} sizes="10rem" />
+        <Poster
+          src={posterUrl}
+          alt={title}
+          captioned
+          priority={priority}
+          sizes="10rem"
+        />
         {availability === "available" || availability === "partial" ? (
           <span
             className={cn(
@@ -78,16 +84,18 @@ export async function TitleCard({
             className="bg-secondary text-muted-foreground absolute top-2 right-2 rounded-full px-2 py-0.5 text-[0.65rem] leading-4"
             title={t("status.requested")}
           >
-            {t("status.request")}
+            {/* A pill on a card says what the title is, so it says "requested":
+                "Request" here read as a button that does nothing. */}
+            {t("status.requestedShort")}
           </span>
         ) : null}
       </div>
 
+      {/* The hover is answered by the poster lifting and by the title being
+          underlined: ochre is the lamp, and a rail of card titles lighting up
+          would be a screenful of them. */}
       <p
-        className={cn(
-          "mt-2 truncate text-sm font-medium",
-          "group-hover:text-primary transition-colors",
-        )}
+        className="mt-2 truncate text-sm font-medium group-hover:underline"
         title={title}
       >
         {title}

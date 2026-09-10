@@ -4,12 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { request, requestError } from "@/components/client-api";
 import { CheckIcon, CircleHalfIcon, SpinnerIcon } from "@/components/icons";
 import { ReportFlow } from "@/components/report-flow";
 import { Button } from "@/components/ui/button";
 import { isOnServer, type Availability } from "@/lib/domain/availability";
 import type { AlternateCut } from "@/lib/domain/cuts";
-import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { cn } from "@/lib/utils";
@@ -57,28 +57,19 @@ export function TitleActions({
   const [requestId, setRequestId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  async function request() {
+  async function ask() {
     setSending(true);
     try {
-      const response = await fetch("/api/requests", {
+      const body = await request<{ requestId: string }>("/api/requests", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, providerId }),
+        body: { kind, providerId },
       });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
-
-      setRequestId(body.requestId as string);
+      setRequestId(body.requestId);
       setState("requested");
       toast.success(t("status.requestSent"));
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     } finally {
       setSending(false);
     }
@@ -88,23 +79,13 @@ export function TitleActions({
     if (!requestId) return;
     setCancelling(true);
     try {
-      const response = await fetch(`/api/requests/${requestId}`, {
-        method: "DELETE",
-      });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
-
+      await request(`/api/requests/${requestId}`, { method: "DELETE" });
       setRequestId(null);
       setState("absent");
       toast.success(t("status.requestCancelled"));
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     } finally {
       setCancelling(false);
     }
@@ -150,7 +131,7 @@ export function TitleActions({
     );
 
   return (
-    <Button onClick={() => void request()} disabled={sending}>
+    <Button onClick={() => void ask()} disabled={sending}>
       {sending ? <SpinnerIcon /> : null}
       {sending ? t("status.requesting") : t("title.request")}
     </Button>

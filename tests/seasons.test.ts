@@ -94,4 +94,15 @@ describe("unaired episodes", () => {
   it("says nothing about an episode the provider has not dated", () => {
     expect(isUnaired(null, now)).toBe(false);
   });
+
+  /*
+   * The day is what counts, not the hour. Pinning the date to noon meant the
+   * page called an episode scheduled all morning while the reconciliation,
+   * which asks the database for its own date, had already raised a task.
+   */
+  it("counts the day as aired from its first hour", () => {
+    expect(isUnaired("2026-09-09", new Date("2026-09-09T00:30:00+02:00"))).toBe(
+      false,
+    );
+  });
 });

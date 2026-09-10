@@ -1,10 +1,22 @@
+import type { Metadata } from "next";
+
 import { ActionButton } from "@/components/admin/action-button";
+import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
-import { listAccounts } from "@/lib/domain/accounts";
+import { countAccounts, listAccounts } from "@/lib/domain/accounts";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { requireAdminPage } from "@/lib/auth/session";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, getTranslator } from "@/lib/i18n/server";
+import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t("meta.admin", { section: t("admin.nav.accounts") }) };
+}
+
+/** Accounts per page. One line each, so the page holds more than a queue does. */
+const PER_PAGE = 30;
 
 /**
  * Accounts.
@@ -16,85 +28,111 @@ import { getI18n } from "@/lib/i18n/server";
  * assistant, which opens the workspace to them, and unnamed again. The
  * administrator is not on that list: there is one, decided by configuration,
  * and their own row carries no action at all.
+ *
+ * The list is read one page at a time: every row carries up to three buttons,
+ * and a community of two hundred was six hundred of them on one screen. The
+ * page asks for a count and for that page, so the rest never leaves the
+ * database.
  */
-export default async function AdminAccountsPage() {
+export default async function AdminAccountsPage({
+  searchParams,
+}: PageProps<"/admin/accounts">) {
   await requireAdminPage();
   const { t, locale } = await getI18n();
-  const accounts = await listAccounts();
 
-  if (accounts.length === 0) {
+  const params = toSearchParams(await searchParams);
+  const total = await countAccounts();
+  const page = paginate(total, parsePage(params.get("page")), PER_PAGE);
+  const accounts = await listAccounts({
+    limit: page.perPage,
+    offset: page.offset,
+  });
+
+  if (total === 0) {
     return <p className="text-muted-foreground text-sm">{t("common.empty")}</p>;
   }
 
   return (
-    <ul className="divide-border/60 divide-y">
-      {accounts.map((account) => (
-        <li key={account.id} className="flex flex-wrap items-center gap-3 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{account.username}</p>
-            <p className="text-muted-foreground text-xs">
-              {t(`admin.accounts.role.${account.role}` as TranslationKey)}
-              {" · "}
-              {formatDate(account.createdAt, locale)}
-            </p>
-          </div>
-
-          <Badge
-            variant={
-              account.status === "pending"
-                ? "default"
-                : account.status === "blocked"
-                  ? "destructive"
-                  : "secondary"
-            }
+    <>
+      <ul className="divide-border/60 divide-y">
+        {accounts.map((account) => (
+          <li
+            key={account.id}
+            className="flex flex-wrap items-center gap-3 py-3"
           >
-            {t(`admin.accounts.status.${account.status}` as TranslationKey)}
-          </Badge>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{account.username}</p>
+              <p className="text-muted-foreground text-xs">
+                {t(`admin.accounts.role.${account.role}` as TranslationKey)}
+                {" · "}
+                {formatDate(account.createdAt, locale)}
+              </p>
+            </div>
 
-          {account.status !== "approved" && account.role !== "admin" ? (
-            <ActionButton
-              url={`/api/admin/accounts/${account.id}`}
-              body={{ status: "approved" }}
-              size="sm"
+            <Badge
+              variant={
+                account.status === "pending"
+                  ? "default"
+                  : account.status === "blocked"
+                    ? "destructive"
+                    : "secondary"
+              }
             >
-              {t("admin.accounts.approve")}
-            </ActionButton>
-          ) : null}
+              {t(`admin.accounts.status.${account.status}` as TranslationKey)}
+            </Badge>
 
-          {account.status !== "blocked" && account.role !== "admin" ? (
-            <ActionButton
-              url={`/api/admin/accounts/${account.id}`}
-              body={{ status: "blocked" }}
-              size="sm"
-              variant="ghost"
-            >
-              {t("admin.accounts.block")}
-            </ActionButton>
-          ) : null}
+            {account.status !== "approved" && account.role !== "admin" ? (
+              <ActionButton
+                url={`/api/admin/accounts/${account.id}`}
+                body={{ status: "approved" }}
+                size="sm"
+              >
+                {t("admin.accounts.approve")}
+              </ActionButton>
+            ) : null}
 
-          {account.status === "approved" && account.role === "member" ? (
-            <ActionButton
-              url={`/api/admin/accounts/${account.id}`}
-              body={{ role: "assistant" }}
-              size="sm"
-              variant="secondary"
-            >
-              {t("admin.accounts.promote")}
-            </ActionButton>
-          ) : null}
+            {account.status !== "blocked" && account.role !== "admin" ? (
+              <ActionButton
+                url={`/api/admin/accounts/${account.id}`}
+                body={{ status: "blocked" }}
+                size="sm"
+                variant="ghost"
+              >
+                {t("admin.accounts.block")}
+              </ActionButton>
+            ) : null}
 
-          {account.role === "assistant" ? (
-            <ActionButton
-              url={`/api/admin/accounts/${account.id}`}
-              body={{ role: "member" }}
-              size="sm"
-              variant="ghost"
-            >
-              {t("admin.accounts.demote")}
-            </ActionButton>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+            {account.status === "approved" && account.role === "member" ? (
+              <ActionButton
+                url={`/api/admin/accounts/${account.id}`}
+                body={{ role: "assistant" }}
+                size="sm"
+                variant="secondary"
+              >
+                {t("admin.accounts.promote")}
+              </ActionButton>
+            ) : null}
+
+            {account.role === "assistant" ? (
+              <ActionButton
+                url={`/api/admin/accounts/${account.id}`}
+                body={{ role: "member" }}
+                size="sm"
+                variant="ghost"
+              >
+                {t("admin.accounts.demote")}
+              </ActionButton>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+
+      <Pagination
+        page={page}
+        pathname="/admin/accounts"
+        params={params}
+        label={t("pagination.accounts")}
+      />
+    </>
   );
 }

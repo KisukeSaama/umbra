@@ -1,30 +1,13 @@
 import type { NextConfig } from "next";
 
-const isDevelopment = process.env.NODE_ENV === "development";
-
-/**
- * Content Security Policy.
+/*
+ * The Content Security Policy is not here.
  *
- * Scripts and styles come from this origin only; Next and React need inline
- * scripts and styles for hydration and the theme, so `unsafe-inline` stays for
- * those two, and everything else is closed: no plugin, no frame, no form
- * posted elsewhere, no connection to a third party from the browser. Posters
- * are the one external source, the public TMDB CDN. Development adds `eval`,
- * which React uses there to rebuild server stacks in the browser.
+ * It names a nonce, which is made for one request, so it cannot live in a
+ * static list of headers: it is built in `src/proxy.ts`, which runs in front
+ * of every document. What stays here is the set of headers that are the same
+ * for everybody.
  */
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://image.tmdb.org",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  "upgrade-insecure-requests",
-].join("; ");
 
 const nextConfig: NextConfig = {
   // Small runtime image for the deployment target: the server copies a self
@@ -49,13 +32,20 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: contentSecurityPolicy },
           // Nothing here uses a sensor, a camera or a payment API.
           {
             key: "Permissions-Policy",
             value:
-              "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+              "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
           },
+          /*
+           * A window this one opened cannot reach back into it, and nothing
+           * else may read what this origin serves. Umbra opens one outward
+           * link, to the page a fundraiser actually lives on, and that page
+           * has no business holding a handle on this one.
+           */
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           // Traefik sets this in production too; the header is harmless over
           // plain HTTP and keeps the policy with the application.
           {

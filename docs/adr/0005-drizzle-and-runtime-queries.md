@@ -1,6 +1,7 @@
 # 0005 - Drizzle with committed SQL migrations
 
-Status: accepted
+Status: accepted, amended by `docs/adr/0010-no-funding-goal.md` (the index for
+one active funding goal went with the tables it guarded; everything else stands)
 
 ## Context
 

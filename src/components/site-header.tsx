@@ -22,11 +22,18 @@ import { cn } from "@/lib/utils";
  * `full` lets it run to the edges instead of into the reading column. The site
  * is read, so it is kept narrow; the workspace is worked in, where a table and
  * a map want the whole desk and the header has to line up with them.
+ *
+ * `minimal` leaves the wordmark and the account menu and nothing else, for the
+ * screen an account that is not approved lands on. Everything else in here is
+ * for a member: the nav links all lead back to that same screen, the palette
+ * searches a route the visitor cannot open, and the bell holds a stream the
+ * guard refuses. A header of doors that are all locked is worse than no header.
  */
 export async function SiteHeader({
   narrow = false,
   full = false,
-}: { narrow?: boolean; full?: boolean } = {}) {
+  minimal = false,
+}: { narrow?: boolean; full?: boolean; minimal?: boolean } = {}) {
   const [account, t, localeOverride] = await Promise.all([
     currentAccount(),
     getTranslator(),
@@ -37,8 +44,9 @@ export async function SiteHeader({
   const isStaff = account !== null && account.role !== "member";
 
   // Rendered with the page rather than polled: the count is true on arrival and
-  // catches up on the next navigation, which is enough for a bell.
-  const unread = account ? await unreadCount(account.id) : 0;
+  // catches up on the next navigation, which is enough for a bell. There is no
+  // bell on the minimal header, so it is not even asked for.
+  const unread = account && !minimal ? await unreadCount(account.id) : 0;
 
   return (
     <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
@@ -55,19 +63,27 @@ export async function SiteHeader({
           <UmbraWordmark forLabel={t("brand.for")} compact />
         </Link>
 
-        <div className="hidden md:block">
-          <MainNav isStaff={isStaff} />
-        </div>
+        {minimal ? null : (
+          <div className="hidden md:block">
+            <MainNav isStaff={isStaff} />
+          </div>
+        )}
 
         <div className="flex items-center gap-1">
           {account ? (
             <>
               {/* Search lives here now, one keystroke from every page: checking
                   whether a title is already on the server is the thing members
-                  do most, and it should not need a destination. */}
-              <CommandPalette />
-              <OpenPlex />
-              <NotificationBell unread={unread} />
+                  do most, and it should not need a destination. It is also the
+                  only palette on the page: the home hero carries a field that
+                  opens this one. */}
+              {minimal ? null : (
+                <>
+                  <CommandPalette />
+                  <OpenPlex />
+                  <NotificationBell unread={unread} />
+                </>
+              )}
               <AccountMenu
                 username={account.username}
                 role={account.role}
@@ -83,7 +99,7 @@ export async function SiteHeader({
       {/* On a phone the nav sits under the brand rather than being folded into a
           burger: one tap is better than two. It scrolls sideways when the
           administrator's fifth entry does not fit, rather than being clipped. */}
-      {narrow ? null : (
+      {narrow || minimal ? null : (
         <div className="umbra-container flex overflow-x-auto pb-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
           <div className="mx-auto shrink-0">
             <MainNav isStaff={isStaff} />

@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, eq, gt, lt, ne } from "drizzle-orm";
+import { and, eq, gt, lt, ne, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -36,6 +36,16 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+/**
+ * How many sessions one account keeps.
+ *
+ * A person is a handful of devices: a desktop, a phone, a tablet, a browser
+ * they signed in with once. Nothing used to bound the list, so every sign-in
+ * added a cookie that stayed valid for a month, and one of them lost with an
+ * old device stayed valid too. Signing in again therefore lets the oldest go.
+ */
+const MAX_SESSIONS_PER_ACCOUNT = 8;
+
 export async function createSession(accountId: string) {
   const token = randomBytes(32).toString("base64url");
   const ttlMs = env().SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -56,6 +66,18 @@ export async function createSession(accountId: string) {
 
   // Opportunistic cleanup: expired sessions do not deserve a dedicated job.
   await db().delete(sessions).where(lt(sessions.expiresAt, new Date()));
+
+  // Everything past the newest few, which includes the one just written.
+  await db().execute(sql`
+    DELETE FROM session
+     WHERE account_id = ${accountId}::uuid
+       AND id NOT IN (
+             SELECT id FROM session
+              WHERE account_id = ${accountId}::uuid
+              ORDER BY created_at DESC
+              LIMIT ${MAX_SESSIONS_PER_ACCOUNT}
+           )
+  `);
 
   return { token, expiresAt };
 }
@@ -157,6 +179,53 @@ export async function requireAdminPage(): Promise<CurrentAccount> {
 }
 
 /**
+ * The account the development sign-in stands in for.
+ *
+ * Lives here rather than in the route because it writes to `account`, and no
+ * route holds SQL (see `docs/architecture.md`). The route above it is what
+ * decides whether the door is open at all: this is only the row behind it.
+ */
+export async function upsertDevAccount(
+  username: string,
+  role: AccountRole,
+): Promise<CurrentAccount> {
+  const plexAccountId = `dev:${username}`;
+  const values = {
+    plexAccountId,
+    username,
+    role,
+    status: "approved" as const,
+  };
+
+  // There is room for one administrator, so the previous one steps aside
+  // rather than the insert failing on the unique index.
+  if (role === "admin") {
+    await db()
+      .update(accounts)
+      .set({ role: "assistant" })
+      .where(
+        and(
+          eq(accounts.role, "admin"),
+          ne(accounts.plexAccountId, plexAccountId),
+        ),
+      );
+  }
+
+  const [account] = await db()
+    .insert(accounts)
+    .values(values)
+    .onConflictDoUpdate({ target: accounts.plexAccountId, set: values })
+    .returning({
+      id: accounts.id,
+      username: accounts.username,
+      role: accounts.role,
+      status: accounts.status,
+    });
+
+  return account;
+}
+
+/**
  * Ends every session of an account. Called when access is withdrawn, so a
  * blocked or demoted account does not keep a working cookie until it expires.
  */
@@ -195,12 +264,6 @@ export async function upsertAccountFromPlex(
       );
   }
 
-  const [existing] = await db()
-    .select()
-    .from(accounts)
-    .where(eq(accounts.plexAccountId, plexAccount.id))
-    .limit(1);
-
   const columns = {
     id: accounts.id,
     username: accounts.username,
@@ -208,40 +271,41 @@ export async function upsertAccountFromPlex(
     status: accounts.status,
   };
 
-  if (existing) {
-    const role: AccountRole = isDesignatedAdmin ? "admin" : existing.role;
-    // A blocked account stays blocked, whatever the configuration says.
-    const status: AccountStatus =
-      existing.status === "blocked"
-        ? "blocked"
-        : isDesignatedAdmin || config.AUTO_APPROVE_MEMBERS
-          ? "approved"
-          : existing.status;
+  const approveOnSight = isDesignatedAdmin || config.AUTO_APPROVE_MEMBERS;
 
-    const [updated] = await db()
-      .update(accounts)
-      .set({
-        username: plexAccount.username,
-        role,
-        status,
-        lastSeenAt: new Date(),
-      })
-      .where(eq(accounts.id, existing.id))
-      .returning(columns);
-    return updated;
-  }
-
-  const [created] = await db()
+  /*
+   * One statement, because a sign-in is not a conversation.
+   *
+   * Read first and written after, two browsers finishing the same first
+   * sign-in in the same instant both saw no account and both inserted one: the
+   * second was refused by the unique index and the person was shown a server
+   * error on the way in. What is being said here is unchanged, only said in
+   * SQL: an account keeps the role it already had unless the configuration
+   * names it as the administrator, and a blocked account stays blocked
+   * whatever the configuration says.
+   */
+  const [account] = await db()
     .insert(accounts)
     .values({
       plexAccountId: plexAccount.id,
       username: plexAccount.username,
       role: isDesignatedAdmin ? "admin" : "member",
-      status:
-        isDesignatedAdmin || config.AUTO_APPROVE_MEMBERS
-          ? "approved"
-          : "pending",
+      status: approveOnSight ? "approved" : "pending",
+    })
+    .onConflictDoUpdate({
+      target: accounts.plexAccountId,
+      set: {
+        username: plexAccount.username,
+        lastSeenAt: new Date(),
+        role: isDesignatedAdmin ? sql`'admin'` : sql`${accounts.role}`,
+        status: sql`CASE
+          WHEN ${accounts.status} = 'blocked' THEN 'blocked'
+          WHEN ${approveOnSight} THEN 'approved'
+          ELSE ${accounts.status}
+        END`,
+      },
     })
     .returning(columns);
-  return created;
+
+  return account;
 }

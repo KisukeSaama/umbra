@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
+import { request, requestError } from "@/components/client-api";
 import {
   CheckIcon,
   CircleHalfIcon,
@@ -22,8 +23,69 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { CatalogResult } from "@/lib/domain/catalog";
-import { translateError } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
+
+/**
+ * Where the palette is, for everything that wants to open it.
+ *
+ * There is one search dialog on a page and there has to be one: the header and
+ * the home hero each used to mount their own, so the shortcut opened two at
+ * once and Escape closed the top one only. What is open, and what is typed in
+ * it, therefore lives beside the component rather than inside it, in a store
+ * small enough to be read at a glance: a flag, a string, and the subscribers
+ * React hands `useSyncExternalStore`.
+ *
+ * No context and no provider, because there is nothing to scope: a page has
+ * exactly one palette, and a trigger anywhere on it means that one.
+ */
+type PaletteState = { open: boolean; query: string };
+
+const CLOSED: PaletteState = { open: false, query: "" };
+
+let paletteState: PaletteState = CLOSED;
+const subscribers = new Set<() => void>();
+
+function publish(next: PaletteState) {
+  paletteState = next;
+  for (const notify of subscribers) notify();
+}
+
+function subscribe(notify: () => void): () => void {
+  subscribers.add(notify);
+  return () => {
+    subscribers.delete(notify);
+  };
+}
+
+/** Opens the palette, on a query when the caller has one to hand it. */
+export function openPalette(query?: string) {
+  publish({ open: true, query: query ?? paletteState.query });
+}
+
+function setOpen(open: boolean) {
+  publish({ ...paletteState, open });
+}
+
+function setQuery(query: string) {
+  publish({ ...paletteState, query });
+}
+
+function usePalette(): PaletteState {
+  // The server has no palette open and no query typed into it, so the snapshot
+  // it renders is the constant rather than the module's own state, which one
+  // request must never be able to show to the next.
+  return useSyncExternalStore(
+    subscribe,
+    () => paletteState,
+    () => CLOSED,
+  );
+}
+
+/** Beyond this the list stops being a list you read and becomes one you scroll. */
+const MAX_RESULTS = 12;
+
+const optionId = (index: number) => `umbra-search-option-${index}`;
 
 /**
  * Search, from anywhere.
@@ -33,39 +95,39 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
  * press. The states still decide everything: here says so, partly here says so
  * too rather than passing for whole, requested says so, and only an absent
  * title gets a button.
+ *
+ * The list is driven from the field it is typed in: arrows move a highlight,
+ * Enter opens it, and the count is announced, because a result you can only
+ * reach by tabbing through twelve rows is a result you scroll past.
  */
-export function CommandPalette({
-  variant = "icon",
-}: {
-  /** The header carries a magnifier; the hero carries a field you can read. */
-  variant?: "icon" | "hero";
-}) {
+export function CommandPalette() {
   const t = useTranslator();
   const locale = useLocale();
   const router = useRouter();
+  const palette = usePalette();
 
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [results, setResults] = useState<CatalogResult[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [sent, setSent] = useState<Record<string, boolean>>({});
+  const [highlight, setHighlight] = useState(0);
 
   // Keeps a slow answer from overwriting a newer one.
   const requestId = useRef(0);
+  const activeRow = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setOpen((current) => !current);
+        setOpen(!paletteState.open);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const trimmed = query.trim();
+  const trimmed = palette.query.trim();
   const tooShort = trimmed.length < 2;
 
   useEffect(() => {
@@ -75,22 +137,17 @@ export function CommandPalette({
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await fetch(
+        const body = await request<{ results: CatalogResult[] }>(
           `/api/search?q=${encodeURIComponent(trimmed)}`,
         );
-        const body = await response.json();
         if (current !== requestId.current) return;
-        if (!response.ok)
-          throw new Error(translateError(locale, body.messageKey));
-        setResults(body.results as CatalogResult[]);
+        setResults(body.results);
+        // A new answer is a new list: the highlight belongs at the top of it.
+        setHighlight(0);
       } catch (error) {
         if (current !== requestId.current) return;
         setResults([]);
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : translateError(locale, undefined),
-        );
+        toast.error(requestError(locale, error));
       } finally {
         if (current === requestId.current) setLoading(false);
       }
@@ -99,55 +156,64 @@ export function CommandPalette({
     return () => clearTimeout(timer);
   }, [trimmed, tooShort, locale]);
 
-  async function request(result: CatalogResult) {
+  const visible = results ? results.slice(0, MAX_RESULTS) : [];
+  const active =
+    visible.length === 0 ? -1 : Math.min(highlight, visible.length - 1);
+
+  // The highlight is only useful if it is on screen: twelve rows outgrow the
+  // panel, and an arrow key that scrolls nothing looks like an arrow key that
+  // did nothing.
+  useEffect(() => {
+    activeRow.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
+  function open(result: CatalogResult) {
+    setOpen(false);
+    router.push(`/title/${result.kind}/${result.providerId}`);
+  }
+
+  function onFieldKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (visible.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlight(Math.min(active + 1, visible.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight(Math.max(active - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const chosen = visible[active];
+      if (chosen) open(chosen);
+    }
+  }
+
+  async function ask(result: CatalogResult) {
     const key = `${result.kind}:${result.providerId}`;
     setPending(key);
     try {
-      const response = await fetch("/api/requests", {
+      await request("/api/requests", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: result.kind,
-          providerId: result.providerId,
-        }),
+        body: { kind: result.kind, providerId: result.providerId },
       });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(translateError(locale, body.messageKey));
-
       setSent((previous) => ({ ...previous, [key]: true }));
       toast.success(t("status.requestSent"));
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : translateError(locale, undefined),
-      );
+      toast.error(requestError(locale, error));
     } finally {
       setPending(null);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {variant === "hero" ? (
-        <DialogTrigger
-          render={<Button variant="outline" size="lg" />}
-          className="rounded-full px-6"
-        >
-          <SearchIcon />
-          {t("common.search")}
-        </DialogTrigger>
-      ) : (
-        <DialogTrigger
-          render={<Button variant="ghost" size="icon" />}
-          aria-label={t("common.search")}
-          title={t("home.searchHint")}
-        >
-          <SearchIcon className="size-5" />
-        </DialogTrigger>
-      )}
+    <Dialog open={palette.open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={<Button variant="ghost" size="icon" />}
+        aria-label={t("common.search")}
+        title={t("home.searchHint")}
+      >
+        <SearchIcon className="size-5" />
+      </DialogTrigger>
 
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
@@ -165,14 +231,28 @@ export function CommandPalette({
             spellCheck={false}
             data-1p-ignore
             data-lpignore="true"
-            value={query}
+            value={palette.query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onFieldKeyDown}
             placeholder={t("home.searchPlaceholder")}
             aria-label={t("common.search")}
+            role="combobox"
+            aria-expanded={visible.length > 0}
+            aria-controls="umbra-search-results"
+            aria-activedescendant={active < 0 ? undefined : optionId(active)}
             className="h-11 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
           />
           {loading ? <SpinnerIcon className="text-muted-foreground" /> : null}
         </div>
+
+        {/* What the field cannot show: how many answers came back. Announced
+            rather than counted on screen, because a reader who can see the
+            list has already counted it. */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {results === null || tooShort
+            ? ""
+            : t("search.resultsCount", { count: visible.length })}
+        </p>
 
         {tooShort || results === null ? (
           <p className="text-muted-foreground text-sm">{t("search.hint")}</p>
@@ -181,29 +261,44 @@ export function CommandPalette({
             {t("search.noResults")}
           </p>
         ) : (
-          <ul className="max-h-[26rem] space-y-2 overflow-y-auto">
-            {results.slice(0, 12).map((result) => {
+          <ul
+            id="umbra-search-results"
+            role="listbox"
+            aria-label={t("section.results")}
+            className="-mx-2 max-h-[26rem] space-y-2 overflow-y-auto"
+          >
+            {visible.map((result, index) => {
               const key = `${result.kind}:${result.providerId}`;
               const availability = sent[key]
                 ? "requested"
                 : result.availability;
+              const highlighted = index === active;
 
               return (
-                <li key={key} className="flex items-center gap-3">
+                <li
+                  key={key}
+                  id={optionId(index)}
+                  role="option"
+                  aria-selected={highlighted}
+                  ref={highlighted ? activeRow : null}
+                  onPointerMove={() => setHighlight(index)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-2 py-1",
+                    highlighted && "bg-secondary/60",
+                  )}
+                >
                   <div className="w-12 shrink-0">
                     <Poster
                       src={result.posterUrl}
                       alt={result.title}
                       sizes="3rem"
+                      captioned
                     />
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setOpen(false);
-                      router.push(`/title/${result.kind}/${result.providerId}`);
-                    }}
+                    onClick={() => open(result)}
                     className="focus-visible:ring-ring/50 min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-3"
                   >
                     <p className="truncate text-sm font-medium">
@@ -237,7 +332,7 @@ export function CommandPalette({
                     <Button
                       size="sm"
                       disabled={pending === key}
-                      onClick={() => void request(result)}
+                      onClick={() => void ask(result)}
                     >
                       {pending === key
                         ? t("status.requesting")
@@ -252,4 +347,41 @@ export function CommandPalette({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * The hero's half of the same thing: a field you can read, which opens the one
+ * palette in the header rather than a second copy of it.
+ *
+ * On arrival the question is usually "is this already here", and the answer
+ * should not need a destination, so it comes first on the page.
+ */
+export function SearchField() {
+  const t = useTranslator();
+  return (
+    <Button
+      variant="outline"
+      size="lg"
+      className="rounded-full px-6"
+      onClick={() => openPalette()}
+    >
+      <SearchIcon />
+      {t("common.search")}
+    </Button>
+  );
+}
+
+/**
+ * An address that carries a search opens on it.
+ *
+ * `/request?q=` has forwarded here since requesting stopped being a page of its
+ * own, and until now the query was dropped on the floor: the palette now opens
+ * with it typed in, which is what the old address promised.
+ */
+export function SearchOnArrival({ query }: { query: string }) {
+  useEffect(() => {
+    if (query.trim().length > 0) openPalette(query);
+  }, [query]);
+
+  return null;
 }

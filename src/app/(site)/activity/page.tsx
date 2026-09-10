@@ -28,7 +28,10 @@ import {
 } from "@/lib/pagination";
 import { isLive } from "@/lib/reports/reasons";
 
-export const metadata: Metadata = { title: "Follow-up" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("activity.title") };
+}
 
 /**
  * Entries per section. The two lists page on their own parameter, so stepping
@@ -200,7 +203,7 @@ export default async function ActivityPage({
                   {t(`report.status.${report.status}` as TranslationKey)}
                 </Badge>
                 {report.adminNote ? (
-                  <p className="border-border/60 w-full border-l-2 pl-3 text-sm">
+                  <p className="border-border/60 w-full border-l pl-3 text-sm">
                     <span className="text-muted-foreground">
                       {t("activity.note")}
                     </span>{" "}
@@ -367,7 +370,7 @@ function EntryCard({
 async function Note({ children }: { children: React.ReactNode }) {
   const { t } = await getI18n();
   return (
-    <p className="border-border/60 border-l-2 pl-3 text-sm">
+    <p className="border-border/60 border-l pl-3 text-sm">
       <span className="text-muted-foreground">{t("activity.note")}</span>{" "}
       {children}
     </p>

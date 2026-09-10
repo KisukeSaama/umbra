@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { route } from "@/lib/api";
-import { db } from "@/lib/db";
-import { authPins } from "@/lib/db/schema";
-import { authorizeUrl, createPin } from "@/lib/providers/plex-tv";
+import { openPin } from "@/lib/domain/auth-pins";
 import { checkRate, clientAddress, perMinute } from "@/lib/rate-limit";
 
 /**
@@ -19,20 +17,6 @@ export async function POST(request: NextRequest) {
     checkRate("auth-pin", clientAddress(request.headers), perMinute(5));
     checkRate("auth-pin", "all", perMinute(60));
 
-    const pin = await createPin();
-    const [row] = await db()
-      .insert(authPins)
-      .values({
-        plexPinId: pin.id,
-        // plex.tv pins are short-lived; ours expire with them.
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-      })
-      .returning({ id: authPins.id });
-
-    return {
-      pinId: row.id,
-      code: pin.code,
-      authorizeUrl: authorizeUrl(pin.code),
-    };
+    return openPin();
   });
 }
