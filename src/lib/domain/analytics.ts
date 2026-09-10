@@ -3,7 +3,12 @@ import "server-only";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { analyticsDaily, libraryItems, mediaRequests } from "@/lib/db/schema";
+import {
+  analyticsDaily,
+  libraryItems,
+  mediaRequests,
+  reports,
+} from "@/lib/db/schema";
 import { dayKey } from "@/lib/format";
 
 /**
@@ -96,9 +101,15 @@ export async function weeklyStats(): Promise<WeeklyStats> {
       ),
     );
 
+  // A fixed report is handled work too: the admin queue lists both side by side.
+  const [fixed] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(reports)
+    .where(and(gte(reports.closedAt, since), eq(reports.status, "resolved")));
+
   return {
     newContent: content?.count ?? 0,
-    requestsHandled: handled?.count ?? 0,
+    requestsHandled: (handled?.count ?? 0) + (fixed?.count ?? 0),
     newEpisodes: episodesAdded?.count ?? 0,
   };
 }
