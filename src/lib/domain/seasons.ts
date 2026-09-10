@@ -22,13 +22,37 @@ export function isSeasonMissing(season: SeasonState): boolean {
 }
 
 /**
+ * A season that exists beyond an announcement.
+ *
+ * The provider lists a season as soon as it is announced, often with no episode
+ * and no date, or with a date still to come. Nothing of it can be on the server
+ * yet, so it is neither a shortfall nor something to ask for. A season the
+ * server already holds some of has obviously been broadcast, whatever the
+ * provider says.
+ */
+export function isSeasonReleased(
+  season: SeasonState,
+  now: Date = new Date(),
+): boolean {
+  if (season.onServer > 0) return true;
+  if (season.episodeCount <= 0 || !season.airDate) return false;
+  return !isUnaired(season.airDate, now);
+}
+
+/**
  * A series that is on the server without being all there.
  *
  * Unknown seasons mean unknown, not incomplete: a provider that could not be
- * reached leaves the list empty, and that is not a shortfall to report.
+ * reached leaves the list empty, and that is not a shortfall to report. A
+ * season only announced is not a shortfall either.
  */
-export function isSeriesIncomplete(seasons: SeasonState[]): boolean {
-  return seasons.length > 0 && !seasons.every(isSeasonComplete);
+export function isSeriesIncomplete(
+  seasons: SeasonState[],
+  now: Date = new Date(),
+): boolean {
+  return seasons.some(
+    (season) => isSeasonReleased(season, now) && !isSeasonComplete(season),
+  );
 }
 
 /**

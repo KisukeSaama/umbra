@@ -90,6 +90,16 @@ const PROGRESS_EVERY_MS = 1500;
  */
 const STALE_AFTER_MS = 45 * 60_000;
 
+/**
+ * The cycle records a run of its own, under a name that is not a step: it
+ * holds the steps rather than doing any work, so it has no card on the
+ * synchronisation page and no progress to write.
+ */
+const SYNC_CYCLE = "sync-cycle";
+
+/** A cycle is every step in a row, so it is given the time of several. */
+const CYCLE_STALE_AFTER_MS = 3 * 60 * 60_000;
+
 type Report = (progress: JobProgress) => void;
 
 async function runJob(
@@ -215,8 +225,11 @@ export async function runningJob(job: JobName): Promise<{
  * next attempt for good, so it is closed on the way past rather than by a
  * sweeper nobody runs. Bounded by the clock, like everything else here.
  */
-async function closeStaleRuns(job: JobName) {
-  const stale = new Date(Date.now() - STALE_AFTER_MS);
+async function closeStaleRuns(
+  job: JobName | typeof SYNC_CYCLE,
+  after = STALE_AFTER_MS,
+) {
+  const stale = new Date(Date.now() - after);
   const closed = await db()
     .update(jobRuns)
     .set({ status: "failure", finishedAt: new Date(), error: "interrupted" })
@@ -229,22 +242,29 @@ async function closeStaleRuns(job: JobName) {
     )
     .returning({ id: jobRuns.id });
 
-  if (closed.length > 0) await writeProgress(job, null);
+  if (closed.length > 0 && job !== SYNC_CYCLE) await writeProgress(job, null);
 }
 
 /**
- * Is any step running right now?
+ * Is a cycle under way?
  *
- * Asked before starting a cycle by hand, so a second one cannot be laid over
- * the first. Runs left behind by a restart age out the same way a single step
- * does, which is what keeps a crash from blocking the button forever.
+ * What the synchronisation page follows. Asked of the cycle rather than of its
+ * steps, which leave a gap between one and the next where nothing is running
+ * and the cycle is nonetheless far from over. A cycle left behind by a restart
+ * ages out, which is what keeps a crash from blocking the button forever.
  */
-export async function anyJobRunning(): Promise<boolean> {
-  const stale = new Date(Date.now() - STALE_AFTER_MS);
+export async function syncCycleRunning(): Promise<boolean> {
+  const stale = new Date(Date.now() - CYCLE_STALE_AFTER_MS);
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(jobRuns)
-    .where(and(eq(jobRuns.status, "running"), gt(jobRuns.startedAt, stale)));
+    .where(
+      and(
+        eq(jobRuns.jobName, SYNC_CYCLE),
+        eq(jobRuns.status, "running"),
+        gt(jobRuns.startedAt, stale),
+      ),
+    );
   return (row?.count ?? 0) > 0;
 }
 
@@ -284,12 +304,78 @@ async function due(job: JobName, hours: number): Promise<boolean> {
 }
 
 /**
- * One full cycle, in dependency order.
+ * Starts a cycle, as a run of its own.
+ *
+ * Each step records a run, but a page reading only those sees nothing between
+ * two steps, nor in the moment after the button is pressed and before the first
+ * step has begun, and concludes the cycle is over. So the cycle holds a row
+ * too, written before anyone is told it started. That row is also the lock:
+ * `job_run_single_running_idx` allows one running cycle, so the button and the
+ * worker cannot lay two over each other.
+ *
+ * Null when a cycle is already under way. Otherwise the row exists by the time
+ * this resolves, and `finished` settles once the last step has.
+ */
+export async function startSyncCycle(): Promise<{
+  finished: Promise<JobOutcome[]>;
+} | null> {
+  await closeStaleRuns(SYNC_CYCLE, CYCLE_STALE_AFTER_MS);
+
+  const [run] = await db()
+    .insert(jobRuns)
+    .values({ jobName: SYNC_CYCLE })
+    .onConflictDoNothing()
+    .returning({ id: jobRuns.id });
+  if (!run) return null;
+
+  return { finished: finishCycle(run.id) };
+}
+
+/** One full cycle, awaited: what the scheduled route runs. */
+export async function runSyncCycle(): Promise<JobOutcome[] | null> {
+  const cycle = await startSyncCycle();
+  return cycle ? cycle.finished : null;
+}
+
+/**
+ * Runs the steps and closes the cycle's row.
+ *
+ * A step that fails says so on its own row and the cycle goes on; the cycle
+ * itself only fails when something outside any step throws.
+ */
+async function finishCycle(runId: string): Promise<JobOutcome[]> {
+  try {
+    const outcomes = await runSteps();
+    await db()
+      .update(jobRuns)
+      .set({
+        status: "success",
+        finishedAt: new Date(),
+        itemsProcessed: outcomes.filter((outcome) => !outcome.skipped).length,
+      })
+      .where(eq(jobRuns.id, runId));
+    return outcomes;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await db()
+      .update(jobRuns)
+      .set({
+        status: "failure",
+        finishedAt: new Date(),
+        error: message.slice(0, 500),
+      })
+      .where(eq(jobRuns.id, runId));
+    throw error;
+  }
+}
+
+/**
+ * Every step, in dependency order.
  *
  * A failing step does not stop the others: a metadata provider being down must
  * not prevent the storage snapshot from being recorded.
  */
-export async function runSyncCycle(): Promise<JobOutcome[]> {
+async function runSteps(): Promise<JobOutcome[]> {
   const outcomes: JobOutcome[] = [];
 
   outcomes.push(

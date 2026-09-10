@@ -1,5 +1,10 @@
-import type { NotificationKind, NotificationPayload } from "@/lib/db/schema";
+import type {
+  NotificationKind,
+  NotificationPayload,
+  ReportReason,
+} from "@/lib/db/schema";
 import type { TranslationKey, Translator } from "@/lib/i18n";
+import { isAsk } from "@/lib/reports/reasons";
 
 /**
  * One notification, turned into a sentence.
@@ -20,8 +25,7 @@ export function notificationLine(
   const title = entry.payload.title ?? "";
 
   if (entry.kind === "request_status" || entry.kind === "report_status") {
-    const prefix = entry.kind === "request_status" ? "request" : "report";
-    const key = `notifications.${prefix}.${entry.payload.status}`;
+    const key = `notifications.${prefixFor(entry)}.${entry.payload.status}`;
     const translated = t(key as TranslationKey, { title });
     return translated === key ? title : translated;
   }
@@ -29,4 +33,17 @@ export function notificationLine(
     return t("notifications.announcement", { title });
   if (entry.kind === "poll_open") return t("notifications.poll", { title });
   return t("notifications.episode", { title });
+}
+
+/**
+ * An ask is filed as a report but was a request from the member's side, so it
+ * is told in a request's words, as the follow-up page lists it.
+ */
+function prefixFor(entry: {
+  kind: NotificationKind;
+  payload: NotificationPayload;
+}): "request" | "ask" | "report" {
+  if (entry.kind === "request_status") return "request";
+  const reason = entry.payload.reason as ReportReason | undefined;
+  return reason && isAsk(reason) ? "ask" : "report";
 }

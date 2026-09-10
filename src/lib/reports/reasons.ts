@@ -195,8 +195,13 @@ export function isLive(status: ReportStatus): boolean {
 /**
  * The legal moves, in one place, so the administration renders buttons from the
  * state machine instead of showing every status and hoping.
+ *
+ * A fault and an ask share the table and the statuses, not the path. A fault is
+ * taken up, then worked on, then fixed. An ask has no step in between: taking
+ * it up is fetching it, exactly as accepting a request is, so it goes from
+ * taken up straight to settled.
  */
-const TRANSITIONS = {
+const FAULT_TRANSITIONS = {
   open: ["acknowledged", "rejected", "duplicate"],
   acknowledged: ["in_progress", "resolved", "rejected", "duplicate"],
   in_progress: ["resolved", "rejected"],
@@ -205,12 +210,28 @@ const TRANSITIONS = {
   duplicate: [],
 } satisfies Record<ReportStatus, ReportStatus[]>;
 
-export function nextStatuses(from: ReportStatus): readonly ReportStatus[] {
-  return TRANSITIONS[from];
+const ASK_TRANSITIONS = {
+  open: ["acknowledged", "rejected", "duplicate"],
+  acknowledged: ["resolved", "rejected", "duplicate"],
+  in_progress: [],
+  resolved: [],
+  rejected: [],
+  duplicate: [],
+} satisfies Record<ReportStatus, ReportStatus[]>;
+
+export function nextStatuses(
+  from: ReportStatus,
+  reason: ReportReason,
+): readonly ReportStatus[] {
+  return (isAsk(reason) ? ASK_TRANSITIONS : FAULT_TRANSITIONS)[from];
 }
 
-export function canTransition(from: ReportStatus, to: ReportStatus): boolean {
-  return nextStatuses(from).includes(to);
+export function canTransition(
+  from: ReportStatus,
+  to: ReportStatus,
+  reason: ReportReason,
+): boolean {
+  return nextStatuses(from, reason).includes(to);
 }
 
 /**

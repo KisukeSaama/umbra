@@ -36,7 +36,9 @@ export async function Hero({ posters }: { posters: RecentItem[] }) {
     >
       {wall.length > 0 ? (
         <div className="umbra-backdrop absolute inset-0 -z-10" aria-hidden>
-          <div className="flex h-full scale-110 gap-2 opacity-45 blur-2xl">
+          {/* Stronger after dark: the wash over it is near black then, and at
+              the daytime opacity the wall disappeared into it. */}
+          <div className="flex h-full scale-110 gap-2 opacity-45 blur-2xl dark:opacity-70">
             {wall.map((item) => (
               <div key={item.ratingKey} className="relative h-full flex-1">
                 <Image

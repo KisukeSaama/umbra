@@ -44,6 +44,9 @@ export default async function HomePage() {
       weeklyStats(),
     ]);
 
+  const grid =
+    GRID[1 + (inProgress.length > 0 ? 1 : 0) + (poll ? 1 : 0)] ?? GRID[1];
+
   return (
     <>
       <Hero posters={recent} />
@@ -59,24 +62,27 @@ export default async function HomePage() {
           <TrendingRail locale={locale} />
         </Suspense>
 
-        {/* Two rows of like with like: the two lists that can run long, then
-            the glances. Nothing is stretched to a neighbour's height, so an
-            empty list stays a short card rather than a tall blank one. What
-            the staff took up joins the first row only when there is some. */}
+        {/* Two rows of like with like: the lists that can run long, then the
+            glances. Nothing is stretched to a neighbour's height, so a short
+            list stays a short card rather than a tall blank one. A card with
+            nothing to show leaves the row rather than holding a column for
+            an empty note, and the second row takes its columns from the first
+            so the two line up instead of floating past each other. */}
         <div className="space-y-6">
-          <div
-            className={`grid gap-6 lg:items-start ${
-              inProgress.length > 0 ? "lg:grid-cols-3" : "lg:grid-cols-2"
-            }`}
-          >
+          <div className={`grid gap-6 lg:items-start ${grid.first}`}>
             <Suspense fallback={<CardSkeleton lines={5} />}>
               <ThisWeek accountId={account.id} locale={locale} />
             </Suspense>
             <InProgressRequests requests={inProgress} />
-            <PollCard poll={poll} daysLeft={daysUntil(poll?.endsAt ?? null)} />
+            {poll ? (
+              <PollCard poll={poll} daysLeft={daysUntil(poll.endsAt)} />
+            ) : null}
           </div>
-          <div className="grid gap-6 md:items-start lg:grid-cols-2">
-            <AnnouncementCard announcement={announcement} />
+          <div className={`grid gap-6 lg:items-start ${grid.second}`}>
+            <AnnouncementCard
+              announcement={announcement}
+              className={grid.announcement}
+            />
             <StorageCard storage={storage} />
           </div>
         </div>
@@ -85,6 +91,31 @@ export default async function HomePage() {
   );
 }
 
+/**
+ * The columns of the two card rows, by how many cards the first row holds.
+ *
+ * The announcement takes every column but the last, so its right edge falls
+ * on a line the row above already drew. With one card above there is no line
+ * to meet, and the glances share the row two to one rather than stacking.
+ */
+const GRID: Record<
+  number,
+  { first: string; second: string; announcement: string }
+> = {
+  1: { first: "", second: "lg:grid-cols-3", announcement: "lg:col-span-2" },
+  2: { first: "lg:grid-cols-2", second: "lg:grid-cols-2", announcement: "" },
+  3: {
+    first: "lg:grid-cols-3",
+    second: "lg:grid-cols-3",
+    announcement: "lg:col-span-2",
+  },
+};
+
+/**
+ * Smaller than the rail above it on purpose: what landed here is the reason
+ * to come back, what the world is watching is a glance elsewhere, and two
+ * rails of the same weight would say the two matter equally.
+ */
 async function TrendingRail({ locale }: { locale: string }) {
   const { t } = await getI18n();
   return (
@@ -92,6 +123,7 @@ async function TrendingRail({ locale }: { locale: string }) {
       title={t("section.trending")}
       items={await trendingShelf(locale)}
       href="/discover"
+      size="compact"
     />
   );
 }

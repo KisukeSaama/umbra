@@ -15,7 +15,6 @@ import { isOnServer } from "@/lib/domain/availability";
 import {
   availabilityFor,
   ensureMedia,
-  isInLibrary,
   yearOf,
 } from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
@@ -36,7 +35,6 @@ import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 export const LIVE_REQUEST_STATUSES = [
   "requested",
   "accepted",
-  "processing",
 ] as const;
 
 export function isLiveRequest(status: RequestStatus): boolean {
@@ -482,16 +480,14 @@ export async function waitingOnRequests(
 /** A request the staff took up, as every member may see it on the home page. */
 export type InProgressRequest = {
   id: string;
-  status: Extract<RequestStatus, "accepted" | "processing">;
   media: RequestRow["media"];
 };
 
 /**
  * What the staff took up and the server does not hold yet.
  *
- * The public face of the queue: a title and how far along it is, never who
- * asked, how many are waiting, or the note left on it. Titles being fetched
- * come first, being closest to arriving, then the most recently moved. One the
+ * The public face of the queue: a title, never who asked, how many are waiting,
+ * or the note left on it. The most recently taken up come first. One the
  * library already holds is left out: the sync is about to close it, and the
  * home page would announce as coming something already there.
  */
@@ -505,23 +501,16 @@ export async function inProgressRequests(
     .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
     .where(
       and(
-        inArray(mediaRequests.status, ["accepted", "processing"]),
+        eq(mediaRequests.status, "accepted"),
         sql`not ${inLibraryColumn}`,
       ),
     )
-    .orderBy(
-      sql`${mediaRequests.status} = 'processing' desc`,
-      desc(mediaRequests.updatedAt),
-    )
+    .orderBy(desc(mediaRequests.updatedAt))
     .limit(limit);
 
   return rows.map((row) => {
     const request = toRequestRow(row);
-    return {
-      id: request.id,
-      status: request.status as InProgressRequest["status"],
-      media: request.media,
-    };
+    return { id: request.id, media: request.media };
   });
 }
 
@@ -622,11 +611,17 @@ export function canCarryNote(status: RequestStatus): boolean {
  * Refusing something declined is not a dead end for the member: a rejected
  * request leaves the title askable, so what happens next is a new request
  * rather than a resurrection of the old one.
+ *
+ * `available` is not a move anyone makes. It says the title is on the server,
+ * which is the one status search reads as "stop offering this ask", so it is
+ * only ever written by the sync, from what `library_item` holds
+ * (`closeRequestsPresentInLibrary`). A request closed by hand on a title the
+ * sync has never seen would empty the follow-up page and hand the title
+ * straight back to search, where the next member asks for it again.
  */
 const TRANSITIONS = {
-  requested: ["accepted", "processing", "available", "rejected"],
-  accepted: ["processing", "available", "rejected"],
-  processing: ["available", "rejected"],
+  requested: ["accepted", "rejected"],
+  accepted: ["rejected"],
   available: [],
   rejected: [],
 } satisfies Record<RequestStatus, RequestStatus[]>;
@@ -649,13 +644,6 @@ export function canMoveRequest(
  *
  * Accepting a series starts tracking it: this is where the Series Tracker takes
  * over (see `docs/product.md`).
- *
- * One move is not the administration's to make on its own: `available` says the
- * title is on the server, and it is the only status the search reads as "stop
- * offering this ask". Marking it by hand on a title the sync has never seen
- * closes the request, empties the follow-up page and hands the title straight
- * back to search, where the next member asks for it again. So the state comes
- * from `library_item`, and the button is refused until the sync agrees.
  */
 export async function updateRequestStatus(
   requestId: string,
@@ -679,12 +667,6 @@ export async function updateRequestStatus(
   if (!subject) throw new NotFoundError("error.requestNotFound");
   if (!canMoveRequest(subject.status, status))
     throw new ConflictError("error.illegalTransition");
-
-  if (
-    status === "available" &&
-    !(await isInLibrary(subject.mediaType, subject.providerId))
-  )
-    throw new ConflictError("error.notOnServerYet");
 
   const [updated] = await db()
     .update(mediaRequests)
@@ -786,7 +768,7 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
         ON l.tmdb_id = m.provider_id
        AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END
      WHERE r.media_id = m.id
-       AND r.status IN ('requested', 'accepted', 'processing')
+       AND r.status IN ('requested', 'accepted')
   `);
   return result.count ?? 0;
 }

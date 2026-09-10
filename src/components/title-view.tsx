@@ -1,16 +1,26 @@
 import Image from "next/image";
+import Link from "next/link";
+import { Fragment } from "react";
 
-import { CutIcon } from "@/components/icons";
+import { formatScore } from "@/components/formatting";
+import { CutIcon, StarIcon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Poster } from "@/components/poster";
 import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
+import type { PersonCard } from "@/lib/domain/people";
 import { openAsksFor } from "@/lib/domain/reports";
 import { followedRequestFor, waitingOnTitle } from "@/lib/domain/requests";
 import { settledAsksFor } from "@/lib/domain/settled";
-import { getTranslator } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
 import { NOTHING_SETTLED } from "@/lib/reports/reasons";
+
+/**
+ * Below this many votes an average is a handful of opinions, not a score, and
+ * printing it would read as a verdict it cannot carry.
+ */
+const SCORE_MIN_VOTES = 20;
 
 /**
  * One title, given the room to be looked at.
@@ -24,13 +34,20 @@ import { NOTHING_SETTLED } from "@/lib/reports/reasons";
  */
 export async function TitleView({
   detail,
+  leads,
   accountId,
 }: {
   detail: TitleDetail;
+  /** Who signs it: the directors of a film, the creators of a show. */
+  leads: PersonCard[];
   /** Who is looking, to tell "you asked for this" from "somebody did". */
   accountId: string;
 }) {
-  const t = await getTranslator();
+  const { t, locale } = await getI18n();
+  const score =
+    detail.voteAverage !== null && detail.voteCount >= SCORE_MIN_VOTES
+      ? formatScore(detail.voteAverage, locale)
+      : null;
   const [followed, waiting] =
     detail.availability === "requested"
       ? await Promise.all([
@@ -117,6 +134,53 @@ export async function TitleView({
           {detail.originalTitle ? (
             <p className="text-muted-foreground text-sm">
               {detail.originalTitle}
+            </p>
+          ) : null}
+
+          {/* The score and the genres are what a title is worth and what it
+              is, read before the synopsis. The star is ink, not ochre: it is
+              a fact about the title, not something to act on. */}
+          {score || detail.genres.length > 0 ? (
+            <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              {score ? (
+                <span
+                  className="text-foreground inline-flex items-center gap-1 font-medium tabular-nums"
+                  title={t("title.score", { score })}
+                >
+                  <StarIcon className="size-3.5" aria-hidden />
+                  <span aria-hidden>{score}</span>
+                  <span className="sr-only">{t("title.score", { score })}</span>
+                </span>
+              ) : null}
+              {score && detail.genres.length > 0 ? (
+                <span aria-hidden>·</span>
+              ) : null}
+              {detail.genres.length > 0 ? (
+                <span>
+                  {detail.genres.map((genre) => genre.name).join(", ")}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+
+          {leads.length > 0 ? (
+            <p className="text-muted-foreground text-sm">
+              {t(
+                detail.kind === "movie"
+                  ? "title.directedBy"
+                  : "title.createdBy",
+              )}{" "}
+              {leads.map((lead, index) => (
+                <Fragment key={lead.personId}>
+                  {index > 0 ? ", " : null}
+                  <Link
+                    href={`/person/${lead.personId}`}
+                    className="text-foreground focus-visible:ring-ring/50 rounded-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3"
+                  >
+                    {lead.name}
+                  </Link>
+                </Fragment>
+              ))}
             </p>
           ) : null}
 

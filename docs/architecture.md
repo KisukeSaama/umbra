@@ -34,8 +34,10 @@ Two contracts, so adding TVDB later or moving to another media server is one new
 implementation rather than a rewrite. Domain code only ever sees the contract.
 
 - `MediaMetadataProvider` (`src/lib/providers/metadata.ts`), implemented by
-  `tmdbProvider`: search, details, seasons, episodes, and the shelf listings
-  (trending, discover, upcoming, recommendations, genres).
+  `tmdbProvider`: search, details, seasons, episodes, the shelf listings
+  (trending, discover, upcoming, recommendations, genres), and credits: who
+  signs and plays in a title, and everything one person is credited on. People
+  are read for the page that shows them and never stored.
 - `MediaLibraryProvider` (`src/lib/providers/library.ts`), implemented by
   `plexLibrary`: sections, items, episodes, recently added, and one account watch
   history that returns keys and a kind and nothing else.
@@ -117,6 +119,13 @@ result.
 `runSyncCycle()` in `src/lib/jobs/index.ts` runs seven steps in dependency order,
 each recorded in `job_run` and stamped in `job_state` on success. A failing step
 does not stop the others: a metadata outage must not prevent a storage snapshot.
+
+The cycle records a run of its own too, under `sync-cycle`, written before the
+first step starts and closed after the last. It is the lock (one running cycle,
+held by the same partial unique index as the steps, so the button and the worker
+cannot overlap) and what the synchronisation page follows: reading the steps
+alone showed nothing running between two of them, or in the moment after the
+button was pressed, and the page stopped following a cycle that was not over.
 
 1. **library-sync**: pull sections, items and episodes; upsert on the server key;
    drop entries of that section not seen in this pass; link tracked series to

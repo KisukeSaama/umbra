@@ -1,3 +1,6 @@
+import Image from "next/image";
+
+import tmdbLogo from "@/assets/tmdb-logo.svg";
 import { UmbraMark } from "@/components/brand";
 import { getTranslator } from "@/lib/i18n/server";
 
@@ -18,9 +21,33 @@ export async function SiteFooter() {
           </div>
         </div>
 
-        <p className="text-muted-foreground max-w-sm text-xs leading-relaxed">
-          {t("footer.tmdb")}
-        </p>
+        {/*
+         * TMDB's terms ask for their approved logo, kept smaller than Umbra's own
+         * mark, next to a fixed notice, inside a section named as credits.
+         */}
+        <section aria-labelledby="footer-credits" className="max-w-sm space-y-2">
+          <h2
+            id="footer-credits"
+            className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase"
+          >
+            {t("footer.credits")}
+          </h2>
+          <a
+            href="https://www.themoviedb.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block"
+          >
+            <Image
+              src={tmdbLogo}
+              alt={t("footer.tmdbLogo")}
+              className="h-3 w-auto"
+            />
+          </a>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {t("footer.tmdb")}
+          </p>
+        </section>
       </div>
     </footer>
   );

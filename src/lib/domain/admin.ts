@@ -27,15 +27,19 @@ export type AdminCounts = {
 };
 
 export async function adminCounts(): Promise<AdminCounts> {
-  const [requests, reports, episodes, drafts, failingJobs] = await Promise.all([
-    countLiveRequests(),
-    countOpenReports(),
-    openEpisodeTaskCount(),
-    draftAnnouncementCount(),
-    failingJobCount(),
-  ]);
+  // A season asked for is filed as a report but listed with the requests, so it
+  // is counted where it is listed.
+  const [requests, asks, reports, episodes, drafts, failingJobs] =
+    await Promise.all([
+      countLiveRequests(),
+      countOpenReports("ask"),
+      countOpenReports("fault"),
+      openEpisodeTaskCount(),
+      draftAnnouncementCount(),
+      failingJobCount(),
+    ]);
 
-  return { requests, reports, episodes, drafts, failingJobs };
+  return { requests: requests + asks, reports, episodes, drafts, failingJobs };
 }
 
 export async function openEpisodeTaskCount(): Promise<number> {

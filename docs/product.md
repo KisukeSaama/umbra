@@ -141,18 +141,18 @@ resolve stays unlinked and is looked at again a week later. See
 ## The request lifecycle
 
 ```
-requested -> accepted -> processing -> available
+requested -> accepted -> available
           \-> rejected
 ```
 
 - **requested**: waiting for the administrator.
-- **accepted**: agreed. For a series, this also starts tracking it.
-- **processing**: being fetched.
-- **available**: on the server. Set by hand, or automatically when the library
-  sync finds the title. By hand only once the index holds it: this is the one
-  step search reads as "stop offering this", so declaring it before the sync
-  agrees would close the request and hand the title back to the next member to
-  ask for.
+- **accepted**: taken up, and therefore being fetched: there is no separate
+  step for it. For a series, this also starts tracking it. The home page lists
+  these as coming soon.
+- **available**: on the server. Never set by hand: the library sync sets it when
+  it finds the title. This is the one step search reads as "stop offering
+  this", so declaring it before the index holds the title would close the
+  request and hand the title back to the next member to ask for.
 - **rejected**: declined. The title can be requested again later, as a new
   request rather than a revival of the old one: the lifecycle only moves
   forward, and a step it does not allow is refused rather than written.
@@ -197,6 +197,12 @@ open -> acknowledged -> in_progress -> resolved
                      \-> rejected
                      \-> duplicate
 ```
+
+An ask for a missing season or episode is filed as a report but is a request
+from the member's side, and it takes a request's path: taken up is being
+fetched, so it goes from `acknowledged` straight to settled and never through
+`in_progress`. The administration reads "taken up", the member reads "being
+fetched", and the sync settles it once the server holds what was asked for.
 
 Taking a report up may carry the same optional word, for everyone waiting on it,
 under the same rules: it reaches them in the notification and on their follow-up

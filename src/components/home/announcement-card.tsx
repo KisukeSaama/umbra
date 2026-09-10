@@ -19,13 +19,15 @@ import { getTranslator } from "@/lib/i18n/server";
 /** The latest announcement, in full. Editorial, never a status page. */
 export async function AnnouncementCard({
   announcement,
+  className,
 }: {
   announcement: AnnouncementView | null;
+  className?: string;
 }) {
   const t = await getTranslator();
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>{t("section.announcement")}</CardTitle>
         {announcement ? (
@@ -49,9 +51,10 @@ export async function AnnouncementCard({
               </p>
               <p className="font-medium">{announcement.title}</p>
               {/* A teaser is a sentence that stops, so the marks come off
-                  here rather than being clamped mid-block. The note is read in
-                  full on the feed. */}
-              <p className="text-muted-foreground line-clamp-4 text-sm">
+                  here rather than being clamped mid-block. The line breaks
+                  stay: a list read as one sentence runs its items together.
+                  The note is read in full on the feed. */}
+              <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-line">
                 {plainText(announcement.content)}
               </p>
               {/* A note whose whole point is an address elsewhere carries it

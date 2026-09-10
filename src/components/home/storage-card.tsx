@@ -1,6 +1,5 @@
 import { EmptyNote } from "@/components/empty-note";
 import { formatPercent } from "@/components/formatting";
-import { GlyphTile } from "@/components/glyph-tile";
 import { DiskIcon } from "@/components/icons";
 import {
   Card,
@@ -31,10 +30,7 @@ export async function StorageCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <GlyphTile icon={DiskIcon} />
-          {t("section.storage")}
-        </CardTitle>
+        <CardTitle>{t("section.storage")}</CardTitle>
         {storage ? (
           <CardAction className="self-center text-sm font-medium tabular-nums">
             {/* The sign is punctuated by the language: French wants a narrow
@@ -48,7 +44,14 @@ export async function StorageCard({
       <CardContent className="space-y-2">
         {storage ? (
           <>
-            <Progress value={percent} aria-label={t("section.storage")} />
+            {/* Ink, not ochre: a nearly full bar is the widest area on the
+                page, and the lamp belongs to the button in the hero. The
+                figure beside the title carries the reading. */}
+            <Progress
+              value={percent}
+              aria-label={t("section.storage")}
+              className="[&_[data-slot=progress-indicator]]:bg-muted-foreground"
+            />
             <p className="text-muted-foreground text-sm tabular-nums">
               {t("storage.available", {
                 value: formatBytes(storage.availableBytes, locale),

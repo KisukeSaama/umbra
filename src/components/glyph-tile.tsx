@@ -4,11 +4,12 @@ import type { IconProps } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 /**
- * The small square a glance card carries beside its subject.
+ * The small square an empty note or an announcement carries beside its
+ * subject. Never in a card title: a row of cards where some titles wear one
+ * and some do not reads as two kinds of card.
  *
- * Quiet Sand and muted ink, never ochre: on these cards the lamp belongs to the
- * bar that carries a value, and two ochre areas on one screen means one of them
- * is wrong.
+ * Quiet Sand and muted ink, never ochre: the lamp belongs to the one primary
+ * action on the screen, and two ochre areas means one of them is wrong.
  */
 export function GlyphTile({
   icon: Icon,

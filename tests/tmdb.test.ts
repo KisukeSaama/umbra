@@ -1,11 +1,110 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  castFromJson,
   discoverParams,
   episodeFromJson,
   numericId,
+  personCreditsFromJson,
   summaryFromJson,
+  summaryFromJsonWithKind,
+  titleCreditsFromJson,
 } from "@/lib/providers/tmdb";
+
+describe("tmdb credits", () => {
+  it("reads a voice role and takes the marker out of the name", () => {
+    const member = castFromJson({
+      id: 1,
+      name: "Tom Hanks",
+      character: "Woody (voice)",
+    });
+    expect(member?.voice).toBe(true);
+    expect(member?.character).toBe("Woody");
+  });
+
+  it("reads the main role of an aggregated show row", () => {
+    const member = castFromJson({
+      id: 2,
+      name: "Someone",
+      roles: [
+        { character: "Guest", episode_count: 1 },
+        { character: "Lead", episode_count: 40 },
+      ],
+    });
+    expect(member?.character).toBe("Lead");
+  });
+
+  it("signs a film with its directors, once each", () => {
+    const credits = titleCreditsFromJson(
+      "movie",
+      {
+        cast: [],
+        crew: [
+          { id: 9, name: "Denis Villeneuve", job: "Director" },
+          { id: 9, name: "Denis Villeneuve", job: "Director" },
+          { id: 8, name: "Writer", job: "Screenplay" },
+        ],
+      },
+      null,
+    );
+    expect(credits.leads.map((lead) => lead.personId)).toEqual(["9"]);
+  });
+
+  it("signs a show with its creators, and its series director without", () => {
+    const aggregate = {
+      crew: [
+        { id: 5, name: "Episode director", jobs: [{ job: "Director" }] },
+        { id: 6, name: "Series director", jobs: [{ job: "Series Director" }] },
+      ],
+    };
+    expect(
+      titleCreditsFromJson("tv", aggregate, [{ id: 1, name: "Creator" }]).leads,
+    ).toEqual([{ personId: "1", name: "Creator", profilePath: null }]);
+    expect(
+      titleCreditsFromJson("tv", aggregate, []).leads.map(
+        (lead) => lead.personId,
+      ),
+    ).toEqual(["6"]);
+  });
+
+  it("leaves adult titles, talk shows and playing oneself out of a filmography", () => {
+    const credits = personCreditsFromJson({
+      cast: [
+        { id: 1, media_type: "movie", title: "A film", character: "Hero" },
+        { id: 2, media_type: "movie", title: "Adult", adult: true },
+        { id: 3, media_type: "tv", name: "Late show", genre_ids: [10767] },
+        { id: 4, media_type: "movie", title: "Doc", character: "Himself" },
+        {
+          id: 5,
+          media_type: "movie",
+          title: "Drawn",
+          genre_ids: [16],
+          character: "Fox",
+        },
+      ],
+      crew: [
+        { id: 6, media_type: "movie", title: "Directed", job: "Director" },
+        { id: 7, media_type: "movie", title: "Lit", job: "Gaffer" },
+      ],
+    });
+    expect(
+      credits.map((credit) => `${credit.summary.providerId}:${credit.role}`),
+    ).toEqual(["1:cast", "5:voice", "6:director"]);
+  });
+
+  it("reads genre names from a details payload only", () => {
+    const detail = summaryFromJsonWithKind(
+      { id: 1, title: "Dune", genres: [{ id: 878, name: "Science-Fiction" }] },
+      "movie",
+    );
+    const row = summaryFromJsonWithKind(
+      { id: 1, title: "Dune", genre_ids: [878] },
+      "movie",
+    );
+    expect(detail?.genres).toEqual([{ id: 878, name: "Science-Fiction" }]);
+    expect(row?.genres).toBeUndefined();
+  });
+});
 
 describe("tmdb parsing", () => {
   it("reads a movie row from a multi search", () => {

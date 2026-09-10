@@ -16,6 +16,7 @@ export function Shelf({
   href,
   delayMs = 0,
   priority = false,
+  size = "default",
 }: {
   title: string;
   items: CatalogResult[];
@@ -23,6 +24,8 @@ export function Shelf({
   /** Shelves arrive one after another rather than all at once. */
   delayMs?: number;
   priority?: boolean;
+  /** Compact is for a rail that is a glance beside a fuller one. */
+  size?: "default" | "compact";
 }) {
   if (items.length === 0) return null;
 
@@ -33,7 +36,11 @@ export function Shelf({
         {items.map((item, index) => (
           <div
             key={`${item.kind}:${item.providerId}`}
-            className="w-32 shrink-0 snap-start sm:w-36"
+            className={
+              size === "compact"
+                ? "w-24 shrink-0 snap-start sm:w-28"
+                : "w-32 shrink-0 snap-start sm:w-36"
+            }
           >
             <TitleCard
               kind={item.kind}

@@ -17,6 +17,7 @@ import type { EpisodeState, SeasonState } from "@/lib/domain/catalog";
 import {
   isSeasonComplete,
   isSeasonMissing,
+  isSeasonReleased,
   isUnaired,
 } from "@/lib/domain/seasons";
 import { formatDate } from "@/lib/format";
@@ -126,11 +127,13 @@ export function SeasonList({
           const first = index === 0;
           const last = index === seasons.length - 1;
           const listed = episodes[season.seasonNumber];
+          const released = isSeasonReleased(season);
           const complete =
             isSeasonComplete(season) || isSettled(settled, season.seasonNumber);
           // A report is about something the server is supposed to hold, so the
-          // ask only exists once the series itself is there.
-          const canAsk = isOnServer(availability) && !complete;
+          // ask only exists once the series itself is there, and once the
+          // season is more than an announcement.
+          const canAsk = isOnServer(availability) && released && !complete;
           // Nothing of it here is a missing season; some of it here is missing
           // episodes. The reason decides the wording and the key alike.
           const askReason = isSeasonMissing(season)
@@ -177,7 +180,11 @@ export function SeasonList({
                   ) : null}
                 </span>
 
-                <SeasonBadge season={season} complete={complete} />
+                <SeasonBadge
+                  season={season}
+                  complete={complete}
+                  released={released}
+                />
               </button>
 
               {expanded ? (
@@ -295,12 +302,17 @@ function EpisodeRow({ episode }: { episode: EpisodeState }) {
 function SeasonBadge({
   season,
   complete,
+  released,
 }: {
   season: SeasonState;
   /** Whole, whether the index says so or the administration has just said so. */
   complete: boolean;
+  /** More than an announcement: see `isSeasonReleased`. */
+  released: boolean;
 }) {
   const t = useTranslator();
+
+  if (!released) return <Badge variant="outline">{t("season.upcoming")}</Badge>;
 
   if (!complete && isSeasonMissing(season))
     return <Badge variant="outline">{t("season.notOnServer")}</Badge>;
