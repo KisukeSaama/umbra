@@ -19,7 +19,7 @@ export const en = {
   "meta.description": "The private hub of the Kisuflix community.",
   /* Every administration page is named after its own section and says which
      desk it belongs to: six tabs all reading "Umbra" name nothing at all. */
-  "meta.admin": "{section}, administration",
+  "meta.admin": "{section} - administration",
 
   "nav.home": "Home",
   "nav.openPlex": "Open Plex",
@@ -660,7 +660,7 @@ export const fr: Record<TranslationKey, string> = {
     "Le messager d'Umbra : un loup assis, une lettre serrée entre les crocs.",
 
   "meta.description": "Le portail privé de la communauté Kisuflix.",
-  "meta.admin": "{section}, administration",
+  "meta.admin": "{section} - administration",
 
   "nav.home": "Accueil",
   "nav.openPlex": "Ouvrir Plex",
