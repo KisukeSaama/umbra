@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -20,31 +21,69 @@ import { useTranslator } from "@/lib/i18n/client";
  * ring, like everything else at rest. They were named "Back" and "View all",
  * which is what happens when a control borrows a wording instead of asking for
  * one.
+ *
+ * It remembers where it was left. Opening a card and coming back remounts the
+ * rail, and a rail that snaps back to its first card makes exploring it a
+ * matter of starting over every time. The offset lives in session storage,
+ * keyed by page and rail, so it survives the round trip and nothing longer.
  */
-export function Rail({ children }: { children: React.ReactNode }) {
+export function Rail({
+  name,
+  children,
+}: {
+  /** Identifies the rail on its page, so its offset can be restored. */
+  name: string;
+  children: React.ReactNode;
+}) {
   const track = useRef<HTMLDivElement>(null);
   const t = useTranslator();
+  const pathname = usePathname();
+  const storageKey = `umbra:rail:${pathname}:${name}`;
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(true);
+
+  useLayoutEffect(() => {
+    const node = track.current;
+    if (!node) return;
+    try {
+      const saved = Number(sessionStorage.getItem(storageKey));
+      if (saved > 0) node.scrollLeft = saved;
+    } catch {
+      // Storage can be unavailable; the rail then simply starts at the beginning.
+    }
+  }, [storageKey]);
 
   useEffect(() => {
     const node = track.current;
     if (!node) return;
 
+    let frame = 0;
     const measure = () => {
       setAtStart(node.scrollLeft < 8);
       setAtEnd(node.scrollLeft + node.clientWidth >= node.scrollWidth - 8);
     };
+    const onScroll = () => {
+      measure();
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        try {
+          sessionStorage.setItem(storageKey, String(Math.round(node.scrollLeft)));
+        } catch {
+          // Not remembering the offset is harmless.
+        }
+      });
+    };
 
     measure();
-    node.addEventListener("scroll", measure, { passive: true });
+    node.addEventListener("scroll", onScroll, { passive: true });
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => {
-      node.removeEventListener("scroll", measure);
+      cancelAnimationFrame(frame);
+      node.removeEventListener("scroll", onScroll);
       observer.disconnect();
     };
-  }, []);
+  }, [storageKey]);
 
   function nudge(direction: -1 | 1) {
     const node = track.current;

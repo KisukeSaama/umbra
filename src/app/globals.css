@@ -328,11 +328,12 @@
   }
 
   /*
-   * Shelves arrive one after another rather than all at once. Opacity and
-   * transform only: nothing here moves a layout.
+   * Shelves arrive one after another rather than all at once. Opacity only:
+   * the content lands exactly where its skeleton stood, so any movement would
+   * read as the layout jumping rather than as the content appearing.
    */
-  .umbra-rise {
-    animation: umbra-rise 420ms var(--ease-out-quint) both;
+  .umbra-fade {
+    animation: umbra-fade 420ms var(--ease-out-quint) both;
   }
 
   /*
@@ -354,14 +355,12 @@
   }
 }
 
-@keyframes umbra-rise {
+@keyframes umbra-fade {
   from {
     opacity: 0;
-    transform: translateY(0.75rem);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
