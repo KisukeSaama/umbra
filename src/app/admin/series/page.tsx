@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
 
 import { ActionButton } from "@/components/admin/action-button";
+import { TrackSeries } from "@/components/admin/track-series";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   countTrackedSeries,
   listOpenEpisodeTasks,
@@ -21,16 +28,22 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Rows per list. The two lists page on their own parameter, so stepping back
- * through the tracked shows does not move the tasks above them.
+ * through the tracked shows does not move the tasks beside them.
  */
 const PER_PAGE = 30;
 
 /**
  * Series tracker.
  *
- * Two lists: what is being watched, and what the watching turned up. A task
- * closes itself when the episode appears on the server, so the buttons here are
- * for the cases automation cannot settle.
+ * Two columns with two different jobs. On the left, the watch itself: which
+ * shows are under it, where each one came from, and the field that adds one by
+ * hand. On the right, what that watch turned up: the aired episodes the server
+ * does not hold. A task closes itself when the episode appears on the server,
+ * so its buttons are for the cases automation cannot settle.
+ *
+ * Side by side from the extra-large breakpoint, where the admin sidebar still
+ * leaves room for two readable columns; stacked below it, the watch first,
+ * since that is where the right column comes from.
  *
  * Both are read one page at a time, each on its own parameter: a season that
  * aired into an empty library opens one task per episode, and every task and
@@ -73,14 +86,112 @@ export default async function AdminSeriesPage({
   });
 
   return (
-    <>
+    <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+      <Card id="series" className="scroll-mt-28 lg:scroll-mt-20">
+        <CardHeader>
+          <CardTitle>
+            {t("admin.series.tracked")}{" "}
+            <span className="text-muted-foreground font-normal tabular-nums">
+              {seriesTotal}
+            </span>
+          </CardTitle>
+          <CardDescription>{t("admin.series.hint")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <TrackSeries />
+
+          {seriesTotal === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              {t("admin.series.empty")}
+            </p>
+          ) : (
+            <ul className="divide-border/60 divide-y">
+              {series.map((show) => (
+                <li
+                  key={show.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{show.title}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {[
+                        show.fromRequest
+                          ? t("admin.series.fromRequest")
+                          : t("admin.series.manual"),
+                        show.providerStatus,
+                        `${t("admin.series.lastSync")}: ${
+                          show.lastSyncedAt
+                            ? formatDate(show.lastSyncedAt, locale)
+                            : t("admin.series.never")
+                        }`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  {show.missing > 0 ? (
+                    <Badge variant="secondary">
+                      {t("admin.series.missing", { count: show.missing })}
+                    </Badge>
+                  ) : null}
+                  {show.enabled ? null : (
+                    <Badge variant="outline">{t("admin.series.paused")}</Badge>
+                  )}
+                  <ActionButton
+                    url={`/api/admin/series/${show.id}`}
+                    body={{ enabled: !show.enabled }}
+                    size="sm"
+                    variant={show.enabled ? "ghost" : "secondary"}
+                  >
+                    {show.enabled
+                      ? t("admin.series.pause")
+                      : t("admin.series.resume")}
+                  </ActionButton>
+                  {show.removable ? (
+                    <ActionButton
+                      url={`/api/admin/series/${show.id}`}
+                      method="DELETE"
+                      size="sm"
+                      variant="ghost"
+                      confirmMessage={t("admin.series.removeConfirm", {
+                        title: show.title,
+                      })}
+                      successMessage={t("admin.series.removed")}
+                    >
+                      {t("admin.series.remove")}
+                    </ActionButton>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <Pagination
+            page={seriesPage}
+            pathname="/admin/series"
+            params={params}
+            paramKey="series"
+            hash="series"
+            label={t("pagination.series")}
+          />
+        </CardContent>
+      </Card>
+
       <Card id="tasks" className="scroll-mt-28 lg:scroll-mt-20">
         <CardHeader>
-          <CardTitle>{t("admin.episodes.tasks")}</CardTitle>
+          <CardTitle>
+            {t("admin.episodes.tasks")}{" "}
+            <span className="text-muted-foreground font-normal tabular-nums">
+              {allTasks.length}
+            </span>
+          </CardTitle>
+          <CardDescription>{t("admin.episodes.hint")}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {allTasks.length === 0 ? (
-            <p className="text-muted-foreground text-sm">{t("common.empty")}</p>
+            <p className="text-muted-foreground text-sm">
+              {t("admin.episodes.empty")}
+            </p>
           ) : (
             <ul className="divide-border/60 -my-2 divide-y">
               {tasks.map((task) => (
@@ -140,74 +251,9 @@ export default async function AdminSeriesPage({
             paramKey="tasks"
             hash="tasks"
             label={t("pagination.tasks")}
-            className="mt-4"
           />
         </CardContent>
       </Card>
-
-      <Card id="series" className="scroll-mt-28 lg:scroll-mt-20">
-        <CardHeader>
-          <CardTitle>{t("admin.series.tracked")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {seriesTotal === 0 ? (
-            <p className="text-muted-foreground text-sm">{t("common.empty")}</p>
-          ) : (
-            <ul className="divide-border/60 -my-2 divide-y">
-              {series.map((show) => (
-                <li
-                  key={show.id}
-                  className="flex flex-wrap items-center gap-3 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{show.title}</p>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {[
-                        show.providerStatus,
-                        `${t("admin.series.lastSync")}: ${
-                          show.lastSyncedAt
-                            ? formatDate(show.lastSyncedAt, locale)
-                            : t("admin.series.never")
-                        }`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </div>
-                  {show.missing > 0 ? (
-                    <Badge>
-                      {t("admin.series.missing", { count: show.missing })}
-                    </Badge>
-                  ) : null}
-                  {show.enabled ? null : (
-                    <Badge variant="outline">{t("admin.series.paused")}</Badge>
-                  )}
-                  <ActionButton
-                    url={`/api/admin/series/${show.id}`}
-                    body={{ enabled: !show.enabled }}
-                    size="sm"
-                    variant={show.enabled ? "ghost" : "secondary"}
-                  >
-                    {show.enabled
-                      ? t("admin.series.pause")
-                      : t("admin.series.resume")}
-                  </ActionButton>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <Pagination
-            page={seriesPage}
-            pathname="/admin/series"
-            params={params}
-            paramKey="series"
-            hash="series"
-            label={t("pagination.series")}
-            className="mt-4"
-          />
-        </CardContent>
-      </Card>
-    </>
+    </div>
   );
 }

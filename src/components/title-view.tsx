@@ -7,7 +7,7 @@ import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
 import type { TitleDetail } from "@/lib/domain/catalog";
 import { openAsksFor } from "@/lib/domain/reports";
-import { followedRequestFor } from "@/lib/domain/requests";
+import { followedRequestFor, waitingOnTitle } from "@/lib/domain/requests";
 import { settledAsksFor } from "@/lib/domain/settled";
 import { getTranslator } from "@/lib/i18n/server";
 import { NOTHING_SETTLED } from "@/lib/reports/reasons";
@@ -31,10 +31,13 @@ export async function TitleView({
   accountId: string;
 }) {
   const t = await getTranslator();
-  const followed =
+  const [followed, waiting] =
     detail.availability === "requested"
-      ? await followedRequestFor(detail.kind, detail.providerId, accountId)
-      : null;
+      ? await Promise.all([
+          followedRequestFor(detail.kind, detail.providerId, accountId),
+          waitingOnTitle(detail.kind, detail.providerId),
+        ])
+      : [null, 0];
   /*
    * What has already been asked about this series, so a season never offers an
    * ask a second time, and what the administration has just answered, which the
@@ -135,6 +138,7 @@ export async function TitleView({
             title={detail.title}
             availability={detail.availability}
             followed={followed}
+            waiting={waiting}
             alternateCut={detail.alternateCut}
           />
         </div>

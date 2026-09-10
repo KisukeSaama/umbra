@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ComponentType } from "react";
 
+import { AnnouncementReactions } from "@/components/announcement-reactions";
 import { EmptyNote } from "@/components/empty-note";
 import { GlyphTile } from "@/components/glyph-tile";
 import {
@@ -161,6 +162,11 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
                       />
                     </div>
                   ) : null}
+
+                  <AnnouncementReactions
+                    announcementId={announcement.id}
+                    reactions={announcement.reactions}
+                  />
                 </div>
               </article>
             </li>

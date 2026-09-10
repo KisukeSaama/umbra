@@ -15,13 +15,17 @@ import {
   setPollActive,
   type PollView,
 } from "@/lib/domain/polls";
+import { reactionTallies } from "@/lib/domain/reactions";
 import { NotFoundError } from "@/lib/errors";
+import { EMPTY_TALLY, type ReactionTally } from "@/lib/reactions";
 
 /**
  * Announcements.
  *
- * The administrator writes, the community reads. No comments, no reactions:
- * the one-way street is the feature.
+ * The administrator writes, the community reads. No comments: the most a
+ * member says back is a thumb up or down, a choice from two that needs no
+ * moderation. Members see the counts; who reacted is for the staff alone (see
+ * `domain/reactions`).
  *
  * A poll is an announcement too, so it is not a second object with a second
  * page: it is a question hanging off a note, and the note is what carries it
@@ -41,6 +45,7 @@ export type AnnouncementView = {
   publishedAt: Date | null;
   link: AnnouncementLink | null;
   poll: PollView | null;
+  reactions: ReactionTally;
 };
 
 const listedColumns = {
@@ -105,15 +110,14 @@ async function withPolls(
 ): Promise<AnnouncementView[]> {
   if (rows.length === 0) return [];
 
-  const attached = await db()
-    .select({ id: polls.id, announcementId: polls.announcementId })
-    .from(polls)
-    .where(
-      inArray(
-        polls.announcementId,
-        rows.map((row) => row.id),
-      ),
-    );
+  const ids = rows.map((row) => row.id);
+  const [attached, tallies] = await Promise.all([
+    db()
+      .select({ id: polls.id, announcementId: polls.announcementId })
+      .from(polls)
+      .where(inArray(polls.announcementId, ids)),
+    reactionTallies(ids, accountId),
+  ]);
 
   const views = new Map<string, PollView>();
   await Promise.all(
@@ -130,6 +134,7 @@ async function withPolls(
     publishedAt: row.publishedAt,
     link: row.linkUrl ? { url: row.linkUrl, label: row.linkLabel } : null,
     poll: views.get(row.id) ?? null,
+    reactions: tallies.get(row.id) ?? EMPTY_TALLY,
   }));
 }
 

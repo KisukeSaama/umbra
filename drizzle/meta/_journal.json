@@ -92,6 +92,13 @@
       "when": 1789058016707,
       "tag": "0012_drop_account_status",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789058623119,
+      "tag": "0013_announcement_reactions",
+      "breakpoints": true
     }
   ]
 }

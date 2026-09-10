@@ -7,19 +7,22 @@ import { formatAirDate, formatEpisodeCode } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
- * Next broadcasts of tracked series.
+ * The week of the shows the member is on: what came out, what is due, and
+ * whether the server has it.
  *
- * The list is ordered by the member rather than by the calendar alone: the
- * shows they are on come first, marked as such, and the rest of the week
- * follows.
+ * When nothing they watch airs this week, the card says so once and shows the
+ * server's own calendar instead, so it never reads as the member's list.
  *
  * The wording never promises availability: a date is a broadcast, and the
  * server catching up with it is a separate thing.
  */
 export async function UpcomingEpisodes({
   episodes,
+  personal,
 }: {
   episodes: UpcomingEpisode[];
+  /** The list comes from what the member watches, not the server calendar. */
+  personal: boolean;
 }) {
   const { t, locale } = await getI18n();
 
@@ -27,6 +30,11 @@ export async function UpcomingEpisodes({
     <Card>
       <CardHeader>
         <CardTitle>{t("section.comingThisWeek")}</CardTitle>
+        {!personal && episodes.length > 0 ? (
+          <p className="text-muted-foreground text-xs">
+            {t("week.calendarNote")}
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent>
         {episodes.length === 0 ? (
@@ -39,16 +47,9 @@ export async function UpcomingEpisodes({
                 className="flex items-center justify-between gap-3 py-3"
               >
                 <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-sm font-medium">
-                      {episode.seriesTitle}
-                    </p>
-                    {/* Why this line is at the top of the card, said once and
-                        quietly: the show is one the member is already on. */}
-                    {episode.followed ? (
-                      <Badge variant="outline">{t("week.following")}</Badge>
-                    ) : null}
-                  </div>
+                  <p className="truncate text-sm font-medium">
+                    {episode.seriesTitle}
+                  </p>
                   <p className="text-muted-foreground truncate text-xs">
                     {formatEpisodeCode(
                       episode.seasonNumber,
@@ -66,16 +67,8 @@ export async function UpcomingEpisodes({
                       {formatAirDate(episode.airDate, locale)}
                     </time>
                   ) : null}
-                  <Badge
-                    variant={
-                      episode.status === "aired_missing"
-                        ? "default"
-                        : "secondary"
-                    }
-                  >
-                    {episode.status === "aired_missing"
-                      ? t("week.missing")
-                      : t("week.upcoming")}
+                  <Badge variant={BADGE[episode.status]}>
+                    {t(LABEL[episode.status])}
                   </Badge>
                 </div>
               </li>
@@ -86,3 +79,15 @@ export async function UpcomingEpisodes({
     </Card>
   );
 }
+
+const BADGE = {
+  aired_missing: "default",
+  scheduled: "secondary",
+  available: "outline",
+} as const;
+
+const LABEL = {
+  aired_missing: "week.missing",
+  scheduled: "week.upcoming",
+  available: "week.available",
+} as const;

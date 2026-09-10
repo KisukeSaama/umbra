@@ -105,6 +105,12 @@ export type SeriesDetails = {
   status: string | null;
   inProduction: boolean;
   seasons: SeasonSummary[];
+  /**
+   * The latest broadcast and the next one, as the provider announces them.
+   * Enough to tell what a show does this week without reading a whole season.
+   */
+  lastEpisode: EpisodeInfo | null;
+  nextEpisode: EpisodeInfo | null;
 };
 
 /**

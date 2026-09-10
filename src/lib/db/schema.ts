@@ -290,8 +290,8 @@ export const mediaRequests = pgTable(
  * The twin of `report_follower`. A second member asking for a title already on
  * the list joins the request instead of being turned away, hears about every
  * step, and counts: how many people want a title is what the administration
- * reads to decide what to fetch first. The number is shown to the staff alone,
- * never to members. See `docs/adr/0016-requests-have-followers.md`.
+ * reads to decide what to fetch first. Members see the number on the title page
+ * alone, beside the ask. See `docs/adr/0016-requests-have-followers.md`.
  */
 export const requestFollowers = pgTable(
   "request_follower",
@@ -435,6 +435,38 @@ export const announcements = pgTable(
     check(
       "announcement_category_check",
       sql`${t.category} IN ('information', 'infrastructure', 'content', 'update', 'storage', 'funding')`,
+    ),
+  ],
+);
+
+export const REACTION_VALUES = ["like", "dislike"] as const;
+export type ReactionValue = (typeof REACTION_VALUES)[number];
+
+/**
+ * A thumb up or down on a note.
+ *
+ * A choice from two, never a word, so it needs no moderation. One row per
+ * person and note, which the primary key enforces: changing one's mind moves
+ * the row, taking it back deletes it. Members read the two counts only; who
+ * reacted is shown to the staff alone.
+ */
+export const announcementReactions = pgTable(
+  "announcement_reaction",
+  {
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    value: text("value").$type<ReactionValue>().notNull(),
+    createdAt,
+  },
+  (t) => [
+    primaryKey({ columns: [t.announcementId, t.accountId] }),
+    check(
+      "announcement_reaction_value_check",
+      sql`${t.value} IN ('like', 'dislike')`,
     ),
   ],
 );
