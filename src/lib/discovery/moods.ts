@@ -163,6 +163,37 @@ export function excludedGenresFor(mood: Mood, kind: MediaKind): number[] {
 }
 
 /**
+ * Whether a listing row answers a query, read on the row itself.
+ *
+ * The reading the provider applies to the same query: one included genre is
+ * enough, one excluded genre disqualifies, every required genre must be there,
+ * and the origin must match when one is asked for. This is what lets the picker
+ * filter a ranking it already holds rather than ask for a listing. The runtime
+ * is not on a row, so a query carrying one is not answered here at all.
+ */
+export function matchesQuery(
+  item: {
+    kind: MediaKind;
+    genreIds: number[];
+    originalLanguage?: string | null;
+  },
+  query: DiscoverQuery,
+): boolean {
+  if (item.kind !== query.kind || query.runtimeLte !== undefined) return false;
+  const genres = new Set(item.genreIds);
+  if (query.genreIds?.length && !query.genreIds.some((id) => genres.has(id)))
+    return false;
+  if (query.excludeGenreIds?.some((id) => genres.has(id))) return false;
+  if (query.requireGenreIds?.some((id) => !genres.has(id))) return false;
+  if (
+    query.originalLanguage &&
+    item.originalLanguage !== query.originalLanguage
+  )
+    return false;
+  return true;
+}
+
+/**
  * One query per kind the answer covers.
  *
  * The runtime ceiling is only ever attached to a film: on a show the same

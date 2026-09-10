@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { itemsFrom, sectionId } from "@/lib/providers/plex";
+import { itemsFrom, sectionId, watchEventsFrom } from "@/lib/providers/plex";
 
 describe("library parsing", () => {
   it("reads a movie and its provider mappings", () => {
@@ -70,5 +70,47 @@ describe("library parsing", () => {
   it("refuses a section key that is not numeric", () => {
     expect(() => sectionId("../../secret")).toThrow();
     expect(sectionId("3")).toBe(3);
+  });
+});
+
+describe("watch history parsing", () => {
+  it("finds the show of an episode from its metadata path", () => {
+    // The shape the history endpoint actually returns: no grandparentRatingKey.
+    const events = watchEventsFrom({
+      MediaContainer: {
+        Metadata: [
+          {
+            ratingKey: "77603",
+            type: "episode",
+            grandparentKey: "/library/metadata/77549",
+          },
+          { ratingKey: "7829", type: "movie" },
+        ],
+      },
+    });
+    expect(events).toEqual([
+      { ratingKey: "77603", grandparentRatingKey: "77549", kind: "episode" },
+      { ratingKey: "7829", grandparentRatingKey: null, kind: "movie" },
+    ]);
+  });
+
+  it("prefers the attribute when it is there and ignores a malformed path", () => {
+    const events = watchEventsFrom({
+      MediaContainer: {
+        Metadata: [
+          {
+            ratingKey: "1",
+            type: "episode",
+            grandparentRatingKey: "10",
+            grandparentKey: "/library/metadata/99",
+          },
+          { ratingKey: "2", type: "episode", grandparentKey: "/elsewhere/5" },
+        ],
+      },
+    });
+    expect(events.map((event) => event.grandparentRatingKey)).toEqual([
+      "10",
+      null,
+    ]);
   });
 });

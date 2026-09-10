@@ -342,6 +342,7 @@ export function summaryFromJsonWithKind(
     backdropPath: str(row, "backdrop_path"),
     popularity: typeof row.popularity === "number" ? row.popularity : 0,
     genreIds: genreIdsFrom(row),
+    originalLanguage: str(row, "original_language"),
     voteAverage:
       typeof row.vote_average === "number" && Number.isFinite(row.vote_average)
         ? row.vote_average

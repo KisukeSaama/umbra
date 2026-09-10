@@ -716,6 +716,44 @@ export async function randomAvailableByGenres(
   return rows.map(toRecentItem);
 }
 
+/**
+ * The titles among these the server holds, in the order the ids were given.
+ *
+ * The picker hands over a ranking and wants back the part of it that can be
+ * played tonight, still ranked. One card per title, whatever cuts the server
+ * keeps of it.
+ */
+export async function availableByProviderIds(
+  kind: "movie" | "tv",
+  providerIds: string[],
+): Promise<RecentItem[]> {
+  if (providerIds.length === 0) return [];
+  const rows = await db()
+    .select()
+    .from(libraryItems)
+    .where(
+      and(
+        eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
+        isNotNull(libraryItems.posterPath),
+        inArray(libraryItems.tmdbId, providerIds),
+      ),
+    );
+
+  const rank = new Map(providerIds.map((id, index) => [id, index]));
+  const seen = new Set<string>();
+  return rows
+    .sort(
+      (a, b) =>
+        (rank.get(a.tmdbId ?? "") ?? 0) - (rank.get(b.tmdbId ?? "") ?? 0),
+    )
+    .filter((row) => {
+      if (!row.tmdbId || seen.has(row.tmdbId)) return false;
+      seen.add(row.tmdbId);
+      return true;
+    })
+    .map(toRecentItem);
+}
+
 function toRecentItem(row: typeof libraryItems.$inferSelect): RecentItem {
   return {
     ratingKey: row.ratingKey,

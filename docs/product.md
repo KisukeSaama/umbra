@@ -280,14 +280,21 @@ Two ways in, because two different people arrive.
 
 Shelves, for browsing: what is trending, what is airing, what is coming, what the
 provider suggests from something you asked for yourself, and one shelf shaped by
-an aggregated taste profile. Every card carries its state, so "is this already
-here" is answered by looking rather than by searching.
+what you watched. That shelf is seeded on titles rather than genres: the last
+things watched are each asked what goes with them, and what several answers
+agree on comes first, minus anything already seen. The history is read for the
+render and dropped (see `docs/adr/0015-suggestions-seeded-on-titles.md`). Every
+card carries its state, so "is this already here" is answered by looking rather
+than by searching.
 
 The guided picker, for the evenings where even a shelf is too much. Four closed
 questions, then a small selection in two halves: what is already on the server,
 so the evening can start now, and what is not, so there is something to ask for.
 It replaced a die that returned one random title, which was a shrug rather than
-an answer. Anime is one of those four questions and not one of the moods: a mood
+an answer. Both halves start from the same ranking as the personal shelf,
+filtered by the answers, so "make me laugh" answers with comedies close to what
+the member watches rather than the best rated comedies in the world, and the
+mood alone fills what that ranking cannot. Anime is one of those four questions and not one of the moods: a mood
 is what a title is about, anime is how it is made, so a romance can be asked for
 without anime, with anime, or only in anime.
 
@@ -338,8 +345,11 @@ ids, rebuilt from a rolling ninety day window on every sync and therefore
 replaced rather than accumulated. No title, no date, nothing a person could be
 recognised by. It has no switch: the aggregate is what makes personalisation
 possible without a history, so it is part of the product rather than a setting.
-See `docs/adr/0007-aggregated-taste-profile.md` and
-`docs/adr/0013-personalisation-is-not-optional.md`.
+The recent history is also read live to seed the personal shelf and to lead the
+week with the shows a member is on, and in both cases it is dropped with the
+render. See `docs/adr/0007-aggregated-taste-profile.md`,
+`docs/adr/0013-personalisation-is-not-optional.md` and
+`docs/adr/0015-suggestions-seeded-on-titles.md`.
 
 Public statistics are aggregates over the community as a whole (titles added this
 week, requests handled, episodes added) and nothing traceable to a person.

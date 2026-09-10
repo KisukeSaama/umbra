@@ -27,6 +27,12 @@ export type MediaSummary = {
    */
   genreIds: number[];
   /**
+   * ISO 639-1 of the original version, when the row carries it. What lets a
+   * row be checked against "only anime" without asking again: the genre alone
+   * answers with Pixar.
+   */
+  originalLanguage?: string | null;
+  /**
    * Average score out of ten, and how many votes stand behind it. The two are
    * one fact: a nine held up by four votes says nothing. Null is "not known",
    * which is not the same as zero, and the library index leans on that
