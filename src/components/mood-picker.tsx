@@ -420,7 +420,7 @@ function Question({
             <p
               id={hintId}
               aria-live="polite"
-              className="text-muted-foreground mt-2 min-h-5 text-[13px] leading-5"
+              className="text-muted-foreground mt-2 min-h-5 text-xs leading-5"
             >
               {options
                 .filter((option) => selected.includes(option.value))

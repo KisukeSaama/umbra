@@ -207,7 +207,10 @@ function NavList({
 
         return (
           <div key={group.group}>
-            <p className="text-muted-foreground px-3 pb-1 text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            {/* Sentence case at the small size: uppercase with tracking is
+                spent on the wordmark and on the eyebrow above a page title,
+                and a group name in a nav is neither. */}
+            <p className="text-muted-foreground px-3 pb-1 text-xs font-medium">
               {t(group.key)}
             </p>
             <ul className="space-y-0.5">

@@ -46,16 +46,26 @@ const buttonVariants = cva(
   },
 );
 
+/**
+ * A button drawn as something else, a link most often, is not a native button,
+ * and the primitive has to be told so or it warns on every page that carries
+ * one. Read from `render` rather than asked of every caller: whoever hands in
+ * an anchor has already said what the element is.
+ */
 function Button({
   className,
   variant = "default",
   size = "default",
+  render,
+  nativeButton = render === undefined,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      render={render}
+      nativeButton={nativeButton}
       {...props}
     />
   );

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 
+import { EmptyNote } from "@/components/empty-note";
+import { FlagIcon, RequestIcon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { Poster } from "@/components/poster";
+import { SectionHeading } from "@/components/section";
 import { Timeline } from "@/components/timeline";
 import { Badge } from "@/components/ui/badge";
 import { WithdrawButton } from "@/components/withdraw-button";
@@ -27,6 +30,7 @@ import {
   toSearchParams,
 } from "@/lib/pagination";
 import { isLive } from "@/lib/reports/reasons";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -130,13 +134,11 @@ export default async function ActivityPage({
       </header>
 
       <section id="requests" className="scroll-mt-[var(--umbra-sticky-top)]">
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">
-          {t("section.myRequests")}
-        </h2>
+        <SectionHeading title={t("section.myRequests")} />
         {entries.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <EmptyNote icon={RequestIcon}>
             {t("activity.noRequests")} {t("activity.noRequestsHint")}
-          </p>
+          </EmptyNote>
         ) : (
           <ul className="space-y-3">
             {entries.map((entry) =>
@@ -164,13 +166,11 @@ export default async function ActivityPage({
       </section>
 
       <section id="reports" className="scroll-mt-[var(--umbra-sticky-top)]">
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">
-          {t("section.myReports")}
-        </h2>
+        <SectionHeading title={t("section.myReports")} />
         {reports.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <EmptyNote icon={FlagIcon}>
             {t("report.none")} {t("report.noneHint")}
-          </p>
+          </EmptyNote>
         ) : (
           <ul className="divide-border/60 divide-y">
             {reports.map((report) => (
@@ -203,12 +203,7 @@ export default async function ActivityPage({
                   {t(`report.status.${report.status}` as TranslationKey)}
                 </Badge>
                 {report.adminNote ? (
-                  <p className="border-border/60 w-full border-l pl-3 text-sm">
-                    <span className="text-muted-foreground">
-                      {t("activity.note")}
-                    </span>{" "}
-                    {report.adminNote}
-                  </p>
+                  <Note className="w-full">{report.adminNote}</Note>
                 ) : null}
                 <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
                   <p className="text-muted-foreground text-xs">
@@ -366,11 +361,17 @@ function EntryCard({
   );
 }
 
-/** A word from the administration, on a request or on an ask. */
-async function Note({ children }: { children: React.ReactNode }) {
+/** A word from the administration, on a request, an ask or a report. */
+async function Note({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const { t } = await getI18n();
   return (
-    <p className="border-border/60 border-l pl-3 text-sm">
+    <p className={cn("border-border/60 border-l pl-3 text-sm", className)}>
       <span className="text-muted-foreground">{t("activity.note")}</span>{" "}
       {children}
     </p>

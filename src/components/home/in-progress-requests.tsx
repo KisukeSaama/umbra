@@ -29,11 +29,14 @@ export async function InProgressRequests({
         <ul className="divide-border/60 -my-2 divide-y">
           {requests.map((request) => (
             <li key={request.id}>
+              {/* A row that opens a title says so the way a card does: the
+                  name underlines under the pointer, and the keyboard gets the
+                  same ring as everywhere else. */}
               <Link
                 href={`/title/${request.media.kind}/${request.media.providerId}`}
-                className="block min-w-0 py-3"
+                className="group focus-visible:ring-ring/50 block min-w-0 rounded-md py-3 outline-none focus-visible:ring-3"
               >
-                <p className="truncate text-sm font-medium">
+                <p className="truncate text-sm font-medium group-hover:underline">
                   {request.media.title}
                 </p>
                 {request.media.year ? (

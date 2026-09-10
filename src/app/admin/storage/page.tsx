@@ -89,7 +89,11 @@ export default async function AdminStoragePage() {
         ]}
       />
 
-      <Progress value={percent} aria-label={t("section.storage")} />
+      <Progress
+        value={percent}
+        locale={locale}
+        aria-label={t("section.storage")}
+      />
 
       {/* The card must not clip. A box that hides its overflow becomes the
           scrollport its children are pinned to, and the map inside would be

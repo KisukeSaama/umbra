@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { ActionButton } from "@/components/admin/action-button";
+import { EmptyNote } from "@/components/empty-note";
+import { AccountsIcon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { countAccounts, listAccounts } from "@/lib/domain/accounts";
@@ -62,7 +64,7 @@ export default async function AdminAccountsPage({
   });
 
   if (total === 0) {
-    return <p className="text-muted-foreground text-sm">{t("common.empty")}</p>;
+    return <EmptyNote icon={AccountsIcon}>{t("common.empty")}</EmptyNote>;
   }
 
   return (
