@@ -152,8 +152,11 @@ export function discoverParams({
   kind,
   genreIds,
   excludeGenreIds,
+  requireGenreIds,
   originalLanguage,
   runtimeLte,
+  releasedFrom,
+  releasedTo,
   shortSeries,
   sortBy,
   voteCountGte,
@@ -167,13 +170,32 @@ export function discoverParams({
     "vote_count.gte": voteCountGte ?? voteFloor(kind, sortBy),
     "vote_average.gte": voteAverageGte ?? RATING_FLOOR,
   };
-  // A pipe is "any of these", a comma would demand all of them at once.
-  if (genreIds?.length) query.with_genres = genreIds.join("|");
+  // A pipe is "any of these", a comma demands all of them at once, and TMDB
+  // takes one or the other in a value. The genres a title must carry go up
+  // with the query whenever the mood leaves room for a comma: filtered after
+  // the fact instead, "anime before 1980" read a page of Kurosawa sorted by
+  // score and kept nothing of it. `discoverBy` still filters the rest.
+  const required = requireGenreIds ?? [];
+  if (required.length > 0 && (genreIds?.length ?? 0) <= 1)
+    query.with_genres = [...new Set([...required, ...(genreIds ?? [])])].join(
+      ",",
+    );
+  else if (genreIds?.length) query.with_genres = genreIds.join("|");
   if (excludeGenreIds?.length) query.without_genres = excludeGenreIds.join("|");
   if (originalLanguage) query.with_original_language = originalLanguage;
   // On a show this parameter filters the length of one episode, which is a
   // different question, so it is only ever sent for a film.
-  if (runtimeLte && kind === "movie") query["with_runtime.lte"] = runtimeLte;
+  if (runtimeLte && kind === "movie") {
+    query["with_runtime.lte"] = runtimeLte;
+    // A runtime the provider does not know is stored as zero and would pass
+    // the ceiling: an unknown length never answers "under two hours".
+    query["with_runtime.gte"] = 1;
+  }
+  // The same year is spelt on a different field on each side, like the sort.
+  const dateField =
+    kind === "movie" ? "primary_release_date" : "first_air_date";
+  if (releasedFrom) query[`${dateField}.gte`] = `${releasedFrom}-01-01`;
+  if (releasedTo) query[`${dateField}.lte`] = `${releasedTo}-12-31`;
   if (shortSeries && kind === "tv") {
     query.with_status = 3; // Ended
     query.with_type = 2; // Miniseries
@@ -359,7 +381,28 @@ export const tmdbProvider: MediaMetadataProvider = {
       credits: personCreditsFromJson(body.combined_credits),
     };
   },
+
+  async collection(collectionId, language) {
+    const body = await get(`/collection/${numericId(collectionId)}`, language);
+    const collection = collectionRefFromJson(body);
+    if (!collection) throw new NotFoundError("error.titleNotFound");
+    return {
+      ...collection,
+      parts: summariesOfKind(
+        Array.isArray(body.parts) ? body.parts : [],
+        "movie",
+      ),
+    };
+  },
 };
+
+/** A saga as a film's details name it, or as its own payload does. */
+export function collectionRefFromJson(row: unknown) {
+  if (!isJson(row)) return null;
+  const collectionId = idOf(row);
+  const name = str(row, "name");
+  return collectionId && name ? { collectionId, name } : null;
+}
 
 export function personRefFromJson(row: unknown): PersonRef | null {
   if (!isJson(row)) return null;
@@ -582,6 +625,10 @@ export function summaryFromJsonWithKind(
     // Only a details payload names its genres, so a listing row stays without.
     ...(Array.isArray(row.genres)
       ? { genres: row.genres.map(genreFromJson).filter(present) }
+      : {}),
+    // Same: only a film's details name the saga it belongs to.
+    ...("belongs_to_collection" in row
+      ? { collection: collectionRefFromJson(row.belongs_to_collection) }
       : {}),
   };
 }

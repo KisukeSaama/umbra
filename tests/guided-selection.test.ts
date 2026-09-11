@@ -132,7 +132,46 @@ describe("guided selection constraints on both halves", () => {
     });
     expect(selection.tonight.map((item) => item.providerId)).toEqual(["1"]);
     expect(selection.tonight[0].kind).toBe("movie");
-    expect(selection.ideas.map((item) => item.providerId)).toEqual(["4"]);
+    // The listing was asked with the ceiling, so the provider filtered it and
+    // its rows cost no second call against the quota.
+    expect(mocks.discover).toHaveBeenCalledWith(
+      expect.objectContaining({ runtimeLte: 119 }),
+    );
+    expect(mocks.details).not.toHaveBeenCalledWith("movie", "4", undefined);
+    expect(selection.ideas.map((item) => item.providerId)).toContain("4");
+  });
+
+  it("answers a language from the index without asking the provider", async () => {
+    mocks.random.mockResolvedValue([
+      { providerId: "1", ratingKey: "1", originalLanguage: "fr" },
+      { providerId: "2", ratingKey: "2", originalLanguage: "en" },
+      { providerId: "3", ratingKey: "3", originalLanguage: "" },
+      { providerId: "4", ratingKey: "4", originalLanguage: null },
+    ]);
+    mocks.details.mockImplementation(async (_kind, id) => ({
+      originalLanguage: id === "4" ? "fr" : "en",
+    }));
+    const selection = await guidedSelection({
+      moods: ["drama"],
+      visualStyles: ["live"],
+      format: "movie",
+      duration: "any",
+      origin: "french",
+    });
+    expect(
+      selection.tonight.map((item) => item.providerId).sort(),
+    ).toEqual(["1", "4"]);
+    // Only the row the enrichment pass has not reached costs a call.
+    expect(mocks.details).toHaveBeenCalledTimes(1);
+    expect(mocks.random).toHaveBeenCalledWith(
+      "movie",
+      [18],
+      12,
+      [16],
+      [],
+      [],
+      expect.objectContaining({ originalLanguage: "fr" }),
+    );
   });
 
   it("rejects cancelled short series in both halves", async () => {
@@ -211,9 +250,31 @@ describe("guided selection constraints on both halves", () => {
       "account",
       true,
     );
-    expect(mocks.random).toHaveBeenCalledWith("movie", [], 12, [], [], []);
+    expect(mocks.random).toHaveBeenCalledWith("movie", [], 12, [], [], [], {});
     expect(mocks.discover).toHaveBeenCalledWith(
       expect.objectContaining({ genreIds: [] }),
+    );
+  });
+
+  it("holds both halves to the era asked for", async () => {
+    await guidedSelection({
+      moods: ["drama"],
+      visualStyles: ["live"],
+      format: "movie",
+      duration: "any",
+      era: "classic",
+    });
+    expect(mocks.random).toHaveBeenCalledWith(
+      "movie",
+      [18],
+      12,
+      expect.any(Array),
+      [],
+      [],
+      { releasedFrom: undefined, releasedTo: 1979 },
+    );
+    expect(mocks.discover).toHaveBeenCalledWith(
+      expect.objectContaining({ releasedTo: 1979 }),
     );
   });
 

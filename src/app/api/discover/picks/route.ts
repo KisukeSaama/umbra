@@ -7,8 +7,10 @@ import {
   COMMITMENTS,
   VISUAL_STYLES,
   DURATIONS,
+  ERAS,
   FORMATS,
   MOODS,
+  ORIGINS,
 } from "@/lib/discovery/moods";
 import { guidedSelection } from "@/lib/domain/discovery";
 import { bumpMetric } from "@/lib/domain/analytics";
@@ -28,6 +30,8 @@ const schema = z.object({
   format: z.enum(FORMATS),
   duration: z.enum(DURATIONS),
   commitment: z.enum(COMMITMENTS).default("any"),
+  era: z.enum(ERAS).default("any"),
+  origin: z.enum(ORIGINS).default("any"),
 });
 
 export async function GET(request: NextRequest) {
@@ -54,6 +58,8 @@ export async function GET(request: NextRequest) {
             format: params.get("format"),
             duration: params.get("duration"),
             commitment: params.get("commitment") ?? undefined,
+            era: params.get("era") ?? undefined,
+            origin: params.get("origin") ?? undefined,
           });
 
     const locale = detectLocale(request.headers.get("accept-language"));

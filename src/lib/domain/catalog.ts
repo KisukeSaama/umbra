@@ -26,7 +26,12 @@ import {
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
 import { withAnimeScore } from "@/lib/domain/similar";
-import type { Genre, MediaKind, MediaSummary } from "@/lib/providers/metadata";
+import type {
+  CollectionRef,
+  Genre,
+  MediaKind,
+  MediaSummary,
+} from "@/lib/providers/metadata";
 import {
   plexAppUrl,
   plexDetailsUrl,
@@ -441,6 +446,8 @@ export type TitleDetail = CatalogResult & {
    * mark every season short and offer to ask for what was cut on purpose.
    */
   seasons: SeasonState[];
+  /** The saga a film belongs to, when it belongs to one. */
+  collection?: CollectionRef | null;
 };
 
 /**
@@ -478,6 +485,7 @@ export const titleDetail = cache(async function titleDetail(
     voteCount: summary.voteCount,
     scoreSource: summary.scoreSource,
     seasons,
+    collection: summary.collection ?? null,
   };
 });
 

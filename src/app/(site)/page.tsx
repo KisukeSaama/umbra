@@ -19,7 +19,7 @@ import { recentlyAdded } from "@/lib/domain/library";
 import { activePoll } from "@/lib/domain/polls";
 import { inProgressRequests } from "@/lib/domain/requests";
 import { upcomingEpisodes, watchingThisWeek } from "@/lib/domain/series";
-import { storageOverview } from "@/lib/domain/storage";
+import { storageOutlook } from "@/lib/domain/storage";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -42,7 +42,7 @@ export default async function HomePage() {
       // With the reader, so the thumbs on the home card show what they pressed
       // on the feed: read anonymously, the card forgot their reaction.
       latestAnnouncement(account.id),
-      storageOverview(),
+      storageOutlook(),
       weeklyStats(),
     ]);
 

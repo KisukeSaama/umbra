@@ -52,9 +52,19 @@ export type MediaSummary = {
    * them, so a listing row leaves this out and keeps `genreIds` alone.
    */
   genres?: Genre[];
+  /**
+   * The saga a film belongs to, when the provider files it in one. Only a
+   * details payload carries it, and only for a film.
+   */
+  collection?: CollectionRef | null;
 };
 
 export type Genre = { id: number; name: string };
+
+export type CollectionRef = { collectionId: string; name: string };
+
+/** A saga and every film in it, in the order the provider lists them. */
+export type CollectionDetails = CollectionRef & { parts: MediaSummary[] };
 
 /** Someone who worked on a title, as much as a card needs. */
 export type PersonRef = {
@@ -119,6 +129,12 @@ export type DiscoverQuery = {
   excludeOriginalLanguages?: string[];
   /** Minutes. Only meaningful for a film. */
   runtimeLte?: number;
+  /**
+   * Years of first release, both ends included: the release of a film, the
+   * first broadcast of a show. Absent means that end is open.
+   */
+  releasedFrom?: number;
+  releasedTo?: number;
   /** Exact provider keyword, resolved through its keyword search. */
   keyword?: string;
   /** Start from finished miniseries; exact season and episode limits are checked on details. */
@@ -210,6 +226,26 @@ export interface MediaMetadataProvider {
   ): Promise<TitleCredits>;
   /** One person and everything they are credited on. */
   person(personId: string, language?: string): Promise<PersonDetails>;
+  /** A saga and the films in it. */
+  collection(
+    collectionId: string,
+    language?: string,
+  ): Promise<CollectionDetails>;
+}
+
+/**
+ * The films of a saga, oldest first. One with no date yet is announced rather
+ * than out, so it closes the row.
+ */
+export function inReleaseOrder<T extends Pick<MediaSummary, "releaseDate">>(
+  parts: T[],
+): T[] {
+  return [...parts].sort((a, b) => {
+    if (a.releaseDate === b.releaseDate) return 0;
+    if (!a.releaseDate) return 1;
+    if (!b.releaseDate) return -1;
+    return a.releaseDate < b.releaseDate ? -1 : 1;
+  });
 }
 
 /** A finished show no longer needs a daily sync. */

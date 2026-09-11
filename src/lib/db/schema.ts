@@ -189,6 +189,18 @@ export const libraryItems = pgTable(
     voteAverage: real("vote_average"),
     voteCount: integer("vote_count"),
     /**
+     * The original language, ISO 639-1, and a film's runtime in minutes. Filled
+     * by the same enrichment pass, so the picker answers a language or a length
+     * from the index rather than with one provider call per title, which is
+     * what ran it into the gateway's quota mid-selection.
+     *
+     * An empty language and a zero runtime mean the provider does not say,
+     * which fails the question the way an unknown detail always has. Null means
+     * the pass has not looked yet, and the picker asks the provider instead.
+     */
+    originalLanguage: text("original_language"),
+    runtime: integer("runtime"),
+    /**
      * The provider id of a re-cut the media server matched to nothing.
      *
      * A re-cut filed as personal media carries no guid at all, so the sync
@@ -617,6 +629,13 @@ export const storageTreeSnapshots = pgTable(
     totalBytes: bigint("total_bytes", { mode: "number" }).notNull(),
     fileCount: integer("file_count").notNull().default(0),
     durationMs: integer("duration_ms").notNull().default(0),
+    /**
+     * What a film and an episode typically weigh on this server, worked out
+     * from the tree when it is measured. Kept apart from `roots` so the home
+     * page can say what the free space holds without reading the whole map.
+     */
+    movieBytes: bigint("movie_bytes", { mode: "number" }),
+    episodeBytes: bigint("episode_bytes", { mode: "number" }),
     scannedAt: timestamp("scanned_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

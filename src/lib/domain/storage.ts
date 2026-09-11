@@ -4,15 +4,24 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import checkDiskSpace from "check-disk-space";
-import { desc } from "drizzle-orm";
+import { asc, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
+  libraryItems,
   storageSnapshots,
   storageTreeSnapshots,
   type StorageNode,
   type StorageVolume,
 } from "@/lib/db/schema";
+import {
+  daysLeft,
+  PACE_WINDOW_DAYS,
+  roomFor,
+  storageState,
+  typicalSizes,
+  type StorageState,
+} from "@/lib/domain/storage-room";
 import { isLibrary } from "@/lib/domain/storage-rules";
 import { env, parseStoragePaths } from "@/lib/env";
 
@@ -35,6 +44,19 @@ export type StorageOverview = {
   availableBytes: number;
   usedRatio: number;
   recordedAt: Date | null;
+};
+
+/**
+ * What a member reads: the measurement, and what it means for them.
+ *
+ * `room` is the free space counted in films and episodes, null where the
+ * server has not been walked yet or holds none of that kind. `daysLeft` is
+ * the pace, null when there is none worth printing.
+ */
+export type StorageOutlook = StorageOverview & {
+  state: StorageState;
+  daysLeft: number | null;
+  room: { movies: number | null; episodes: number | null };
 };
 
 export type StorageDetail = StorageOverview & { volumes: StorageVolume[] };
@@ -131,6 +153,47 @@ function overviewOf(row: {
 export async function storageOverview(): Promise<StorageOverview | null> {
   const row = await latestSnapshot();
   return row ? overviewOf(row) : null;
+}
+
+/**
+ * The latest measurement, read for a member: how full, how fast, and what the
+ * rest holds. Three small reads, none of them the map itself.
+ */
+export async function storageOutlook(): Promise<StorageOutlook | null> {
+  const since = new Date(Date.now() - PACE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const [latest, [oldest], [sizes]] = await Promise.all([
+    latestSnapshot(),
+    db()
+      .select({
+        recordedAt: storageSnapshots.recordedAt,
+        usedBytes: storageSnapshots.usedBytes,
+      })
+      .from(storageSnapshots)
+      .where(gte(storageSnapshots.recordedAt, since))
+      .orderBy(asc(storageSnapshots.recordedAt))
+      .limit(1),
+    db()
+      .select({
+        movieBytes: storageTreeSnapshots.movieBytes,
+        episodeBytes: storageTreeSnapshots.episodeBytes,
+      })
+      .from(storageTreeSnapshots)
+      .orderBy(desc(storageTreeSnapshots.scannedAt))
+      .limit(1),
+  ]);
+  if (!latest) return null;
+
+  const overview = overviewOf(latest);
+  const days = oldest ? daysLeft(oldest, latest) : null;
+  return {
+    ...overview,
+    state: storageState(overview.usedRatio, days),
+    daysLeft: days,
+    room: {
+      movies: roomFor(overview.availableBytes, sizes?.movieBytes ?? null),
+      episodes: roomFor(overview.availableBytes, sizes?.episodeBytes ?? null),
+    },
+  };
 }
 
 /** Detailed measurement, admin only. */
@@ -249,11 +312,21 @@ export async function scanStorageTree(
     scannedAt: new Date(),
   };
 
+  // An episode is a file, and the tree keeps none: the index knows how many
+  // there are, and the tree what their series weigh.
+  const [episodes] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(libraryItems)
+    .where(eq(libraryItems.kind, "episode"));
+  const sizes = typicalSizes(roots, episodes?.count ?? 0);
+
   await db().insert(storageTreeSnapshots).values({
     roots: tree.roots,
     totalBytes: tree.totalBytes,
     fileCount: tree.fileCount,
     durationMs: tree.durationMs,
+    movieBytes: sizes.movieBytes,
+    episodeBytes: sizes.episodeBytes,
   });
 
   return tree;

@@ -8,11 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { Poster } from "@/components/poster";
 import { SeasonList } from "@/components/season-list";
 import { TitleActions } from "@/components/title-actions";
+import { isOnServer } from "@/lib/domain/availability";
 import type { TitleDetail } from "@/lib/domain/catalog";
 import type { PersonCard } from "@/lib/domain/people";
 import { openAsksFor } from "@/lib/domain/reports";
-import { followedRequestFor, waitingOnTitle } from "@/lib/domain/requests";
+import {
+  followedRequestFor,
+  lastRemovedAt,
+  waitingOnTitle,
+} from "@/lib/domain/requests";
 import { settledAsksFor } from "@/lib/domain/settled";
+import { storageOutlook } from "@/lib/domain/storage";
+import { formatDate } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { NOTHING_SETTLED } from "@/lib/reports/reasons";
 
@@ -58,6 +65,19 @@ export async function TitleView({
           waitingOnTitle(detail.kind, detail.providerId),
         ])
       : [null, 0];
+  /*
+   * Two things a member about to ask should know, read only when there is an
+   * ask to make: that the server is short of room, said where it changes
+   * something rather than on every page, and that the title was here before.
+   */
+  const [storage, removedAt] = isOnServer(detail.availability)
+    ? [null, null]
+    : await Promise.all([
+        storageOutlook(),
+        detail.availability === "absent"
+          ? lastRemovedAt(detail.kind, detail.providerId)
+          : null,
+      ]);
   /*
    * What has already been asked about this series, so a season never offers an
    * ask a second time, and what the administration has just answered, which the
@@ -213,6 +233,8 @@ export async function TitleView({
             followed={followed}
             waiting={waiting}
             alternateCut={detail.alternateCut}
+            crowded={storage?.state === "full"}
+            removedOn={removedAt ? formatDate(removedAt, locale) : null}
           />
         </div>
       </div>

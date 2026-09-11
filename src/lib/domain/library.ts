@@ -66,6 +66,9 @@ export type RecentItem = {
   episodeNumber: number | null;
   posterUrl: string | null;
   addedAt: Date | null;
+  /** See the columns of the same name: null is "not looked at yet". */
+  originalLanguage?: string | null;
+  runtime?: number | null;
 };
 
 /**
@@ -237,6 +240,7 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
           isNull(libraryItems.posterPath),
           isNull(libraryItems.genreIds),
           isNull(libraryItems.voteAverage),
+          isNull(libraryItems.originalLanguage),
         ),
         // A re-cut wears the poster, the genres and the score of the series it
         // is a re-cut of, which is the only picture there is for it.
@@ -288,6 +292,9 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
           // which fails the floor, and null would fetch this row forever.
           voteAverage: summary.voteAverage ?? 0,
           voteCount: summary.voteCount,
+          // Same again: empty and zero are answers, null would come back.
+          originalLanguage: summary.originalLanguage ?? "",
+          runtime: row.kind === "movie" ? (summary.runtime ?? 0) : null,
         })
         .where(eq(libraryItems.id, row.id));
       filled += 1;
@@ -658,6 +665,16 @@ export function intArray(values: number[]) {
  */
 const MEANINGFUL_VOTES = 50;
 
+/** What the picker's answers ask of the index beyond genres. */
+export type IndexFilters = {
+  releasedFrom?: number;
+  releasedTo?: number;
+  originalLanguage?: string;
+  excludeOriginalLanguages?: string[];
+  /** Minutes, films only. */
+  runtimeLte?: number;
+};
+
 /**
  * Random picks on the server that match at least one of these genres.
  *
@@ -673,7 +690,9 @@ export async function randomAvailableByGenres(
   excludeGenreIds: number[] = [],
   requireGenreIds: number[] = [],
   excludeProviderIds: string[] = [],
+  filters: IndexFilters = {},
 ): Promise<RecentItem[]> {
+  const { originalLanguage, excludeOriginalLanguages, runtimeLte } = filters;
   const rows = await db()
     .select()
     .from(libraryItems)
@@ -703,6 +722,35 @@ export async function randomAvailableByGenres(
           : []),
         ...(excludeProviderIds.length
           ? [notInArray(libraryItems.tmdbId, excludeProviderIds)]
+          : []),
+        // An era asked for is an answer, so a title of unknown year does not
+        // pass it: a null year fails both comparisons.
+        ...(filters.releasedFrom !== undefined
+          ? [sql`${libraryItems.year} >= ${filters.releasedFrom}`]
+          : []),
+        ...(filters.releasedTo !== undefined
+          ? [sql`${libraryItems.year} <= ${filters.releasedTo}`]
+          : []),
+        // Language and runtime let a row the enrichment pass has not reached
+        // yet through, since null is "not known" here as well: the picker asks
+        // the provider about those. A row it has reached answers here.
+        ...(originalLanguage
+          ? [
+              sql`(${libraryItems.originalLanguage} IS NULL OR ${libraryItems.originalLanguage} = ${originalLanguage})`,
+            ]
+          : []),
+        ...(excludeOriginalLanguages?.length
+          ? [
+              sql`(${libraryItems.originalLanguage} IS NULL OR (${libraryItems.originalLanguage} <> '' AND ${libraryItems.originalLanguage} NOT IN (${sql.join(
+                excludeOriginalLanguages.map((language) => sql`${language}`),
+                sql`, `,
+              )})))`,
+            ]
+          : []),
+        ...(runtimeLte !== undefined
+          ? [
+              sql`(${libraryItems.runtime} IS NULL OR (${libraryItems.runtime} > 0 AND ${libraryItems.runtime} <= ${runtimeLte}))`,
+            ]
           : []),
         // The same bar the provider half is held to, on the one score the index
         // has. Null is not a failing grade: the enrichment pass fills the index
@@ -777,6 +825,8 @@ function toRecentItem(row: typeof libraryItems.$inferSelect): RecentItem {
     // Posters come from TMDB, not from the media server: no token leaves the
     // backend and the browser only ever talks to a public CDN.
     posterUrl: posterUrl(row.posterPath),
+    originalLanguage: row.originalLanguage,
+    runtime: row.runtime,
     addedAt: row.addedAt,
   };
 }

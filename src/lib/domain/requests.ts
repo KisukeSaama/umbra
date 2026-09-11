@@ -359,6 +359,35 @@ export async function waitingOnTitle(
   return row?.count ?? 0;
 }
 
+/**
+ * When a title last left the server, or null when it never did.
+ *
+ * The title page reads it while the title is away, so a member who finds it
+ * missing learns it was here and why it may have gone, rather than wondering
+ * whether it ever existed. A lookup over the requests, like the queue's.
+ */
+export async function lastRemovedAt(
+  kind: MediaKind,
+  providerId: string,
+): Promise<Date | null> {
+  const [row] = await db()
+    .select({
+      at: sql<Date | null>`max(${mediaRequests.updatedAt})`.mapWith(
+        mediaRequests.updatedAt,
+      ),
+    })
+    .from(mediaRequests)
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .where(
+      and(
+        eq(media.providerId, providerId),
+        eq(media.mediaType, kind),
+        eq(mediaRequests.status, "removed"),
+      ),
+    );
+  return row?.at ?? null;
+}
+
 /** One row, as both lists shape it: the queue and a member's own follow-up. */
 function toRequestRow(row: {
   id: string;
