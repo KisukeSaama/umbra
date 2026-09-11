@@ -134,7 +134,9 @@ export default async function AdminDashboardPage() {
                   main={request.media.title}
                   waiting={request.waiting}
                   aside={
-                    request.status === "requested"
+                    request.status === "requested" && request.reasked
+                      ? t("admin.requests.reasked")
+                      : request.status === "requested"
                       ? request.media.year
                         ? String(request.media.year)
                         : undefined

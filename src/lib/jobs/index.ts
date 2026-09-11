@@ -19,6 +19,7 @@ import {
 import {
   closeRequestsPresentInLibrary,
   notifyArrivedRequests,
+  retireRequestsGoneFromLibrary,
 } from "@/lib/domain/requests";
 import {
   linkSeriesToLibrary,
@@ -386,6 +387,8 @@ async function runSteps(): Promise<JobOutcome[]> {
       await linkUnmatchedCuts();
       await linkSeriesToLibrary();
       await closeRequestsPresentInLibrary();
+      // A title deleted since it arrived frees itself for the next ask.
+      await retireRequestsGoneFromLibrary();
       await notifyArrivedRequests();
       // A missing episode is answered by the index, so this is the pass that
       // can watch it arrive.

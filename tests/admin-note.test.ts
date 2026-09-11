@@ -34,6 +34,7 @@ describe("the note left on a request", () => {
     expect(canCarryNote("accepted")).toBe(true);
     expect(canCarryNote("rejected")).toBe(true);
     expect(canCarryNote("available")).toBe(false);
+    expect(canCarryNote("removed")).toBe(false);
   });
 });
 

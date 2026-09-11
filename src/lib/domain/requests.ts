@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
   accounts,
+  CLOSED_REQUEST_STATUSES,
   media,
   mediaRequests,
   requestFollowers,
@@ -54,6 +55,14 @@ export type RequestRow = {
   waiting: number;
   /** The server holds the title, so the request may be declared fulfilled. */
   inLibrary: boolean;
+  /**
+   * Somebody waiting on it was already waiting on an earlier request for the
+   * same title, one that reached the server and was deleted from it since.
+   * For the staff: the queue says "asked again" rather than "new".
+   */
+  reasked: boolean;
+  /** When an earlier request for the same title was taken off the server. */
+  removedAt: Date | null;
   media: {
     providerId: string;
     kind: MediaKind;
@@ -98,7 +107,8 @@ export async function createRequest(
     throw new ConflictError("error.alreadyAvailable");
 
   // Already on the list, so the title is known and joining needs no provider
-  // call. Refused in the meantime, the title is askable again: carry on.
+  // call. Refused or deleted from the server in the meantime, the title is
+  // askable again: carry on.
   if (availability === "requested") {
     const joined = await joinLiveRequest(kind, providerId, accountId);
     if (joined) return joined;
@@ -115,7 +125,7 @@ export async function createRequest(
     WITH inserted AS (
       INSERT INTO media_request (media_id, requested_by)
       VALUES (${mediaId}::uuid, ${accountId}::uuid)
-      ON CONFLICT (media_id) WHERE status <> 'rejected'
+      ON CONFLICT (media_id) WHERE status NOT IN ('rejected', 'removed')
       DO NOTHING
       RETURNING id, status
     ),
@@ -125,7 +135,7 @@ export async function createRequest(
       SELECT r.id, r.status, FALSE FROM media_request AS r
        WHERE NOT EXISTS (SELECT 1 FROM inserted)
          AND r.media_id = ${mediaId}::uuid
-         AND r.status <> 'rejected'
+         AND r.status NOT IN ('rejected', 'removed')
     ),
     followed AS (
       INSERT INTO request_follower (request_id, account_id)
@@ -176,7 +186,7 @@ async function joinLiveRequest(
       and(
         eq(media.providerId, providerId),
         eq(media.mediaType, kind),
-        ne(mediaRequests.status, "rejected"),
+        notInArray(mediaRequests.status, [...CLOSED_REQUEST_STATUSES]),
       ),
     )
     .limit(1);
@@ -205,8 +215,8 @@ async function joinLiveRequest(
  * person leaving was the last one waiting on it, which is the member who has
  * just asked and changed their mind. It is deleted rather than marked then:
  * nothing has happened to it, and the partial unique index that carries "one
- * live request per title" excludes rejected rows alone, so a cancelled request
- * has to disappear for the title to be askable again.
+ * live request per title" excludes only rejected and removed rows, so a
+ * cancelled request has to disappear for the title to be askable again.
  *
  * When the person who opened it leaves and others stay, it is handed to whoever
  * joined next, so the queue never names somebody who is no longer waiting.
@@ -315,7 +325,7 @@ export async function followedRequestFor(
         eq(requestFollowers.accountId, accountId),
         eq(media.providerId, providerId),
         eq(media.mediaType, kind),
-        ne(mediaRequests.status, "rejected"),
+        notInArray(mediaRequests.status, [...CLOSED_REQUEST_STATUSES]),
       ),
     )
     .limit(1);
@@ -342,7 +352,7 @@ export async function waitingOnTitle(
       and(
         eq(media.providerId, providerId),
         eq(media.mediaType, kind),
-        ne(mediaRequests.status, "rejected"),
+        notInArray(mediaRequests.status, [...CLOSED_REQUEST_STATUSES]),
       ),
     );
   return row?.count ?? 0;
@@ -358,6 +368,8 @@ function toRequestRow(row: {
   requestedBy: string | null;
   waiting: number;
   inLibrary: boolean;
+  reasked: boolean;
+  removedAt: Date | null;
   providerId: string;
   mediaType: MediaKind;
   title: string;
@@ -373,6 +385,8 @@ function toRequestRow(row: {
     requestedBy: row.requestedBy,
     waiting: row.waiting,
     inLibrary: row.inLibrary,
+    reasked: row.reasked,
+    removedAt: row.removedAt,
     media: {
       providerId: row.providerId,
       kind: row.mediaType,
@@ -409,6 +423,39 @@ const waitingColumn = sql<number>`(
    where f.request_id = ${mediaRequests.id}
 )`;
 
+/**
+ * When the title of the request being read was last taken off the server, as
+ * far as an earlier request for it can tell.
+ *
+ * A title fetched, watched by nobody and deleted to free space can come back
+ * through a new ask. The staff deleted it for a reason, so the queue says so
+ * before anybody fetches it a second time. Only earlier requests count: the
+ * row itself, once removed, is not its own history.
+ */
+const removedAtColumn = sql<Date | null>`(
+  select max(p.updated_at)
+    from media_request as p
+   where p.media_id = ${mediaRequests.mediaId}
+     and p.status = 'removed'
+     and p.created_at < ${mediaRequests.createdAt}
+)`.mapWith(mediaRequests.updatedAt);
+
+/**
+ * Whether somebody waiting on the request being read was already waiting on
+ * an earlier request for the same title, one that reached the server and was
+ * deleted from it since. That person is asking again, not asking.
+ */
+const reaskedColumn = sql<boolean>`exists (
+  select 1
+    from media_request as p
+    join request_follower as pf on pf.request_id = p.id
+    join request_follower as f on f.account_id = pf.account_id
+   where f.request_id = ${mediaRequests.id}
+     and p.media_id = ${mediaRequests.mediaId}
+     and p.status = 'removed'
+     and p.created_at < ${mediaRequests.createdAt}
+)`;
+
 const REQUEST_COLUMNS = {
   id: mediaRequests.id,
   status: mediaRequests.status,
@@ -423,6 +470,8 @@ const REQUEST_COLUMNS = {
   releaseDate: media.releaseDate,
   posterPath: media.posterPath,
   inLibrary: inLibraryColumn,
+  reasked: reaskedColumn,
+  removedAt: removedAtColumn,
 };
 
 export async function listRequests(
@@ -598,9 +647,12 @@ export async function setRequestNote(
   return updated;
 }
 
-/** The note lives as long as it is shown, and arriving is what erases it. */
+/**
+ * The note lives as long as it is shown, and arriving is what erases it. A
+ * request whose title has since left the server is history, not a desk.
+ */
 export function canCarryNote(status: RequestStatus): boolean {
-  return status !== "available";
+  return status !== "available" && status !== "removed";
 }
 
 /**
@@ -624,12 +676,17 @@ export function canCarryNote(status: RequestStatus): boolean {
  * (`closeRequestsPresentInLibrary`). A request closed by hand on a title the
  * sync has never seen would empty the follow-up page and hand the title
  * straight back to search, where the next member asks for it again.
+ *
+ * `removed` is its mirror, and written by the same sync: the title reached the
+ * server and was deleted from it since (`retireRequestsGoneFromLibrary`). It
+ * leaves the title askable again, as a new request, like a refusal does.
  */
 const TRANSITIONS = {
   requested: ["accepted", "rejected"],
   accepted: ["rejected"],
   available: [],
   rejected: [],
+  removed: [],
 } satisfies Record<RequestStatus, RequestStatus[]>;
 
 export function nextRequestStatuses(
@@ -775,6 +832,37 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
        AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END
      WHERE r.media_id = m.id
        AND r.status IN ('requested', 'accepted')
+  `);
+  return result.count ?? 0;
+}
+
+/**
+ * Retires requests whose title has left the server since it arrived.
+ *
+ * A title fetched for somebody can be deleted later, for lack of space and of
+ * anyone watching it. The request that brought it would otherwise stay
+ * `available`, which search reads as "already asked for": the title would be
+ * neither on the server nor askable, and asking would silently join a request
+ * that is over. Retired, it keeps its history and frees the title, and the next
+ * ask is a new request the queue marks as asked again.
+ *
+ * Presence is read the way search reads it, through the server id and the id
+ * worked out for a re-cut, so a title the index still holds under either stays
+ * as it is. The index is only swept for a section that answered, so a server
+ * mid-restart retires nothing.
+ */
+export async function retireRequestsGoneFromLibrary(): Promise<number> {
+  const result = await db().execute(sql`
+    UPDATE media_request AS r
+       SET status = 'removed',
+           updated_at = now()
+      FROM media AS m
+     WHERE r.media_id = m.id
+       AND r.status = 'available'
+       AND NOT EXISTS (
+             SELECT 1 FROM library_item AS l
+              WHERE (l.tmdb_id = m.provider_id OR l.cut_provider_id = m.provider_id)
+                AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END)
   `);
   return result.count ?? 0;
 }

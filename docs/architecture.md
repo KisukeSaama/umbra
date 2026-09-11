@@ -130,7 +130,8 @@ button was pressed, and the page stopped following a cycle that was not over.
 1. **library-sync**: pull sections, items and episodes; upsert on the server key;
    drop entries of that section not seen in this pass; link tracked series to
    their server entry; close requests and missing-episode reports whose title has
-   appeared; fill in missing posters and genres.
+   appeared; retire requests whose title has left the server since it arrived;
+   fill in missing posters and genres.
 2. **series-sync**: refresh the calendar of series due for a resync.
 3. **episode-reconcile**: mark episodes available or missing, raise tasks, close
    tasks whose episode arrived, then settle the season and series reports the

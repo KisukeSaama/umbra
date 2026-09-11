@@ -52,7 +52,7 @@ export const REQUEST_STAGE_STATUSES: Record<
 > = {
   todo: ["requested"],
   doing: ["accepted"],
-  done: ["available", "rejected"],
+  done: ["available", "rejected", "removed"],
   all: undefined,
 };
 
