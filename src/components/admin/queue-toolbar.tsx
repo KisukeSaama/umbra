@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { getI18n } from "@/lib/i18n/server";
 import { QUEUE_STAGES, type QueueOrder, type QueueStage } from "@/lib/queue";
@@ -12,11 +13,6 @@ const STAGE_KEYS = {
   all: "admin.queue.stage.all",
 } as const;
 
-const ORDER_KEYS = {
-  recent: "admin.queue.recent",
-  wanted: "admin.queue.wanted",
-} as const;
-
 /**
  * The bar above a queue: which stage is shown, and in what order.
  *
@@ -25,6 +21,10 @@ const ORDER_KEYS = {
  * rows, and keeps the other choice. Each stage carries its count, so a stage
  * with nothing in it is known before it is opened. The active choice is Quiet
  * Sand, as in the admin nav: ochre stays with the buttons that act.
+ *
+ * The date option is a switch. A queue is worked oldest first, so that is the
+ * default; choosing the option again turns it over to see what has just come
+ * in, and back. Its arrow says which way it reads.
  */
 export async function QueueToolbar({
   stage,
@@ -48,7 +48,7 @@ export async function QueueToolbar({
     const nextOrder = change.order ?? order;
     if (nextStage === "todo") next.delete("stage");
     else next.set("stage", nextStage);
-    if (nextOrder === "recent") next.delete("order");
+    if (nextOrder === "oldest") next.delete("order");
     else next.set("order", nextOrder);
     const query = next.toString();
     return `${pathname}${query ? `?${query}` : ""}`;
@@ -67,6 +67,13 @@ export async function QueueToolbar({
         // the lift is a stronger wash of the ink instead.
         "bg-card text-foreground inset-ring-foreground/10 hover:bg-card dark:bg-foreground/12 dark:hover:bg-foreground/12 inset-ring shadow-xs",
     );
+
+  const byDate = order !== "wanted";
+  const oldest = order === "oldest";
+  const DateArrow = oldest ? ArrowUpIcon : ArrowDownIcon;
+  const direction = t(
+    oldest ? "admin.queue.oldestFirst" : "admin.queue.newestFirst",
+  );
 
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -87,16 +94,27 @@ export async function QueueToolbar({
       </nav>
 
       <nav aria-label={t("admin.queue.order")} className={track}>
-        {(["recent", "wanted"] as const).map((one) => (
-          <Link
-            key={one}
-            href={href({ order: one })}
-            aria-current={one === order ? "true" : undefined}
-            className={option(one === order)}
-          >
-            {t(ORDER_KEYS[one])}
-          </Link>
-        ))}
+        <Link
+          href={href({ order: order === "oldest" ? "recent" : "oldest" })}
+          aria-current={byDate ? "true" : undefined}
+          title={byDate ? direction : undefined}
+          className={option(byDate)}
+        >
+          {t("admin.queue.recent")}
+          {byDate ? (
+            <>
+              <DateArrow aria-hidden className="text-muted-foreground" />
+              <span className="sr-only">{direction}</span>
+            </>
+          ) : null}
+        </Link>
+        <Link
+          href={href({ order: "wanted" })}
+          aria-current={order === "wanted" ? "true" : undefined}
+          className={option(order === "wanted")}
+        >
+          {t("admin.queue.wanted")}
+        </Link>
       </nav>
     </div>
   );

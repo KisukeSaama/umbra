@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -449,8 +449,11 @@ export async function listReports(
   /** The slice to read, when the caller pages. Everything, when it does not. */
   window?: { limit: number; offset: number },
   nature?: ReportNature,
-  /** Newest first by default; `wanted` puts the most followed first. */
-  order: QueueOrder = "recent",
+  /**
+   * Oldest first by default; `recent` turns that over, `wanted` puts the most
+   * followed first.
+   */
+  order: QueueOrder = "oldest",
 ): Promise<ReportRow[]> {
   const query = db()
     .select(REPORT_COLUMNS)
@@ -460,7 +463,7 @@ export async function listReports(
     .where(and(statusFilter(statuses), natureFilter(nature)))
     .orderBy(
       ...(order === "wanted" ? [desc(waitingColumn)] : []),
-      desc(reports.createdAt),
+      order === "recent" ? desc(reports.createdAt) : asc(reports.createdAt),
     );
 
   const rows = await (window

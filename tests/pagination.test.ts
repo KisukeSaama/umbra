@@ -23,9 +23,10 @@ describe("ordering an administration queue", () => {
     expect(parseQueueStage(["all", "todo"])).toBe("all");
   });
 
-  it("reads newest first unless asked for the most wanted", () => {
-    expect(parseQueueOrder(undefined)).toBe("recent");
-    expect(parseQueueOrder("anything")).toBe("recent");
+  it("reads oldest first unless asked otherwise", () => {
+    expect(parseQueueOrder(undefined)).toBe("oldest");
+    expect(parseQueueOrder("anything")).toBe("oldest");
+    expect(parseQueueOrder("recent")).toBe("recent");
     expect(parseQueueOrder("wanted")).toBe("wanted");
     expect(parseQueueOrder(["wanted", "recent"])).toBe("wanted");
   });
@@ -38,21 +39,31 @@ describe("ordering an administration queue", () => {
   const requests = [row("r1", 1, 5), row("r2", 4, 2)];
   const asks = [row("a1", 4, 3), row("a2", 2, 1)];
 
-  it("merges two tables by date", () => {
+  it("merges two tables newest first", () => {
     const page = paginate(4, 1, 10);
     const ids = mergePageBy(page, [requests, asks], compareQueueRows("recent"))
       .map(({ id }) => id);
     expect(ids).toEqual(["r1", "a1", "r2", "a2"]);
   });
 
-  it("merges two tables by who waits most, newest first among equals", () => {
+  it("merges two tables oldest first", () => {
+    const page = paginate(4, 1, 10);
+    const ids = mergePageBy(
+      page,
+      [[...requests].reverse(), [...asks].reverse()],
+      compareQueueRows("oldest"),
+    ).map(({ id }) => id);
+    expect(ids).toEqual(["a2", "r2", "a1", "r1"]);
+  });
+
+  it("merges two tables by who waits most, oldest first among equals", () => {
     const page = paginate(4, 1, 10);
     const ids = mergePageBy(
       page,
       [[...requests].reverse(), asks],
       compareQueueRows("wanted"),
     ).map(({ id }) => id);
-    expect(ids).toEqual(["a1", "r2", "a2", "r1"]);
+    expect(ids).toEqual(["r2", "a1", "a2", "r1"]);
   });
 });
 

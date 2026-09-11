@@ -61,9 +61,9 @@ export default async function AdminDashboardPage() {
 
   const [requests, asks, reports, tasks, storage, latestRequest, latestReport] =
     await Promise.all([
-      listRequests([...LIVE_REQUEST_STATUSES]),
-      listReports([...LIVE_REPORT_STATUSES], undefined, "ask"),
-      listReports([...LIVE_REPORT_STATUSES], undefined, "fault"),
+      listRequests([...LIVE_REQUEST_STATUSES], undefined, "recent"),
+      listReports([...LIVE_REPORT_STATUSES], undefined, "ask", "recent"),
+      listReports([...LIVE_REPORT_STATUSES], undefined, "fault", "recent"),
       listOpenEpisodeTasks(),
       storageOverview(),
       lastRequestAt(),
