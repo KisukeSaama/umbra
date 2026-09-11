@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { QueueList } from "@/components/admin/queue-row";
+import { QueueToolbar } from "@/components/admin/queue-toolbar";
 import { ReportItem } from "@/components/admin/report-item";
 import { EmptyNote } from "@/components/empty-note";
 import { FlagIcon } from "@/components/icons";
@@ -12,6 +14,12 @@ import {
 } from "@/lib/domain/reports";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
+import {
+  REPORT_STAGE_STATUSES,
+  countByStage,
+  parseQueueOrder,
+  parseQueueStage,
+} from "@/lib/queue";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslator();
@@ -22,7 +30,8 @@ export async function generateMetadata(): Promise<Metadata> {
 const PER_PAGE = 20;
 
 /**
- * What members have said is wrong.
+ * What members have said is wrong, cut by stage and opening on those nobody
+ * has taken up yet.
  *
  * Faults only: a season or an episode asked for is filed as a report but was a
  * request from the member's side, and it is listed with the requests, as it is
@@ -53,29 +62,52 @@ export default async function AdminReportsPage({
   const { t } = await getI18n();
 
   const params = toSearchParams(await searchParams);
-  const total = await countReports(undefined, "fault");
-  const page = paginate(total, parsePage(params.get("page")), PER_PAGE);
+  const order = parseQueueOrder(params.get("order"));
+  const stage = parseQueueStage(params.get("stage"));
+
+  const counts = await countByStage((one) =>
+    countReports(REPORT_STAGE_STATUSES[one], "fault"),
+  );
+  const page = paginate(
+    counts[stage],
+    parsePage(params.get("page")),
+    PER_PAGE,
+  );
   const reports = await listReports(
-    undefined,
+    REPORT_STAGE_STATUSES[stage],
     { limit: page.perPage, offset: page.offset },
     "fault",
+    order,
   );
   const waiting = await waitingOnReports(reports.map(({ id }) => id));
 
-  if (total === 0)
+  if (counts.all === 0)
     return <EmptyNote icon={FlagIcon}>{t("admin.reports.none")}</EmptyNote>;
 
   return (
     <>
-      <ul className="space-y-3">
-        {reports.map((report) => (
-          <ReportItem
-            key={report.id}
-            report={report}
-            waiting={waiting.get(report.id) ?? []}
-          />
-        ))}
-      </ul>
+      <QueueToolbar
+        stage={stage}
+        order={order}
+        counts={counts}
+        pathname="/admin/reports"
+        params={params}
+      />
+
+      {reports.length === 0 ? (
+        <EmptyNote icon={FlagIcon}>{t("admin.queue.emptyStage")}</EmptyNote>
+      ) : (
+        <QueueList>
+          {reports.map((report) => (
+            <ReportItem
+              key={report.id}
+              report={report}
+              waiting={waiting.get(report.id) ?? []}
+              showStatus={stage !== "todo"}
+            />
+          ))}
+        </QueueList>
+      )}
 
       <Pagination
         page={page}

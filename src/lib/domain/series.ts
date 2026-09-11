@@ -23,6 +23,8 @@ import {
   type EpisodeStatus,
 } from "@/lib/db/schema";
 import { ensureMedia } from "@/lib/domain/catalog";
+import { alternateCutOf } from "@/lib/domain/cuts";
+import { alternateCutFor } from "@/lib/domain/library";
 import { followedSeriesKeys } from "@/lib/domain/taste";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { isRunning } from "@/lib/providers/metadata";
@@ -43,7 +45,20 @@ import { episodesInWeek, today, weekStatus } from "@/lib/week";
  * (see `docs/architecture.md`).
  */
 
+/**
+ * Puts a show under watch.
+ *
+ * Refused for a re-cut. What the server holds is renumbered by whoever made the
+ * edit, so no provider calendar lines up with it: tracking one pulls a thousand
+ * broadcasts for a hundred files and opens a task for each of the others. A
+ * re-cut is looked after by hand, through reports, and this is the one door
+ * every way into the tracker goes through: the administration, an accepted
+ * request, a report taken up.
+ */
 export async function trackSeries(providerId: string) {
+  if (await alternateCutFor("tv", providerId))
+    throw new ConflictError("error.seriesIsCut");
+
   const details = await tmdbProvider.seriesDetails(providerId);
   const mediaId = await ensureMedia(details.summary);
 
@@ -344,6 +359,12 @@ const WATCHED_SHOWS = 8;
  *
  * One provider call per show, answered by the gateway's cache after the first.
  * A show the provider does not answer for is left out, never the card.
+ *
+ * So is a re-cut. The media server matches one to the series it was cut from,
+ * so the provider answers with the broadcasts of the original, numbered in an
+ * order the edit does not follow: "episode 812 aired, not on Kisuflix" about a
+ * series that is here whole. Its name against the provider's says which it is,
+ * with both already in hand.
  */
 export async function watchingThisWeek(
   accountId: string,
@@ -357,6 +378,7 @@ export async function watchingThisWeek(
     .select({
       ratingKey: libraryItems.ratingKey,
       tmdbId: libraryItems.tmdbId,
+      title: libraryItems.title,
       posterPath: libraryItems.posterPath,
     })
     .from(libraryItems)
@@ -377,6 +399,11 @@ export async function watchingThisWeek(
             show.tmdbId as string,
             language,
           );
+          const cut = alternateCutOf(show.title, [
+            details.summary.title,
+            details.summary.originalTitle,
+          ]);
+          if (cut) return [];
           return episodesInWeek(details, day).map((episode) => ({
             showKey: show.ratingKey,
             seriesTitle: details.summary.title,

@@ -120,6 +120,15 @@ numbering of its own gives nothing to point at. The rule is in
 `src/lib/reports/reasons.ts` and it is enforced on the route, not only in the
 dialog.
 
+A re-cut is never tracked, and it never appears in a member's week. No provider
+follows a fan edit: every calendar there is belongs to the series it was cut
+from, and read against the re-cut it announces episodes the edit dropped on
+purpose. So a re-cut is looked after by hand, through reports and whoever is
+watching the server, and nothing automatic claims to know when it is behind.
+`trackSeries` refuses one whichever way it is reached (the administration, an
+accepted request, a report taken up), the administration's search offers no
+"track" on it, and the week leaves it out.
+
 #### Re-cuts the media server matched to nothing
 
 Some of them are filed as personal media and carry no identifier at all, not
@@ -351,6 +360,7 @@ destination.
 ## The series tracker
 
 1. A series is tracked, from an accepted request or added by the administrator.
+   A re-cut never is: see "Re-cuts" above.
 2. Its broadcast calendar is pulled from the metadata provider and stored.
 3. On every sync, each episode is compared with the server library: present means
    available and closes its task, aired but absent means to add and raises a

@@ -30,6 +30,7 @@ import { isSeasonReleased } from "@/lib/domain/seasons";
 import { trackSeries } from "@/lib/domain/series";
 import { settledAsksFor } from "@/lib/domain/settled";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
+import type { QueueOrder } from "@/lib/queue";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 import {
@@ -448,6 +449,8 @@ export async function listReports(
   /** The slice to read, when the caller pages. Everything, when it does not. */
   window?: { limit: number; offset: number },
   nature?: ReportNature,
+  /** Newest first by default; `wanted` puts the most followed first. */
+  order: QueueOrder = "recent",
 ): Promise<ReportRow[]> {
   const query = db()
     .select(REPORT_COLUMNS)
@@ -455,7 +458,10 @@ export async function listReports(
     .innerJoin(media, eq(media.id, reports.mediaId))
     .leftJoin(accounts, eq(accounts.id, reports.reportedBy))
     .where(and(statusFilter(statuses), natureFilter(nature)))
-    .orderBy(desc(reports.createdAt));
+    .orderBy(
+      ...(order === "wanted" ? [desc(waitingColumn)] : []),
+      desc(reports.createdAt),
+    );
 
   const rows = await (window
     ? query.limit(window.limit).offset(window.offset)

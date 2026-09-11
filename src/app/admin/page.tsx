@@ -18,12 +18,13 @@ import {
   listRequests,
   type RequestRow,
 } from "@/lib/domain/requests";
+import { seasonGap } from "@/lib/domain/season-gap";
 import { listOpenEpisodeTasks } from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
 import { formatDateTime, formatEpisodeCode } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
-import { LIVE_REPORT_STATUSES } from "@/lib/reports/reasons";
+import { LIVE_REPORT_STATUSES, reasonKey } from "@/lib/reports/reasons";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslator();
@@ -231,11 +232,16 @@ function createdAt(
 /** A live report on the desk, fault or ask, with the one move that comes next. */
 async function ReportQueueRow({ report }: { report: ReportRow }) {
   const t = await getTranslator();
+  const gap = await seasonGap(report);
   return (
     <Row
       main={report.media.title}
       waiting={report.waiting}
-      aside={t(`report.reason.${report.reason}` as TranslationKey)}
+      aside={
+        gap && gap.missing > 0
+          ? `${t("report.toFetch", { count: gap.missing })} · ${gap.codes}`
+          : t(reasonKey(report))
+      }
     >
       {report.status === "open" ? (
         <ActionButton

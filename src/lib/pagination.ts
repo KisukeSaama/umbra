@@ -121,8 +121,27 @@ export function mergePage<T>(
   lists: readonly (readonly T[])[],
   at: (row: T) => Date,
 ): T[] {
+  return mergePageBy(
+    page,
+    lists,
+    (left, right) => at(right).getTime() - at(left).getTime(),
+  );
+}
+
+/**
+ * `mergePage` for lists ordered by something other than their date alone.
+ *
+ * Each list must already arrive in the order `compare` describes, or the window
+ * read from each side would not hold the rows the page needs. The sort is
+ * stable, so ties still keep the order the lists were given in.
+ */
+export function mergePageBy<T>(
+  page: Page,
+  lists: readonly (readonly T[])[],
+  compare: (left: T, right: T) => number,
+): T[] {
   return lists
     .flat()
-    .sort((left, right) => at(right).getTime() - at(left).getTime())
+    .sort(compare)
     .slice(page.offset, page.offset + page.perPage);
 }

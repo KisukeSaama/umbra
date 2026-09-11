@@ -56,6 +56,40 @@ export function isSeriesIncomplete(
 }
 
 /**
+ * What of a season has been broadcast and is not on the server.
+ *
+ * For the administration answering an ask: "episodes are missing" says nothing
+ * about how many files to fetch. Episodes dated in the future are left out, as
+ * the list does, and so are undated ones the server holds. The numbers come back
+ * folded into runs, so forty holes in a row read as one line.
+ */
+export function seasonShortfall(
+  episodes: readonly {
+    episodeNumber: number;
+    airDate: string | null;
+    onServer: boolean;
+  }[],
+  now: Date = new Date(),
+): { aired: number; missing: number; runs: [number, number][] } {
+  const aired = episodes
+    .filter((episode) => episode.onServer || !isUnaired(episode.airDate, now))
+    .sort((a, b) => a.episodeNumber - b.episodeNumber);
+  const runs: [number, number][] = [];
+  for (const episode of aired) {
+    if (episode.onServer) continue;
+    const last = runs.at(-1);
+    if (last && last[1] === episode.episodeNumber - 1)
+      last[1] = episode.episodeNumber;
+    else runs.push([episode.episodeNumber, episode.episodeNumber]);
+  }
+  return {
+    aired: aired.length,
+    missing: aired.filter((episode) => !episode.onServer).length,
+    runs,
+  };
+}
+
+/**
  * An episode the provider has dated in the future has not been broadcast yet.
  *
  * Its absence from the server is a schedule, not a shortfall: the list says

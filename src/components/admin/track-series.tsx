@@ -21,6 +21,9 @@ const MAX_RESULTS = 6;
  * nobody asked for that the server keeps anyway. It searches the same catalogue
  * as the palette, keeps the series alone, and tracking one that is already
  * tracked simply turns it back on, so there is no state to guard here.
+ *
+ * A series the server holds as a re-cut offers no button: no calendar lines up
+ * with its numbering, so it is looked after by hand. The route refuses it too.
  */
 export function TrackSeries() {
   const t = useTranslator();
@@ -125,15 +128,27 @@ export function TrackSeries() {
                     .join(" · ")}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={pending !== null}
-                onClick={() => void track(result)}
-              >
-                {pending === result.providerId ? <SpinnerIcon /> : <PlusIcon />}
-                {t("admin.series.track")}
-              </Button>
+              {result.alternateCut ? (
+                <p className="text-muted-foreground shrink-0 text-xs">
+                  {t("admin.series.isCut", {
+                    cut: t(`cut.${result.alternateCut}`),
+                  })}
+                </p>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={pending !== null}
+                  onClick={() => void track(result)}
+                >
+                  {pending === result.providerId ? (
+                    <SpinnerIcon />
+                  ) : (
+                    <PlusIcon />
+                  )}
+                  {t("admin.series.track")}
+                </Button>
+              )}
             </li>
           ))}
         </ul>

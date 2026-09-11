@@ -167,7 +167,24 @@ export function isCutReasonAllowed(reason: ReportReason): boolean {
   return (CUT_REASONS as readonly ReportReason[]).includes(reason);
 }
 
-/** Still waiting on someone. Mirrors the partial unique index on `report`. */
+/**
+ * The words for a reason, given where the member pointed.
+ *
+ * "Missing episode" is filed both on one episode and on a whole season, when a
+ * member asks for the rest of a season that falls short. Read on its own the
+ * second one says "an episode is missing" about a season half empty, and the
+ * administration fetches one file where twenty were wanted. So without an
+ * episode to point at, the reason speaks in the plural.
+ */
+export function reasonKey(report: {
+  reason: ReportReason;
+  episodeNumber: number | null;
+}): `report.reason.${ReportReason | "missing_episodes"}` {
+  if (report.reason === "missing_episode" && report.episodeNumber === null)
+    return "report.reason.missing_episodes";
+  return `report.reason.${report.reason}`;
+}
+
 /**
  * Key of one ask: the place it points at and the reason it gives.
  *

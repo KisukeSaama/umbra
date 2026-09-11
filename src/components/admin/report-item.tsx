@@ -1,13 +1,14 @@
 import { ActionButton } from "@/components/admin/action-button";
+import { QueueRow } from "@/components/admin/queue-row";
 import { WaitingList } from "@/components/admin/waiting-list";
-import { Poster } from "@/components/poster";
 import { Badge } from "@/components/ui/badge";
 import type { ReportStatus } from "@/lib/db/schema";
 import type { ReportRow } from "@/lib/domain/reports";
+import { seasonGap } from "@/lib/domain/season-gap";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
-import { nextStatuses } from "@/lib/reports/reasons";
+import { nextStatuses, reasonKey } from "@/lib/reports/reasons";
 
 /**
  * One report row as the administration works it.
@@ -23,53 +24,72 @@ import { nextStatuses } from "@/lib/reports/reasons";
 export async function ReportItem({
   report,
   waiting,
+  showStatus = true,
 }: {
   report: ReportRow;
   /** Who is waiting on it, by name, the first being whoever reported first. */
   waiting: string[];
+  /** Left out where the stage shown holds a single status. */
+  showStatus?: boolean;
 }) {
   const { t, locale } = await getI18n();
+  const gap = await seasonGap(report);
 
   return (
-    <li className="border-border/60 bg-card/40 flex gap-4 rounded-xl border p-3 sm:p-4">
-      <div className="w-16 shrink-0">
-        <Poster
-          src={report.media.posterUrl}
-          alt={report.media.title}
-          sizes="4rem"
-        />
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+    <QueueRow
+      poster={{ src: report.media.posterUrl, alt: report.media.title }}
+      heading={
+        <>
           <p className="font-medium">{report.media.title}</p>
           <span className="text-muted-foreground text-sm">
             {place(report.seasonNumber, report.episodeNumber, t)}
           </span>
-          <Badge variant={statusVariant(report.status)}>
-            {t(`report.status.${report.status}` as TranslationKey)}
-          </Badge>
-        </div>
-
-        <p className="text-sm">
-          {t(`report.reason.${report.reason}` as TranslationKey)}
-        </p>
-
-        <p className="text-muted-foreground text-xs">
+          {showStatus ? (
+            <Badge variant={statusVariant(report.status)}>
+              {t(`report.status.${report.status}` as TranslationKey)}
+            </Badge>
+          ) : null}
+        </>
+      }
+      detail={
+        <>
+          {/* The gap in files, when there is one to measure: what to fetch
+              first, then where the season stands. Otherwise the reason. */}
+          {gap && gap.missing > 0 ? (
+            <>
+              {t("report.toFetch", { count: gap.missing })}
+              {" · "}
+              <span className="font-mono">{gap.codes}</span>
+              <span className="text-muted-foreground">
+                {" · "}
+                {t("report.heldOf", { held: gap.held, aired: gap.aired })}
+              </span>
+            </>
+          ) : (
+            <>
+              {t(reasonKey(report))}
+              {gap ? (
+                <span className="text-muted-foreground">
+                  {" · "}
+                  {t("report.onServer", { count: gap.held })}
+                </span>
+              ) : null}
+            </>
+          )}
+        </>
+      }
+      meta={
+        <>
           {formatDate(report.createdAt, locale)}
           <WaitingList names={waiting} title={report.media.title} lead=" · " />
           {report.libraryRatingKey ? (
             <span className="font-mono"> · {report.libraryRatingKey}</span>
           ) : null}
-        </p>
-
-        {report.adminNote ? (
-          <p className="bg-secondary/40 text-muted-foreground rounded-lg px-3 py-2 text-sm">
-            {report.adminNote}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap gap-2 empty:hidden">
+        </>
+      }
+      note={report.adminNote}
+      actions={
+        <>
           {nextStatuses(report.status, report.reason).map((status) => (
             <ActionButton
               key={status}
@@ -108,9 +128,9 @@ export async function ReportItem({
               )}
             </ActionButton>
           ) : null}
-        </div>
-      </div>
-    </li>
+        </>
+      }
+    />
   );
 }
 
