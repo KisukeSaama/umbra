@@ -23,12 +23,18 @@ describe("ordering an administration queue", () => {
     expect(parseQueueStage(["all", "todo"])).toBe("all");
   });
 
-  it("reads oldest first unless asked otherwise", () => {
-    expect(parseQueueOrder(undefined)).toBe("oldest");
-    expect(parseQueueOrder("anything")).toBe("oldest");
-    expect(parseQueueOrder("recent")).toBe("recent");
-    expect(parseQueueOrder("wanted")).toBe("wanted");
-    expect(parseQueueOrder(["wanted", "recent"])).toBe("wanted");
+  it("reads work in progress oldest first unless asked otherwise", () => {
+    expect(parseQueueOrder(undefined, "todo")).toBe("oldest");
+    expect(parseQueueOrder("anything", "doing")).toBe("oldest");
+    expect(parseQueueOrder("recent", "todo")).toBe("recent");
+    expect(parseQueueOrder("wanted", "todo")).toBe("wanted");
+    expect(parseQueueOrder(["wanted", "recent"], "todo")).toBe("wanted");
+  });
+
+  it("reads what is settled, and everything, newest first by default", () => {
+    expect(parseQueueOrder(undefined, "done")).toBe("recent");
+    expect(parseQueueOrder("anything", "all")).toBe("recent");
+    expect(parseQueueOrder("oldest", "done")).toBe("oldest");
   });
 
   const row = (id: string, waiting: number, day: number) => ({
