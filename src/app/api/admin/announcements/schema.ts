@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { EMBED_RATIOS } from "@/lib/db/schema";
+import { parseEmbedCode } from "@/lib/embed";
 
 /**
  * The one outward link a note may carry.
@@ -21,19 +22,28 @@ export const linkSchema = z.object({
 });
 
 /**
- * The one page a note may set inside itself.
+ * The one page a note may set inside itself, given as the embed code a site
+ * offers for integration.
  *
- * https only: a plain http frame inside an https page is blocked by the browser
- * anyway, and saying so here beats a blank rectangle in the feed. See
+ * Only the frame's address, title and shape are kept from the code. https only:
+ * a plain http frame inside an https page is blocked by the browser anyway, and
+ * saying so here beats a blank rectangle in the feed. See
  * `docs/adr/0018-a-note-can-embed-a-page.md`.
  */
-export const embedSchema = z.object({
-  url: z
-    .url()
-    .max(400)
-    .refine((value) => value.startsWith("https://"), {
-      message: "error.invalidEmbed",
-    }),
-  title: z.string().max(80).nullish(),
-  ratio: z.enum(EMBED_RATIOS).default("wide"),
-});
+export const embedSchema = z
+  .object({
+    code: z.string().max(4000),
+    ratio: z.enum(EMBED_RATIOS).optional(),
+  })
+  .transform((input, context) => {
+    const parsed = parseEmbedCode(input.code);
+    if (!parsed || parsed.url.length > 1000) {
+      context.addIssue({ code: "custom", message: "error.invalidEmbed" });
+      return z.NEVER;
+    }
+    return {
+      url: parsed.url,
+      title: parsed.title?.slice(0, 80) ?? null,
+      ratio: input.ratio ?? parsed.ratio ?? "wide",
+    };
+  });

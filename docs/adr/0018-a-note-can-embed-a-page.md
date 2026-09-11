@@ -12,9 +12,15 @@ the note to see the one thing the note is about.
 ## Decision
 
 A note may carry one embedded page, as a third optional block of the composer
-beside the link and the question: an https address, an optional title that a
-screen reader announces for the frame, and a shape chosen from a closed set
-(`wide`, `square`, `tall`) rather than free dimensions.
+beside the link and the question. The staff paste the iframe embed code a site
+offers for integration, and three things are read from it: the https address,
+the title a screen reader announces for the frame, and a shape from a closed set
+(`wide`, `square`, `tall`) guessed from the snippet's width and height and left
+to correct, rather than free dimensions.
+
+The pasted HTML itself is neither stored nor rendered. The frame shown in the
+feed is always Umbra's own, so the limits below hold whatever the snippet asked
+for.
 
 The page is loaded by the reader's browser, straight from its host. Nothing is
 fetched, proxied or stored on this side, so this is not a third-party API call

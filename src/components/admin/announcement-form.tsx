@@ -27,6 +27,7 @@ import {
   type AnnouncementCategory,
   type EmbedRatio,
 } from "@/lib/db/schema";
+import { embedCodeOf, parseEmbedCode } from "@/lib/embed";
 import { translateError, type TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 
@@ -95,8 +96,9 @@ export function AnnouncementForm({
   const [linkLabel, setLinkLabel] = useState(editing?.link?.label ?? "");
 
   const [withEmbed, setWithEmbed] = useState(Boolean(editing?.embed));
-  const [embedUrl, setEmbedUrl] = useState(editing?.embed?.url ?? "");
-  const [embedTitle, setEmbedTitle] = useState(editing?.embed?.title ?? "");
+  const [embedCode, setEmbedCode] = useState(
+    editing?.embed ? embedCodeOf(editing.embed.url, editing.embed.title) : "",
+  );
   const [embedRatio, setEmbedRatio] = useState<EmbedRatio>(
     editing?.embed?.ratio ?? "wide",
   );
@@ -109,7 +111,7 @@ export function AnnouncementForm({
 
   const filled = options.map((option) => option.trim()).filter(Boolean);
   const linkReady = !withLink || /^https?:\/\/\S+$/.test(linkUrl.trim());
-  const embedReady = !withEmbed || /^https:\/\/\S+$/.test(embedUrl.trim());
+  const embedReady = !withEmbed || parseEmbedCode(embedCode) !== null;
   const pollReady =
     !withPoll || (question.trim().length > 1 && filled.length >= MIN_OPTIONS);
   const ready =
@@ -133,8 +135,7 @@ export function AnnouncementForm({
     setLinkUrl("");
     setLinkLabel("");
     setWithEmbed(false);
-    setEmbedUrl("");
-    setEmbedTitle("");
+    setEmbedCode("");
     setEmbedRatio("wide");
     setWithPoll(false);
     setQuestion("");
@@ -151,13 +152,7 @@ export function AnnouncementForm({
         link: withLink
           ? { url: linkUrl.trim(), label: linkLabel.trim() || null }
           : null,
-        embed: withEmbed
-          ? {
-              url: embedUrl.trim(),
-              title: embedTitle.trim() || null,
-              ratio: embedRatio,
-            }
-          : null,
+        embed: withEmbed ? { code: embedCode, ratio: embedRatio } : null,
       };
       const response = await fetch(
         editing
@@ -356,31 +351,26 @@ export function AnnouncementForm({
             onCheckedChange={setWithEmbed}
           >
             <div className="space-y-1.5">
-              <Label htmlFor="announcement-embed-url">
-                {t("admin.announcements.embed.url")}
+              <Label htmlFor="announcement-embed-code">
+                {t("admin.announcements.embed.code")}
               </Label>
-              <Input
-                id="announcement-embed-url"
-                type="url"
-                inputMode="url"
-                placeholder="https://"
-                value={embedUrl}
+              <Textarea
+                id="announcement-embed-code"
+                rows={3}
+                className="font-mono text-xs"
+                spellCheck={false}
+                placeholder='<iframe src="https://..."></iframe>'
+                value={embedCode}
                 aria-invalid={!embedReady || undefined}
-                onChange={(event) => setEmbedUrl(event.target.value)}
+                onChange={(event) => {
+                  setEmbedCode(event.target.value);
+                  // The snippet's own dimensions are the best first guess.
+                  const guessed = parseEmbedCode(event.target.value)?.ratio;
+                  if (guessed) setEmbedRatio(guessed);
+                }}
               />
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_12rem]">
-              <div className="space-y-1.5">
-                <Label htmlFor="announcement-embed-title">
-                  {t("admin.announcements.embed.title")}
-                </Label>
-                <Input
-                  id="announcement-embed-title"
-                  value={embedTitle}
-                  placeholder={t("common.optional")}
-                  onChange={(event) => setEmbedTitle(event.target.value)}
-                />
-              </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-[12rem]">
               <div className="space-y-1.5">
                 <Label htmlFor="announcement-embed-ratio">
                   {t("admin.announcements.embed.ratio")}

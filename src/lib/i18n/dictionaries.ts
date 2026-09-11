@@ -220,7 +220,8 @@ export const en = {
   "error.announcementNotFound": "Announcement not found.",
   "error.invalidLink":
     "A link must be a web address starting with http or https.",
-  "error.invalidEmbed": "An embedded page must be an address starting with https.",
+  "error.invalidEmbed":
+    "The embed code must contain an iframe whose address starts with https.",
   "error.scanRunning": "The disk is already being measured.",
   "error.syncRunning": "A synchronisation is already under way.",
   "error.invalidPath": "Unknown path.",
@@ -356,11 +357,10 @@ export const en = {
     "For the note whose point is an address elsewhere, a fundraiser page for instance. Umbra points at it and handles nothing that happens there.",
   "admin.announcements.link.url": "Address",
   "admin.announcements.link.label": "Button wording",
-  "admin.announcements.embed": "Embed a page",
+  "admin.announcements.embed": "Embed",
   "admin.announcements.embed.hint":
-    "For what reads better in place than behind a click: a trailer, a map, a form. The reader's browser loads it from its host.",
-  "admin.announcements.embed.url": "Address of the page",
-  "admin.announcements.embed.title": "What it is",
+    "An iframe embed code, as some sites offer for integration.",
+  "admin.announcements.embed.code": "Embed code",
   "admin.announcements.embed.ratio": "Shape",
   "admin.announcements.embed.ratio.wide": "Wide (video)",
   "admin.announcements.embed.ratio.square": "Square",
@@ -978,7 +978,7 @@ export const fr: Record<TranslationKey, string> = {
   "error.invalidLink":
     "Un lien doit être une adresse web commençant par http ou https.",
   "error.invalidEmbed":
-    "Une page intégrée doit avoir une adresse commençant par https.",
+    "Le code embed doit contenir une iframe dont l'adresse commence par https.",
   "error.scanRunning": "Le disque est déjà en cours de mesure.",
   "error.syncRunning": "Une synchronisation est déjà en cours.",
   "error.invalidPath": "Chemin inconnu.",
@@ -1113,11 +1113,10 @@ export const fr: Record<TranslationKey, string> = {
     "Pour l'annonce dont tout l'objet est une adresse ailleurs, une page de cagnotte par exemple. Umbra y renvoie et ne gère rien de ce qui s'y passe.",
   "admin.announcements.link.url": "Adresse",
   "admin.announcements.link.label": "Texte du bouton",
-  "admin.announcements.embed": "Intégrer une page",
+  "admin.announcements.embed": "Embed",
   "admin.announcements.embed.hint":
-    "Pour ce qui se lit mieux sur place que derrière un clic : une bande-annonce, une carte, un formulaire. Le navigateur du lecteur la charge depuis son hébergeur.",
-  "admin.announcements.embed.url": "Adresse de la page",
-  "admin.announcements.embed.title": "Ce que c'est",
+    "Un code embed iframe, comme certains sites en proposent pour l'intégration.",
+  "admin.announcements.embed.code": "Code embed",
   "admin.announcements.embed.ratio": "Format",
   "admin.announcements.embed.ratio.wide": "Large (vidéo)",
   "admin.announcements.embed.ratio.square": "Carré",
