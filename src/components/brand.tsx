@@ -92,9 +92,7 @@ export function UmbraWordmark({
         >
           Umbra
         </span>
-        <span className="text-muted-foreground mt-1 text-[0.62rem] tracking-[0.18em] uppercase">
-          {forLabel}
-        </span>
+        <span className="text-muted-foreground mt-1 text-xs">{forLabel}</span>
       </span>
     </span>
   );

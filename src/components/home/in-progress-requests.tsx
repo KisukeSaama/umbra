@@ -36,11 +36,19 @@ export async function InProgressRequests({
                 href={`/title/${request.media.kind}/${request.media.providerId}`}
                 className="group focus-visible:ring-ring/50 block min-w-0 rounded-md py-3 outline-none focus-visible:ring-3"
               >
-                <p className="truncate text-sm font-medium group-hover:underline">
-                  {request.media.title}
+                {/* One small ochre dot per row: the shared state, being
+                    fetched, shown as a light rather than a label. */}
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <span
+                    className="bg-primary size-1.5 shrink-0 rounded-full"
+                    aria-hidden
+                  />
+                  <span className="truncate group-hover:underline">
+                    {request.media.title}
+                  </span>
                 </p>
                 {request.media.year ? (
-                  <p className="text-muted-foreground text-xs tabular-nums">
+                  <p className="text-muted-foreground pl-3.5 text-xs tabular-nums">
                     {request.media.year}
                   </p>
                 ) : null}

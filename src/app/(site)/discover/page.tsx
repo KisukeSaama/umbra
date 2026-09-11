@@ -42,7 +42,7 @@ export default async function DiscoverPage({
   const { q } = await searchParams;
 
   return (
-    <div className="umbra-container space-y-10 py-8 sm:space-y-14 sm:py-10">
+    <div className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12">
       {typeof q === "string" && q ? <SearchOnArrival query={q} /> : null}
       <header>
         <h1 className="text-3xl tracking-tight sm:text-4xl">

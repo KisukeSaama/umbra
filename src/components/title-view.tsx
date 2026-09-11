@@ -116,7 +116,7 @@ export async function TitleView({
             {/* The serif has taller ascenders than the line box a size
                 utility gives it, so the tops of the capitals are shaved
                 without a roomier leading. */}
-            <h1 className="text-2xl leading-snug tracking-tight sm:text-3xl">
+            <h1 className="text-3xl leading-snug tracking-tight text-balance sm:text-4xl">
               {detail.title}
             </h1>
             {detail.year ? (

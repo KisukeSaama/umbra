@@ -14,9 +14,12 @@ export default async function TitleLoading() {
   const t = await getTranslator();
 
   return (
-    <div className="umbra-container max-w-6xl space-y-6 py-10">
+    <div className="umbra-container max-w-6xl space-y-6 py-8 sm:py-12">
       <BackLink fallback="/discover" />
-      <LoadingRegion label={t("common.loading")} className="space-y-12">
+      <LoadingRegion
+        label={t("common.loading")}
+        className="space-y-10 sm:space-y-12"
+      >
         <TitleSkeleton />
         <ShelfSkeleton />
       </LoadingRegion>
