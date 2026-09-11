@@ -54,12 +54,23 @@ export async function QueueToolbar({
     return `${pathname}${query ? `?${query}` : ""}`;
   };
 
+  // A segmented control: the track carries the surface, so no option is words
+  // floating on the page, and the chosen one is lifted out of it as a sheet.
+  const track =
+    "bg-foreground/5 inset-ring-foreground/8 flex flex-wrap gap-0.5 rounded-lg p-0.5 inset-ring";
   const option = (active: boolean) =>
-    cn(buttonVariants({ variant: active ? "secondary" : "ghost", size: "sm" }));
+    cn(
+      buttonVariants({ variant: "ghost", size: "sm" }),
+      "bg-transparent inset-ring-0 hover:bg-foreground/6",
+      active &&
+        // At night the sheet is too close to the track to read as chosen, so
+        // the lift is a stronger wash of the ink instead.
+        "bg-card text-foreground inset-ring-foreground/10 hover:bg-card dark:bg-foreground/12 dark:hover:bg-foreground/12 inset-ring shadow-xs",
+    );
 
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-      <nav aria-label={t("admin.queue.stages")} className="flex flex-wrap gap-1">
+      <nav aria-label={t("admin.queue.stages")} className={track}>
         {QUEUE_STAGES.map((one) => (
           <Link
             key={one}
@@ -75,7 +86,7 @@ export async function QueueToolbar({
         ))}
       </nav>
 
-      <nav aria-label={t("admin.queue.order")} className="flex gap-1">
+      <nav aria-label={t("admin.queue.order")} className={track}>
         {(["recent", "wanted"] as const).map((one) => (
           <Link
             key={one}

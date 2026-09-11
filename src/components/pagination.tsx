@@ -45,7 +45,11 @@ export async function Pagination({
   if (page.pageCount <= 1) return null;
 
   const step = cn(buttonVariants({ variant: "ghost", size: "sm" }));
-  const spent = cn(step, "text-muted-foreground/60 pointer-events-none");
+  // Drawn without the key: a step that leads nowhere must not look pressable.
+  const spent = cn(
+    step,
+    "text-muted-foreground/60 pointer-events-none bg-transparent inset-ring-0",
+  );
   const previous = page.page - 1;
   const next = page.page + 1;
 
