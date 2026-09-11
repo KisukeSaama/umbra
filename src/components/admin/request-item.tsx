@@ -58,7 +58,11 @@ export async function RequestItem({
               ? t("common.movie")
               : t("common.series")}
           </Badge>
-          {showStatus ? (
+          {/* Asked again replaces "new": the title was fetched for the same
+              person once already, and deleted since. */}
+          {request.reasked && request.status === "requested" ? (
+            <Badge variant="default">{t("admin.requests.reasked")}</Badge>
+          ) : showStatus ? (
             <Badge variant={statusVariant(request.status)}>
               {t(`admin.requests.status.${request.status}` as TranslationKey)}
             </Badge>
@@ -77,9 +81,13 @@ export async function RequestItem({
       }
       note={request.adminNote}
       footnote={
-        waitingOnLibrary(request.status, request.inLibrary)
-          ? t("admin.requests.awaitingLibrary")
-          : null
+        request.removedAt && request.status === "requested"
+          ? t("admin.requests.removedBefore", {
+              date: formatDate(request.removedAt, locale),
+            })
+          : waitingOnLibrary(request.status, request.inLibrary)
+            ? t("admin.requests.awaitingLibrary")
+            : null
       }
       actions={
         <>
@@ -199,6 +207,7 @@ const OFFERED = {
   accepted: [],
   available: [],
   rejected: [],
+  removed: [],
 } satisfies Record<RequestStatus, RequestAction[]>;
 
 /**

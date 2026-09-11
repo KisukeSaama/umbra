@@ -247,8 +247,22 @@ export const REQUEST_STATUSES = [
   "accepted",
   "available",
   "rejected",
+  "removed",
 ] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+
+/**
+ * Statuses that no longer hold a title's one live request.
+ *
+ * A refused title can be asked for again, and so can one that reached the
+ * server and was later deleted from it: the request that brought it keeps its
+ * history as `removed`, and the next ask is a new row. Every read of "the live
+ * request for this title" excludes these, as the unique index below does.
+ */
+export const CLOSED_REQUEST_STATUSES = [
+  "rejected",
+  "removed",
+] as const satisfies readonly RequestStatus[];
 
 export const mediaRequests = pgTable(
   "media_request",
@@ -272,13 +286,15 @@ export const mediaRequests = pgTable(
     // One live request per title: deduplication is enforced by the database.
     uniqueIndex("media_request_active_idx")
       .on(t.mediaId)
-      .where(sql`status <> 'rejected'`),
+      .where(sql`status NOT IN ('rejected', 'removed')`),
     index("media_request_status_idx").on(t.status, t.createdAt),
+    // What the queue reads to find an earlier request for the same title.
+    index("media_request_media_idx").on(t.mediaId, t.status),
     // The follow-up page and the discover shelves both read a person's own.
     index("media_request_requester_idx").on(t.requestedBy, t.createdAt),
     check(
       "media_request_status_check",
-      sql`${t.status} IN ('requested', 'accepted', 'available', 'rejected')`,
+      sql`${t.status} IN ('requested', 'accepted', 'available', 'rejected', 'removed')`,
     ),
   ],
 );

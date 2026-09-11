@@ -272,6 +272,10 @@ export const en = {
   "admin.requests.status.accepted": "Taken up",
   "admin.requests.status.available": "Available",
   "admin.requests.status.rejected": "Rejected",
+  "admin.requests.status.removed": "Removed from the server",
+  "admin.requests.reasked": "Asked again",
+  "admin.requests.removedBefore":
+    "This title was on the server before and was deleted on {date}.",
   "admin.requests.accept": "Accept",
   "admin.requests.reject": "Reject",
   "admin.requests.note": "Word for the member (optional)",
@@ -671,6 +675,7 @@ export const en = {
   "activity.timeline.accepted": "Being added",
   "activity.timeline.available": "On Kisuflix",
   "activity.timeline.rejected": "Declined",
+  "activity.timeline.removed": "No longer on Kisuflix",
   /**
    * An ask for a missing season is a report row, and the follow-up page lists
    * it among the requests, so it says the steps of a request rather than the
@@ -999,6 +1004,10 @@ export const fr: Record<TranslationKey, string> = {
   "admin.requests.status.accepted": "Prise en compte",
   "admin.requests.status.available": "Disponible",
   "admin.requests.status.rejected": "Refusée",
+  "admin.requests.status.removed": "Retirée du serveur",
+  "admin.requests.reasked": "Redemandée",
+  "admin.requests.removedBefore":
+    "Ce titre était déjà sur le serveur et a été supprimé le {date}.",
   "admin.requests.accept": "Accepter",
   "admin.requests.reject": "Refuser",
   "admin.requests.note": "Mot pour le membre (facultatif)",
@@ -1402,6 +1411,7 @@ export const fr: Record<TranslationKey, string> = {
   "activity.timeline.accepted": "En cours d'ajout",
   "activity.timeline.available": "Sur Kisuflix",
   "activity.timeline.rejected": "Refusé",
+  "activity.timeline.removed": "Plus sur Kisuflix",
   "ask.timeline.open": "Demandé",
   "ask.timeline.acknowledged": "En cours d'ajout",
   "ask.timeline.resolved": "Sur Kisuflix",

@@ -155,7 +155,7 @@ resolve stays unlinked and is looked at again a week later. See
 ## The request lifecycle
 
 ```
-requested -> accepted -> available
+requested -> accepted -> available -> removed
           \-> rejected
 ```
 
@@ -170,6 +170,14 @@ requested -> accepted -> available
 - **rejected**: declined. The title can be requested again later, as a new
   request rather than a revival of the old one: the lifecycle only moves
   forward, and a step it does not allow is refused rather than written.
+- **removed**: the title reached the server and was deleted from it since,
+  usually to free space when nobody watches it. Never set by hand either: the
+  library sync sets it when the index no longer holds the title. Like a refusal,
+  it leaves the title askable again as a new request. The administration queue
+  shows that new request as asked again rather than new when somebody waiting
+  on it was already waiting on the removed one, and says when the title was
+  deleted, so nobody fetches it a second time without knowing. See
+  `docs/adr/0017-a-title-can-leave-the-server.md`.
 
 Accepting a request may carry an optional word from the administration: why it
 will take a while, which season is missing, what is being looked for. It reaches

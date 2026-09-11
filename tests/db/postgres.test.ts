@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { eq } from "drizzle-orm";
 
@@ -101,6 +101,67 @@ describe.skipIf(!hasDatabase)("moving a request", () => {
     await expect(
       requests.updateRequestStatus(requestId, "requested"),
     ).rejects.toThrow(/illegalTransition/);
+  });
+
+  /*
+   * A title fetched, watched by nobody, and deleted to free space. The request
+   * that brought it has to let go of the title, or asking for it again would
+   * join a request that is over, and the staff would never see the ask.
+   */
+  it("frees a title deleted from the server, and marks who asks again", async () => {
+    const { requestId, accountId } = await openRequest();
+    await requests.updateRequestStatus(requestId, "accepted");
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:1",
+      kind: "movie",
+      title: "Alien",
+      tmdbId: "1",
+    });
+    await requests.closeRequestsPresentInLibrary();
+
+    // Still there: nothing to retire.
+    expect(await requests.retireRequestsGoneFromLibrary()).toBe(0);
+
+    await db().delete(schema.libraryItems);
+    expect(await requests.retireRequestsGoneFromLibrary()).toBe(1);
+    expect(await requests.retireRequestsGoneFromLibrary()).toBe(0);
+    await expect(
+      requests.updateRequestStatus(requestId, "requested"),
+    ).rejects.toThrow(/illegalTransition/);
+
+    // Asking again opens a new request rather than joining the old one.
+    const { tmdbProvider } = await import("@/lib/providers/tmdb");
+    vi.spyOn(tmdbProvider, "details").mockResolvedValue({
+      provider: "tmdb",
+      providerId: "1",
+      kind: "movie",
+      title: "Alien",
+      originalTitle: "Alien",
+      overview: null,
+      releaseDate: null,
+      posterPath: null,
+    } as never);
+    const [other] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: "test:2", username: "other" })
+      .returning({ id: schema.accounts.id });
+
+    const byOther = await requests.createRequest("movie", "1", other.id);
+    expect(byOther).toMatchObject({ joined: false, status: "requested" });
+
+    let [fresh] = await requests.listRequests(["requested"]);
+    expect(fresh.reasked).toBe(false);
+    expect(fresh.removedAt).toBeInstanceOf(Date);
+
+    // The member it was fetched for joins: now it is asked again.
+    await requests.createRequest("movie", "1", accountId);
+    [fresh] = await requests.listRequests(["requested"]);
+    expect(fresh.reasked).toBe(true);
+
+    const [old] = await requests.listRequests(["removed"]);
+    expect(old.id).toBe(requestId);
+    expect(old.removedAt).toBeNull();
+    vi.restoreAllMocks();
   });
 
   it("refuses to revive a refusal, which the unique index would fail on", async () => {

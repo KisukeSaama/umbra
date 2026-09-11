@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
 import {
+  CLOSED_REQUEST_STATUSES,
   episodes,
   libraryItems,
   media,
@@ -247,7 +248,10 @@ async function libraryIndex(
   return index;
 }
 
-/** Keys `movie:335984` / `tv:209867` already requested (request not rejected). */
+/**
+ * Keys `movie:335984` / `tv:209867` already requested (request neither
+ * rejected nor removed from the server since).
+ */
 async function requestedIndex(providerIds: string[]): Promise<Set<string>> {
   const rows = await db()
     .select({ providerId: media.providerId, mediaType: media.mediaType })
@@ -256,7 +260,7 @@ async function requestedIndex(providerIds: string[]): Promise<Set<string>> {
     .where(
       and(
         inArray(media.providerId, providerIds),
-        ne(mediaRequests.status, "rejected"),
+        notInArray(mediaRequests.status, [...CLOSED_REQUEST_STATUSES]),
       ),
     );
 
