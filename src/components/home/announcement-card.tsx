@@ -52,14 +52,24 @@ export async function AnnouncementCard({
               <p className="text-muted-foreground text-xs">
                 {t(`news.category.${announcement.category}` as TranslationKey)}
               </p>
-              <p className="font-medium">{announcement.title}</p>
-              {/* A teaser is a sentence that stops, so the marks come off
-                  here rather than being clamped mid-block. The line breaks
-                  stay: a list read as one sentence runs its items together.
-                  The note is read in full on the feed. */}
-              <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-line">
-                {plainText(announcement.content)}
-              </p>
+              {/* The teaser opens the note on the feed, at its anchor. The
+                  link and the thumbs below stay outside it: a control inside
+                  a link is two targets under one pointer. */}
+              <Link
+                href={`/news#${announcement.id}`}
+                className="group focus-visible:ring-ring/50 block space-y-1 rounded-md outline-none focus-visible:ring-3"
+              >
+                <p className="font-medium group-hover:underline">
+                  {announcement.title}
+                </p>
+                {/* A teaser is a sentence that stops, so the marks come off
+                    here rather than being clamped mid-block. The line breaks
+                    stay: a list read as one sentence runs its items together.
+                    The note is read in full on the feed. */}
+                <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-line">
+                  {plainText(announcement.content)}
+                </p>
+              </Link>
               {/* A note whose whole point is an address elsewhere carries it
                   here too, so the home page is not a teaser for one click. */}
               {announcement.link ? (
