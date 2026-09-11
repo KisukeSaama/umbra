@@ -3,7 +3,12 @@ import Link from "next/link";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { getI18n } from "@/lib/i18n/server";
-import { QUEUE_STAGES, type QueueOrder, type QueueStage } from "@/lib/queue";
+import {
+  QUEUE_STAGES,
+  defaultQueueOrder,
+  type QueueOrder,
+  type QueueStage,
+} from "@/lib/queue";
 import { cn } from "@/lib/utils";
 
 const STAGE_KEYS = {
@@ -18,13 +23,14 @@ const STAGE_KEYS = {
  *
  * Plain links, so a filtered queue is an address that can be shared. Either
  * change goes back to page one, since page four of another cut is not the same
- * rows, and keeps the other choice. Each stage carries its count, so a stage
- * with nothing in it is known before it is opened. The active choice is Quiet
- * Sand, as in the admin nav: ochre stays with the buttons that act.
+ * rows. Each stage carries its count, so a stage with nothing in it is known
+ * before it is opened. The active choice is Quiet Sand, as in the admin nav:
+ * ochre stays with the buttons that act.
  *
- * The date option is a switch. A queue is worked oldest first, so that is the
- * default; choosing the option again turns it over to see what has just come
- * in, and back. Its arrow says which way it reads.
+ * The date option is a switch: choosing it again turns the queue over, and its
+ * arrow says which way it reads. Which way is the default depends on the stage
+ * (see `defaultQueueOrder`), so a change of stage keeps "most wanted" but lets
+ * the new stage read by date its own way.
  */
 export async function QueueToolbar({
   stage,
@@ -45,10 +51,14 @@ export async function QueueToolbar({
     const next = new URLSearchParams(params);
     next.delete("page");
     const nextStage = change.stage ?? stage;
-    const nextOrder = change.order ?? order;
+    const nextOrder =
+      change.order ??
+      (change.stage && order !== "wanted"
+        ? defaultQueueOrder(nextStage)
+        : order);
     if (nextStage === "todo") next.delete("stage");
     else next.set("stage", nextStage);
-    if (nextOrder === "oldest") next.delete("order");
+    if (nextOrder === defaultQueueOrder(nextStage)) next.delete("order");
     else next.set("order", nextOrder);
     const query = next.toString();
     return `${pathname}${query ? `?${query}` : ""}`;

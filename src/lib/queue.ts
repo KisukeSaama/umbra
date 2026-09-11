@@ -33,12 +33,27 @@ function first(value: string | string[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+/**
+ * How a stage reads when nothing is asked for.
+ *
+ * Work still to do is read oldest first, so nothing is left to linger. What is
+ * settled is looked up rather than worked through, and the one looked for is
+ * most often the last to have closed, so it reads newest first, as does the
+ * whole queue at once.
+ */
+export function defaultQueueOrder(stage: QueueStage): QueueOrder {
+  return stage === "todo" || stage === "doing" ? "oldest" : "recent";
+}
+
 /** Reads the order off the query string; anything unknown is the default. */
 export function parseQueueOrder(
   value: string | string[] | null | undefined,
+  stage: QueueStage,
 ): QueueOrder {
   const raw = first(value);
-  return QUEUE_ORDERS.find((order) => order === raw) ?? "oldest";
+  return (
+    QUEUE_ORDERS.find((order) => order === raw) ?? defaultQueueOrder(stage)
+  );
 }
 
 /** Reads the stage off the query string; anything unknown is the default. */

@@ -75,8 +75,8 @@ export default async function AdminRequestsPage({
   const { t } = await getI18n();
 
   const params = toSearchParams(await searchParams);
-  const order = parseQueueOrder(params.get("order"));
   const stage = parseQueueStage(params.get("stage"));
+  const order = parseQueueOrder(params.get("order"), stage);
   const requestStatuses = REQUEST_STAGE_STATUSES[stage];
   const askStatuses = REPORT_STAGE_STATUSES[stage];
 

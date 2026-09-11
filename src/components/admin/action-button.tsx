@@ -149,8 +149,9 @@ export function ActionButton({
             ) : null}
 
             <DialogFooter>
+              {/* Not "Cancel": the action this dialog confirms may itself be one. */}
               <Button variant="ghost" onClick={() => setConfirming(false)}>
-                {t("common.cancel")}
+                {t("common.back")}
               </Button>
               <Button
                 variant={confirmMessage ? "destructive" : "default"}

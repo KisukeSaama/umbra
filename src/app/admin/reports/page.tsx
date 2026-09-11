@@ -62,8 +62,8 @@ export default async function AdminReportsPage({
   const { t } = await getI18n();
 
   const params = toSearchParams(await searchParams);
-  const order = parseQueueOrder(params.get("order"));
   const stage = parseQueueStage(params.get("stage"));
+  const order = parseQueueOrder(params.get("order"), stage);
 
   const counts = await countByStage((one) =>
     countReports(REPORT_STAGE_STATUSES[one], "fault"),
