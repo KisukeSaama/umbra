@@ -90,6 +90,23 @@ export function formatDate(
   }).format(toDate(value));
 }
 
+/**
+ * A date taken apart, for a line that sets the day large and the rest under
+ * it: `{ day: "9", month: "Sept", year: "2026" }`.
+ */
+export function dateParts(
+  value: Date | string,
+  locale: DateLocale = "en",
+): { day: string; month: string; year: string } {
+  const date = toDate(value);
+  const tag = LOCALE_TAGS[locale];
+  return {
+    day: new Intl.DateTimeFormat(tag, { day: "numeric" }).format(date),
+    month: new Intl.DateTimeFormat(tag, { month: "long" }).format(date),
+    year: new Intl.DateTimeFormat(tag, { year: "numeric" }).format(date),
+  };
+}
+
 /** `9 Sept 2026, 10:23`: job runs and history entries. */
 export function formatDateTime(value: Date, locale: DateLocale = "en"): string {
   return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {

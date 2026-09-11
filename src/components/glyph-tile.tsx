@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
  * subject. Never in a card title: a row of cards where some titles wear one
  * and some do not reads as two kinds of card.
  *
- * Quiet Sand and muted ink, never ochre: the lamp belongs to the one primary
- * action on the screen, and two ochre areas means one of them is wrong.
+ * Quiet Sand and muted ink by default. The home announcement dresses it in
+ * the Ochre Wash with an ochre glyph, a small warm mark rather than an area.
  */
 export function GlyphTile({
   icon: Icon,

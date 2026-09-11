@@ -44,9 +44,9 @@ export default async function PersonPage({
   const person = await personPage(id, locale);
 
   return (
-    <div className="umbra-container max-w-6xl space-y-6 py-10">
+    <div className="umbra-container max-w-6xl space-y-6 py-8 sm:py-12">
       <BackLink fallback="/discover" />
-      <div className="space-y-12">
+      <div className="space-y-10 sm:space-y-12">
         <header className="flex items-end gap-5">
           <div className="w-24 shrink-0 sm:w-32">
             <Poster
@@ -57,7 +57,7 @@ export default async function PersonPage({
               priority
             />
           </div>
-          <h1 className="min-w-0 text-2xl leading-snug tracking-tight sm:text-3xl">
+          <h1 className="min-w-0 text-3xl leading-snug tracking-tight text-balance sm:text-4xl">
             {person.name}
           </h1>
         </header>

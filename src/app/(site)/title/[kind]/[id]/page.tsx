@@ -68,13 +68,9 @@ export default async function TitlePage({
   const signer = crew.leads[0];
 
   return (
-    <div className="umbra-container max-w-6xl space-y-6 py-10">
-      <TitleDock
-        title={detail.title}
-        plex={plexLinks}
-        fallback="/discover"
-      />
-      <div className="space-y-12">
+    <div className="umbra-container max-w-6xl space-y-6 py-8 sm:py-12">
+      <TitleDock title={detail.title} plex={plexLinks} fallback="/discover" />
+      <div className="space-y-10 sm:space-y-12">
         <TitleView detail={detail} leads={crew.leads} accountId={account.id} />
         <CastRail cast={crew.cast} />
         {signer ? (

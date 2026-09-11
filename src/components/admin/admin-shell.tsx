@@ -101,7 +101,7 @@ export function AdminShell({
         <div className="flex min-w-0 flex-1 flex-col">
           <SectionBar current={current} counts={counts} />
 
-          <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+          <main className="min-w-0 flex-1 px-4 pt-8 pb-16 sm:px-6 sm:pt-12 lg:px-8">
             <div className="mb-6 lg:mb-8">
               <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
                 {t("admin.title")}

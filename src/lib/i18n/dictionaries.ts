@@ -139,6 +139,8 @@ export const en = {
 
   "news.title": "News",
   "news.subtitle": "What is happening around Kisuflix.",
+  "news.eyebrow": "From the administration",
+  "news.earlier": "Earlier",
   "news.none": "No announcement yet.",
   "news.category.information": "Information",
   "news.category.infrastructure": "Infrastructure",
@@ -865,6 +867,8 @@ export const fr: Record<TranslationKey, string> = {
 
   "news.title": "Actualités",
   "news.subtitle": "Ce qui bouge autour de Kisuflix.",
+  "news.eyebrow": "De la part de l'administration",
+  "news.earlier": "Plus tôt",
   "news.none": "Aucune annonce pour le moment.",
   "news.category.information": "Information",
   "news.category.infrastructure": "Infrastructure",

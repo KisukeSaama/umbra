@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { EmptyNote } from "@/components/empty-note";
 import { FlagIcon, RequestIcon } from "@/components/icons";
@@ -125,7 +126,7 @@ export default async function ActivityPage({
   );
 
   return (
-    <div className="umbra-container max-w-6xl space-y-12 py-10">
+    <div className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12">
       <header>
         <h1 className="text-3xl tracking-tight sm:text-4xl">
           {t("activity.title")}
@@ -177,9 +178,11 @@ export default async function ActivityPage({
               <li
                 key={report.id}
                 id={report.id}
-                className="flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] flex-wrap items-baseline gap-x-3 gap-y-1 py-3"
+                className="group has-[a:focus-visible]:ring-ring/50 relative flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md py-3 has-[a:focus-visible]:ring-3"
               >
-                <p className="font-medium">{report.media.title}</p>
+                <TitleLink href={titleHref(report.media)}>
+                  {report.media.title}
+                </TitleLink>
                 <span className="text-muted-foreground text-sm">
                   {t(reasonKey(report))}
                   {report.seasonNumber !== null
@@ -212,11 +215,13 @@ export default async function ActivityPage({
                     })}
                   </p>
                   {isLive(report.status) ? (
-                    <WithdrawButton
-                      endpoint={`/api/reports/${report.id}`}
-                      label="report.withdraw"
-                      done="status.reportWithdrawn"
-                    />
+                    <Above>
+                      <WithdrawButton
+                        endpoint={`/api/reports/${report.id}`}
+                        label="report.withdraw"
+                        done="status.reportWithdrawn"
+                      />
+                    </Above>
                   ) : null}
                 </div>
               </li>
@@ -254,6 +259,7 @@ async function RequestEntry({
   return (
     <EntryCard
       id={request.id}
+      href={titleHref(request.media)}
       posterUrl={request.media.posterUrl}
       title={request.media.title}
       year={request.media.year}
@@ -271,11 +277,13 @@ async function RequestEntry({
           })}
         </p>
         {request.status === "requested" ? (
-          <WithdrawButton
-            endpoint={`/api/requests/${request.id}`}
-            label="title.cancelRequest"
-            done="status.requestCancelled"
-          />
+          <Above>
+            <WithdrawButton
+              endpoint={`/api/requests/${request.id}`}
+              label="title.cancelRequest"
+              done="status.requestCancelled"
+            />
+          </Above>
         ) : null}
       </div>
     </EntryCard>
@@ -293,6 +301,7 @@ async function AskEntry({ ask, locale }: { ask: ReportRow; locale: Locale }) {
   return (
     <EntryCard
       id={ask.id}
+      href={titleHref(ask.media)}
       posterUrl={ask.media.posterUrl}
       title={ask.media.title}
       year={ask.media.year}
@@ -315,11 +324,13 @@ async function AskEntry({ ask, locale }: { ask: ReportRow; locale: Locale }) {
           })}
         </p>
         {isLive(ask.status) ? (
-          <WithdrawButton
-            endpoint={`/api/reports/${ask.id}`}
-            label="title.cancelRequest"
-            done="status.requestCancelled"
-          />
+          <Above>
+            <WithdrawButton
+              endpoint={`/api/reports/${ask.id}`}
+              label="title.cancelRequest"
+              done="status.requestCancelled"
+            />
+          </Above>
         ) : null}
       </div>
     </EntryCard>
@@ -329,12 +340,14 @@ async function AskEntry({ ask, locale }: { ask: ReportRow; locale: Locale }) {
 /** The one shape both kinds of ask take, so a mixed list reads as one list. */
 function EntryCard({
   id,
+  href,
   posterUrl,
   title,
   year,
   children,
 }: {
   id: string;
+  href: string;
   posterUrl: string | null;
   title: string;
   year: number | null;
@@ -343,14 +356,14 @@ function EntryCard({
   return (
     <li
       id={id}
-      className="border-border/60 bg-card/40 flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] gap-4 rounded-xl border p-3 sm:p-4"
+      className="group border-border/60 bg-card/40 hover:bg-card/70 has-[a:focus-visible]:ring-ring/50 relative flex scroll-mt-[calc(var(--umbra-sticky-top)+0.5rem)] gap-4 rounded-xl border p-3 transition-colors has-[a:focus-visible]:ring-3 sm:p-4"
     >
       <div className="w-16 shrink-0 sm:w-20">
         <Poster src={posterUrl} alt={title} sizes="5rem" />
       </div>
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <p className="font-medium">{title}</p>
+          <TitleLink href={href}>{title}</TitleLink>
           {year ? (
             <span className="text-muted-foreground text-sm">{year}</span>
           ) : null}
@@ -359,6 +372,38 @@ function EntryCard({
       </div>
     </li>
   );
+}
+
+/** Where a line of this page leads: the page of the title it is about. */
+function titleHref(media: { kind: string; providerId: string }) {
+  return `/title/${media.kind}/${media.providerId}`;
+}
+
+/**
+ * The title of an entry, stretched over the whole entry so the line opens the
+ * title wherever it is pressed. Anything else a member can press on the line
+ * sits above it in `Above`, so taking a request back never opens the title.
+ */
+function TitleLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="font-medium outline-none group-hover:underline after:absolute after:inset-0 after:rounded-[inherit]"
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** What stays pressable on its own above a line that opens a title. */
+function Above({ children }: { children: React.ReactNode }) {
+  return <div className="relative z-10">{children}</div>;
 }
 
 /** A word from the administration, on a request, an ask or a report. */

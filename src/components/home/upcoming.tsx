@@ -45,7 +45,7 @@ export async function UpcomingEpisodes({
           <EmptyNote icon={SeriesIcon}>{t("week.noEpisodes")}</EmptyNote>
         ) : (
           <ul className="divide-border/60 -my-2 divide-y">
-            {episodes.map((episode) => (
+            {episodes.map((episode, index) => (
               <li
                 key={`${episode.seriesTitle}-${episode.seasonNumber}-${episode.episodeNumber}`}
                 className="flex items-center justify-between gap-3 py-3"
@@ -63,10 +63,16 @@ export async function UpcomingEpisodes({
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
+                  {/* The next broadcast is the one date the card is for, so it
+                      alone takes the lamp: a state, not a decoration. */}
                   {episode.airDate ? (
                     <time
                       dateTime={episode.airDate}
-                      className="text-muted-foreground text-xs"
+                      className={
+                        index === 0
+                          ? "text-primary text-xs font-medium"
+                          : "text-muted-foreground text-xs"
+                      }
                     >
                       {formatAirDate(episode.airDate, locale)}
                     </time>

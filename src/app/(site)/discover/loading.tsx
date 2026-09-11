@@ -19,7 +19,7 @@ export default async function DiscoverLoading() {
   return (
     <LoadingRegion
       label={t("common.loading")}
-      className="umbra-container space-y-10 py-8 sm:space-y-14 sm:py-10"
+      className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12"
     >
       <PageHeaderSkeleton />
 

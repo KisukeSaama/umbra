@@ -44,7 +44,10 @@ export async function AnnouncementCard({
       <CardContent>
         {announcement ? (
           <div className="flex gap-3">
-            <GlyphTile icon={AnnounceIcon} className="size-9" />
+            <GlyphTile
+              icon={AnnounceIcon}
+              className="bg-accent text-primary size-9"
+            />
             <div className="min-w-0 space-y-1">
               <p className="text-muted-foreground text-xs">
                 {t(`news.category.${announcement.category}` as TranslationKey)}

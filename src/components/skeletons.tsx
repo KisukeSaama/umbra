@@ -19,8 +19,8 @@ const LINES = {
   base: { box: "h-6", bar: "h-3.5" },
   /** A section heading: text-lg, text-xl from the small breakpoint up. */
   h2: { box: "h-7", bar: "h-4.5" },
-  /** A title heading: text-2xl leading-snug, text-3xl from the small breakpoint up. */
-  title: { box: "h-8 sm:h-10", bar: "h-5 sm:h-6" },
+  /** A title or person heading: text-3xl leading-snug, text-4xl from the small breakpoint up. */
+  title: { box: "h-10 sm:h-12", bar: "h-6 sm:h-7" },
   /** The serif page title: text-3xl, text-4xl from the small breakpoint up. */
   h1: { box: "h-9 sm:h-10", bar: "h-6 sm:h-7" },
 } as const;

@@ -44,9 +44,8 @@ export async function StorageCard({
       <CardContent className="space-y-2">
         {storage ? (
           <>
-            {/* Ink, not ochre: a nearly full bar is the widest area on the
-                page, and the lamp belongs to the button in the hero. The
-                figure beside the title carries the reading. */}
+            {/* Ochre: the fill is a state indicator, and at four pixels high
+                it is a line rather than an area competing with the hero. */}
             <Progress
               value={percent}
               // The value is read aloud as a percentage, punctuated by the
@@ -54,7 +53,7 @@ export async function StorageCard({
               // it, instead of each formatting in its own default locale.
               locale={locale}
               aria-label={t("section.storage")}
-              className="[&_[data-slot=progress-indicator]]:bg-muted-foreground"
+              className="[&_[data-slot=progress-indicator]]:bg-primary"
             />
             <p className="text-muted-foreground text-sm tabular-nums">
               {t("storage.available", {

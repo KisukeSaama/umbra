@@ -80,8 +80,8 @@ components:
     textColor: "{colors.ochre-foreground}"
     typography: "{typography.body}"
     rounded: "{rounded.lg}"
-    padding: "0 10px"
-    height: "32px"
+    padding: "0 12px"
+    height: "36px"
   button-primary-hover:
     backgroundColor: "oklch(0.565 0.125 57 / 80%)"
     textColor: "{colors.ochre-foreground}"
@@ -89,30 +89,30 @@ components:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.lg}"
-    padding: "0 10px"
-    height: "32px"
+    padding: "0 12px"
+    height: "36px"
   button-secondary:
     backgroundColor: "{colors.quiet-sand}"
     textColor: "{colors.ink}"
     rounded: "{rounded.lg}"
-    height: "32px"
+    height: "36px"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.muted-ink}"
     rounded: "{rounded.lg}"
-    height: "32px"
+    height: "36px"
   button-destructive:
     backgroundColor: "oklch(0.58 0.2 25 / 10%)"
     textColor: "{colors.alert-red}"
     rounded: "{rounded.lg}"
-    height: "32px"
+    height: "36px"
   input-default:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
     typography: "{typography.body}"
     rounded: "{rounded.lg}"
-    padding: "4px 10px"
-    height: "32px"
+    padding: "4px 12px"
+    height: "36px"
   card-default:
     backgroundColor: "{colors.sheet}"
     textColor: "{colors.ink}"
@@ -160,7 +160,7 @@ request, see what arrived, pick one of two options, then go watch. The interface
 must be legible and stay out of the way of the posters.
 
 Controls are compact and borrowed wholesale from the shadcn `base-nova` vocabulary
-on Base UI primitives: 32px height, 12px corners, three-pixel focus ring. The
+on Base UI primitives: 36px height, 40px under a finger, 12px corners, three-pixel focus ring. The
 night theme is a first-class variant, not an afterthought: the server this fronts
 runs in a room that is usually dark.
 
@@ -231,15 +231,15 @@ everything readable, JetBrains Mono (ui-monospace) for codes. The serif is set a
 400 with slight negative tracking, so it reads as a printed line rather than a
 marketing headline.
 
-| Role     | Face, weight, size                                                | Where                                                                                   |
-| -------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Display  | Instrument Serif 400, 2.25rem, line-height 1.1, tracking -0.015em | the page h1 only, applied in the base layer. 3.75rem on the home hero, 3rem on admin    |
-| Headline | Manrope 600, 1.125rem to 1.25rem, tracking tight                  | section headings, optionally a link with trailing chevron and an aside on the right     |
-| Title    | Manrope 600, 1rem, line-height snug                               | card titles, in small cards too                                                         |
-| Body     | Manrope 400, 1rem, line-height 1.5                                | interface default, set on the card container. Prose 65 to 75ch; container caps at 90rem |
-| Small    | Manrope 400, 0.8125rem                                            | dates, years, counts, key caps and the state under a card title. Never a sentence       |
-| Label    | Manrope 500, 0.8125rem, tracking 0.18em, uppercase                | eyebrows above page titles, "for Kisuflix" at 0.62rem, the wordmark at tracking 0.22em  |
-| Code     | JetBrains Mono 400                                                | job names and identifiers, nothing else                                                 |
+| Role     | Face, weight, size                                                | Where                                                                                      |
+| -------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Display  | Instrument Serif 400, 2.25rem, line-height 1.1, tracking -0.015em | the page h1 only, applied in the base layer; 1.875rem on a phone, 3.75rem on the home hero |
+| Headline | Manrope 600, 1.125rem to 1.25rem, tracking tight                  | section headings, optionally a link with trailing chevron and an aside on the right        |
+| Title    | Manrope 600, 1rem, line-height snug                               | card titles, in small cards too                                                            |
+| Body     | Manrope 400, 1rem, line-height 1.5                                | interface default, set on the card container. Prose 65 to 75ch; container caps at 90rem    |
+| Small    | Manrope 400, 0.8125rem                                            | dates, years, counts, key caps and the state under a card title. Never a sentence          |
+| Label    | Manrope 500, 0.8125rem, tracking 0.18em, uppercase                | eyebrows above page titles, the wordmark at tracking 0.22em                                |
+| Code     | JetBrains Mono 400                                                | job names and identifiers, nothing else                                                    |
 
 Numbers a reader compares vertically or that update in place carry `tabular-nums`:
 the week strip, the stat strip, storage figures.
@@ -297,14 +297,22 @@ default, small and icon sizes all come up to 40px: a finger is not a cursor.
 - _Primary_: ochre on ochre-foreground, hover to the same ochre at 80 percent.
 - _Outline_: hairline border on the page background, hover to Quiet Sand; at night the surface is the input colour at 30 percent.
 - _Secondary_: Quiet Sand, hover to a `color-mix` five percent toward the foreground, so it darkens instead of fading.
-- _Ghost_: transparent, hover to Quiet Sand. The default for anything that is not the main action.
+- _Ghost_: transparent at rest, its glyph in Muted Ink. Hover (and an open popup) lays a six percent wash of the foreground behind an inset hairline at eight percent, and brings the glyph up to ink with the word; pressing deepens the wash to nine percent. Mixes of the foreground rather than a fixed surface, so one rule reads on paper and at night. The default for anything that is not the main action.
 - _Destructive_: red at 10 percent with red text.
 - _States_: `transition-all`; focus adds a three-pixel ring at 50 percent of the ring colour plus a solid ring-coloured border; active nudges down one pixel except where it opens a popup; disabled drops to 50 percent opacity and kills pointer events; `aria-invalid` swaps border and ring to destructive, since validation is a state on the control and never a separate red block.
 
-**Chips.** Pill shaped (31.2px radius on a 20px height), 12px text at weight 500,
+**Chips.** Pill shaped (31.2px radius on a 20px height), 13px text at weight 500,
 a one-pixel transparent border variants fill in. The default variant is ochre and
 is reserved for something genuinely primary; `secondary` and `outline` carry the
 ordinary cases, here request states and episode states.
+
+**Page rhythm.** Every page opens the same way, so moving between them does not
+make the content jump: the container pads 32px above on a phone and 48px from
+the small breakpoint, the h1 sits there at the display size, and the blocks
+under it stand 40px apart, 48px from the small breakpoint. The workspace starts
+at the same height. Inner padding stays on the 4px scale: a sheet is 24px on a
+phone and 32px above, never a size of its own, and no size is written as an
+arbitrary value when the scale has one.
 
 **Cards.** `rounded-xl` (16.8px), images clipping to the top and bottom corners.
 Sheet by day, Night Sheet after dark. The ring is the border: no separate border,
@@ -313,9 +321,10 @@ property that drops to 12px on the small size, so header, content and footer sha
 one gutter. Footers reverse into a Quiet Sand strip at 50 percent with a top
 border, running to the card edge.
 
-**Inputs.** 32px tall, hairline border, transparent background, 12px corners, 10px
-horizontal padding. 1rem on mobile and 0.875rem from the medium breakpoint up, so
-iOS does not zoom on focus. Focus shifts the border to the ring colour and adds
+**Inputs.** 36px tall and 40px under a finger, like the buttons, so a toolbar
+mixing the two stays on one line; selects and tabs share the height. Hairline
+border, transparent background, 12px corners, 12px horizontal padding. 1rem at
+every width, so iOS does not zoom on focus. Focus shifts the border to the ring colour and adds
 the three-pixel ring at 50 percent: no glow, no colour change on the field.
 `aria-invalid` shifts border and ring to destructive; disabled fills with the input
 colour at 50 percent, drops to 50 percent opacity, blocks the cursor.
@@ -381,7 +390,7 @@ the files of the folder being looked at from the listing beside it.
 **Posters.** A 2:3 frame with a hairline border and a Quiet Sand ground, filled
 before the image arrives so nothing shifts. Inside a link, hover and keyboard focus
 scale it to 1.03 over 500ms inside the clip; a poster with no page to open stays
-still. With no artwork, the frame holds the title in centred muted 12px text
+still. With no artwork, the frame holds the title in centred muted 13px text
 instead of a broken-image glyph.
 
 **Shelves.** A named run of poster cards, scrolling with a finger and with two
