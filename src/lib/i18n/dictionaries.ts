@@ -279,6 +279,7 @@ export const en = {
   "admin.requests.accept": "Accept",
   "admin.requests.reject": "Reject",
   "admin.requests.cancel": "Cancel",
+  "admin.requests.reopen": "Reopen",
   "admin.requests.declineNotePlaceholder":
     "Shown to the member with the answer, for example why.",
   "admin.requests.note": "Word for the member (optional)",
@@ -706,6 +707,7 @@ export const en = {
   "notifications.request.accepted": "{title} is being fetched.",
   "notifications.request.available": "{title} is on Kisuflix.",
   "notifications.request.rejected": "{title} was declined.",
+  "notifications.request.requested": "{title} is being considered again.",
   "notifications.report.acknowledged": "Your report on {title} was taken up.",
   "notifications.report.in_progress":
     "Your report on {title} is being worked on.",
@@ -753,6 +755,8 @@ export const en = {
   "error.reportClosed": "This report is closed.",
   "error.illegalTransition": "This cannot move that way any more.",
   "error.noteNotEditable": "There is nothing left to say here.",
+  "error.requestReopenTaken":
+    "This title has been asked for again since: the newer request is in the queue.",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -1016,6 +1020,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.requests.accept": "Accepter",
   "admin.requests.reject": "Refuser",
   "admin.requests.cancel": "Annuler",
+  "admin.requests.reopen": "Réouvrir",
   "admin.requests.declineNotePlaceholder":
     "Affiché au membre avec la réponse, par exemple pourquoi.",
   "admin.requests.note": "Mot pour le membre (facultatif)",
@@ -1440,6 +1445,7 @@ export const fr: Record<TranslationKey, string> = {
   "notifications.request.accepted": "{title} est en cours de récupération.",
   "notifications.request.available": "{title} est sur Kisuflix.",
   "notifications.request.rejected": "{title} a été refusé.",
+  "notifications.request.requested": "{title} est de nouveau à l'étude.",
   "notifications.report.acknowledged":
     "Votre signalement sur {title} a été pris en compte.",
   "notifications.report.in_progress":
@@ -1484,6 +1490,8 @@ export const fr: Record<TranslationKey, string> = {
   "error.reportClosed": "Ce signalement est clos.",
   "error.illegalTransition": "Cela ne peut plus passer par là.",
   "error.noteNotEditable": "Il n'y a plus rien à dire ici.",
+  "error.requestReopenTaken":
+    "Ce titre a été redemandé depuis : la nouvelle demande est dans la file.",
 };
 
 export const dictionaries = { en, fr } as const;

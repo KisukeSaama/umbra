@@ -229,7 +229,15 @@ const OFFERED = {
     },
   ],
   available: [],
-  rejected: [],
+  // Changing one's mind puts the ask back in the queue, where accepting it is
+  // a decision like any other rather than a shortcut past one.
+  rejected: [
+    {
+      status: "requested",
+      labelKey: "admin.requests.reopen",
+      variant: "ghost",
+    },
+  ],
   removed: [],
 } satisfies Record<RequestStatus, RequestAction[]>;
 
