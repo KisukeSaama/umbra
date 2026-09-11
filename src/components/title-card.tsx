@@ -28,7 +28,7 @@ export async function TitleCard({
   voteAverage,
   voteCount,
   availability,
-  priority = false,
+  preload = false,
 }: {
   kind: MediaKind;
   providerId: string;
@@ -38,7 +38,7 @@ export async function TitleCard({
   voteAverage?: number | null;
   voteCount?: number;
   availability?: Availability;
-  priority?: boolean;
+  preload?: boolean;
 }) {
   const { t, locale } = await getI18n();
   const ratingLabel = formatPosterScore(voteAverage, voteCount, locale);
@@ -55,7 +55,7 @@ export async function TitleCard({
           src={posterUrl}
           alt={title}
           captioned
-          priority={priority}
+          preload={preload}
           sizes="10rem"
           ratingLabel={ratingLabel}
         />

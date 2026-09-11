@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, JetBrains_Mono, Manrope } from "next/font/google";
+import { headers } from "next/headers";
 
 import "./globals.css";
 
@@ -17,11 +18,19 @@ import { getLocale, getTranslator } from "@/lib/i18n/server";
 const display = Instrument_Serif({
   variable: "--font-display",
   weight: "400",
-  style: ["normal", "italic"],
+  // The serif only ever sets the h1, upright: an italic face would be
+  // downloaded on every page for a style nothing asks for.
+  style: "normal",
   subsets: ["latin"],
 });
 const body = Manrope({ variable: "--font-body", subsets: ["latin"] });
-const code = JetBrains_Mono({ variable: "--font-code", subsets: ["latin"] });
+// Codes and job names are rare and mostly in the workspace, so the mono is
+// fetched when a page uses it rather than preloaded with every document.
+const code = JetBrains_Mono({
+  variable: "--font-code",
+  subsets: ["latin"],
+  preload: false,
+});
 
 /**
  * Umbra is a private hub. It is never meant to be indexed, so the whole app
@@ -70,7 +79,10 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const locale = await getLocale();
+  const [locale, requestHeaders] = await Promise.all([getLocale(), headers()]);
+  // Made by `src/proxy.ts` for this request. The two inline scripts that run
+  // before paint carry it, or the policy's `strict-dynamic` refuses them.
+  const nonce = requestHeaders.get("x-nonce") ?? undefined;
 
   return (
     <html
@@ -79,8 +91,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
-        <TextSizeScript />
-        <ThemeProvider>
+        <TextSizeScript nonce={nonce} />
+        <ThemeProvider nonce={nonce}>
           <LocaleProvider locale={locale}>
             {children}
             <Toaster position="bottom-right" />

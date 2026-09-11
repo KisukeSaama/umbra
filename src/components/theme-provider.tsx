@@ -8,9 +8,17 @@ import type { ReactNode } from "react";
  * account menu, not as a switch in the header: it is a preference, not a
  * navigation item.
  */
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({
+  children,
+  nonce,
+}: {
+  children: ReactNode;
+  /** The inline script that sets the theme before paint needs it to run. */
+  nonce?: string;
+}) {
   return (
     <NextThemesProvider
+      nonce={nonce}
       attribute="class"
       defaultTheme="system"
       enableSystem

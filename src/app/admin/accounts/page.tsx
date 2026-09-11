@@ -53,10 +53,12 @@ export default async function AdminAccountsPage({
   const { t, locale } = await getI18n();
 
   const params = toSearchParams(await searchParams);
-  const total = await countAccounts();
   // How many people have the server, against how many of them ever opened
   // Umbra. Counted by the membership sweep, so this page waits on no gateway.
-  const onServer = await serverMemberCount();
+  const [total, onServer] = await Promise.all([
+    countAccounts(),
+    serverMemberCount(),
+  ]);
   const page = paginate(total, parsePage(params.get("page")), PER_PAGE);
   const accounts = await listAccounts({
     limit: page.perPage,

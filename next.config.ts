@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "image.tmdb.org", pathname: "/t/p/**" },
     ],
+    // A TMDB image path names one file that never changes, so a resized copy
+    // stays good for a month instead of being fetched and encoded again every
+    // few hours on the machine that also serves the media.
+    minimumCacheTTL: 2678400,
   },
   async headers() {
     return [

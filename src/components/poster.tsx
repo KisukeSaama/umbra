@@ -18,7 +18,7 @@ export function Poster({
   captioned = false,
   className,
   sizes = "(min-width: 1024px) 12rem, (min-width: 640px) 20vw, 40vw",
-  priority = false,
+  preload = false,
   ratingLabel,
 }: {
   src: string | null;
@@ -32,7 +32,7 @@ export function Poster({
   captioned?: boolean;
   className?: string;
   sizes?: string;
-  priority?: boolean;
+  preload?: boolean;
   ratingLabel?: string;
 }) {
   return (
@@ -48,7 +48,7 @@ export function Poster({
           alt={captioned ? "" : alt}
           fill
           sizes={sizes}
-          priority={priority}
+          preload={preload}
           className="object-cover transition-transform duration-500 ease-out-quint group-hover:scale-[1.03] group-focus-visible:scale-[1.03]"
         />
       ) : (
