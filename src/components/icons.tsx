@@ -1,5 +1,7 @@
 import {
+  ArrowDown,
   ArrowSquareOut,
+  ArrowUp,
   ArrowsClockwise,
   Bell,
   CaretDown,
@@ -93,6 +95,8 @@ export const CircleHalfIcon = icon(CircleHalf, "fill");
 export const ChevronRightIcon = icon(CaretRight, "bold");
 export const ChevronDownIcon = icon(CaretDown, "bold");
 export const ChevronUpIcon = icon(CaretUp, "bold");
+export const ArrowDownIcon = icon(ArrowDown, "bold");
+export const ArrowUpIcon = icon(ArrowUp, "bold");
 export const CloseIcon = icon(X, "bold");
 export const SignOutIcon = icon(SignOut, "regular");
 export const PersonIcon = icon(UserCircle);

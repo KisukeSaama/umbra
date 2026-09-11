@@ -6,18 +6,21 @@ import type { ReportStatus, RequestStatus } from "@/lib/db/schema";
  * Both queues are a desk worked through, and a desk is read by what still needs
  * a hand first: a refused request from last week sitting between two new ones
  * is a row the eye has to skip. So a queue is cut into stages, the one waiting
- * on a decision being the default, and each stage is read newest first or by
- * how many members are waiting on a title.
+ * on a decision being the default, and each stage is read oldest first, newest
+ * first, or by how many members are waiting on a title.
  *
  * Both are carried in the query string, so a filtered and sorted queue is an
  * address that can be shared, and the defaults carry no parameter.
  */
 
 /**
- * Newest first, or the titles the most members are waiting on first, newest
- * first among equals.
+ * Oldest first, as a desk is worked through, newest first to see what has just
+ * come in, or the titles the most members are waiting on first, oldest first
+ * among equals.
  */
-export type QueueOrder = "recent" | "wanted";
+export type QueueOrder = "oldest" | "recent" | "wanted";
+
+const QUEUE_ORDERS: readonly QueueOrder[] = ["oldest", "recent", "wanted"];
 
 export const QUEUE_STAGES = ["todo", "doing", "done", "all"] as const;
 
@@ -34,7 +37,8 @@ function first(value: string | string[] | null | undefined) {
 export function parseQueueOrder(
   value: string | string[] | null | undefined,
 ): QueueOrder {
-  return first(value) === "wanted" ? "wanted" : "recent";
+  const raw = first(value);
+  return QUEUE_ORDERS.find((order) => order === raw) ?? "oldest";
 }
 
 /** Reads the stage off the query string; anything unknown is the default. */
@@ -84,7 +88,8 @@ export function compareQueueRows(
   left: { waiting: number; createdAt: Date },
   right: { waiting: number; createdAt: Date },
 ) => number {
+  const newestFirst = order === "recent" ? -1 : 1;
   return (left, right) =>
     (order === "wanted" ? right.waiting - left.waiting : 0) ||
-    right.createdAt.getTime() - left.createdAt.getTime();
+    newestFirst * (left.createdAt.getTime() - right.createdAt.getTime());
 }
