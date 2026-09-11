@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { EmptyNote } from "@/components/empty-note";
 import { SeriesIcon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
@@ -47,42 +49,48 @@ export async function UpcomingEpisodes({
           <ul className="divide-border/60 -my-2 divide-y">
             {episodes.map((episode, index) => (
               <li
-                key={`${episode.seriesTitle}-${episode.seasonNumber}-${episode.episodeNumber}`}
-                className="flex items-center justify-between gap-3 py-3"
+                key={`${episode.providerId}-${episode.seasonNumber}-${episode.episodeNumber}`}
               >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {episode.seriesTitle}
-                  </p>
-                  <p className="text-muted-foreground truncate text-xs">
-                    {formatEpisodeCode(
-                      episode.seasonNumber,
-                      episode.episodeNumber,
+                {/* The row opens the series, underlined under the pointer and
+                    ringed for the keyboard, like every other row that does. */}
+                <Link
+                  href={`/title/tv/${episode.providerId}`}
+                  className="group focus-visible:ring-ring/50 flex items-center justify-between gap-3 rounded-md py-3 outline-none focus-visible:ring-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium group-hover:underline">
+                      {episode.seriesTitle}
+                    </p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {formatEpisodeCode(
+                        episode.seasonNumber,
+                        episode.episodeNumber,
+                      )}
+                      {episode.episodeTitle ? ` · ${episode.episodeTitle}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {/* The next broadcast is the one date the card is for, so
+                        it alone takes the lamp: a state, not a decoration. */}
+                    {episode.airDate ? (
+                      <time
+                        dateTime={episode.airDate}
+                        className={
+                          index === 0
+                            ? "text-primary text-xs font-medium"
+                            : "text-muted-foreground text-xs"
+                        }
+                      >
+                        {formatAirDate(episode.airDate, locale)}
+                      </time>
+                    ) : null}
+                    {uniform ? null : (
+                      <Badge variant={BADGE[episode.status]}>
+                        {t(LABEL[episode.status])}
+                      </Badge>
                     )}
-                    {episode.episodeTitle ? ` · ${episode.episodeTitle}` : ""}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  {/* The next broadcast is the one date the card is for, so it
-                      alone takes the lamp: a state, not a decoration. */}
-                  {episode.airDate ? (
-                    <time
-                      dateTime={episode.airDate}
-                      className={
-                        index === 0
-                          ? "text-primary text-xs font-medium"
-                          : "text-muted-foreground text-xs"
-                      }
-                    >
-                      {formatAirDate(episode.airDate, locale)}
-                    </time>
-                  ) : null}
-                  {uniform ? null : (
-                    <Badge variant={BADGE[episode.status]}>
-                      {t(LABEL[episode.status])}
-                    </Badge>
-                  )}
-                </div>
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>

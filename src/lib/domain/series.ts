@@ -336,6 +336,8 @@ export async function reconcileEpisodes(): Promise<{
 }
 
 export type UpcomingEpisode = {
+  /** The series' TMDB id, which is what its title page is addressed by. */
+  providerId: string;
   seriesTitle: string;
   posterPath: string | null;
   seasonNumber: number;
@@ -406,6 +408,7 @@ export async function watchingThisWeek(
           if (cut) return [];
           return episodesInWeek(details, day).map((episode) => ({
             showKey: show.ratingKey,
+            providerId: show.tmdbId as string,
             seriesTitle: details.summary.title,
             posterPath: details.summary.posterPath ?? show.posterPath,
             episode,
@@ -450,7 +453,8 @@ export async function watchingThisWeek(
   );
 
   return found
-    .map(({ showKey, seriesTitle, posterPath, episode }) => ({
+    .map(({ showKey, providerId, seriesTitle, posterPath, episode }) => ({
+      providerId,
       seriesTitle,
       posterPath,
       seasonNumber: episode.seasonNumber,
@@ -476,6 +480,7 @@ export async function watchingThisWeek(
 export async function upcomingEpisodes(limit = 8): Promise<UpcomingEpisode[]> {
   return db()
     .select({
+      providerId: media.providerId,
       seriesTitle: media.title,
       posterPath: media.posterPath,
       seasonNumber: episodes.seasonNumber,
