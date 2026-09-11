@@ -24,7 +24,11 @@ import { storageOverview } from "@/lib/domain/storage";
 import { formatDateTime, formatEpisodeCode } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
-import { LIVE_REPORT_STATUSES, reasonKey } from "@/lib/reports/reasons";
+import {
+  LIVE_REPORT_STATUSES,
+  canTransition,
+  reasonKey,
+} from "@/lib/reports/reasons";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslator();
@@ -251,7 +255,7 @@ async function ReportQueueRow({ report }: { report: ReportRow }) {
         >
           {t("admin.reports.acknowledge")}
         </ActionButton>
-      ) : (
+      ) : canTransition(report.status, "resolved", report.reason) ? (
         <ActionButton
           url={`/api/admin/reports/${report.id}`}
           body={{ status: "resolved" }}
@@ -259,7 +263,7 @@ async function ReportQueueRow({ report }: { report: ReportRow }) {
         >
           {t("admin.reports.resolve")}
         </ActionButton>
-      )}
+      ) : null}
     </Row>
   );
 }

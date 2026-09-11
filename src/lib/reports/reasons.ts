@@ -236,11 +236,23 @@ const ASK_TRANSITIONS = {
   duplicate: [],
 } satisfies Record<ReportStatus, ReportStatus[]>;
 
+/**
+ * The moves a person may make from here.
+ *
+ * Settling is left out wherever the sync can see the outcome: a missing season
+ * or episode is fixed when Plex holds it, and the sync is what says so. A hand
+ * closing it early told the members it was there when it was not. What Plex
+ * cannot see (a codec, a track, a playback failure) keeps the manual close,
+ * since nothing else would ever settle it.
+ */
 export function nextStatuses(
   from: ReportStatus,
   reason: ReportReason,
 ): readonly ReportStatus[] {
-  return (isAsk(reason) ? ASK_TRANSITIONS : FAULT_TRANSITIONS)[from];
+  const moves = (isAsk(reason) ? ASK_TRANSITIONS : FAULT_TRANSITIONS)[from];
+  return isAutoClosable(reason)
+    ? moves.filter((status) => status !== "resolved")
+    : moves;
 }
 
 export function canTransition(

@@ -97,9 +97,20 @@ describe("report lifecycle", () => {
     expect(nextStatuses("acknowledged", "missing_season")).not.toContain(
       "in_progress",
     );
-    expect(canTransition("acknowledged", "resolved", "missing_season")).toBe(
-      true,
+    expect(nextStatuses("acknowledged", "missing_season")).toContain(
+      "rejected",
     );
+  });
+
+  it("leaves settling to the sync wherever the sync can see it", () => {
+    for (const reason of [
+      "missing_episode",
+      "missing_season",
+      "series_outdated",
+    ] as const)
+      for (const status of REPORT_STATUSES)
+        expect(canTransition(status, "resolved", reason)).toBe(false);
+    expect(canTransition("acknowledged", "resolved", "bad_quality")).toBe(true);
   });
 
   it("proposes nothing that is not a real status", () => {
