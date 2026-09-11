@@ -380,8 +380,9 @@ Still no gauge, no trend arrow and no card per figure.
 **Treemap.** One component, on the storage page. Rectangles squarified so they
 come out closer to squares than to splinters, area proportional to bytes, one
 level of children drawn inside each tile, a directory clickable and a file not.
-The box is 3:4 on a phone, 4:3 from the small breakpoint and 2:1 from the large
-one, and the layout is computed in the measured pixels of that box rather than
+On a phone the box is pinned above the list and is 30% of the screen height, so
+the rows keep the other half; it is 4:3 from the small breakpoint and 2:1 from
+the large one, and the layout is computed in the measured pixels of that box rather than
 in a normalised square: a treemap laid out for one aspect ratio and stretched
 into another is a treemap of splinters. A tile too small for a name does not get
 one, but nothing is ever dropped for being small: the map draws in every folder

@@ -223,11 +223,14 @@ export function StorageBrowser({
             onHover={setHovered}
           />
 
-          {note ? <div className="pt-1">{note}</div> : null}
+          {/* Pinned with the map only where there is room for it; on a phone
+              it heads the list and scrolls away. */}
+          {note ? <div className="hidden pt-1 lg:block">{note}</div> : null}
         </div>
       </div>
 
       <div className="min-w-0 lg:order-1">
+        {note ? <div className="mb-4 lg:hidden">{note}</div> : null}
         <FileExplorer
           volumes={volumes}
           volume={volume}
