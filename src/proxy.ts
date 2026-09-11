@@ -42,6 +42,12 @@ function policy(nonce: string) {
     "img-src 'self' data: blob: https://image.tmdb.org",
     "font-src 'self'",
     "connect-src 'self'",
+    /*
+     * A note can set one page inside itself (ADR 0018), and the staff choose
+     * which, so the frame is open to any https host. What such a frame can do
+     * to this page is bounded by its own `sandbox`, not by this line.
+     */
+    "frame-src https:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

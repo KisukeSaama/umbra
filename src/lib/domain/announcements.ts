@@ -7,8 +7,13 @@ import {
   announcements,
   polls,
   type AnnouncementCategory,
+  type EmbedRatio,
 } from "@/lib/db/schema";
-import { notifyAllAccounts } from "@/lib/domain/notifications";
+import {
+  notifyAllAccounts,
+  retitleNotifications,
+  withdrawNotifications,
+} from "@/lib/domain/notifications";
 import {
   attachPoll,
   pollView,
@@ -24,8 +29,8 @@ import { EMPTY_TALLY, type ReactionTally } from "@/lib/reactions";
  *
  * The administrator writes, the community reads. No comments: the most a
  * member says back is a thumb up or down, a choice from two that needs no
- * moderation. Members see the counts; who reacted is for the staff alone (see
- * `domain/reactions`).
+ * moderation. Members see the counts; who liked is for the staff alone, and who
+ * disliked is known to no one (see `domain/reactions`).
  *
  * A poll is an announcement too, so it is not a second object with a second
  * page: it is a question hanging off a note, and the note is what carries it
@@ -37,6 +42,15 @@ import { EMPTY_TALLY, type ReactionTally } from "@/lib/reactions";
 /** An outward address the note exists to point at, never a payment form. */
 export type AnnouncementLink = { url: string; label: string | null };
 
+/** A page set inside the note, loaded by the reader's browser from its host. */
+export type AnnouncementEmbed = {
+  url: string;
+  title: string | null;
+  ratio: EmbedRatio;
+};
+
+type EmbedInput = { url: string; title?: string | null; ratio: EmbedRatio };
+
 export type AnnouncementView = {
   id: string;
   title: string;
@@ -44,6 +58,7 @@ export type AnnouncementView = {
   category: AnnouncementCategory;
   publishedAt: Date | null;
   link: AnnouncementLink | null;
+  embed: AnnouncementEmbed | null;
   poll: PollView | null;
   reactions: ReactionTally;
 };
@@ -56,7 +71,19 @@ const listedColumns = {
   publishedAt: announcements.publishedAt,
   linkUrl: announcements.linkUrl,
   linkLabel: announcements.linkLabel,
+  embedUrl: announcements.embedUrl,
+  embedTitle: announcements.embedTitle,
+  embedRatio: announcements.embedRatio,
 };
+
+/** The three embed columns, written together or cleared together. */
+function embedColumns(embed: EmbedInput | null | undefined) {
+  return {
+    embedUrl: embed?.url.trim() ?? null,
+    embedTitle: embed?.title?.trim() || null,
+    embedRatio: embed ? embed.ratio : null,
+  };
+}
 
 export async function publishedAnnouncements(
   limit = 20,
@@ -105,6 +132,9 @@ async function withPolls(
     publishedAt: Date | null;
     linkUrl: string | null;
     linkLabel: string | null;
+    embedUrl: string | null;
+    embedTitle: string | null;
+    embedRatio: EmbedRatio | null;
   }[],
   accountId?: string,
 ): Promise<AnnouncementView[]> {
@@ -133,6 +163,13 @@ async function withPolls(
     category: row.category,
     publishedAt: row.publishedAt,
     link: row.linkUrl ? { url: row.linkUrl, label: row.linkLabel } : null,
+    embed: row.embedUrl
+      ? {
+          url: row.embedUrl,
+          title: row.embedTitle,
+          ratio: row.embedRatio ?? "wide",
+        }
+      : null,
     poll: views.get(row.id) ?? null,
     reactions: tallies.get(row.id) ?? EMPTY_TALLY,
   }));
@@ -178,6 +215,7 @@ export type AnnouncementInput = {
   category: AnnouncementCategory;
   published: boolean;
   link?: { url: string; label?: string | null } | null;
+  embed?: EmbedInput | null;
   poll?: { question: string; options: string[]; endsAt?: Date | null } | null;
 };
 
@@ -201,6 +239,7 @@ export async function createAnnouncement(input: AnnouncementInput) {
         publishedAt: input.published ? new Date() : null,
         linkUrl: input.link?.url.trim() ?? null,
         linkLabel: input.link?.label?.trim() || null,
+        ...embedColumns(input.embed),
       })
       .returning({ id: announcements.id });
 
@@ -236,6 +275,7 @@ export async function updateAnnouncement(
     category: AnnouncementCategory;
     published: boolean;
     link: { url: string; label?: string | null } | null;
+    embed: EmbedInput | null;
   }>,
 ) {
   const [existing] = await db()
@@ -256,7 +296,7 @@ export async function updateAnnouncement(
       ? new Date()
       : (existing.publishedAt ?? null);
 
-  const { link, ...columns } = input;
+  const { link, embed, ...columns } = input;
   const [row] = await db()
     .update(announcements)
     .set({
@@ -267,6 +307,7 @@ export async function updateAnnouncement(
             linkUrl: link?.url.trim() ?? null,
             linkLabel: link?.label?.trim() || null,
           }),
+      ...(embed === undefined ? {} : embedColumns(embed)),
       publishedAt,
       updatedAt: new Date(),
     })
@@ -310,6 +351,15 @@ export async function updateAnnouncement(
    */
   if (withdrawn && poll) await setPollActive(poll.id, false, { notify: false });
 
+  /*
+   * An edit is not news: nothing is announced again and nothing says the note
+   * changed. The one thing kept in step is the title the bell already carries,
+   * so an entry does not name a note by words it no longer has.
+   */
+  const title = input.title?.trim();
+  if (!firstPublish && title && title !== existing.title)
+    await retitleNotifications("announcement", id, title);
+
   return row;
 }
 
@@ -332,11 +382,28 @@ async function announceToEveryone(
   });
 }
 
+/**
+ * Deleting a note takes back what the bell said about it.
+ *
+ * The note's entry and its question's both point at `/news#id`, which after
+ * this is nowhere. The poll goes by cascade, so its id is read first.
+ */
 export async function deleteAnnouncement(id: string) {
+  const attached = await db()
+    .select({ id: polls.id })
+    .from(polls)
+    .where(eq(polls.announcementId, id));
+
   const [row] = await db()
     .delete(announcements)
     .where(eq(announcements.id, id))
     .returning({ id: announcements.id });
   if (!row) throw new NotFoundError("error.announcementNotFound");
+
+  await withdrawNotifications(["announcement"], [id]);
+  await withdrawNotifications(
+    ["poll_open"],
+    attached.map((poll) => poll.id),
+  );
   return row;
 }

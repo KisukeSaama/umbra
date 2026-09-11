@@ -3,7 +3,10 @@ import { z } from "zod";
 
 import { idParam, jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
-import { linkSchema } from "@/app/api/admin/announcements/schema";
+import {
+  embedSchema,
+  linkSchema,
+} from "@/app/api/admin/announcements/schema";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/db/schema";
 import {
   deleteAnnouncement,
@@ -17,6 +20,7 @@ const schema = z.object({
   category: z.enum(ANNOUNCEMENT_CATEGORIES).optional(),
   published: z.boolean().optional(),
   link: linkSchema.nullish(),
+  embed: embedSchema.nullish(),
 });
 
 export async function PATCH(

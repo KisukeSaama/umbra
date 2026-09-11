@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { ActionButton } from "@/components/admin/action-button";
 import { AnnouncementForm } from "@/components/admin/announcement-form";
@@ -11,6 +12,7 @@ import {
 } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireStaffPage } from "@/lib/auth/session";
 import {
@@ -58,12 +60,28 @@ export default async function AdminAnnouncementsPage({
     limit: page.perPage,
     offset: page.offset,
   });
-  // Who reacted how: members only ever see the counts, the staff see names.
+  // Members only ever see the counts; the staff also see who liked, never who
+  // disliked.
   const roster = await reactionRoster(announcements.map(({ id }) => id));
+
+  // Editing is the composer at the top, filled in, for a note of this page.
+  const edited = announcements.find(({ id }) => id === params.get("edit"));
+  const here = new URLSearchParams(params);
+  here.delete("edit");
+  const back = `/admin/announcements${here.size ? `?${here}` : ""}`;
+  const editHref = (id: string) => {
+    const next = new URLSearchParams(here);
+    next.set("edit", id);
+    return `/admin/announcements?${next}`;
+  };
 
   return (
     <>
-      <AnnouncementForm />
+      {edited ? (
+        <AnnouncementForm key={edited.id} editing={edited} cancelHref={back} />
+      ) : (
+        <AnnouncementForm />
+      )}
 
       {total === 0 ? (
         <p className="text-muted-foreground text-sm">{t("news.none")}</p>
@@ -71,7 +89,8 @@ export default async function AdminAnnouncementsPage({
         <ul className="space-y-3">
           {announcements.map((announcement) => {
             const poll = announcement.poll;
-            const reacted = roster.get(announcement.id);
+            const { likes, dislikes } = announcement.reactions;
+            const likers = roster.get(announcement.id);
             return (
               <li key={announcement.id}>
                 <Card className="gap-3">
@@ -109,21 +128,21 @@ export default async function AdminAnnouncementsPage({
                             {t("poll.votes", { count: poll.totalVotes })}
                           </Badge>
                         ) : null}
-                        {reacted ? (
+                        {likes + dislikes > 0 ? (
                           <>
                             <Badge
                               variant="outline"
                               title={t("admin.announcements.likes")}
                             >
                               <ThumbsUpIcon />
-                              {announcement.reactions.likes}
+                              {likes}
                             </Badge>
                             <Badge
                               variant="outline"
                               title={t("admin.announcements.dislikes")}
                             >
                               <ThumbsDownIcon />
-                              {announcement.reactions.dislikes}
+                              {dislikes}
                             </Badge>
                           </>
                         ) : null}
@@ -156,31 +175,28 @@ export default async function AdminAnnouncementsPage({
                       </a>
                     ) : null}
 
-                    {reacted ? (
+                    {announcement.embed ? (
+                      <a
+                        href={announcement.embed.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-muted-foreground hover:text-primary focus-visible:ring-ring/50 inline-flex max-w-full items-center gap-1.5 rounded-md text-xs transition-colors outline-none focus-visible:ring-3"
+                      >
+                        <ExternalLinkIcon className="shrink-0" />
+                        <span className="truncate">
+                          {t("admin.announcements.embed.listed")}{" "}
+                          {announcement.embed.title ?? announcement.embed.url}
+                        </span>
+                      </a>
+                    ) : null}
+
+                    {likers ? (
                       <details className="text-xs">
-                        <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 w-fit cursor-pointer rounded-md transition-colors outline-none focus-visible:ring-3">
+                        <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-md transition-colors outline-none focus-visible:ring-3">
+                          <ThumbsUpIcon />
                           {t("admin.announcements.reactions")}
                         </summary>
-                        <dl className="mt-2 grid gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)]">
-                          {(
-                            [
-                              ["likes", ThumbsUpIcon],
-                              ["dislikes", ThumbsDownIcon],
-                            ] as const
-                          ).map(([side, Icon]) =>
-                            reacted[side].length > 0 ? (
-                              <div key={side} className="contents">
-                                <dt className="text-muted-foreground inline-flex items-center gap-1.5">
-                                  <Icon />
-                                  {t(`admin.announcements.${side}`)}
-                                </dt>
-                                <dd className="break-words">
-                                  {reacted[side].join(", ")}
-                                </dd>
-                              </div>
-                            ) : null,
-                          )}
-                        </dl>
+                        <p className="mt-2 break-words">{likers.join(", ")}</p>
                       </details>
                     ) : null}
 
@@ -217,6 +233,16 @@ export default async function AdminAnnouncementsPage({
                     ) : null}
 
                     <div className="flex flex-wrap gap-1.5">
+                      <Link
+                        href={editHref(announcement.id)}
+                        className={buttonVariants({
+                          size: "sm",
+                          variant: "secondary",
+                        })}
+                      >
+                        {t("admin.announcements.editAction")}
+                      </Link>
+
                       {announcement.published ? null : (
                         <ActionButton
                           url={`/api/admin/announcements/${announcement.id}`}

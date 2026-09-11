@@ -3,7 +3,10 @@ import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
-import { linkSchema } from "@/app/api/admin/announcements/schema";
+import {
+  embedSchema,
+  linkSchema,
+} from "@/app/api/admin/announcements/schema";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/db/schema";
 import { createAnnouncement } from "@/lib/domain/announcements";
 import { checkRate, perMinute } from "@/lib/rate-limit";
@@ -14,6 +17,7 @@ const schema = z.object({
   category: z.enum(ANNOUNCEMENT_CATEGORIES),
   published: z.boolean().default(false),
   link: linkSchema.nullish(),
+  embed: embedSchema.nullish(),
   poll: z
     .object({
       question: z.string().min(2).max(200),
@@ -31,6 +35,7 @@ export async function POST(request: NextRequest) {
     return createAnnouncement({
       ...input,
       link: input.link ?? null,
+      embed: input.embed ?? null,
       poll: input.poll
         ? { ...input.poll, endsAt: input.poll.endsAt ?? null }
         : null,
