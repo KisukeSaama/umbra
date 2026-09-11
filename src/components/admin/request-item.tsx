@@ -99,14 +99,20 @@ export async function RequestItem({
               size="sm"
               variant={action.variant}
               noteField={
-                action.note
+                action.note === "keep"
                   ? {
                       name: "adminNote",
                       label: t("admin.requests.note"),
                       placeholder: t("admin.requests.notePlaceholder"),
                       defaultValue: request.adminNote,
                     }
-                  : undefined
+                  : action.note === "fresh"
+                    ? {
+                        name: "adminNote",
+                        label: t("admin.requests.note"),
+                        placeholder: t("admin.requests.declineNotePlaceholder"),
+                      }
+                    : undefined
               }
             >
               {t(action.labelKey)}
@@ -177,8 +183,15 @@ type RequestAction = {
   status: RequestStatus;
   labelKey: TranslationKey;
   variant: "default" | "secondary" | "ghost";
-  /** Taking an ask in hand is the one move that may carry a word back. */
-  note?: boolean;
+  /**
+   * Whether the move may carry a word back, and from what box.
+   *
+   * `keep` opens on the word already there, which taking an ask in hand may
+   * have left. `fresh` opens empty: a word written while fetching the title
+   * says nothing true once the request is declined, and left untouched it
+   * would reach the member with the refusal.
+   */
+  note?: "keep" | "fresh";
 };
 
 /**
@@ -188,7 +201,9 @@ type RequestAction = {
  * lifecycle lives in `src/lib/domain/requests.ts` and is checked below. A new
  * request is accepted or refused here and nothing else, because accepting is
  * what starts tracking a series. Accepted means being fetched, and what follows
- * is the title reaching the server, which the sync records on its own.
+ * is the title reaching the server, which the sync records on its own, unless
+ * the administration gives up on it: cancelling is a refusal arriving late,
+ * and like one it leaves the title askable again.
  */
 const OFFERED = {
   requested: [
@@ -196,15 +211,23 @@ const OFFERED = {
       status: "accepted",
       labelKey: "admin.requests.accept",
       variant: "default",
-      note: true,
+      note: "keep",
     },
     {
       status: "rejected",
       labelKey: "admin.requests.reject",
       variant: "ghost",
+      note: "fresh",
     },
   ],
-  accepted: [],
+  accepted: [
+    {
+      status: "rejected",
+      labelKey: "admin.requests.cancel",
+      variant: "ghost",
+      note: "fresh",
+    },
+  ],
   available: [],
   rejected: [],
   removed: [],

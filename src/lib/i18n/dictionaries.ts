@@ -278,6 +278,9 @@ export const en = {
     "This title was on the server before and was deleted on {date}.",
   "admin.requests.accept": "Accept",
   "admin.requests.reject": "Reject",
+  "admin.requests.cancel": "Cancel",
+  "admin.requests.declineNotePlaceholder":
+    "Shown to the member with the answer, for example why.",
   "admin.requests.note": "Word for the member (optional)",
   "admin.requests.notePlaceholder":
     "Shown until the title is on the server, then erased.",
@@ -1012,6 +1015,9 @@ export const fr: Record<TranslationKey, string> = {
     "Ce titre était déjà sur le serveur et a été supprimé le {date}.",
   "admin.requests.accept": "Accepter",
   "admin.requests.reject": "Refuser",
+  "admin.requests.cancel": "Annuler",
+  "admin.requests.declineNotePlaceholder":
+    "Affiché au membre avec la réponse, par exemple pourquoi.",
   "admin.requests.note": "Mot pour le membre (facultatif)",
   "admin.requests.notePlaceholder":
     "Affiché jusqu'à ce que le titre soit sur le serveur, puis effacé.",
