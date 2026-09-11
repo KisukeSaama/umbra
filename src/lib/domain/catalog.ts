@@ -25,6 +25,7 @@ import {
 } from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
+import { withAnimeScore } from "@/lib/domain/similar";
 import type { Genre, MediaKind, MediaSummary } from "@/lib/providers/metadata";
 import {
   plexAppUrl,
@@ -427,9 +428,13 @@ export type TitleDetail = CatalogResult & {
   backdropUrl: string | null;
   /** In the visitor's language, as the provider names them. */
   genres: Genre[];
-  /** The provider score out of ten and the votes behind it: see `MediaSummary`. */
+  /**
+   * The score out of ten and the votes behind it: see `MediaSummary`. MAL's
+   * for an anime it knows, TMDB's otherwise.
+   */
   voteAverage: number | null;
   voteCount: number;
+  scoreSource?: MediaSummary["scoreSource"];
   /**
    * Seasons the provider knows about, for a series. Empty for a re-cut: its
    * numbering is its own, so a ladder built on the provider calendar would
@@ -449,7 +454,9 @@ export const titleDetail = cache(async function titleDetail(
   providerId: string,
   language?: string,
 ): Promise<TitleDetail> {
-  const summary = await tmdbProvider.details(kind, providerId, language);
+  const summary = await withAnimeScore(
+    await tmdbProvider.details(kind, providerId, language),
+  );
   const [decorated] = await decorate([summary]);
 
   const seasons =
@@ -469,6 +476,7 @@ export const titleDetail = cache(async function titleDetail(
     genres: summary.genres ?? [],
     voteAverage: summary.voteAverage,
     voteCount: summary.voteCount,
+    scoreSource: summary.scoreSource,
     seasons,
   };
 });

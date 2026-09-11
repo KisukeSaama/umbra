@@ -80,6 +80,7 @@ in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 | `JANUS_API_KEY`              | yes      | This service's key. Secret                         |
 | `JANUS_LIBRARY_SLUG`         | no       | Media library slug, default `kisuflix`             |
 | `JANUS_METADATA_SLUG`        | no       | Metadata slug, default `tmdb-v3`                   |
+| `JANUS_ANIME_SLUG`           | no       | MyAnimeList slug, default `myanimelist-v2`         |
 | `JANUS_PLEX_TV_SLUG`         | no       | plex.tv slug for sign-in, default `plex-tv`        |
 | `ADMIN_PLEX_ACCOUNT_ID`      | no       | Plex account promoted to admin on first sign-in    |
 | `SESSION_TTL_DAYS`           | no       | Session lifetime, default 30                       |

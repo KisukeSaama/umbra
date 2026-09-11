@@ -10,8 +10,8 @@ import { TitleView } from "@/components/title-view";
 import { currentAccount, requireMemberPage } from "@/lib/auth/session";
 import { decorate, titleDetail, titlePlexLinks } from "@/lib/domain/catalog";
 import { moreFrom, titleCrew, type PersonCard } from "@/lib/domain/people";
+import { similarTitles } from "@/lib/domain/similar";
 import { getI18n } from "@/lib/i18n/server";
-import { tmdbProvider } from "@/lib/providers/tmdb";
 
 /**
  * The tab carries the title, which is the one page here with a name of its own
@@ -123,8 +123,7 @@ async function Similar({
   locale: string;
 }) {
   const { t } = await getI18n();
-  const similar = await tmdbProvider
-    .recommendations(kind, id, locale)
+  const similar = await similarTitles(kind, id, locale)
     .then(decorate)
     .catch(() => []);
 

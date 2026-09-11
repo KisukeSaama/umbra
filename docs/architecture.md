@@ -9,7 +9,8 @@ main constraint of a personal project.
 ```
 browser -> Traefik -> Next.js -> PostgreSQL
                       (server components and /api routes both call the domain)
-                              -> Janus gateway -> kisuflix (Plex), tmdb-v3
+                              -> Janus gateway -> kisuflix (Plex), tmdb-v3,
+                                                  myanimelist-v2
 worker (same image) -> POST /api/cron/sync
 ```
 
@@ -41,6 +42,17 @@ implementation rather than a rewrite. Domain code only ever sees the contract.
 - `MediaLibraryProvider` (`src/lib/providers/library.ts`), implemented by
   `plexLibrary`: sections, items, episodes, recently added, and one account watch
   history that returns keys and a kind and nothing else.
+
+One source sits beside those contracts rather than behind one: `myAnimeList`
+(`src/lib/providers/myanimelist.ts`), asked only what members recommend after an
+anime, because TMDB's computed list answers anime poorly. Its titles are looked
+up on TMDB by name before they are shown (`src/lib/discovery/anime.ts` holds the
+matching rules), so the rest of Umbra keeps one provider id per title. Every
+"similar titles" question goes through `similarTitles`
+(`src/lib/domain/similar.ts`), which asks MAL first for an anime and TMDB alone
+for anything else. The picker's listing for an anime query is drawn from MAL's
+ranking, filtered by the mood in MAL's genres (`src/lib/domain/anime-listing.ts`),
+and falls back on TMDB's discover when that comes back short.
 
 `src/lib/janus.ts` is the only place that talks to the outside world, setting the
 two gateway headers once and never at a call site. Janus holds the API secrets, so

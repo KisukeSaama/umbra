@@ -18,6 +18,9 @@ import {
   randomAvailableByGenres,
   type RecentItem,
 } from "@/lib/domain/library";
+import { animeListing } from "@/lib/domain/anime-listing";
+import { similarTitles } from "@/lib/domain/similar";
+import { isAnimeQuery } from "@/lib/discovery/anime";
 import { HISTORY_LIMIT, topGenres, WINDOW_DAYS } from "@/lib/domain/taste";
 import {
   blend,
@@ -133,11 +136,7 @@ export const becauseYouAsked = cache(async function becauseYouAsked(
   // putting titles forward, so it is held to the same bar as the others.
   const items = await quietly(async () =>
     (
-      await tmdbProvider.recommendations(
-        seed.mediaType,
-        seed.providerId,
-        language,
-      )
+      await similarTitles(seed.mediaType, seed.providerId, language)
     ).filter((item) => worthSuggesting(item, RATING_FLOOR)),
   );
   return items.length > 0 ? { seed: seed.title, items } : null;
@@ -193,7 +192,7 @@ const personalAnswers = cache(async function personalAnswers(
     seeds.map(async (seed) => ({
       seed,
       items: await rows(() =>
-        tmdbProvider.recommendations(seed.kind, seed.providerId, language),
+        similarTitles(seed.kind, seed.providerId, language),
       ),
     })),
   );
@@ -592,6 +591,17 @@ async function rolledPage(
 ): Promise<CatalogResult[]> {
   const unseen = (items: CatalogResult[]) =>
     items.filter((item) => !excluded.has(`${item.kind}:${item.providerId}`));
+
+  // Anime are drawn from MAL's ranking, where the mood reads finer genres and
+  // the score is given by people who watch anime. Short or failed, it hands
+  // over to the TMDB roll below.
+  if (isAnimeQuery(query)) {
+    const anime = unseen(
+      await quietly(() => animeListing({ ...query, language }, excluded)),
+    );
+    if (anime.length >= THIN) return anime;
+  }
+
   const page = 1 + Math.floor(Math.random() * ROLL_PAGES);
   const rolled = unseen(
     await quietly(() => tmdbProvider.discoverBy({ ...query, language, page })),

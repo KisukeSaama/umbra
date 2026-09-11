@@ -51,13 +51,7 @@ export default async function DiscoverPage({
         <p className="text-muted-foreground mt-1">{t("discover.subtitle")}</p>
       </header>
 
-      <section className="border-border/60 bg-card/40 rounded-xl border p-4 sm:p-6">
-        <h2 className="mb-1 text-lg font-semibold tracking-tight">
-          {t("picker.title")}
-        </h2>
-        <p className="text-muted-foreground mb-5 text-sm">
-          {t("picker.openHint")}
-        </p>
+      <section className="bg-card ring-foreground/10 rounded-xl p-6 ring-1 sm:p-8">
         <MoodPicker />
       </section>
 
