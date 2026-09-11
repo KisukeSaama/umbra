@@ -21,7 +21,7 @@ import { daysUntil } from "@/components/formatting";
 import { PollCard } from "@/components/poll-card";
 import { Button } from "@/components/ui/button";
 import { requireMemberPage } from "@/lib/auth/session";
-import type { AnnouncementCategory } from "@/lib/db/schema";
+import type { AnnouncementCategory, EmbedRatio } from "@/lib/db/schema";
 import {
   countPublishedAnnouncements,
   publishedAnnouncements,
@@ -178,6 +178,7 @@ function LeadNote({ announcement, t, locale }: NoteProps) {
           className="max-w-prose text-lg leading-relaxed"
         />
 
+        <NoteEmbed announcement={announcement} t={t} />
         <NotePoll announcement={announcement} />
       </div>
 
@@ -239,6 +240,7 @@ function FeedNote({ announcement, t, locale }: NoteProps) {
           {announcement.title}
         </h2>
         <Markdown content={announcement.content} className="max-w-prose" />
+        <NoteEmbed announcement={announcement} t={t} />
         <NotePoll announcement={announcement} />
       </div>
 
@@ -342,6 +344,49 @@ function NoteLink({
       </span>
       <ExternalLinkIcon data-icon="inline-end" />
     </Button>
+  );
+}
+
+const EMBED_RATIO_CLASSES: Record<EmbedRatio, string> = {
+  wide: "aspect-video",
+  square: "aspect-square max-w-xl",
+  tall: "aspect-[3/4] max-w-xl",
+};
+
+/**
+ * The page a note sets inside itself (ADR 0018).
+ *
+ * Sandboxed, so it can run and open a window of its own but never navigate
+ * this one, and sent no referrer, so its host does not learn which note it sat
+ * in. Loaded lazily: an older note far down the feed costs nothing until it is
+ * scrolled to.
+ */
+function NoteEmbed({
+  announcement,
+  t,
+}: {
+  announcement: AnnouncementView;
+  t: Translator;
+}) {
+  if (!announcement.embed) return null;
+  return (
+    <div
+      className={cn(
+        "bg-muted ring-foreground/10 w-full max-w-3xl overflow-hidden rounded-xl ring-1",
+        EMBED_RATIO_CLASSES[announcement.embed.ratio],
+      )}
+    >
+      <iframe
+        src={announcement.embed.url}
+        title={announcement.embed.title ?? t("news.embed")}
+        className="size-full border-0"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-presentation"
+        allow="fullscreen; picture-in-picture; encrypted-media"
+        allowFullScreen
+      />
+    </div>
   );
 }
 

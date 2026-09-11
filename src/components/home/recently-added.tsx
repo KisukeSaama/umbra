@@ -37,7 +37,7 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
                 voteAverage={item.voteAverage}
                 voteCount={item.voteCount}
                 availability="available"
-                priority={index < 4}
+                preload={index < 4}
               />
             ) : (
               <div>
@@ -46,7 +46,7 @@ export async function RecentlyAdded({ items }: { items: RecentItem[] }) {
                   alt={item.title}
                   captioned
                   sizes="10rem"
-                  priority={index < 4}
+                  preload={index < 4}
                   ratingLabel={formatPosterScore(
                     item.voteAverage,
                     item.voteCount,

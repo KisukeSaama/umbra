@@ -423,6 +423,10 @@ export const ANNOUNCEMENT_CATEGORIES = [
 ] as const;
 export type AnnouncementCategory = (typeof ANNOUNCEMENT_CATEGORIES)[number];
 
+/** The shape of an embedded page: a video, a square, or a tall document. */
+export const EMBED_RATIOS = ["wide", "square", "tall"] as const;
+export type EmbedRatio = (typeof EMBED_RATIOS)[number];
+
 export const announcements = pgTable(
   "announcement",
   {
@@ -441,6 +445,15 @@ export const announcements = pgTable(
      */
     linkUrl: text("link_url"),
     linkLabel: text("link_label"),
+    /**
+     * One page set inside the note: a trailer, a map, a form. The browser loads
+     * it straight from its host, so nothing is fetched or stored on this side;
+     * the title is what a screen reader announces for the frame. See
+     * `docs/adr/0018-a-note-can-embed-a-page.md`.
+     */
+    embedUrl: text("embed_url"),
+    embedTitle: text("embed_title"),
+    embedRatio: text("embed_ratio").$type<EmbedRatio>(),
     createdAt,
     updatedAt,
     publishedAt: timestamp("published_at", { withTimezone: true }),
@@ -450,6 +463,10 @@ export const announcements = pgTable(
     check(
       "announcement_category_check",
       sql`${t.category} IN ('information', 'infrastructure', 'content', 'update', 'storage', 'funding')`,
+    ),
+    check(
+      "announcement_embed_ratio_check",
+      sql`${t.embedRatio} IS NULL OR ${t.embedRatio} IN ('wide', 'square', 'tall')`,
     ),
   ],
 );

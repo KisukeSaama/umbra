@@ -115,6 +115,59 @@ export async function notifyAllAccounts(
   return accountIds.length;
 }
 
+/**
+ * Takes back what was said about subjects that no longer exist.
+ *
+ * An entry is a pointer, and a pointer to a deleted note lands on nothing, so
+ * the entries go with the note, read or not. The accounts that lost an unread
+ * one are nudged, or their bell would keep counting it until the next page.
+ */
+export async function withdrawNotifications(
+  kinds: NotificationKind[],
+  subjectIds: string[],
+): Promise<number> {
+  if (kinds.length === 0 || subjectIds.length === 0) return 0;
+
+  const removed = await db()
+    .delete(notifications)
+    .where(
+      and(
+        inArray(notifications.kind, kinds),
+        inArray(notifications.subjectId, subjectIds),
+      ),
+    )
+    .returning({
+      accountId: notifications.accountId,
+      readAt: notifications.readAt,
+    });
+
+  await publishNotified(
+    removed.filter((row) => row.readAt === null).map((row) => row.accountId),
+  );
+  return removed.length;
+}
+
+/**
+ * Keeps the title an entry carries in step with the subject it points at.
+ *
+ * Silent on purpose: nothing is marked unread again and nobody is nudged,
+ * since a corrected title is not news.
+ */
+export async function retitleNotifications(
+  kind: NotificationKind,
+  subjectId: string,
+  title: string,
+): Promise<void> {
+  await db()
+    .update(notifications)
+    .set({
+      payload: sql`jsonb_set(${notifications.payload}, '{title}', ${JSON.stringify(title)}::jsonb)`,
+    })
+    .where(
+      and(eq(notifications.kind, kind), eq(notifications.subjectId, subjectId)),
+    );
+}
+
 export async function listNotifications(
   accountId: string,
   limit = 30,
@@ -207,14 +260,22 @@ export async function markRead(
  * inside that floor is never touched: the follow-up page is what it is because
  * nothing a member has not seen yet disappears. Bounded per run so a backlog
  * drains over several passes instead of blowing one request.
+ *
+ * An entry about a note or a poll that no longer exists goes too, whatever its
+ * age: deleting a note withdraws its entries on the spot, and this catches the
+ * ones left behind by deletions made before that was the case.
  */
 export async function purgeNotifications(batch = 5000): Promise<number> {
   const result = await db().execute(sql`
     DELETE FROM notification
      WHERE ctid IN (
-       SELECT ctid FROM notification
-        WHERE (read_at IS NOT NULL AND read_at < now() - interval '30 days')
-           OR created_at < now() - interval '180 days'
+       SELECT n.ctid FROM notification AS n
+        WHERE (n.read_at IS NOT NULL AND n.read_at < now() - interval '30 days')
+           OR n.created_at < now() - interval '180 days'
+           OR (n.kind = 'announcement' AND n.subject_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM announcement AS a WHERE a.id = n.subject_id))
+           OR (n.kind = 'poll_open' AND n.subject_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM poll AS p WHERE p.id = n.subject_id))
         LIMIT ${batch}
      )
   `);

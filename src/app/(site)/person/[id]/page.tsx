@@ -54,7 +54,7 @@ export default async function PersonPage({
               alt={person.name}
               captioned
               sizes="8rem"
-              priority
+              preload
             />
           </div>
           <h1 className="min-w-0 text-3xl leading-snug tracking-tight text-balance sm:text-4xl">
@@ -69,7 +69,7 @@ export default async function PersonPage({
               title={t(`person.role.${group.role}`)}
               items={group.titles}
               delayMs={index * 80}
-              priority={index === 0}
+              preload={index === 0}
             />
           ))
         ) : (

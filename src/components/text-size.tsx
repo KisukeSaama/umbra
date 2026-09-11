@@ -59,7 +59,8 @@ export function useTextSize(): TextSize {
  * Applied before the first paint, the way the theme is. Inline because it has
  * to run before the stylesheet is used, and tiny because of that.
  */
-export function TextSizeScript() {
+export function TextSizeScript({ nonce }: { nonce?: string }) {
   const script = `try{if(localStorage.getItem(${JSON.stringify(STORAGE_KEY)})==="large")document.documentElement.classList.add(${JSON.stringify(ROOT_CLASS)})}catch(e){}`;
-  return <script dangerouslySetInnerHTML={{ __html: script }} />;
+  // Without the request's nonce the Content Security Policy refuses it.
+  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: script }} />;
 }

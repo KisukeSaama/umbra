@@ -107,7 +107,7 @@ async function Trending({ locale }: { locale: string }) {
       title={t("section.trending")}
       items={await trendingShelf(locale)}
       delayMs={40}
-      priority
+      preload
     />
   );
 }

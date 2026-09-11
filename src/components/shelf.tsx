@@ -15,7 +15,7 @@ export function Shelf({
   items,
   href,
   delayMs = 0,
-  priority = false,
+  preload = false,
   size = "default",
 }: {
   title: string;
@@ -23,7 +23,7 @@ export function Shelf({
   href?: string;
   /** Shelves arrive one after another rather than all at once. */
   delayMs?: number;
-  priority?: boolean;
+  preload?: boolean;
   /** Compact is for a rail that is a glance beside a fuller one. */
   size?: "default" | "compact";
 }) {
@@ -51,7 +51,7 @@ export function Shelf({
               voteAverage={item.voteAverage}
               voteCount={item.voteCount}
               availability={item.availability}
-              priority={priority && index < 4}
+              preload={preload && index < 4}
             />
           </div>
         ))}

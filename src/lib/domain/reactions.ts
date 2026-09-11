@@ -15,8 +15,9 @@ import { EMPTY_TALLY, type ReactionTally } from "@/lib/reactions";
 /**
  * Thumbs up and down on announcements.
  *
- * Members see two numbers and nothing else: who pressed which thumb is read by
- * the staff alone, on the administration page. A reaction is a choice from two,
+ * Members see two numbers and nothing else. The staff also see who liked a note,
+ * on the administration page; who disliked it stays a count for everyone. A
+ * reaction is a choice from two,
  * so like every other thing a member can do here it needs no moderation.
  */
 
@@ -101,35 +102,41 @@ export async function setReaction(
   return tallies.get(announcementId) ?? EMPTY_TALLY;
 }
 
-export type ReactionRoster = { likes: string[]; dislikes: string[] };
-
 /**
- * Who reacted how, for the staff only.
+ * Who liked each note, for the staff only.
  *
- * Only notes someone reacted to appear in the map. Names come in the order the
- * reactions landed.
+ * A thumb down stays anonymous even to the staff: it is only ever a count. A
+ * member who knows a dislike can be traced back to them either presses nothing
+ * or presses up, and the signal the thumb was there for is lost.
+ *
+ * Only notes someone liked appear in the map. Names come in the order the likes
+ * landed.
  */
 export async function reactionRoster(
   announcementIds: string[],
-): Promise<Map<string, ReactionRoster>> {
-  const roster = new Map<string, ReactionRoster>();
+): Promise<Map<string, string[]>> {
+  const roster = new Map<string, string[]>();
   if (announcementIds.length === 0) return roster;
 
   const rows = await db()
     .select({
       announcementId: announcementReactions.announcementId,
-      value: announcementReactions.value,
       username: accounts.username,
     })
     .from(announcementReactions)
     .innerJoin(accounts, eq(accounts.id, announcementReactions.accountId))
-    .where(inArray(announcementReactions.announcementId, announcementIds))
+    .where(
+      and(
+        inArray(announcementReactions.announcementId, announcementIds),
+        eq(announcementReactions.value, "like"),
+      ),
+    )
     .orderBy(asc(announcementReactions.createdAt));
 
   for (const row of rows) {
-    const entry = roster.get(row.announcementId) ?? { likes: [], dislikes: [] };
-    (row.value === "like" ? entry.likes : entry.dislikes).push(row.username);
-    roster.set(row.announcementId, entry);
+    const likers = roster.get(row.announcementId) ?? [];
+    likers.push(row.username);
+    roster.set(row.announcementId, likers);
   }
   return roster;
 }
