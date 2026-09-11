@@ -167,7 +167,24 @@ export function isCutReasonAllowed(reason: ReportReason): boolean {
   return (CUT_REASONS as readonly ReportReason[]).includes(reason);
 }
 
-/** Still waiting on someone. Mirrors the partial unique index on `report`. */
+/**
+ * The words for a reason, given where the member pointed.
+ *
+ * "Missing episode" is filed both on one episode and on a whole season, when a
+ * member asks for the rest of a season that falls short. Read on its own the
+ * second one says "an episode is missing" about a season half empty, and the
+ * administration fetches one file where twenty were wanted. So without an
+ * episode to point at, the reason speaks in the plural.
+ */
+export function reasonKey(report: {
+  reason: ReportReason;
+  episodeNumber: number | null;
+}): `report.reason.${ReportReason | "missing_episodes"}` {
+  if (report.reason === "missing_episode" && report.episodeNumber === null)
+    return "report.reason.missing_episodes";
+  return `report.reason.${report.reason}`;
+}
+
 /**
  * Key of one ask: the place it points at and the reason it gives.
  *
@@ -219,11 +236,23 @@ const ASK_TRANSITIONS = {
   duplicate: [],
 } satisfies Record<ReportStatus, ReportStatus[]>;
 
+/**
+ * The moves a person may make from here.
+ *
+ * Settling is left out wherever the sync can see the outcome: a missing season
+ * or episode is fixed when Plex holds it, and the sync is what says so. A hand
+ * closing it early told the members it was there when it was not. What Plex
+ * cannot see (a codec, a track, a playback failure) keeps the manual close,
+ * since nothing else would ever settle it.
+ */
 export function nextStatuses(
   from: ReportStatus,
   reason: ReportReason,
 ): readonly ReportStatus[] {
-  return (isAsk(reason) ? ASK_TRANSITIONS : FAULT_TRANSITIONS)[from];
+  const moves = (isAsk(reason) ? ASK_TRANSITIONS : FAULT_TRANSITIONS)[from];
+  return isAutoClosable(reason)
+    ? moves.filter((status) => status !== "resolved")
+    : moves;
 }
 
 export function canTransition(

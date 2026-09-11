@@ -29,7 +29,7 @@ import {
   parsePage,
   toSearchParams,
 } from "@/lib/pagination";
-import { isLive } from "@/lib/reports/reasons";
+import { isLive, reasonKey } from "@/lib/reports/reasons";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -181,7 +181,7 @@ export default async function ActivityPage({
               >
                 <p className="font-medium">{report.media.title}</p>
                 <span className="text-muted-foreground text-sm">
-                  {t(`report.reason.${report.reason}` as TranslationKey)}
+                  {t(reasonKey(report))}
                   {report.seasonNumber !== null
                     ? ` · ${t("report.season", { number: report.seasonNumber })}`
                     : ""}
@@ -304,7 +304,7 @@ async function AskEntry({ ask, locale }: { ask: ReportRow; locale: Locale }) {
         {ask.episodeNumber !== null
           ? `${t("report.episode", { number: ask.episodeNumber })} · `
           : ""}
-        {t(`report.reason.${ask.reason}` as TranslationKey)}
+        {t(reasonKey(ask))}
       </p>
       <Timeline status={ask.status} steps={ASK_STEPS} prefix="ask.timeline" />
       {ask.adminNote ? <Note>{ask.adminNote}</Note> : null}

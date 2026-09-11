@@ -2,12 +2,59 @@ import { describe, expect, it } from "vitest";
 
 import {
   mergePage,
+  mergePageBy,
   mergeWindow,
   pageHref,
   paginate,
   parsePage,
   toSearchParams,
 } from "@/lib/pagination";
+import {
+  compareQueueRows,
+  parseQueueOrder,
+  parseQueueStage,
+} from "@/lib/queue";
+
+describe("ordering an administration queue", () => {
+  it("opens on what waits for a decision", () => {
+    expect(parseQueueStage(undefined)).toBe("todo");
+    expect(parseQueueStage("nonsense")).toBe("todo");
+    expect(parseQueueStage("done")).toBe("done");
+    expect(parseQueueStage(["all", "todo"])).toBe("all");
+  });
+
+  it("reads newest first unless asked for the most wanted", () => {
+    expect(parseQueueOrder(undefined)).toBe("recent");
+    expect(parseQueueOrder("anything")).toBe("recent");
+    expect(parseQueueOrder("wanted")).toBe("wanted");
+    expect(parseQueueOrder(["wanted", "recent"])).toBe("wanted");
+  });
+
+  const row = (id: string, waiting: number, day: number) => ({
+    id,
+    waiting,
+    createdAt: new Date(Date.UTC(2026, 0, day)),
+  });
+  const requests = [row("r1", 1, 5), row("r2", 4, 2)];
+  const asks = [row("a1", 4, 3), row("a2", 2, 1)];
+
+  it("merges two tables by date", () => {
+    const page = paginate(4, 1, 10);
+    const ids = mergePageBy(page, [requests, asks], compareQueueRows("recent"))
+      .map(({ id }) => id);
+    expect(ids).toEqual(["r1", "a1", "r2", "a2"]);
+  });
+
+  it("merges two tables by who waits most, newest first among equals", () => {
+    const page = paginate(4, 1, 10);
+    const ids = mergePageBy(
+      page,
+      [[...requests].reverse(), asks],
+      compareQueueRows("wanted"),
+    ).map(({ id }) => id);
+    expect(ids).toEqual(["a1", "r2", "a2", "r1"]);
+  });
+});
 
 describe("reading a page number", () => {
   it("takes a whole number above zero", () => {

@@ -34,6 +34,20 @@ export function formatEpisodeCode(season: number, episode: number) {
   return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
 }
 
+/** Runs of episodes as an indexer is searched: `S01E02-S01E05, S01E09`. */
+export function formatEpisodeRuns(
+  season: number,
+  runs: readonly (readonly [number, number])[],
+) {
+  return runs
+    .map(([from, to]) =>
+      from === to
+        ? formatEpisodeCode(season, from)
+        : `${formatEpisodeCode(season, from)}-${formatEpisodeCode(season, to)}`,
+    )
+    .join(", ");
+}
+
 type DateLocale = "en" | "fr";
 
 const LOCALE_TAGS: Record<DateLocale, string> = { en: "en-US", fr: "fr-FR" };

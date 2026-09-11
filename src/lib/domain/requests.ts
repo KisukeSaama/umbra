@@ -20,6 +20,7 @@ import {
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import type { QueueOrder } from "@/lib/queue";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 
@@ -428,6 +429,8 @@ export async function listRequests(
   statuses?: RequestStatus[],
   /** The slice to read, when the caller pages. Everything, when it does not. */
   window?: { limit: number; offset: number },
+  /** Newest first by default; `wanted` puts the most followed first. */
+  order: QueueOrder = "recent",
 ): Promise<RequestRow[]> {
   const query = db()
     .select(REQUEST_COLUMNS)
@@ -437,7 +440,10 @@ export async function listRequests(
     .where(
       statuses?.length ? inArray(mediaRequests.status, statuses) : undefined,
     )
-    .orderBy(desc(mediaRequests.createdAt));
+    .orderBy(
+      ...(order === "wanted" ? [desc(waitingColumn)] : []),
+      desc(mediaRequests.createdAt),
+    );
 
   const rows = await (window
     ? query.limit(window.limit).offset(window.offset)

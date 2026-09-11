@@ -13,6 +13,7 @@ import {
   isSettled,
   nextStatuses,
   NOTHING_SETTLED,
+  reasonKey,
   reasonsFor,
   reasonsForCut,
   REPORT_TARGETS,
@@ -23,6 +24,20 @@ import {
  * A report is entirely made of choices, so the rules that decide which choices
  * exist are the feature. These are the ones that would go wrong quietly.
  */
+
+describe("reason wording", () => {
+  it("speaks of episodes in the plural when no episode is pointed at", () => {
+    expect(reasonKey({ reason: "missing_episode", episodeNumber: null })).toBe(
+      "report.reason.missing_episodes",
+    );
+    expect(reasonKey({ reason: "missing_episode", episodeNumber: 3 })).toBe(
+      "report.reason.missing_episode",
+    );
+    expect(reasonKey({ reason: "missing_season", episodeNumber: null })).toBe(
+      "report.reason.missing_season",
+    );
+  });
+});
 
 describe("report targets", () => {
   it("reads the target from what the member actually picked", () => {
@@ -82,9 +97,20 @@ describe("report lifecycle", () => {
     expect(nextStatuses("acknowledged", "missing_season")).not.toContain(
       "in_progress",
     );
-    expect(canTransition("acknowledged", "resolved", "missing_season")).toBe(
-      true,
+    expect(nextStatuses("acknowledged", "missing_season")).toContain(
+      "rejected",
     );
+  });
+
+  it("leaves settling to the sync wherever the sync can see it", () => {
+    for (const reason of [
+      "missing_episode",
+      "missing_season",
+      "series_outdated",
+    ] as const)
+      for (const status of REPORT_STATUSES)
+        expect(canTransition(status, "resolved", reason)).toBe(false);
+    expect(canTransition("acknowledged", "resolved", "bad_quality")).toBe(true);
   });
 
   it("proposes nothing that is not a real status", () => {

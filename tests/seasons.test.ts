@@ -7,7 +7,58 @@ import {
   isSeasonReleased,
   isSeriesIncomplete,
   isUnaired,
+  seasonShortfall,
 } from "@/lib/domain/seasons";
+import { formatEpisodeRuns } from "@/lib/format";
+
+describe("episode runs", () => {
+  it("spells runs the way an indexer is searched", () => {
+    expect(
+      formatEpisodeRuns(1, [
+        [25, 48],
+        [50, 50],
+      ]),
+    ).toBe("S01E25-S01E48, S01E50");
+  });
+});
+
+describe("season shortfall", () => {
+  const now = new Date("2026-09-11T12:00:00Z");
+  const episode = (
+    episodeNumber: number,
+    onServer: boolean,
+    airDate: string | null = "2026-01-01",
+  ) => ({ episodeNumber, onServer, airDate });
+
+  it("counts what has aired and is not here, folded into runs", () => {
+    const result = seasonShortfall(
+      [
+        episode(1, true),
+        episode(2, false),
+        episode(3, false),
+        episode(4, true),
+        episode(5, false),
+        episode(6, false, "2026-12-01"),
+      ],
+      now,
+    );
+    expect(result).toEqual({
+      aired: 5,
+      missing: 3,
+      runs: [
+        [2, 3],
+        [5, 5],
+      ],
+    });
+  });
+
+  it("finds nothing short when everything aired is here", () => {
+    expect(
+      seasonShortfall([episode(1, true), episode(2, false, "2027-01-01")], now)
+        .missing,
+    ).toBe(0);
+  });
+});
 
 function season(partial: Partial<SeasonState>): SeasonState {
   return {
