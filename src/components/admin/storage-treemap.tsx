@@ -139,9 +139,11 @@ export function StorageTreemap({
 
   return (
     <div className="space-y-2">
-      {/* Tall on a phone, wide on a desk: the ratios `docs/DESIGN.md` gives the
-          map, so it keeps its shape at every width instead of being squeezed
-          into a band of fixed height. The cap is for the middle of the range,
+      {/* On a phone the map is pinned above the list, so it is sized against
+          the screen rather than its own width: under a third of the height,
+          which leaves the rows beneath it the other half. From the small
+          breakpoint it takes the ratios `docs/DESIGN.md` gives it. The cap is
+          for the middle of the range,
           where the box is the full width of a tablet and four thirds of that
           is taller than the screen it is read on; the layout is measured in
           pixels, so a clamped box is a correct map of a wider rectangle
@@ -149,7 +151,7 @@ export function StorageTreemap({
       <div
         ref={box}
         onMouseLeave={() => onHover(null)}
-        className="border-border/60 bg-card relative aspect-[3/4] max-h-[32rem] w-full overflow-hidden rounded-xl border sm:aspect-[4/3] lg:aspect-[2/1]"
+        className="border-border/60 bg-card relative h-[30svh] max-h-[32rem] w-full overflow-hidden rounded-xl border sm:aspect-[4/3] sm:h-auto lg:aspect-[2/1]"
       >
         {roots.length === 0 ? (
           <p className="text-muted-foreground absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-balance">
