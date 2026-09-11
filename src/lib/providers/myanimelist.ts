@@ -2,6 +2,7 @@ import "server-only";
 
 import { env } from "@/lib/env";
 import { janus } from "@/lib/janus";
+import type { MediaKind } from "@/lib/providers/metadata";
 
 /**
  * MyAnimeList, through Janus (`/gateway/myanimelist-v2`).
@@ -24,7 +25,18 @@ export type AnimeRef = {
   mediaType: string | null;
   /** `YYYY-MM-DD`, `YYYY-MM` or `YYYY`: MAL gives what it knows. */
   startDate: string | null;
+  /** MAL genre names, only when the call asked for them. */
+  genres: string[];
+  /**
+   * The members' average, out of ten like TMDB's, and how many of them scored
+   * it. Null when MAL has none yet, or the call did not ask for it.
+   */
+  score: number | null;
+  scoringUsers: number;
 };
+
+/** What every call that may show a score asks for. */
+const SCORE_FIELDS = "mean,num_scoring_users";
 
 /** A title members recommend alongside another, and how many of them did. */
 export type AnimeRecommendation = {
@@ -38,6 +50,9 @@ type Json = Record<string, unknown>;
 /** MAL refuses a search shorter than three characters or longer than 64. */
 const QUERY_MIN = 3;
 const QUERY_MAX = 64;
+
+/** The largest page MAL serves from its ranking. */
+export const RANKING_PAGE = 100;
 
 async function get<T = Json>(
   path: string,
@@ -53,7 +68,22 @@ export const myAnimeList = {
     const body = await get("/anime", {
       q,
       limit: 10,
-      fields: "media_type,start_date",
+      fields: `media_type,start_date,${SCORE_FIELDS}`,
+    });
+    return animeRefsFromJson(body);
+  },
+
+
+  /**
+   * One page of MAL's ranking by score, shows or films. Its genres come along,
+   * so a mood can be applied before anything is looked up on TMDB.
+   */
+  async ranking(kind: MediaKind, offset: number): Promise<AnimeRef[]> {
+    const body = await get("/anime/ranking", {
+      ranking_type: kind === "movie" ? "movie" : "tv",
+      limit: RANKING_PAGE,
+      offset: Math.max(0, Math.trunc(offset)),
+      fields: "genres,media_type,start_date",
     });
     return animeRefsFromJson(body);
   },
@@ -106,6 +136,19 @@ function animeRefFromNode(node: unknown): AnimeRef | null {
     title,
     mediaType: typeof node.media_type === "string" ? node.media_type : null,
     startDate: typeof node.start_date === "string" ? node.start_date : null,
+    genres: Array.isArray(node.genres)
+      ? node.genres
+          .map((genre) =>
+            isJson(genre) && typeof genre.name === "string" ? genre.name : null,
+          )
+          .filter((name): name is string => name !== null)
+      : [],
+    score:
+      typeof node.mean === "number" && node.mean > 0 && node.mean <= 10
+        ? node.mean
+        : null,
+    scoringUsers:
+      typeof node.num_scoring_users === "number" ? node.num_scoring_users : 0,
   };
 }
 

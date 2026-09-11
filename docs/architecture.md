@@ -50,7 +50,9 @@ up on TMDB by name before they are shown (`src/lib/discovery/anime.ts` holds the
 matching rules), so the rest of Umbra keeps one provider id per title. Every
 "similar titles" question goes through `similarTitles`
 (`src/lib/domain/similar.ts`), which asks MAL first for an anime and TMDB alone
-for anything else.
+for anything else. The picker's listing for an anime query is drawn from MAL's
+ranking, filtered by the mood in MAL's genres (`src/lib/domain/anime-listing.ts`),
+and falls back on TMDB's discover when that comes back short.
 
 `src/lib/janus.ts` is the only place that talks to the outside world, setting the
 two gateway headers once and never at a call site. Janus holds the API secrets, so

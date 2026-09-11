@@ -18,7 +18,9 @@ import {
   randomAvailableByGenres,
   type RecentItem,
 } from "@/lib/domain/library";
+import { animeListing } from "@/lib/domain/anime-listing";
 import { similarTitles } from "@/lib/domain/similar";
+import { isAnimeQuery } from "@/lib/discovery/anime";
 import { HISTORY_LIMIT, topGenres, WINDOW_DAYS } from "@/lib/domain/taste";
 import {
   blend,
@@ -589,6 +591,17 @@ async function rolledPage(
 ): Promise<CatalogResult[]> {
   const unseen = (items: CatalogResult[]) =>
     items.filter((item) => !excluded.has(`${item.kind}:${item.providerId}`));
+
+  // Anime are drawn from MAL's ranking, where the mood reads finer genres and
+  // the score is given by people who watch anime. Short or failed, it hands
+  // over to the TMDB roll below.
+  if (isAnimeQuery(query)) {
+    const anime = unseen(
+      await quietly(() => animeListing({ ...query, language }, excluded)),
+    );
+    if (anime.length >= THIN) return anime;
+  }
+
   const page = 1 + Math.floor(Math.random() * ROLL_PAGES);
   const rolled = unseen(
     await quietly(() => tmdbProvider.discoverBy({ ...query, language, page })),

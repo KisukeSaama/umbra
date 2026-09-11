@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fitsMalGenres,
   isAnime,
+  isAnimeQuery,
+  malGenreFilter,
   matchAnime,
   mergeSimilar,
   pickTmdbMatch,
   searchableTitle,
+  withMalScore,
 } from "@/lib/discovery/anime";
-import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
+import type {
+  DiscoverQuery,
+  MediaKind,
+  MediaSummary,
+} from "@/lib/providers/metadata";
 import {
   animeRefsFromJson,
   type AnimeRef,
@@ -50,8 +58,91 @@ function entry(
   mediaType: string,
   startDate: string | null,
 ): AnimeRef {
-  return { malId, title: `Entry ${malId}`, mediaType, startDate };
+  return {
+    malId,
+    title: `Entry ${malId}`,
+    mediaType,
+    startDate,
+    genres: [],
+    score: null,
+    scoringUsers: 0,
+  };
 }
+
+describe("MAL scores", () => {
+  it("takes MAL's score and its voters as they are, out of ten", () => {
+    const scored = withMalScore(title("1", { voteAverage: 8.1 }), {
+      score: 9.25,
+      scoringUsers: 800000,
+    });
+    expect(scored.voteAverage).toBe(9.25);
+    expect(scored.voteCount).toBe(800000);
+  });
+
+  it("keeps TMDB's score when MAL has none or was not reached", () => {
+    const row = title("1", { voteAverage: 8.1, voteCount: 900 });
+    expect(withMalScore(row, { score: null, scoringUsers: 0 })).toBe(row);
+    expect(withMalScore(row, null)).toBe(row);
+  });
+
+  it("reads a score only within the scale", () => {
+    const [good, broken] = animeRefsFromJson({
+      data: [
+        { node: { id: 1, title: "A", mean: 8.6, num_scoring_users: 1200 } },
+        { node: { id: 2, title: "B", mean: 0 } },
+      ],
+    });
+    expect(good.score).toBe(8.6);
+    expect(good.scoringUsers).toBe(1200);
+    expect(broken.score).toBeNull();
+  });
+});
+
+describe("anime in the picker", () => {
+  const anime: DiscoverQuery = {
+    kind: "tv",
+    genreIds: [35],
+    requireGenreIds: [16],
+    originalLanguage: "ja",
+  };
+
+  it("sends only anime queries to MAL", () => {
+    expect(isAnimeQuery(anime)).toBe(true);
+    expect(isAnimeQuery({ ...anime, originalLanguage: undefined })).toBe(false);
+    expect(isAnimeQuery({ ...anime, requireGenreIds: [] })).toBe(false);
+  });
+
+  it("reads a mood in MAL genres, and a show keyword too", () => {
+    const laugh = malGenreFilter(anime);
+    expect(fitsMalGenres({ genres: ["Comedy", "School"] }, laugh)).toBe(true);
+    expect(fitsMalGenres({ genres: ["Drama"] }, laugh)).toBe(false);
+
+    const horror = malGenreFilter({ ...anime, genreIds: [], keyword: "horror" });
+    expect(fitsMalGenres({ genres: ["Horror"] }, horror)).toBe(true);
+    expect(fitsMalGenres({ genres: ["Comedy"] }, horror)).toBe(false);
+  });
+
+  it("lets any genre through for any mood, but keeps the exclusions", () => {
+    const any = malGenreFilter({ ...anime, genreIds: [] });
+    expect(fitsMalGenres({ genres: ["Sports"] }, any)).toBe(true);
+
+    const love = malGenreFilter({
+      ...anime,
+      genreIds: [],
+      keyword: "romance",
+      excludeGenreIds: [10759],
+    });
+    expect(fitsMalGenres({ genres: ["Romance"] }, love)).toBe(true);
+    expect(fitsMalGenres({ genres: ["Romance", "Action"] }, love)).toBe(false);
+  });
+
+  it("looks a ranked film up as a film only", () => {
+    const show = title("show");
+    const film = title("film", {}, "movie");
+    expect(pickTmdbMatch([show, film], "movie")?.providerId).toBe("film");
+    expect(pickTmdbMatch([show], "movie")).toBeNull();
+  });
+});
 
 describe("what counts as anime", () => {
   it("wants a drawn title made in Japanese, not either one alone", () => {
@@ -150,8 +241,30 @@ describe("myanimelist parsing", () => {
         title: "Death Note",
         mediaType: "tv",
         startDate: "2006-10-04",
+        genres: [],
+        score: null,
+        scoringUsers: 0,
       },
     ]);
+  });
+
+  it("reads the genres a ranking row carries", () => {
+    const [ranked] = animeRefsFromJson({
+      data: [
+        {
+          node: {
+            id: 52991,
+            title: "Sousou no Frieren",
+            genres: [
+              { id: 2, name: "Adventure" },
+              { id: 8, name: "Drama" },
+            ],
+          },
+          ranking: { rank: 1 },
+        },
+      ],
+    });
+    expect(ranked.genres).toEqual(["Adventure", "Drama"]);
   });
 
   it("reads recommendations, most voted first", () => {

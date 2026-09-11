@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { formatPosterScore } from "@/components/formatting";
@@ -261,19 +261,27 @@ export function MoodPicker() {
     (format === "movie" ? duration : format === "series" ? commitment : true);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      {/* "Surprise me" answers the whole questionnaire at once, so it stands
+          beside the title of it rather than at the end of its first question. */}
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t("picker.title")}
+          </h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {t("picker.openHint")}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={() => void roll({ mode: "surprise" })}
+        >
+          {t("picker.surprise")}
+        </Button>
+      </header>
       <Question
         label={t("picker.format")}
-        action={
-          <div className="ml-auto text-right">
-            <Button
-              variant="secondary"
-              onClick={() => void roll({ mode: "surprise" })}
-            >
-              {t("picker.surprise")}
-            </Button>
-          </div>
-        }
         options={options("format", FORMATS)}
         selected={format ? [format] : []}
         showHint={false}
@@ -343,7 +351,7 @@ export function MoodPicker() {
         />
       ) : null}
       {format ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="border-border flex flex-wrap gap-2 border-t pt-6">
           {ready ? (
             <Button
               onClick={() =>
@@ -374,12 +382,10 @@ function Question({
   options,
   selected,
   onPick,
-  action,
   showHint = true,
 }: {
   label: string;
   note?: string;
-  action?: ReactNode;
   options: { value: string; label: string; hint: string }[];
   selected: string[];
   onPick: (value: string) => void;
@@ -388,49 +394,46 @@ function Question({
   const hintId = useId();
   return (
     <fieldset className="umbra-fade">
-      <legend className="text-muted-foreground mb-3 text-sm">
+      <legend className="mb-3 text-sm font-medium">
         {label}
-        {note ? <span className="ml-1">({note})</span> : null}
+        {note ? (
+          <span className="text-muted-foreground ml-1 font-normal">
+            ({note})
+          </span>
+        ) : null}
       </legend>
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div>
-          <div className="flex flex-wrap gap-2">
-            {options.map((option) => (
-              <Button
-                key={option.value}
-                variant={
-                  selected.includes(option.value) ? "default" : "outline"
-                }
-                // The ochre fill is the whole answer on screen, and it is not one a
-                // screen reader is told about unless the button says so.
-                aria-pressed={selected.includes(option.value)}
-                aria-describedby={
-                  showHint && selected.includes(option.value)
-                    ? hintId
-                    : undefined
-                }
-                onClick={() => onPick(option.value)}
-                className="rounded-full"
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          {showHint ? (
-            <p
-              id={hintId}
-              aria-live="polite"
-              className="text-muted-foreground mt-2 min-h-5 text-xs leading-5"
-            >
-              {options
-                .filter((option) => selected.includes(option.value))
-                .map((option) => option.hint)
-                .join(" ")}
-            </p>
-          ) : null}
-        </div>
-        {action}
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <Button
+            key={option.value}
+            variant={selected.includes(option.value) ? "default" : "outline"}
+            // The ochre fill is the whole answer on screen, and it is not one a
+            // screen reader is told about unless the button says so.
+            aria-pressed={selected.includes(option.value)}
+            aria-describedby={
+              showHint && selected.includes(option.value) ? hintId : undefined
+            }
+            onClick={() => onPick(option.value)}
+            className="rounded-full"
+          >
+            {option.label}
+          </Button>
+        ))}
       </div>
+      {/* A hint is a sentence, and the Every Age Rule keeps sentences at the
+          body sizes: 13px is for dates and counts. */}
+      {showHint ? (
+        <p
+          id={hintId}
+          aria-live="polite"
+          className="text-muted-foreground mt-2 min-h-5 text-sm"
+        >
+          {options
+            .filter((option) => selected.includes(option.value))
+            .map((option) => option.hint)
+            .join(" ")}
+        </p>
+      ) : null}
     </fieldset>
   );
 }

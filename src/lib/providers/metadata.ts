@@ -43,6 +43,11 @@ export type MediaSummary = {
   voteAverage: number | null;
   voteCount: number;
   /**
+   * Who gave the score, when it is not the provider itself: an anime is scored
+   * by MyAnimeList's members. Absent means the provider's own.
+   */
+  scoreSource?: "myanimelist";
+  /**
    * Genres by name, in the visitor's language. Only a details payload carries
    * them, so a listing row leaves this out and keeps `genreIds` alone.
    */

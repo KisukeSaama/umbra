@@ -48,6 +48,9 @@ export async function TitleView({
     detail.voteAverage !== null && detail.voteCount >= SCORE_MIN_VOTES
       ? formatScore(detail.voteAverage, locale)
       : null;
+  // The number is out of ten either way; the label says whose it is.
+  const scoreKey =
+    detail.scoreSource === "myanimelist" ? "title.scoreMal" : "title.score";
   const [followed, waiting] =
     detail.availability === "requested"
       ? await Promise.all([
@@ -151,11 +154,11 @@ export async function TitleView({
               {score ? (
                 <span
                   className="text-foreground inline-flex items-center gap-1 font-medium tabular-nums"
-                  title={t("title.score", { score })}
+                  title={t(scoreKey, { score })}
                 >
                   <StarIcon className="size-3.5" aria-hidden />
                   <span aria-hidden>{score}</span>
-                  <span className="sr-only">{t("title.score", { score })}</span>
+                  <span className="sr-only">{t(scoreKey, { score })}</span>
                 </span>
               ) : null}
               {score && detail.genres.length > 0 ? (

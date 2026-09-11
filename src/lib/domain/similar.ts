@@ -8,6 +8,7 @@ import {
   mergeSimilar,
   pickTmdbMatch,
   searchableTitle,
+  withMalScore,
 } from "@/lib/discovery/anime";
 import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
 import { myAnimeList } from "@/lib/providers/myanimelist";
@@ -70,14 +71,63 @@ async function animeRecommendations(
 
   const votes = await myAnimeList.recommendations(match.malId);
   const found = await Promise.all(
-    votes.slice(0, RESOLVED).map(async (vote) => {
-      const rows = await tmdbProvider
-        .search(searchableTitle(vote.title), language)
-        .catch(() => []);
-      return pickTmdbMatch(rows);
-    }),
+    votes.slice(0, RESOLVED).map((vote) => tmdbTitleOf(vote.title, language)),
   );
-  return found.filter((row): row is MediaSummary => row !== null);
+  return scoredAnime(found);
+}
+
+/**
+ * Resolved anime, once each, with MAL's score.
+ *
+ * The score is read from the MAL entry that is the TMDB title, not from the
+ * entry that led to it: TMDB folds every season of a show into one title, so
+ * a sequel recommended or ranked on MAL lands on the whole show, and its own
+ * score is not the show's.
+ */
+export async function scoredAnime(
+  rows: (MediaSummary | null)[],
+  excluded: Set<string> = new Set(),
+): Promise<MediaSummary[]> {
+  const seen = new Set(excluded);
+  const unique = rows.filter((row): row is MediaSummary => {
+    if (!row) return false;
+    const key = `${row.kind}:${row.providerId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return Promise.all(unique.map(withAnimeScore));
+}
+
+/**
+ * A TMDB title with MAL's score when it is an anime MAL can be matched to, and
+ * as it came otherwise. What the title page shows, so an anime reads the same
+ * number there as on the card that led to it.
+ */
+export async function withAnimeScore(
+  summary: MediaSummary,
+): Promise<MediaSummary> {
+  if (!isAnime(summary)) return summary;
+  const match = await malEntryOf(summary).catch((error) => {
+    console.warn("[similar] anime score unavailable", error);
+    return null;
+  });
+  return withMalScore(summary, match);
+}
+
+/**
+ * The TMDB title a MAL title names, or nothing. One search, answered by the
+ * gateway's cache after the first time; a failed search is a title not found.
+ */
+export async function tmdbTitleOf(
+  malTitle: string,
+  language?: string,
+  kind?: MediaKind,
+): Promise<MediaSummary | null> {
+  const rows = await tmdbProvider
+    .search(searchableTitle(malTitle), language)
+    .catch(() => []);
+  return pickTmdbMatch(rows, kind);
 }
 
 /**
@@ -89,8 +139,11 @@ async function malEntryOf(seed: MediaSummary) {
   const names = [seed.originalTitle, seed.title].filter(
     (name): name is string => Boolean(name),
   );
+  // A search MAL refuses is one name that did not match, not the end of the
+  // lookup: the other name is still worth asking.
   for (const name of names) {
-    const match = matchAnime(seed, await myAnimeList.search(name));
+    const found = await myAnimeList.search(name).catch(() => []);
+    const match = matchAnime(seed, found);
     if (match) return match;
   }
   return null;
