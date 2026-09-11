@@ -21,14 +21,15 @@ const buttonVariants = cva(
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
-        // Transparent at rest, and on hover a wash of the ink itself behind a
-        // hairline drawn inside the edge, so it reads as a key being lit rather
-        // than a grey block appearing. Both are mixes of the foreground, which
-        // is why one rule serves the paper and the night. The glyph rests in
-        // muted ink and comes up with the word, so a row of them stays quiet;
-        // a glyph that carries its own colour keeps it.
+        // A key already drawn at rest: a faint wash of the ink behind a hairline
+        // inside the edge, so it is seen as something to press before the
+        // pointer finds it. Word floating on the page read as a label. Hover
+        // lights the same key a step further. Both are mixes of the foreground,
+        // which is why one rule serves the paper and the night. The glyph
+        // rests in muted ink and comes up with the word; a glyph that carries
+        // its own colour keeps it.
         ghost:
-          "hover:bg-foreground/6 hover:text-foreground hover:inset-ring hover:inset-ring-foreground/8 active:bg-foreground/9 aria-expanded:bg-foreground/6 aria-expanded:text-foreground aria-expanded:inset-ring aria-expanded:inset-ring-foreground/8 [&_svg]:transition-colors [&_svg:not([class*='text-'])]:text-muted-foreground hover:[&_svg:not([class*='text-'])]:text-foreground aria-expanded:[&_svg:not([class*='text-'])]:text-foreground",
+          "bg-foreground/5 inset-ring inset-ring-foreground/8 hover:bg-foreground/9 hover:text-foreground hover:inset-ring-foreground/14 active:bg-foreground/12 aria-expanded:bg-foreground/9 aria-expanded:text-foreground aria-expanded:inset-ring-foreground/14 [&_svg]:transition-colors [&_svg:not([class*='text-'])]:text-muted-foreground hover:[&_svg:not([class*='text-'])]:text-foreground aria-expanded:[&_svg:not([class*='text-'])]:text-foreground",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
