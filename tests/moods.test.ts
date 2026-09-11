@@ -2,20 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   ANIMATION_GENRE_ID,
-  ANIME_LANGUAGE,
-  ANIME_STANCES,
+  VISUAL_STYLES,
   DURATIONS,
   discoverQueriesFor,
   excludedGenresFor,
   FORMATS,
   genresFor,
-  isAnimeStance,
+  isVisualStyle,
   isDuration,
   isFormat,
   isMood,
   kindsFor,
   MOODS,
   SHORT_RUNTIME_MINUTES,
+  matchesCommitment,
 } from "@/lib/discovery/moods";
 
 /**
@@ -50,7 +50,7 @@ describe("mood mapping", () => {
   });
 
   it("gives every mood something to ask for on both sides", () => {
-    for (const mood of MOODS) {
+    for (const mood of MOODS.filter((mood) => mood !== "any")) {
       expect(genresFor(mood, "movie").length).toBeGreaterThan(0);
       expect(genresFor(mood, "tv").length).toBeGreaterThan(0);
     }
@@ -101,28 +101,31 @@ describe("mood mapping", () => {
       }
   });
 
-  it("pins anime to where it is made, not to how it is drawn", () => {
-    // Animation is a technique. Asked for the genre alone, the shelf comes
-    // back led by Pixar and DC, which is a different request entirely.
+  it("separates anime from other animation", () => {
     const [query] = discoverQueriesFor({
-      mood: "love",
-      anime: "only",
+      moods: ["love"],
+      visualStyles: ["anime"],
       format: "movie",
       duration: "any",
     });
-    expect(query.originalLanguage).toBe(ANIME_LANGUAGE);
+    expect(query.originalLanguage).toBe("ja");
     expect(query.requireGenreIds).toEqual([ANIMATION_GENRE_ID]);
-    // Required, never merged into the union: a romance asked for drawn is two
-    // conditions, and a union holding both would answer with either.
     expect(query.genreIds).toEqual(genresFor("love", "movie"));
+
+    const [cartoon] = discoverQueriesFor({
+      moods: ["love"],
+      visualStyles: ["cartoon"],
+      format: "movie",
+      duration: "any",
+    });
+    expect(cartoon.requireGenreIds).toEqual([ANIMATION_GENRE_ID]);
+    expect(cartoon.excludeOriginalLanguages).toEqual(["ja"]);
   });
 
-  it("refuses animation when the answer was no anime", () => {
-    // The provider filters on a language it wants and not on one it refuses,
-    // so "no anime" is read as "nothing drawn".
+  it("refuses animation for live action", () => {
     const [query] = discoverQueriesFor({
-      mood: "comfort",
-      anime: "without",
+      moods: ["drama"],
+      visualStyles: ["live"],
       format: "movie",
       duration: "any",
     });
@@ -131,12 +134,10 @@ describe("mood mapping", () => {
     expect(query.requireGenreIds).toBeUndefined();
   });
 
-  it("adds nothing at all when anime is merely welcome", () => {
-    // The middle answer is the one that has to stay empty: it means the mood
-    // decides on its own, drawn or filmed.
+  it("adds no visual filter when all three styles are selected", () => {
     const [query] = discoverQueriesFor({
-      mood: "thrill",
-      anime: "with",
+      moods: ["thrill"],
+      visualStyles: [...VISUAL_STYLES],
       format: "movie",
       duration: "any",
     });
@@ -145,26 +146,24 @@ describe("mood mapping", () => {
     expect(query.requireGenreIds).toBeUndefined();
   });
 
-  it("offers every mood in all three ways", () => {
-    // Anime is an axis, not a shelf: each of the three answers has to give a
-    // different query for the same mood, otherwise the question is decoration.
-    const fingerprints = ANIME_STANCES.map((anime) =>
+  it("offers every mood in all three visual styles", () => {
+    const fingerprints = VISUAL_STYLES.map((visualStyle) =>
       JSON.stringify(
         discoverQueriesFor({
-          mood: "love",
-          anime,
+          moods: ["love"],
+          visualStyles: [visualStyle],
           format: "either",
           duration: "any",
         }),
       ),
     );
-    expect(new Set(fingerprints).size).toBe(ANIME_STANCES.length);
+    expect(new Set(fingerprints).size).toBe(VISUAL_STYLES.length);
   });
 
   it("carries the refusals into the query", () => {
     const [query] = discoverQueriesFor({
-      mood: "laugh",
-      anime: "with",
+      moods: ["laugh"],
+      visualStyles: [...VISUAL_STYLES],
       format: "movie",
       duration: "any",
     });
@@ -184,16 +183,16 @@ describe("mood mapping", () => {
     // On a show the same parameter filters the length of one episode, which is
     // a different question and quietly empties the shelf.
     const film = discoverQueriesFor({
-      mood: "laugh",
-      anime: "with",
+      moods: ["laugh"],
+      visualStyles: [...VISUAL_STYLES],
       format: "movie",
       duration: "short",
     });
     expect(film[0].runtimeLte).toBe(SHORT_RUNTIME_MINUTES);
 
     const show = discoverQueriesFor({
-      mood: "laugh",
-      anime: "with",
+      moods: ["laugh"],
+      visualStyles: [...VISUAL_STYLES],
       format: "series",
       duration: "short",
     });
@@ -203,8 +202,8 @@ describe("mood mapping", () => {
   it("asks both sides when the answer was surprise me", () => {
     expect(kindsFor("either")).toEqual(["movie", "tv"]);
     const queries = discoverQueriesFor({
-      mood: "adventure",
-      anime: "with",
+      moods: ["adventure"],
+      visualStyles: [...VISUAL_STYLES],
       format: "either",
       duration: "any",
     });
@@ -216,11 +215,80 @@ describe("mood mapping", () => {
     // a closed set is only closed if the boundary says so.
     expect(isMood("thrill")).toBe(true);
     expect(isMood("whatever")).toBe(false);
-    expect(isAnimeStance(ANIME_STANCES[0])).toBe(true);
-    expect(isAnimeStance("anime")).toBe(false);
+    expect(isVisualStyle(VISUAL_STYLES[0])).toBe(true);
+    expect(isVisualStyle("either")).toBe(false);
     expect(isFormat(FORMATS[0])).toBe(true);
     expect(isFormat("")).toBe(false);
     expect(isDuration(DURATIONS[0])).toBe(true);
     expect(isDuration(null)).toBe(false);
+  });
+});
+
+describe("series commitment", () => {
+  const details = {
+    summary: {} as import("@/lib/providers/metadata").MediaSummary,
+    status: "Ended",
+    inProduction: false,
+    seasons: [{ seasonNumber: 1, episodeCount: 8, airDate: null }],
+  };
+  it("accepts a finished short season and ignores specials", () => {
+    expect(
+      matchesCommitment(
+        {
+          ...details,
+          seasons: [
+            ...details.seasons,
+            { seasonNumber: 0, episodeCount: 20, airDate: null },
+          ],
+        },
+        "short",
+      ),
+    ).toBe(true);
+  });
+  it("refuses cancelled, unfinished, unknown and long stories as short", () => {
+    for (const status of ["Canceled", "Returning Series", null])
+      expect(matchesCommitment({ ...details, status }, "short")).toBe(false);
+    expect(
+      matchesCommitment(
+        {
+          ...details,
+          seasons: [{ seasonNumber: 1, episodeCount: 12, airDate: null }],
+        },
+        "short",
+      ),
+    ).toBe(false);
+    expect(matchesCommitment({ ...details, inProduction: true }, "short")).toBe(
+      false,
+    );
+  });
+  it("requires two real seasons for a longer commitment", () => {
+    expect(matchesCommitment(details, "long")).toBe(false);
+    expect(
+      matchesCommitment(
+        {
+          ...details,
+          seasons: [
+            ...details.seasons,
+            { seasonNumber: 2, episodeCount: 8, airDate: null },
+          ],
+        },
+        "long",
+      ),
+    ).toBe(true);
+  });
+  it("does not approximate TV horror or romance with drama or mystery", () => {
+    for (const [mood, keyword] of [
+      ["horror", "horror"],
+      ["love", "romance"],
+    ] as const) {
+      expect(
+        discoverQueriesFor({
+          moods: [mood],
+          visualStyles: [...VISUAL_STYLES],
+          format: "series",
+          duration: "any",
+        })[0],
+      ).toMatchObject({ keyword, genreIds: [] });
+    }
   });
 });

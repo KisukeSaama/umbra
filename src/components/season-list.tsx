@@ -153,7 +153,10 @@ export function SeasonList({
                 onClick={() => void toggle(season.seasonNumber)}
                 aria-expanded={expanded}
                 className={cn(
-                  "focus-visible:ring-ring/50 hover:bg-muted/40 flex w-full items-center gap-3 px-3 py-3 text-left transition-colors outline-none focus-visible:ring-3",
+                  "focus-visible:ring-ring/50 flex w-full items-center gap-3 px-3 py-3 text-left transition-colors outline-none focus-visible:ring-3",
+                  expanded
+                    ? "hover:bg-[color-mix(in_oklab,var(--muted)_40%,var(--umbra-surface,var(--background)))]"
+                    : "hover:bg-muted/40",
                   first && "rounded-t-xl",
                   last && !expanded && "rounded-b-xl",
                   // Kept in sight while its own episodes scroll under it: a

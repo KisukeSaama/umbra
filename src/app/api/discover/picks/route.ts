@@ -4,7 +4,8 @@ import { z } from "zod";
 import { route } from "@/lib/api";
 import { requireMember } from "@/lib/auth/session";
 import {
-  ANIME_STANCES,
+  COMMITMENTS,
+  VISUAL_STYLES,
   DURATIONS,
   FORMATS,
   MOODS,
@@ -22,10 +23,11 @@ import { checkRate, perMinute } from "@/lib/rate-limit";
  * boundary says so.
  */
 const schema = z.object({
-  mood: z.enum(MOODS),
-  anime: z.enum(ANIME_STANCES),
+  moods: z.array(z.enum(MOODS)).min(1).max(MOODS.length),
+  visualStyles: z.array(z.enum(VISUAL_STYLES)).min(1).max(VISUAL_STYLES.length),
   format: z.enum(FORMATS),
   duration: z.enum(DURATIONS),
+  commitment: z.enum(COMMITMENTS).default("any"),
 });
 
 export async function GET(request: NextRequest) {
@@ -34,15 +36,40 @@ export async function GET(request: NextRequest) {
     checkRate("picks", account.id, perMinute(20));
 
     const params = request.nextUrl.searchParams;
-    const choice = schema.parse({
-      mood: params.get("mood"),
-      anime: params.get("anime"),
-      format: params.get("format"),
-      duration: params.get("duration"),
-    });
+    const mode = z
+      .enum(["guided", "surprise"])
+      .parse(params.get("mode") ?? "guided");
+    const choice =
+      mode === "surprise"
+        ? {
+            moods: ["any" as const],
+            visualStyles: [...VISUAL_STYLES],
+            format: "either" as const,
+            duration: "any" as const,
+            commitment: "any" as const,
+          }
+        : schema.parse({
+            moods: params.getAll("mood"),
+            visualStyles: params.getAll("visualStyle"),
+            format: params.get("format"),
+            duration: params.get("duration"),
+            commitment: params.get("commitment") ?? undefined,
+          });
 
     const locale = detectLocale(request.headers.get("accept-language"));
-    const selection = await guidedSelection(choice, locale, account.id);
+    const excluded = new Set(
+      params
+        .getAll("exclude")
+        .slice(0, 240)
+        .filter((key) => /^(movie|tv):\d+$/.test(key)),
+    );
+    const selection = await guidedSelection(
+      choice,
+      locale,
+      account.id,
+      mode === "surprise",
+      excluded,
+    );
     await bumpMetric("discovery_rolls");
     return selection;
   });

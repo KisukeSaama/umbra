@@ -22,7 +22,7 @@ export default async function SiteLoading() {
       <Hero posters={[]} />
       <LoadingRegion
         label={t("common.loading")}
-        className="umbra-container space-y-12 py-12"
+        className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12"
       >
         <ShelfSkeleton />
         <div className="space-y-6">

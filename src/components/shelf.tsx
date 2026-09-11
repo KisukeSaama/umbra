@@ -48,6 +48,8 @@ export function Shelf({
               title={item.title}
               year={item.year}
               posterUrl={item.posterUrl}
+              voteAverage={item.voteAverage}
+              voteCount={item.voteCount}
               availability={item.availability}
               priority={priority && index < 4}
             />

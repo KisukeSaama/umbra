@@ -158,7 +158,7 @@ function JobCard({
           </p>
         ) : null}
 
-        <p className="text-muted-foreground font-mono text-[0.6875rem]">
+        <p className="text-muted-foreground font-mono text-xs">
           {job.jobName}
         </p>
       </CardContent>

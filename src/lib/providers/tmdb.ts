@@ -154,6 +154,7 @@ export function discoverParams({
   excludeGenreIds,
   originalLanguage,
   runtimeLte,
+  shortSeries,
   sortBy,
   voteCountGte,
   voteAverageGte,
@@ -173,6 +174,10 @@ export function discoverParams({
   // On a show this parameter filters the length of one episode, which is a
   // different question, so it is only ever sent for a film.
   if (runtimeLte && kind === "movie") query["with_runtime.lte"] = runtimeLte;
+  if (shortSeries && kind === "tv") {
+    query.with_status = 3; // Ended
+    query.with_type = 2; // Miniseries
+  }
   return query;
 }
 
@@ -253,20 +258,35 @@ export const tmdbProvider: MediaMetadataProvider = {
   },
 
   async discoverBy(query) {
+    const params = discoverParams(query);
+    if (query.keyword) {
+      const keywords = await get<{ results?: Json[] }>(
+        "/search/keyword",
+        undefined,
+        { query: query.keyword },
+      );
+      const keyword = keywords.results?.find(
+        (item) => item.name === query.keyword,
+      );
+      if (!keyword || !idOf(keyword)) return [];
+      params.with_keywords = idOf(keyword)!;
+    }
     const body = await get<{ results?: unknown[] }>(
       `/discover/${query.kind}`,
       query.language,
-      discoverParams(query),
+      params,
     );
-    const { kind, requireGenreIds } = query;
+    const { kind, requireGenreIds, excludeOriginalLanguages } = query;
     const rows = summariesOfKind(body.results, kind);
     // TMDB reads a comma in `with_genres` as "all of these" and a pipe as "any
     // of these", and it does not accept the two mixed in one value: a mood is
     // already a union, so the genres that have to be there on top of it are
     // applied here, on rows that carry their own list.
-    if (!requireGenreIds?.length) return rows;
-    return rows.filter((row) =>
-      requireGenreIds.every((id) => row.genreIds.includes(id)),
+    return rows.filter(
+      (row) =>
+        (!requireGenreIds?.length ||
+          requireGenreIds.every((id) => row.genreIds.includes(id))) &&
+        !excludeOriginalLanguages?.includes(row.originalLanguage ?? ""),
     );
   },
 
@@ -547,6 +567,7 @@ export function summaryFromJsonWithKind(
     releaseDate: str(row, dateKey),
     posterPath: str(row, "poster_path"),
     backdropPath: str(row, "backdrop_path"),
+    runtime: int(row, "runtime"),
     popularity: typeof row.popularity === "number" ? row.popularity : 0,
     genreIds: genreIdsFrom(row),
     originalLanguage: str(row, "original_language"),

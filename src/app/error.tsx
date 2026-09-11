@@ -25,7 +25,7 @@ export default function ErrorPage({
   }, [error]);
 
   return (
-    <main className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-16 text-center">
+    <main className="umbra-glow flex min-h-dvh flex-col items-center justify-center px-4 py-16 text-center">
       <UmbraMark className="mb-6 size-12" />
       <h1 className="text-3xl tracking-tight text-balance sm:text-4xl">
         {t("error.title")}

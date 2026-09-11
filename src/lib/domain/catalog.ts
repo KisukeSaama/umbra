@@ -19,17 +19,25 @@ import {
   episodeCountsBySeason,
   episodesOnServer,
   matchesAnyProviderId,
+  matchesProviderId,
   REAL_MATCH_FIRST,
 } from "@/lib/domain/library";
 import { isSeriesIncomplete } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
 import type { Genre, MediaKind, MediaSummary } from "@/lib/providers/metadata";
+import {
+  plexAppUrl,
+  plexDetailsUrl,
+  plexLibrary,
+} from "@/lib/providers/plex";
 import { posterUrl, tmdbLanguage, tmdbProvider } from "@/lib/providers/tmdb";
 
 /** Search: the heart of Umbra. The states themselves live one file away. */
 export type { Availability };
 
 export type CatalogResult = {
+  voteAverage?: number | null;
+  voteCount?: number;
   providerId: string;
   kind: MediaKind;
   title: string;
@@ -90,6 +98,8 @@ export async function decorate(
   const incomplete = await incompleteIndex(summaries, inLibrary, tracked, cuts);
 
   return summaries.map((summary) => ({
+    voteAverage: summary.voteAverage,
+    voteCount: summary.voteCount,
     providerId: summary.providerId,
     kind: summary.kind,
     title: summary.title,
@@ -458,6 +468,39 @@ export const titleDetail = cache(async function titleDetail(
     seasons,
   };
 });
+
+/**
+ * Direct Plex destinations for a title the local index currently holds: the
+ * web player, and the same page in the mobile apps.
+ */
+export async function titlePlexLinks(
+  kind: MediaKind,
+  providerId: string,
+): Promise<{ web: string; app: string } | null> {
+  const [row] = await db()
+    .select({ ratingKey: libraryItems.ratingKey })
+    .from(libraryItems)
+    .where(
+      and(
+        eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
+        matchesProviderId(providerId),
+      ),
+    )
+    .orderBy(REAL_MATCH_FIRST)
+    .limit(1);
+  if (!row) return null;
+
+  try {
+    const server = await plexLibrary.machineIdentifier();
+    return {
+      web: plexDetailsUrl(server, row.ratingKey),
+      app: plexAppUrl(server, row.ratingKey),
+    };
+  } catch (error) {
+    console.warn("[catalog] Plex link unavailable", error);
+    return null;
+  }
+}
 
 /**
  * The episodes of one season, said twice over.

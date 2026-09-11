@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { StarIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,6 +19,7 @@ export function Poster({
   className,
   sizes = "(min-width: 1024px) 12rem, (min-width: 640px) 20vw, 40vw",
   priority = false,
+  ratingLabel,
 }: {
   src: string | null;
   alt: string;
@@ -31,6 +33,7 @@ export function Poster({
   className?: string;
   sizes?: string;
   priority?: boolean;
+  ratingLabel?: string;
 }) {
   return (
     <div
@@ -53,6 +56,15 @@ export function Poster({
           {alt}
         </div>
       )}
+      {/* Night ink on night paper whatever the theme, because it sits on a
+          picture and not on the page. The small size and nothing under it: a
+          score is read by the same eyes as everything else. */}
+      {ratingLabel ? (
+        <span className="absolute right-2 bottom-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-md bg-[oklch(0.16_0.008_262/0.92)] px-1.5 py-0.5 text-right text-xs leading-tight font-medium text-[oklch(0.95_0.008_85)] tabular-nums">
+          <StarIcon className="size-3" aria-hidden />
+          {ratingLabel}
+        </span>
+      ) : null}
     </div>
   );
 }

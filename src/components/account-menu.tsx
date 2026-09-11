@@ -126,7 +126,9 @@ export function AccountMenu({
         className="focus-visible:ring-ring/50 rounded-full outline-none focus-visible:ring-3"
         aria-label={username}
       >
-        <span className="border-border/70 bg-secondary text-secondary-foreground flex size-9 items-center justify-center rounded-full border text-sm font-medium">
+        {/* The same height as every other control in the row, a finger's
+            width on a touch screen included. */}
+        <span className="border-border/70 bg-secondary text-secondary-foreground flex size-9 items-center justify-center rounded-full border text-sm font-medium pointer-coarse:size-10">
           {username.slice(0, 1).toUpperCase() || <PersonIcon />}
         </span>
       </DropdownMenuTrigger>

@@ -39,7 +39,9 @@ export default async function HomePage() {
       recentlyAdded(14),
       inProgressRequests(5),
       activePoll(account?.id),
-      latestAnnouncement(),
+      // With the reader, so the thumbs on the home card show what they pressed
+      // on the feed: read anonymously, the card forgot their reaction.
+      latestAnnouncement(account.id),
       storageOverview(),
       weeklyStats(),
     ]);
@@ -51,7 +53,7 @@ export default async function HomePage() {
     <>
       <Hero posters={recent} />
 
-      <div className="umbra-container space-y-12 py-12">
+      <div className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12">
         <WeekStats stats={stats} />
         <RecentlyAdded items={recent} />
 

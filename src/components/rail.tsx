@@ -67,7 +67,10 @@ export function Rail({
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         try {
-          sessionStorage.setItem(storageKey, String(Math.round(node.scrollLeft)));
+          sessionStorage.setItem(
+            storageKey,
+            String(Math.round(node.scrollLeft)),
+          );
         } catch {
           // Not remembering the offset is harmless.
         }
@@ -98,7 +101,7 @@ export function Rail({
     <div className="group/rail relative">
       <div
         ref={track}
-        className="umbra-rail -mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
+        className="umbra-rail -mx-4 flex snap-x gap-4 overflow-x-auto overscroll-x-contain px-4 pb-2 scroll-pl-4 sm:mx-0 sm:px-0 sm:scroll-pl-0"
       >
         {children}
       </div>

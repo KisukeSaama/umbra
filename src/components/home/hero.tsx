@@ -57,27 +57,31 @@ export async function Hero({ posters }: { posters: RecentItem[] }) {
 
       <div className="umbra-glow absolute inset-0 -z-10" aria-hidden />
 
-      <div className="umbra-container flex flex-col items-center py-16 text-center sm:py-24">
+      {/* Shorter on a phone: the first poster should be in sight without a
+          scroll, and the messenger does not need a hall to sit in. */}
+      <div className="umbra-container flex flex-col items-center py-10 text-center sm:py-24">
         <UmbraFigure
           alt={t("brand.alt")}
           preload
-          sizes="(min-width: 640px) 9rem, 7rem"
-          className="mb-6 w-28 sm:w-36"
+          sizes="(min-width: 640px) 9rem, 6rem"
+          className="mb-5 w-24 sm:mb-6 sm:w-36"
         />
         <p className="text-muted-foreground text-sm">
           {t(`home.greeting.${partOfDay()}` as TranslationKey)}
         </p>
-        <h1 className="mt-3 mb-8 text-4xl tracking-tight text-balance sm:text-6xl">
+        <h1 className="mt-2 mb-6 text-4xl tracking-tight text-balance sm:mt-3 sm:mb-8 sm:text-6xl">
           {t("home.title")}
         </h1>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          {/* A field you can read, opening the one palette the page has, in
-              the header: two dialogs meant one shortcut opened both. */}
+        {/* The field first and full width, the way an app opens on its search,
+            then the way in for an evening without an idea. The field opens the
+            one palette the page has, in the header: two dialogs meant one
+            shortcut opened both. */}
+        <div className="flex w-full max-w-xl flex-col items-center gap-3">
           <SearchField />
           <Button
             size="lg"
-            className="rounded-full px-6"
+            className="w-full rounded-full px-6 sm:w-auto"
             render={<Link href="/discover" />}
           >
             <SparkleIcon />

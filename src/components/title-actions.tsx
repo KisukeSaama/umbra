@@ -150,8 +150,14 @@ export function TitleActions({
       </div>
     );
 
+  // The one thing to do on the page takes the width of a phone, where a thumb
+  // lands on it without aiming; a cursor gets the ordinary size.
   const button = (
-    <Button onClick={() => void ask()} disabled={sending}>
+    <Button
+      onClick={() => void ask()}
+      disabled={sending}
+      className="w-full sm:w-auto"
+    >
       {sending ? <SpinnerIcon /> : null}
       {sending ? t("status.requesting") : t("title.request")}
     </Button>

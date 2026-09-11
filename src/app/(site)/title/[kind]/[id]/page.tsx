@@ -2,14 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { BackLink } from "@/components/back-link";
-import { BackToTop } from "@/components/back-to-top";
 import { CastRail } from "@/components/cast-rail";
 import { Shelf } from "@/components/shelf";
 import { ShelfSkeleton } from "@/components/skeletons";
+import { TitleDock } from "@/components/title-dock";
 import { TitleView } from "@/components/title-view";
 import { currentAccount, requireMemberPage } from "@/lib/auth/session";
-import { decorate, titleDetail } from "@/lib/domain/catalog";
+import { decorate, titleDetail, titlePlexLinks } from "@/lib/domain/catalog";
 import { moreFrom, titleCrew, type PersonCard } from "@/lib/domain/people";
 import { getI18n } from "@/lib/i18n/server";
 import { tmdbProvider } from "@/lib/providers/tmdb";
@@ -44,7 +43,8 @@ export async function generateMetadata({
  * come back through history like anything else on the web. What a modal would
  * have given it is drawn instead, which is what `docs/DESIGN.md` asks for and
  * what the loading state already promised: the way back at the top left, and
- * the way up at the bottom right once ten seasons have made the scroll long.
+ * once ten seasons have made the scroll long, a dock at the bottom carrying
+ * the way back, the way to Plex and the way up.
  *
  * The credits are asked for alongside the title, so the byline and the cast
  * cost no extra wait. The other work of whoever signs it and the similar
@@ -60,15 +60,20 @@ export default async function TitlePage({
   if (!/^\d+$/.test(id)) notFound();
 
   const { locale } = await getI18n();
-  const [detail, crew] = await Promise.all([
+  const [detail, crew, plexLinks] = await Promise.all([
     titleDetail(kind, id, locale),
     titleCrew(kind, id, locale),
+    titlePlexLinks(kind, id),
   ]);
   const signer = crew.leads[0];
 
   return (
     <div className="umbra-container max-w-6xl space-y-6 py-10">
-      <BackLink fallback="/discover" />
+      <TitleDock
+        title={detail.title}
+        plex={plexLinks}
+        fallback="/discover"
+      />
       <div className="space-y-12">
         <TitleView detail={detail} leads={crew.leads} accountId={account.id} />
         <CastRail cast={crew.cast} />
@@ -81,7 +86,6 @@ export default async function TitlePage({
           <Similar kind={kind} id={id} locale={locale} />
         </Suspense>
       </div>
-      <BackToTop />
     </div>
   );
 }

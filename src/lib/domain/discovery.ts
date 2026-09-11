@@ -31,6 +31,7 @@ import {
 import {
   discoverQueriesFor,
   matchesQuery,
+  matchesCommitment,
   type Mood,
   type PickerChoice,
 } from "@/lib/discovery/moods";
@@ -61,7 +62,7 @@ import { RATING_FLOOR, tmdbProvider } from "@/lib/providers/tmdb";
  * pages once the vote floor is applied, so this stays small enough that most
  * rolls land on a page that exists.
  */
-const ROLL_PAGES = 4;
+const ROLL_PAGES = 8;
 
 /** Below this, a half of the picker reads as a mistake rather than a selection. */
 const THIN = 3;
@@ -159,14 +160,19 @@ export const forYouShelf = cache(async function forYouShelf(
   accountId: string,
   language?: string,
 ): Promise<CatalogResult[]> {
-  const personal = await personalAnswers(accountId, language);
-  if (!personal) return genreShelf(accountId, language);
+  const [personal, queries] = await Promise.all([
+    personalAnswers(accountId, language),
+    familiarQueries(accountId),
+  ]);
+  if (!personal) return genreShelf(queries, language);
 
   const shelf = blend(personal.answers, {
     watched: personal.watched,
     ratingFloor: RATING_FLOOR,
+    accepts: (item) => queries.some((query) => matchesQuery(item, query)),
   });
-  if (shelf.length === 0) return genreShelf(accountId, language);
+  if (shelf.length === 0)
+    return genreShelf(queries, language, personal.watched);
   return quietly(async () => shelf);
 });
 
@@ -294,39 +300,32 @@ async function rows(
  * It asks for both kinds and interleaves them.
  */
 async function genreShelf(
-  accountId: string,
+  queries: DiscoverQuery[],
   language?: string,
+  watched = new Set<string>(),
 ): Promise<CatalogResult[]> {
-  const [movieGenres, showGenres] = await Promise.all([
-    topGenres(accountId, "movie"),
-    topGenres(accountId, "tv"),
-  ]);
-  if (movieGenres.length === 0 && showGenres.length === 0) return [];
-
-  const [movies, shows] = await Promise.all([
-    movieGenres.length
-      ? quietly(() =>
-          tmdbProvider.discoverBy({
-            kind: "movie",
-            genreIds: movieGenres,
-            sortBy: "rating",
-            language,
-          }),
-        )
-      : Promise.resolve([]),
-    showGenres.length
-      ? quietly(() =>
-          tmdbProvider.discoverBy({
-            kind: "tv",
-            genreIds: showGenres,
-            sortBy: "rating",
-            language,
-          }),
-        )
-      : Promise.resolve([]),
-  ]);
+  const [movies, shows] = await Promise.all(
+    queries.map((query) =>
+      quietly(async () =>
+        (await tmdbProvider.discoverBy({ ...query, language })).filter(
+          (item) => !watched.has(keyOf(item)),
+        ),
+      ),
+    ),
+  );
 
   return interleave(movies, shows).slice(0, 18);
+}
+
+/** Shared comfort zone for the personal shelf and the surprise shortcut. */
+async function familiarQueries(accountId: string): Promise<DiscoverQuery[]> {
+  return Promise.all(
+    (["movie", "tv"] as const).map(async (kind) => ({
+      kind,
+      genreIds: await topGenres(accountId, kind),
+      sortBy: "rating" as const,
+    })),
+  );
 }
 
 export const genreOptions = cache(async function genreOptions(
@@ -343,7 +342,7 @@ export const genreOptions = cache(async function genreOptions(
 
 export type GuidedSelection = {
   /** Already here: the evening can start now. */
-  tonight: RecentItem[];
+  tonight: (Omit<RecentItem, "kind"> & { kind: MediaKind })[];
   /** Not here: worth asking for. */
   ideas: CatalogResult[];
 };
@@ -360,10 +359,14 @@ export async function guidedSelection(
   choice: PickerChoice,
   language?: string,
   accountId?: string,
+  surprise = false,
+  excluded = new Set<string>(),
 ): Promise<GuidedSelection> {
-  const queries = discoverQueriesFor(choice);
+  const queries =
+    surprise && accountId
+      ? await familiarQueries(accountId)
+      : discoverQueriesFor(choice);
   const personal = accountId ? await personalRanking(accountId, language) : [];
-  const count = queries.length > 1 ? 2 : 3;
 
   /*
    * Each half starts from the member and is completed by the mood.
@@ -376,62 +379,194 @@ export async function guidedSelection(
    */
   const halves = await Promise.all(
     queries.map(async (query) => {
-      const fits = personal.filter((item) => matchesQuery(item, query));
-      const [onServer, random, rolled, fitting] = await Promise.all([
-        availableByProviderIds(
-          query.kind,
-          fits.map((item) => item.providerId),
-        ),
-        randomAvailableByGenres(
-          query.kind,
-          query.genreIds ?? [],
-          count * 2,
-          query.excludeGenreIds ?? [],
-          query.requireGenreIds ?? [],
-        ),
-        rolledPage(query, language),
-        quietly(async () => fits),
-      ]);
+      const fits = personal.filter((item) =>
+        matchesQuery(item, { ...query, runtimeLte: undefined }),
+      );
+      const excludedIds = [...excluded]
+        .filter((key) => key.startsWith(`${query.kind}:`))
+        .map((key) => key.slice(key.indexOf(":") + 1));
+      const [onServer, random, reusableRandom, rolled, fitting] =
+        await Promise.all([
+          availableByProviderIds(
+            query.kind,
+            fits.map((item) => item.providerId),
+          ),
+          query.keyword
+            ? Promise.resolve([])
+            : randomAvailableByGenres(
+                query.kind,
+                query.genreIds ?? [],
+                12,
+                query.excludeGenreIds ?? [],
+                query.requireGenreIds ?? [],
+                excludedIds,
+              ),
+          query.keyword || excludedIds.length === 0
+            ? Promise.resolve([])
+            : randomAvailableByGenres(
+                query.kind,
+                query.genreIds ?? [],
+                12,
+                query.excludeGenreIds ?? [],
+                query.requireGenreIds ?? [],
+              ),
+          rolledPage(query, language, excluded),
+          quietly(async () => fits),
+        ]);
 
+      // Details are checked before either half is cut down to its display size.
+      const commitment = choice.commitment ?? "any";
+      const needsDetails =
+        query.runtimeLte !== undefined ||
+        query.originalLanguage !== undefined ||
+        Boolean(query.excludeOriginalLanguages?.length) ||
+        (query.kind === "tv" && commitment !== "any");
+      const matchesLanguage = (
+        item: { originalLanguage?: string | null } | undefined,
+      ) =>
+        (!query.originalLanguage ||
+          item?.originalLanguage === query.originalLanguage) &&
+        !query.excludeOriginalLanguages?.includes(item?.originalLanguage ?? "");
+      const eligible = async <T extends { providerId: string | null }>(
+        items: T[],
+      ): Promise<T[]> => {
+        if (!needsDetails) return items;
+        const accepted: T[] = [];
+        // Bound work and concurrency; Janus owns response caching and retries.
+        for (let offset = 0; offset < Math.min(items.length, 24); offset += 4) {
+          const batch = items.slice(offset, offset + 4);
+          const checks = await Promise.all(
+            batch.map(async (item) => {
+              if (!item.providerId) return false;
+              try {
+                if (query.kind === "tv") {
+                  const details = await tmdbProvider.seriesDetails(
+                    item.providerId,
+                    language,
+                  );
+                  return (
+                    matchesLanguage(details.summary) &&
+                    matchesCommitment(details, commitment)
+                  );
+                }
+                const details = await tmdbProvider.details(
+                  "movie",
+                  item.providerId,
+                  language,
+                );
+                return (
+                  matchesLanguage(details) &&
+                  (query.runtimeLte === undefined ||
+                    (typeof details.runtime === "number" &&
+                      details.runtime > 0 &&
+                      details.runtime <= query.runtimeLte))
+                );
+              } catch (error) {
+                console.warn("[discovery] picker details unavailable", error);
+                return false;
+              }
+            }),
+          );
+          accepted.push(...batch.filter((_, index) => checks[index]));
+        }
+        return accepted;
+      };
+      const listedOnServer = await availableByProviderIds(
+        query.kind,
+        rolled.map((item) => item.providerId),
+      );
+      const [eligibleServer, eligibleReusable, eligibleIdeas] =
+        await Promise.all([
+          eligible(
+            uniqueBy(
+              [...onServer, ...listedOnServer, ...random],
+              (item) => item.ratingKey,
+            ),
+          ),
+          eligible(reusableRandom),
+          eligible(
+            uniqueBy([...fitting, ...rolled], (item) => item.providerId),
+          ),
+        ]);
+      const unseenServer = eligibleServer.filter(
+        (item) =>
+          item.providerId && !excluded.has(`${query.kind}:${item.providerId}`),
+      );
       const tonight = uniqueBy(
-        [...sampleTop(onServer, count, PERSONAL_POOL), ...random],
+        sampleTop(unseenServer, PICKS_PER_SECTION, PERSONAL_POOL),
         (item) => item.ratingKey,
-      ).slice(0, count);
+      ).slice(0, PICKS_PER_SECTION);
+      const skippedTonight = uniqueBy(
+        sampleTop(
+          [...eligibleServer, ...eligibleReusable].filter(
+            (item) =>
+              item.providerId &&
+              excluded.has(`${query.kind}:${item.providerId}`),
+          ),
+          PICKS_PER_SECTION,
+          PERSONAL_POOL,
+        ),
+        (item) => item.ratingKey,
+      );
 
       const absent = (items: CatalogResult[]) =>
-        items.filter((item) => item.availability === "absent");
+        items.filter(
+          (item) =>
+            item.availability === "absent" &&
+            !excluded.has(`${item.kind}:${item.providerId}`),
+        );
       const ideas = uniqueBy(
-        [
-          ...sampleTop(absent(fitting), IDEAS / queries.length, PERSONAL_POOL),
-          ...absent(rolled),
-        ],
+        [...sampleTop(absent(eligibleIdeas), PICKS_PER_SECTION, PERSONAL_POOL)],
         (item) => `${item.kind}:${item.providerId}`,
       );
 
-      return { tonight, ideas };
+      return {
+        tonight: tonight.map((item) => ({ ...item, kind: query.kind })),
+        skippedTonight: skippedTonight.map((item) => ({
+          ...item,
+          kind: query.kind,
+        })),
+        ideas,
+      };
     }),
   );
 
-  // Nothing is substituted when the server holds nothing for this mood. Three
+  // Nothing is substituted when the server holds nothing for this mood. Unrelated
   // titles drawn at random under a heading that answers a question they were
   // not chosen for is worse than an empty half: it reads as the answer, and it
   // is what made "make me laugh" reply with a horror film. The picker shows the
   // half it has.
-  const [first, second] = halves;
+  const tonight = uniqueBy(
+    interleaveMany(halves.map((half) => half.tonight)),
+    (item) => item.ratingKey,
+  ).slice(0, PICKS_PER_SECTION);
+  if (tonight.length < PICKS_PER_SECTION) {
+    tonight.push(
+      ...uniqueBy(
+        interleaveMany(halves.map((half) => half.skippedTonight)),
+        (item) => item.ratingKey,
+      )
+        .filter(
+          (item) =>
+            !tonight.some((current) => current.ratingKey === item.ratingKey),
+        )
+        .slice(0, PICKS_PER_SECTION - tonight.length),
+    );
+  }
   return {
-    tonight: halves.flatMap((half) => half.tonight).slice(0, 3),
-    ideas: (second ? interleave(first.ideas, second.ideas) : first.ideas).slice(
-      0,
-      IDEAS,
-    ),
+    tonight,
+    ideas: uniqueBy(
+      interleaveMany(halves.map((half) => half.ideas)),
+      (item) => `${item.kind}:${item.providerId}`,
+    ).slice(0, PICKS_PER_SECTION),
   };
 }
 
-/** How many ideas the picker shows. */
-const IDEAS = 6;
+/** Both sections offer the same number of choices when enough titles qualify. */
+const PICKS_PER_SECTION = 6;
 
 /** How far down the personal ranking a roll may draw. */
-const PERSONAL_POOL = 8;
+const PERSONAL_POOL = 24;
 
 function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
   const seen = new Set<string>();
@@ -453,18 +588,32 @@ function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
 async function rolledPage(
   query: DiscoverQuery,
   language?: string,
+  excluded = new Set<string>(),
 ): Promise<CatalogResult[]> {
+  const unseen = (items: CatalogResult[]) =>
+    items.filter((item) => !excluded.has(`${item.kind}:${item.providerId}`));
   const page = 1 + Math.floor(Math.random() * ROLL_PAGES);
-  const rolled = await quietly(() =>
-    tmdbProvider.discoverBy({ ...query, language, page }),
+  const rolled = unseen(
+    await quietly(() => tmdbProvider.discoverBy({ ...query, language, page })),
   );
   if (rolled.length >= THIN) return rolled;
 
+  const otherPage = page === ROLL_PAGES ? 1 : page + 1;
+  const second = unseen(
+    await quietly(() =>
+      tmdbProvider.discoverBy({ ...query, language, page: otherPage }),
+    ),
+  );
+  const combined = uniqueBy([...rolled, ...second], (item) => item.providerId);
+  if (combined.length >= THIN) return combined;
+
   const first =
     page === 1
-      ? rolled
-      : await quietly(() =>
-          tmdbProvider.discoverBy({ ...query, language, page: 1 }),
+      ? combined
+      : unseen(
+          await quietly(() =>
+            tmdbProvider.discoverBy({ ...query, language, page: 1 }),
+          ),
         );
   if (first.length >= THIN) return first;
 
@@ -475,13 +624,15 @@ async function rolledPage(
   // What is given up is how widely a title was seen, never how well it was
   // received: the provider holds a score floor under every listing, and a
   // shelf that came back thin is exactly where a suggestion must not slip.
-  return quietly(() =>
-    tmdbProvider.discoverBy({
-      ...query,
-      language,
-      page: 1,
-      voteCountGte: RELAXED_VOTES,
-    }),
+  return unseen(
+    await quietly(() =>
+      tmdbProvider.discoverBy({
+        ...query,
+        language,
+        page: 1,
+        voteCountGte: RELAXED_VOTES,
+      }),
+    ),
   );
 }
 
@@ -492,6 +643,15 @@ function interleave<T>(left: T[], right: T[]): T[] {
     if (left[index]) out.push(left[index]);
     if (right[index]) out.push(right[index]);
   }
+  return out;
+}
+
+/** Takes one item from every answer in turn so selected filters share the result. */
+function interleaveMany<T>(lists: T[][]): T[] {
+  const out: T[] = [];
+  const longest = Math.max(0, ...lists.map((list) => list.length));
+  for (let index = 0; index < longest; index += 1)
+    for (const list of lists) if (list[index]) out.push(list[index]);
   return out;
 }
 

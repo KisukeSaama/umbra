@@ -21,6 +21,8 @@ export type MediaSummary = {
   backdropPath: string | null;
   /** Only used to rank search results. */
   popularity: number;
+  /** Minutes, available on movie details only. */
+  runtime?: number | null;
   /**
    * Provider genre ids. Present on list rows and on details, which is what
    * lets the library index be stamped without a second call.
@@ -108,8 +110,14 @@ export type DiscoverQuery = {
   requireGenreIds?: number[];
   /** ISO 639-1, for an answer about where a title was made rather than its genre. */
   originalLanguage?: string;
+  /** Languages refused after discovery when the provider has no inverse filter. */
+  excludeOriginalLanguages?: string[];
   /** Minutes. Only meaningful for a film. */
   runtimeLte?: number;
+  /** Exact provider keyword, resolved through its keyword search. */
+  keyword?: string;
+  /** Start from finished miniseries; exact season and episode limits are checked on details. */
+  shortSeries?: boolean;
   sortBy?: "popularity" | "rating" | "recent";
   /**
    * Minimum number of votes. Left out, the provider picks a floor that suits

@@ -49,6 +49,10 @@ export async function StorageCard({
                 figure beside the title carries the reading. */}
             <Progress
               value={percent}
+              // The value is read aloud as a percentage, punctuated by the
+              // language: named here so the server and the browser agree on
+              // it, instead of each formatting in its own default locale.
+              locale={locale}
               aria-label={t("section.storage")}
               className="[&_[data-slot=progress-indicator]]:bg-muted-foreground"
             />

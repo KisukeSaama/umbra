@@ -1,10 +1,10 @@
 import type { Locale } from "@/lib/i18n";
 
 /**
- * The two figures the interface writes out by hand.
+ * The figures the interface writes out by hand.
  *
  * `@/lib/format` holds everything of this kind that the domain layer also
- * needs; these two are only ever wanted next to a component, and neither is
+ * needs; these are only ever wanted next to a component, and none is
  * safe to build with string concatenation:
  *
  * A percentage is punctuated by the language. French puts a narrow no-break
@@ -31,6 +31,24 @@ export function formatScore(score: number, locale: Locale): string {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(score);
+}
+
+/** A trustworthy score small enough to sit on a poster. */
+export function formatPosterScore(
+  score: number | null | undefined,
+  voteCount: number | undefined,
+  locale: Locale,
+): string | undefined {
+  if (
+    score == null ||
+    !Number.isFinite(score) ||
+    score <= 0 ||
+    score > 10 ||
+    (voteCount ?? 0) < 50
+  )
+    return undefined;
+
+  return formatScore(score, locale);
 }
 
 /**

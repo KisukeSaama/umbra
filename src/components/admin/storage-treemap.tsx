@@ -247,7 +247,7 @@ function Tile({
   const content = (
     <>
       {showLabel ? (
-        <span className="pointer-events-none absolute inset-x-1.5 top-1 flex items-center gap-1 text-[0.6875rem] leading-tight">
+        <span className="pointer-events-none absolute inset-x-1.5 top-1 flex items-center gap-1 text-xs leading-tight">
           {isDirectory ? (
             <FolderIcon className="size-3 shrink-0 opacity-60" />
           ) : (

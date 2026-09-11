@@ -46,7 +46,9 @@ export function UmbraFigure({
       alt={alt}
       sizes={sizes}
       preload={preload}
-      placeholder="blur"
+      // No blurred placeholder: the figure is cut out on transparency, and the
+      // stand-in came out as a pale block over the night theme for the instant
+      // before the picture arrived, which read as a fault rather than a wait.
       className={cn("h-auto w-full object-contain select-none", className)}
     />
   );

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { ReportItem } from "@/components/admin/report-item";
+import { EmptyNote } from "@/components/empty-note";
+import { FlagIcon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { requireStaffPage } from "@/lib/auth/session";
 import {
@@ -61,9 +63,7 @@ export default async function AdminReportsPage({
   const waiting = await waitingOnReports(reports.map(({ id }) => id));
 
   if (total === 0)
-    return (
-      <p className="text-muted-foreground text-sm">{t("admin.reports.none")}</p>
-    );
+    return <EmptyNote icon={FlagIcon}>{t("admin.reports.none")}</EmptyNote>;
 
   return (
     <>

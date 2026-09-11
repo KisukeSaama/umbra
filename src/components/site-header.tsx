@@ -12,21 +12,19 @@ import { getLocaleOverride, getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 
 /**
- * `narrow` drops the second row that carries the member nav on a phone.
+ * One row, 64px, at every width.
  *
- * The workspace has its own navigation and its own way back to the site, so
- * that row would be a second menu over the first. It also makes the header
- * exactly 64px tall at every width there, which is what lets the section bar
- * under it stick to a fixed offset instead of guessing at one.
+ * The member nav sits in it from the large breakpoint and moves to the tab
+ * bar at the foot of the screen below that, so the header never grows a
+ * second row: a sticky band is paid for on every screen of every page, and on
+ * a phone it was a quarter of the glass. The row clears the notch on a phone
+ * that has one, which is what `--umbra-sticky-top` accounts for.
  *
  * `full` lets it run to the edges instead of into the reading column. The site
  * is read, so it is kept narrow; the workspace is worked in, where a table and
  * a map want the whole desk and the header has to line up with them.
  */
-export async function SiteHeader({
-  narrow = false,
-  full = false,
-}: { narrow?: boolean; full?: boolean } = {}) {
+export async function SiteHeader({ full = false }: { full?: boolean } = {}) {
   const [account, t, localeOverride] = await Promise.all([
     currentAccount(),
     getTranslator(),
@@ -41,7 +39,7 @@ export async function SiteHeader({
   const unread = account ? await unreadCount(account.id) : 0;
 
   return (
-    <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
+    <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b pt-[env(safe-area-inset-top)] backdrop-blur">
       <div
         className={cn(
           "flex h-16 items-center justify-between gap-2 sm:gap-4",
@@ -52,20 +50,20 @@ export async function SiteHeader({
           href="/"
           className="focus-visible:ring-ring/50 rounded-lg outline-none focus-visible:ring-3"
         >
-          {/* On a phone the mark stands alone: the row now carries the words
+          {/* On a phone the mark stands alone: the row carries the words
               "search" and "Plex" beside their icons, and the lockup's two lines
               are the one thing on it that the hero says again below. */}
           <UmbraWordmark forLabel={t("brand.for")} compact markOnlyBelowSm />
         </Link>
 
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           <MainNav isStaff={isStaff} />
         </div>
 
         <div className="flex items-center gap-0.5 sm:gap-1">
           {account ? (
             <>
-              {/* Search lives here now, one keystroke from every page: checking
+              {/* Search lives here, one keystroke from every page: checking
                   whether a title is already on the server is the thing members
                   do most, and it should not need a destination. It is also the
                   only palette on the page: the home hero carries a field that
@@ -84,17 +82,6 @@ export async function SiteHeader({
           )}
         </div>
       </div>
-
-      {/* On a phone the nav sits under the brand rather than being folded into a
-          burger: one tap is better than two. It scrolls sideways when the
-          administrator's fifth entry does not fit, rather than being clipped. */}
-      {narrow ? null : (
-        <div className="umbra-container flex overflow-x-auto pb-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
-          <div className="mx-auto w-full min-w-fit">
-            <MainNav isStaff={isStaff} />
-          </div>
-        </div>
-      )}
     </header>
   );
 }

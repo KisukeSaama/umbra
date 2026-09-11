@@ -97,18 +97,22 @@ export async function TitleView({
       {/* The banner is positioned, so it would paint over anything static that
           follows it: the row rises into its foot only if it is positioned too,
           which is what the poster already did on its own. */}
-      <div className="relative flex flex-col gap-5 sm:flex-row">
-        <div className="w-32 shrink-0 sm:w-40">
+      {/* On a phone the poster and the title share a row, the title set at the
+          poster's foot the way a film is billed, and everything read at length
+          takes the full width underneath. From the small breakpoint the
+          poster stands in its own column beside all of it. */}
+      <div className="relative grid grid-cols-[6rem_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-x-5 sm:gap-y-3">
+        <div className="sm:row-span-2">
           <Poster
             src={detail.posterUrl}
             alt={detail.title}
             captioned
-            sizes="10rem"
+            sizes="(min-width: 640px) 10rem, 6rem"
           />
         </div>
 
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex flex-wrap items-baseline gap-x-3">
+        <div className="min-w-0 self-end sm:self-auto">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             {/* The serif has taller ascenders than the line box a size
                 utility gives it, so the tops of the capitals are shaved
                 without a roomier leading. */}
@@ -130,7 +134,9 @@ export async function TitleView({
               </Badge>
             ) : null}
           </div>
+        </div>
 
+        <div className="col-span-2 min-w-0 space-y-3 sm:col-span-1 sm:col-start-2">
           {detail.originalTitle ? (
             <p className="text-muted-foreground text-sm">
               {detail.originalTitle}

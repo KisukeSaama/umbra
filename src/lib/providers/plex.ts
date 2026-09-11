@@ -22,6 +22,18 @@ import {
 
 export const PLEX_PROVIDER = "plex";
 
+/** Plex Web opens the item's details using the member's own Plex session. */
+export function plexDetailsUrl(machineIdentifier: string, ratingKey: string) {
+  const key = encodeURIComponent(`/library/metadata/${ratingKey}`);
+  return `https://app.plex.tv/desktop/#!/server/${encodeURIComponent(machineIdentifier)}/details?key=${key}`;
+}
+
+/** The mobile apps open the same details page through their own scheme. */
+export function plexAppUrl(machineIdentifier: string, ratingKey: string) {
+  const key = encodeURIComponent(`/library/metadata/${ratingKey}`);
+  return `plex://preplay/?metadataKey=${key}&server=${encodeURIComponent(machineIdentifier)}`;
+}
+
 type Json = Record<string, unknown>;
 
 async function get<T = Json>(

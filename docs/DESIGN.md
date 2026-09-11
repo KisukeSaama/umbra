@@ -143,11 +143,11 @@ components:
     padding: "8px 16px"
   hero-search:
     backgroundColor: "{colors.sheet}"
-    textColor: "{colors.ink}"
+    textColor: "{colors.muted-ink}"
     rounded: "{rounded.full}"
-    padding: "8px"
-    height: "60px"
-    width: "768px"
+    padding: "0 24px"
+    height: "56px"
+    width: "576px"
 ---
 
 # Design System: Umbra
@@ -268,7 +268,7 @@ shadow: the hero search field. Floating layers the user summoned (dialogs,
 dropdowns, toasts) keep the elevation their primitives ship with.
 
 - **Card ring**: `ring-1 ring-foreground/10`, that is `0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent)`. Every card, at rest and on hover. A contour, not a shadow.
-- **Hero lift**: `shadow-lg`, the home search field only.
+- **Hero lift**: `shadow-lg`, the home search field only. The field is drawn as the field it stands for, loupe, placeholder and key caps, full width on a phone and 36rem at most, and opens the one palette in the header: a front door is recognised by its shape, and a button that says "Search" is not one.
 - **Moon glow**: `.umbra-glow`, two radial gradients (primary at 78 percent horizontal, moon blue at 12 percent, both bleeding off the top edge). Atmosphere, not elevation. Full strength (22 and 14 percent) on the home hero, on sign-in and on the not-found screen; `.umbra-dawn` drops it to 7 and 5 percent for the band the site layout hangs at the top of every other page, and the band steps aside wherever a hero already carries the full one. The point is continuity: the top of a page is never flat paper on one screen and weather on the next, so moving between them changes the brightness of the sky rather than swapping one background for another.
 
 **The Flat-By-Default Rule.** Reaching for `shadow-md` on a card means you want a
@@ -324,10 +324,19 @@ colour at 50 percent, drops to 50 percent opacity, blocks the cursor.
 blur, items fully rounded with 12 to 16px horizontal padding; active is foreground
 text plus a one-pixel ochre underline inset to the item padding, inactive is muted
 ink hovering to foreground on Quiet Sand at 60 percent, and the admin entry shows
-only for the administrator and the assistants. On mobile it does not collapse into a burger: it moves to
-its own row below the wordmark, where the four share the width equally in a
-44px row, because four items fit and one tap beats two; a fifth, the admin
-entry, makes the row scroll rather than wrap. Header actions carry their word at
+only for the administrator and the assistants. Below the large breakpoint it
+does not collapse into a burger and it does not take a second row under the
+header either, which cost a quarter of a phone screen to a sticky band: it
+becomes a tab bar at the foot of the screen, 56px plus the home-indicator
+inset, the same four destinations sharing the width with a glyph over a 13px
+word, the admin entry making five for the staff; a tablet held upright gets it
+too, since the pill, the lockup and the four header actions do not share 768px
+without something being clipped. Active is the filled glyph,
+ink text and the same one-pixel ochre line, so the pill and the bar read as one
+nav; the bar blurs, since the page scrolls under it. It publishes its height
+as `--umbra-tabbar`, zero wherever it is absent, and everything that sits at
+the foot of the screen (the title dock, the back-to-top button, the toasts)
+adds that rather than asking whether the bar is there. Header actions carry their word at
 every width: "Search" beside the loupe, "Open Plex" beside the triangle ("Plex"
 on a phone), because an icon alone is a guess for anyone who has not learnt it,
 and the way out to the thing people came for must not be a guess. To make room,
@@ -399,7 +408,7 @@ screen.
 **Do**
 
 - Give every interactive element its full state set: default, hover, focus-visible, active, disabled, and where relevant loading and invalid.
-- Use skeletons shaped like the content that is coming, never a spinner parked mid-page.
+- Use skeletons shaped like the content that is coming, never a spinner parked mid-page. They do not pulse: one light passes over every block on the page at once, every three seconds or so, and rests in between (`.umbra-shimmer`). A block that pulses says something is off; a light crossing it says something is on its way.
 - Add every new user-visible string to both dictionaries in `src/lib/i18n/dictionaries.ts`. French is typed against English, so a missing translation fails the build.
 - Let a section remove itself when it has nothing to show, the way the week strip does.
 - Write empty states that name the next action: "no request yet, search for a title".
@@ -409,7 +418,7 @@ screen.
 - Use `border-left` or `border-right` above one pixel as a coloured accent stripe. Use a full ring, a background tint, or nothing.
 - Apply `background-clip: text` with a gradient. Emphasis comes from weight and size.
 - Build the big-number-plus-gradient hero metric block, or fill a screen with identically sized icon-heading-text cards. The home grid is deliberately uneven.
-- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, the list of who is waiting on a row of the administration queues, and genuine confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not one of them: it is a page, with a back link at the top left and a return to the top in the bottom right corner once the scroll is long.
+- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, the list of who is waiting on a row of the administration queues, and genuine confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not one of them: it is a page, with a back link at the top left and, once that row has scrolled away, a dock centred at the bottom (a blurred pill, as licensed for anything content scrolls under) carrying the way back, the way to Plex and the return to the top.
 - Animate anything that does not convey state, or animate a layout property. Transitions run 150 to 250ms; the poster scale at 500ms is the outer limit.
 - Use an em dash or an emoji anywhere: code, comments, documentation, interface copy.
 

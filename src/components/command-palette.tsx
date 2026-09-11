@@ -221,7 +221,13 @@ export function CommandPalette() {
         {t("common.search")}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-2xl">
+      {/* Hung from the top rather than centred, at every width. On a phone the
+          keyboard takes the lower half the moment the field is focused, and a
+          centred panel is pushed about under it; on a desk a centred panel
+          re-centres every time the list under the field grows or shrinks,
+          so the field the eye is on jumps with each keystroke. Anchored, the
+          panel grows downwards and the field stays put. */}
+      <DialogContent className="top-[max(1rem,env(safe-area-inset-top))] translate-y-0 sm:top-[12vh] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("common.search")}</DialogTitle>
           <DialogDescription>{t("search.subtitle")}</DialogDescription>
@@ -393,16 +399,34 @@ function ShortcutHint() {
  */
 export function SearchField() {
   const t = useTranslator();
+  const apple = useSyncExternalStore(
+    () => () => {},
+    isApplePlatform,
+    () => false,
+  );
+  // Drawn as the field it stands for, placeholder and all, rather than as a
+  // button that says "Search": a front door is recognised by its shape. It is
+  // the one resting element allowed a shadow. A button underneath, since it
+  // opens a dialog rather than taking the text itself.
   return (
-    <Button
-      variant="outline"
-      size="lg"
-      className="rounded-full px-6"
+    <button
+      type="button"
       onClick={() => openPalette()}
+      title={t("home.searchHint")}
+      className="bg-card text-muted-foreground ring-foreground/10 hover:text-foreground focus-visible:ring-ring/50 flex h-12 w-full items-center gap-3 rounded-full px-5 text-left text-sm shadow-lg ring-1 transition-colors outline-none focus-visible:ring-3 sm:h-14 sm:px-6"
     >
-      <SearchIcon />
-      {t("common.search")}
-    </Button>
+      <SearchIcon className="size-5 shrink-0" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">
+        {t("home.searchPlaceholder")}
+      </span>
+      <span
+        className="hidden shrink-0 items-center gap-1 sm:pointer-fine:flex"
+        aria-hidden
+      >
+        <kbd>{apple ? "Cmd" : "Ctrl"}</kbd>
+        <kbd>K</kbd>
+      </span>
+    </button>
   );
 }
 

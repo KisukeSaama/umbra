@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { SparkleIcon, SpinnerIcon } from "@/components/icons";
+import { formatPosterScore } from "@/components/formatting";
+import { SpinnerIcon } from "@/components/icons";
 import { Poster } from "@/components/poster";
 import { LoadingRegion, TextLine } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ANIME_STANCES,
-  type AnimeStance,
+  COMMITMENTS,
+  type Commitment,
+  VISUAL_STYLES,
+  type VisualStyle,
   DURATIONS,
   type Duration,
   FORMATS,
@@ -26,12 +29,19 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
 type Selection = {
   tonight: {
     ratingKey: string;
+    providerId: string | null;
+    kind: "movie" | "tv";
     title: string;
     year: number | null;
     posterUrl: string | null;
+    voteAverage?: number | null;
+    voteCount?: number;
   }[];
   ideas: CatalogResult[];
 };
+
+type RollRequest = Record<string, string | string[]>;
+const SKIPPED_STORAGE_KEY = "umbra-picker-skipped";
 
 /**
  * "I do not know what to watch", answered properly.
@@ -47,25 +57,67 @@ type Selection = {
 export function MoodPicker() {
   const t = useTranslator();
   const locale = useLocale();
+  function ratingLabel(item: {
+    voteAverage?: number | null;
+    voteCount?: number;
+  }) {
+    return formatPosterScore(item.voteAverage, item.voteCount, locale);
+  }
 
-  const [mood, setMood] = useState<Mood | null>(null);
-  // Second, and not last: what a title is about and whether it is drawn are two
-  // questions, and this one narrows the mood rather than the evening.
-  const [anime, setAnime] = useState<AnimeStance | null>(null);
+  const [moods, setMoods] = useState<Mood[]>([]);
+  const [visualStyles, setVisualStyles] = useState<VisualStyle[]>([]);
   const [format, setFormat] = useState<Format | null>(null);
   const [duration, setDuration] = useState<Duration | null>(null);
+  const [commitment, setCommitment] = useState<Commitment | null>(null);
+  const [lastRequest, setLastRequest] = useState<RollRequest | null>(null);
+  const skipped = useRef(new Set<string>());
   const [selection, setSelection] = useState<Selection | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function roll(next: {
-    mood: Mood;
-    anime: AnimeStance;
-    format: Format;
-    duration: Duration;
-  }) {
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        sessionStorage.getItem(SKIPPED_STORAGE_KEY) ?? "[]",
+      );
+      if (Array.isArray(saved))
+        skipped.current = new Set(
+          saved
+            .filter(
+              (key): key is string =>
+                typeof key === "string" && /^(movie|tv):\d+$/.test(key),
+            )
+            .slice(-240),
+        );
+    } catch {
+      try {
+        sessionStorage.removeItem(SKIPPED_STORAGE_KEY);
+      } catch {}
+    }
+  }, []);
+
+  async function roll(next: RollRequest, skipCurrent = false) {
+    if (skipCurrent && selection) {
+      for (const item of selection.tonight)
+        if (item.providerId)
+          skipped.current.add(`${item.kind}:${item.providerId}`);
+      for (const item of selection.ideas)
+        skipped.current.add(`${item.kind}:${item.providerId}`);
+      try {
+        sessionStorage.setItem(
+          SKIPPED_STORAGE_KEY,
+          JSON.stringify([...skipped.current].slice(-240)),
+        );
+      } catch {}
+    }
+    setLastRequest(next);
     setLoading(true);
     try {
-      const params = new URLSearchParams(next);
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(next)) {
+        for (const entry of Array.isArray(value) ? value : [value])
+          params.append(key, entry);
+      }
+      for (const key of skipped.current) params.append("exclude", key);
       const response = await fetch(`/api/discover/picks?${params}`);
       const body = await response.json();
       if (!response.ok)
@@ -83,10 +135,12 @@ export function MoodPicker() {
   }
 
   function restart() {
-    setMood(null);
-    setAnime(null);
+    setMoods([]);
+    setVisualStyles([]);
     setFormat(null);
     setDuration(null);
+    setCommitment(null);
+    setLastRequest(null);
     setSelection(null);
   }
 
@@ -101,19 +155,18 @@ export function MoodPicker() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={loading || !mood || !anime || !format || !duration}
-              onClick={() =>
-                mood &&
-                anime &&
-                format &&
-                duration &&
-                void roll({ mood, anime, format, duration })
-              }
+              disabled={loading || !lastRequest}
+              onClick={() => lastRequest && void roll(lastRequest, true)}
             >
-              {loading ? <SpinnerIcon /> : <SparkleIcon />}
+              {loading ? <SpinnerIcon /> : null}
               {t("picker.again")}
             </Button>
-            <Button variant="ghost" size="sm" onClick={restart}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={loading}
+              onClick={restart}
+            >
               {t("picker.restart")}
             </Button>
           </div>
@@ -134,15 +187,21 @@ export function MoodPicker() {
             <ul className="grid grid-cols-3 gap-4 sm:grid-cols-6">
               {selection.tonight.map((item) => (
                 <li key={item.ratingKey}>
-                  <Poster
-                    src={item.posterUrl}
-                    alt={item.title}
-                    captioned
-                    sizes="8rem"
-                  />
-                  <p className="mt-2 truncate text-sm font-medium">
-                    {item.title}
-                  </p>
+                  <Link
+                    href={`/title/${item.kind}/${item.providerId}`}
+                    className="group focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-3"
+                  >
+                    <Poster
+                      src={item.posterUrl?.replace("/w342/", "/w500/") ?? null}
+                      alt={item.title}
+                      ratingLabel={ratingLabel(item)}
+                      captioned
+                      sizes="(min-width: 1440px) 210px, (min-width: 640px) 17vw, 33vw"
+                    />
+                    <p className="mt-2 truncate text-sm font-medium group-hover:underline">
+                      {item.title}
+                    </p>
+                  </Link>
                   <p className="text-primary text-sm">
                     {t("status.available")}
                   </p>
@@ -163,10 +222,11 @@ export function MoodPicker() {
                     className="group focus-visible:ring-ring/50 block rounded-lg outline-none focus-visible:ring-3"
                   >
                     <Poster
-                      src={item.posterUrl}
+                      src={item.posterUrl?.replace("/w342/", "/w500/") ?? null}
                       alt={item.title}
+                      ratingLabel={ratingLabel(item)}
                       captioned
-                      sizes="8rem"
+                      sizes="(min-width: 1440px) 210px, (min-width: 640px) 17vw, 33vw"
                     />
                     <p className="mt-2 truncate text-sm font-medium group-hover:underline">
                       {item.title}
@@ -188,60 +248,121 @@ export function MoodPicker() {
   // what stands here now is the shape of the selection about to land.
   if (loading) return <SelectionSkeleton label={t("common.loading")} />;
 
+  const options = (axis: string, values: readonly string[]) =>
+    values.map((value) => ({
+      value,
+      label: t(`picker.${axis}.${value}` as TranslationKey),
+      hint: t(`picker.${axis}.${value}.hint` as TranslationKey),
+    }));
+  const ready =
+    moods.length > 0 &&
+    visualStyles.length > 0 &&
+    format &&
+    (format === "movie" ? duration : format === "series" ? commitment : true);
+
   return (
     <div className="space-y-6">
       <Question
-        label={t("picker.mood")}
-        answered={mood !== null}
-        options={MOODS.map((value) => ({
-          value,
-          label: t(`picker.mood.${value}` as TranslationKey),
-        }))}
-        selected={mood}
-        onPick={(value) => setMood(value as Mood)}
+        label={t("picker.format")}
+        action={
+          <div className="ml-auto text-right">
+            <Button
+              variant="secondary"
+              onClick={() => void roll({ mode: "surprise" })}
+            >
+              {t("picker.surprise")}
+            </Button>
+          </div>
+        }
+        options={options("format", FORMATS)}
+        selected={format ? [format] : []}
+        showHint={false}
+        onPick={(value) => {
+          setFormat(value as Format);
+          setDuration(null);
+          setCommitment(null);
+        }}
       />
-
-      {mood ? (
+      {format ? (
         <Question
-          label={t("picker.anime")}
-          answered={anime !== null}
-          options={ANIME_STANCES.map((value) => ({
-            value,
-            label: t(`picker.anime.${value}` as TranslationKey),
-          }))}
-          selected={anime}
-          onPick={(value) => setAnime(value as AnimeStance)}
-        />
-      ) : null}
-
-      {mood && anime ? (
-        <Question
-          label={t("picker.format")}
-          answered={format !== null}
-          options={FORMATS.map((value) => ({
-            value,
-            label: t(`picker.format.${value}` as TranslationKey),
-          }))}
-          selected={format}
-          onPick={(value) => setFormat(value as Format)}
-        />
-      ) : null}
-
-      {mood && anime && format ? (
-        <Question
-          label={t("picker.duration")}
-          answered={duration !== null}
-          options={DURATIONS.map((value) => ({
-            value,
-            label: t(`picker.duration.${value}` as TranslationKey),
-          }))}
-          selected={duration}
-          onPick={(value) => {
-            const picked = value as Duration;
-            setDuration(picked);
-            void roll({ mood, anime, format, duration: picked });
+          label={t("picker.mood")}
+          note={t("picker.multipleChoices")}
+          options={options("mood", MOODS)}
+          selected={moods}
+          onPick={(raw) => {
+            const value = raw as Mood;
+            setMoods((current) =>
+              value === "any"
+                ? ["any"]
+                : current.includes(value)
+                  ? current.filter((item) => item !== value)
+                  : [...current.filter((item) => item !== "any"), value],
+            );
           }}
         />
+      ) : null}
+      {format && moods.length > 0 ? (
+        <Question
+          label={t("picker.visualStyle")}
+          note={t("picker.multipleChoices")}
+          options={options("visualStyle", VISUAL_STYLES)}
+          selected={visualStyles}
+          showHint={false}
+          onPick={(raw) => {
+            const value = raw as VisualStyle;
+            setVisualStyles((current) =>
+              current.includes(value)
+                ? current.filter((item) => item !== value)
+                : [...current, value],
+            );
+          }}
+        />
+      ) : null}
+      {format &&
+      moods.length > 0 &&
+      visualStyles.length > 0 &&
+      format === "movie" ? (
+        <Question
+          label={t("picker.duration")}
+          options={options("duration", DURATIONS)}
+          selected={duration ? [duration] : []}
+          showHint={false}
+          onPick={(value) => setDuration(value as Duration)}
+        />
+      ) : null}
+      {format &&
+      moods.length > 0 &&
+      visualStyles.length > 0 &&
+      format === "series" ? (
+        <Question
+          label={t("picker.commitment")}
+          options={options("commitment", COMMITMENTS)}
+          selected={commitment ? [commitment] : []}
+          showHint={false}
+          onPick={(value) => setCommitment(value as Commitment)}
+        />
+      ) : null}
+      {format ? (
+        <div className="flex flex-wrap gap-2">
+          {ready ? (
+            <Button
+              onClick={() =>
+                void roll({
+                  mood: moods,
+                  visualStyle: visualStyles,
+                  format,
+                  duration: duration ?? "any",
+                  commitment: commitment ?? "any",
+                })
+              }
+            >
+              {t("picker.submit")}
+            </Button>
+          ) : null}
+          <Button variant="ghost" onClick={restart}>
+            {t("picker.reset")}
+          </Button>
+        </div>
       ) : null}
     </div>
   );
@@ -249,33 +370,66 @@ export function MoodPicker() {
 
 function Question({
   label,
+  note,
   options,
   selected,
   onPick,
+  action,
+  showHint = true,
 }: {
   label: string;
-  answered: boolean;
-  options: { value: string; label: string }[];
-  selected: string | null;
+  note?: string;
+  action?: ReactNode;
+  options: { value: string; label: string; hint: string }[];
+  selected: string[];
   onPick: (value: string) => void;
+  showHint?: boolean;
 }) {
+  const hintId = useId();
   return (
     <fieldset className="umbra-fade">
-      <legend className="text-muted-foreground mb-3 text-sm">{label}</legend>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => (
-          <Button
-            key={option.value}
-            variant={selected === option.value ? "default" : "outline"}
-            // The ochre fill is the whole answer on screen, and it is not one a
-            // screen reader is told about unless the button says so.
-            aria-pressed={selected === option.value}
-            onClick={() => onPick(option.value)}
-            className="rounded-full"
-          >
-            {option.label}
-          </Button>
-        ))}
+      <legend className="text-muted-foreground mb-3 text-sm">
+        {label}
+        {note ? <span className="ml-1">({note})</span> : null}
+      </legend>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div>
+          <div className="flex flex-wrap gap-2">
+            {options.map((option) => (
+              <Button
+                key={option.value}
+                variant={
+                  selected.includes(option.value) ? "default" : "outline"
+                }
+                // The ochre fill is the whole answer on screen, and it is not one a
+                // screen reader is told about unless the button says so.
+                aria-pressed={selected.includes(option.value)}
+                aria-describedby={
+                  showHint && selected.includes(option.value)
+                    ? hintId
+                    : undefined
+                }
+                onClick={() => onPick(option.value)}
+                className="rounded-full"
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+          {showHint ? (
+            <p
+              id={hintId}
+              aria-live="polite"
+              className="text-muted-foreground mt-2 min-h-5 text-xs leading-5"
+            >
+              {options
+                .filter((option) => selected.includes(option.value))
+                .map((option) => option.hint)
+                .join(" ")}
+            </p>
+          ) : null}
+        </div>
+        {action}
       </div>
     </fieldset>
   );

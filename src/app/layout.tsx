@@ -59,6 +59,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
+  // The page runs under the notch and the home indicator, and the header and
+  // the tab bar pad themselves with the safe-area insets, so a phone that has
+  // them reads as an app rather than as a site in a letterbox.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
     { media: "(prefers-color-scheme: dark)", color: "#0b0d11" },
