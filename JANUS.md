@@ -40,6 +40,7 @@ So: no cache layer, no retry or backoff wrapper, no circuit breaker, no token st
 ## APIs this service may call
 
 - **Kisuflix**: `/gateway/kisuflix/…` (**JSON**)
+- **myanimelist v2**: `/gateway/myanimelist-v2/…`
 - **plex.tv**: `/gateway/plex-tv/…`
 - **plex.tv (owner)**: `/gateway/plex-tv-owner/…` (**JSON**)
 - **TMDB v3**: `/gateway/tmdb-v3/…`
@@ -60,13 +61,15 @@ sending `Accept: application/xml` returns the untouched original if you ever nee
 `Content-Type: application/problem+json` means Janus refused and its `detail` says why; any other
 media type means the API itself answered.
 
-    400  dot segment, // or encoded separator in the path
+    400  dot segment, // or encoded separator in the path; a GraphQL document Janus cannot read
+         (graphql_invalid) or one deeper than the API accepts (graphql_too_complex)
     401  headers missing, malformed, or wrong
-    403  not connected to that API, connection paused, or a path or method outside what it was given
+    403  not connected to that API, connection paused, or a path, method, GraphQL operation or root
+         field outside what it was given
     404  no API at that slug, or its record is disabled
-    405  a method the gateway does not forward
+    405  a method the gateway does not forward, or a GraphQL mutation sent as GET
     413  body over the limit
-    429  a quota was reached; honour Retry-After
+    429  a quota was reached, or too many open subscriptions (stream_limit); honour Retry-After
     502  the API failed, or its address is no longer permitted
 
 Log `X-Janus-Correlation-Id`, present on every response, beside your own errors. Also returned:

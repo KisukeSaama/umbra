@@ -18,6 +18,7 @@ import {
   randomAvailableByGenres,
   type RecentItem,
 } from "@/lib/domain/library";
+import { similarTitles } from "@/lib/domain/similar";
 import { HISTORY_LIMIT, topGenres, WINDOW_DAYS } from "@/lib/domain/taste";
 import {
   blend,
@@ -133,11 +134,7 @@ export const becauseYouAsked = cache(async function becauseYouAsked(
   // putting titles forward, so it is held to the same bar as the others.
   const items = await quietly(async () =>
     (
-      await tmdbProvider.recommendations(
-        seed.mediaType,
-        seed.providerId,
-        language,
-      )
+      await similarTitles(seed.mediaType, seed.providerId, language)
     ).filter((item) => worthSuggesting(item, RATING_FLOOR)),
   );
   return items.length > 0 ? { seed: seed.title, items } : null;
@@ -193,7 +190,7 @@ const personalAnswers = cache(async function personalAnswers(
     seeds.map(async (seed) => ({
       seed,
       items: await rows(() =>
-        tmdbProvider.recommendations(seed.kind, seed.providerId, language),
+        similarTitles(seed.kind, seed.providerId, language),
       ),
     })),
   );

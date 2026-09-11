@@ -42,6 +42,8 @@ const schema = z.object({
   JANUS_LIBRARY_SLUG: z.string().min(1).default("kisuflix"),
   /** Metadata provider slug. */
   JANUS_METADATA_SLUG: z.string().min(1).default("tmdb-v3"),
+  /** MyAnimeList slug, asked for member recommendations on anime only. */
+  JANUS_ANIME_SLUG: z.string().min(1).default("myanimelist-v2"),
   /** plex.tv slug, used by the PIN sign-in flow. */
   JANUS_PLEX_TV_SLUG: z.string().min(1).default("plex-tv"),
   /**

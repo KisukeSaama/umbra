@@ -32,9 +32,11 @@ One image, three containers:
 ## Before the first deployment
 
 1. **Register the APIs in Janus** and subscribe Umbra to them: `kisuflix`,
-   `tmdb-v3`, and `plex.tv` for sign-in. Without the last one, Plex sign-in is
+   `tmdb-v3`, `myanimelist-v2` (a MAL client id sent as the `X-MAL-CLIENT-ID`
+   header), and `plex.tv` for sign-in. Without the last one, Plex sign-in is
    refused by the gateway with a 404 or 403, which is expected rather than a
-   bug. See `JANUS.md`.
+   bug. Without MyAnimeList, anime fall back on TMDB's own recommendations. See
+   `JANUS.md`.
 2. **Set the CI/CD variables**, scoped per environment, production ones
    protected:
 
