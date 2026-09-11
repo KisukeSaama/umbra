@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { isUniqueViolation } from "@/lib/db/errors";
 import {
   accounts,
   CLOSED_REQUEST_STATUSES,
@@ -604,12 +605,15 @@ export async function countRequests(
  * a word explaining that something is being looked for has nothing left to say
  * once it is there. That is also the only free text in the product, and it
  * goes one way, from the administration to the person who asked.
+ *
+ * Reopening a refusal erases it too: the word that came with the refusal
+ * explained it, and would contradict a request back in the queue.
  */
 export function noteFor(
   status: RequestStatus,
   adminNote?: string | null,
 ): string | null | undefined {
-  if (status === "available") return null;
+  if (status === "available" || status === "requested") return null;
   if (adminNote === undefined) return undefined;
   return adminNote?.trim() || null;
 }
@@ -663,17 +667,17 @@ export function canCarryNote(status: RequestStatus): boolean {
 /**
  * Where a request may go from where it is.
  *
- * The lifecycle in `docs/product.md` only ever moves forward, and it used to be
- * a drawing rather than a rule: any status was accepted from any status. Two of
- * those moves did real damage. `available` back to `requested` handed a title
- * that is on the server back to the queue and told the member about a step they
- * had already been told about; `rejected` back to a live status collided with
- * the partial unique index that carries "one live request per title", which
- * answered the administrator with a server error.
+ * The lifecycle in `docs/product.md` moves forward, and it used to be a drawing
+ * rather than a rule: any status was accepted from any status. `available`
+ * back to `requested` handed a title that is on the server back to the queue
+ * and told the member about a step they had already been told about.
  *
- * Refusing something declined is not a dead end for the member: a rejected
- * request leaves the title askable, so what happens next is a new request
- * rather than a resurrection of the old one.
+ * The one step back is reopening a refusal, for an administrator who changes
+ * their mind. It lands on `requested`, so the decision is made again from the
+ * queue rather than skipped. A rejected request leaves the title askable,
+ * though, so a member may have asked again in the meantime: the partial unique
+ * index that carries "one live request per title" then refuses the reopening,
+ * and `updateRequestStatus` answers with a conflict rather than a server error.
  *
  * `available` is not a move anyone makes. It says the title is on the server,
  * which is the one status search reads as "stop offering this ask", so it is
@@ -690,7 +694,7 @@ const TRANSITIONS = {
   requested: ["accepted", "rejected"],
   accepted: ["rejected"],
   available: [],
-  rejected: [],
+  rejected: ["requested"],
   removed: [],
 } satisfies Record<RequestStatus, RequestStatus[]>;
 
@@ -757,6 +761,13 @@ export async function updateRequestStatus(
       mediaId: mediaRequests.mediaId,
       status: mediaRequests.status,
       adminNote: mediaRequests.adminNote,
+    })
+    // Only a reopening can meet the index: the title was asked for again after
+    // the refusal, and that newer request is the one to work.
+    .catch((error: unknown) => {
+      if (isUniqueViolation(error))
+        throw new ConflictError("error.requestReopenTaken");
+      throw error;
     });
 
   if (!updated) throw new ConflictError("error.illegalTransition");

@@ -29,6 +29,11 @@ describe("the note left on a request", () => {
     expect(noteFor("available", undefined)).toBeNull();
   });
 
+  it("erases the word of a refusal when the request is reopened", () => {
+    expect(noteFor("requested", undefined)).toBeNull();
+    expect(noteFor("requested", "not this one")).toBeNull();
+  });
+
   it("stays writable for as long as it is shown", () => {
     expect(canCarryNote("requested")).toBe(true);
     expect(canCarryNote("accepted")).toBe(true);

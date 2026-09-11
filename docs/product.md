@@ -156,7 +156,8 @@ resolve stays unlinked and is looked at again a week later. See
 
 ```
 requested -> accepted -> available -> removed
-          \-> rejected
+          \-> rejected           (accepted -> rejected: cancelled)
+                                 (rejected -> requested: reopened)
 ```
 
 - **requested**: waiting for the administrator.
@@ -167,9 +168,13 @@ requested -> accepted -> available -> removed
   it finds the title. This is the one step search reads as "stop offering
   this", so declaring it before the index holds the title would close the
   request and hand the title back to the next member to ask for.
-- **rejected**: declined. The title can be requested again later, as a new
-  request rather than a revival of the old one: the lifecycle only moves
-  forward, and a step it does not allow is refused rather than written.
+- **rejected**: declined, straight from the queue or by cancelling an accepted
+  request, with an optional word for the member either way. The title can be
+  requested again later, as a new request. The administration may also change
+  its mind and reopen it, which is the one step back the lifecycle allows: it
+  lands on requested, erases the word of the refusal and tells the member. If
+  the title was asked for again in the meantime, reopening is refused and the
+  newer request is the one to work.
 - **removed**: the title reached the server and was deleted from it since,
   usually to free space when nobody watches it. Never set by hand either: the
   library sync sets it when the index no longer holds the title. Like a refusal,
