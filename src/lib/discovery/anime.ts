@@ -107,6 +107,22 @@ export function withMalScore<T extends MediaSummary>(
 }
 
 /**
+ * The MAL score a resolved title can take from the entry that led to it,
+ * without asking MAL again, or nothing.
+ *
+ * Only when that entry is the title itself, same format and year. A sequel
+ * that ranked lands on the whole show, and its own score is not the show's,
+ * so that case answers nothing and the caller looks the show up instead.
+ */
+export function scoreFromSource<T extends MediaSummary>(
+  row: T,
+  source: AnimeRef | null | undefined,
+): T | null {
+  if (!source || source.score === null) return null;
+  return matchAnime(row, [source]) ? withMalScore(row, source) : null;
+}
+
+/**
  * A picker query that asks for anime: drawn, and in Japanese. Only those are
  * answered from MAL's ranking; every other listing stays with TMDB.
  */

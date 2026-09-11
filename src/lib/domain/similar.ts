@@ -7,11 +7,12 @@ import {
   matchAnime,
   mergeSimilar,
   pickTmdbMatch,
+  scoreFromSource,
   searchableTitle,
   withMalScore,
 } from "@/lib/discovery/anime";
 import type { MediaKind, MediaSummary } from "@/lib/providers/metadata";
-import { myAnimeList } from "@/lib/providers/myanimelist";
+import { type AnimeRef, myAnimeList } from "@/lib/providers/myanimelist";
 import { tmdbProvider } from "@/lib/providers/tmdb";
 
 /**
@@ -83,20 +84,37 @@ async function animeRecommendations(
  * entry that led to it: TMDB folds every season of a show into one title, so
  * a sequel recommended or ranked on MAL lands on the whole show, and its own
  * score is not the show's.
+ *
+ * `sources`, index for index with `rows`, are the MAL entries that led to each
+ * row when the caller has them scored already, as a ranking page does. An
+ * entry that is the title itself gives its score at no cost; only the others
+ * are looked up. Asking MAL twice for every ranked title was thirty searches a
+ * roll, most of them refused by the gateway's quota.
  */
 export async function scoredAnime(
   rows: (MediaSummary | null)[],
   excluded: Set<string> = new Set(),
+  sources: (AnimeRef | null)[] = [],
 ): Promise<MediaSummary[]> {
-  const seen = new Set(excluded);
-  const unique = rows.filter((row): row is MediaSummary => {
-    if (!row) return false;
+  const unique = new Map<
+    string,
+    { row: MediaSummary; scored: MediaSummary | null }
+  >();
+  rows.forEach((row, index) => {
+    if (!row) return;
     const key = `${row.kind}:${row.providerId}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+    if (excluded.has(key)) return;
+    const scored = scoreFromSource(row, sources[index]);
+    const kept = unique.get(key);
+    // The same show reached twice keeps the arrival that is the show itself,
+    // since that one carries its score.
+    if (!kept || (!kept.scored && scored)) unique.set(key, { row, scored });
   });
-  return Promise.all(unique.map(withAnimeScore));
+  return Promise.all(
+    [...unique.values()].map(
+      ({ row, scored }) => scored ?? withAnimeScore(row),
+    ),
+  );
 }
 
 /**

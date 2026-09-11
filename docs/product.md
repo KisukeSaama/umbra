@@ -332,17 +332,29 @@ from elsewhere. Selected genres reveal a short explanation below their buttons;
 the other answers stand on their labels alone. Films then
 ask for under two hours or unrestricted length; series ask for a finished single
 season of up to ten episodes, multiple seasons, or any commitment. Choosing
-either format skips this final constraint. A separate button submits the answers,
+either format skips this final constraint. Two more questions stand answered
+"any" from the start, so they cost nothing to whoever has no opinion: an era
+(before 1980, 1980 to 2009, since 2010), read on the year of first release, and
+an original language (French, or anything but English), which is not asked when
+the answer was anime alone since anime already says where it was made. A
+separate button submits the answers,
 so the final explanation remains readable before results replace the questions.
 
 The selection has two halves: titles on the server and titles worth requesting.
 Both start from the personal ranking and are completed by matching listings.
 Runtime and series commitment are checked against provider details in both halves;
-unknown details never qualify for a constraint. TV horror and romance use provider
+unknown details never qualify for a constraint. The original language and a
+film's runtime are stored on the index by the pass that fetches posters, and a
+provider listing already filters what it was asked, so a detail is only asked
+for when neither knows it, or for the seasons of a series: one call per
+candidate ran the picker into the gateway's quota, and every refused title
+fell out of the selection. TV horror and romance use provider
 keywords because TV does not have those genre categories.
 
 Every suggested card opens its Umbra title page. When the title is already on
-the server, that page offers the direct Plex link opposite the way back.
+the server, that page offers the direct Plex link opposite the way back. A film
+that belongs to a saga carries the whole saga as a shelf, in release order and
+itself included, so a missing part is seen beside the ones that are here.
 
 "Surprise me" bypasses the questions, using familiar genres from the taste profile
 and the existing personal ranking. Without a profile, the fallback is a varied

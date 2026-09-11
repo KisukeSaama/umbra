@@ -8,10 +8,17 @@ import { ShelfSkeleton } from "@/components/skeletons";
 import { TitleDock } from "@/components/title-dock";
 import { TitleView } from "@/components/title-view";
 import { currentAccount, requireMemberPage } from "@/lib/auth/session";
-import { decorate, titleDetail, titlePlexLinks } from "@/lib/domain/catalog";
+import {
+  type CatalogResult,
+  decorate,
+  titleDetail,
+  titlePlexLinks,
+} from "@/lib/domain/catalog";
+import { sagaShelf } from "@/lib/domain/collections";
 import { moreFrom, titleCrew, type PersonCard } from "@/lib/domain/people";
 import { similarTitles } from "@/lib/domain/similar";
 import { getI18n } from "@/lib/i18n/server";
+import type { CollectionRef } from "@/lib/providers/metadata";
 
 /**
  * The tab carries the title, which is the one page here with a name of its own
@@ -47,9 +54,9 @@ export async function generateMetadata({
  * the way back, the way to Plex and the way up.
  *
  * The credits are asked for alongside the title, so the byline and the cast
- * cost no extra wait. The other work of whoever signs it and the similar
- * titles are further questions, asked once those are answered, so they stream
- * in under the title rather than holding it back.
+ * cost no extra wait. The saga, the other work of whoever signs it and the
+ * similar titles are further questions, asked once those are answered, so they
+ * stream in under the title rather than holding it back.
  */
 export default async function TitlePage({
   params,
@@ -73,17 +80,68 @@ export default async function TitlePage({
       <div className="space-y-10 sm:space-y-12">
         <TitleView detail={detail} leads={crew.leads} accountId={account.id} />
         <CastRail cast={crew.cast} />
+        {detail.collection ? (
+          <Suspense fallback={<ShelfSkeleton />}>
+            <Saga collection={detail.collection} locale={locale} />
+          </Suspense>
+        ) : null}
         {signer ? (
           <Suspense fallback={<ShelfSkeleton />}>
-            <MoreFrom person={signer} kind={kind} id={id} locale={locale} />
+            <MoreFrom
+              person={signer}
+              kind={kind}
+              id={id}
+              locale={locale}
+              collection={detail.collection}
+            />
           </Suspense>
         ) : null}
         <Suspense fallback={<ShelfSkeleton />}>
-          <Similar kind={kind} id={id} locale={locale} />
+          <Similar
+            kind={kind}
+            id={id}
+            locale={locale}
+            collection={detail.collection}
+          />
         </Suspense>
       </div>
     </div>
   );
+}
+
+/**
+ * The whole saga, so a missing part is seen beside the ones that are here
+ * rather than found out one search at a time. Named as the provider names it.
+ */
+async function Saga({
+  collection,
+  locale,
+}: {
+  collection: CollectionRef;
+  locale: string;
+}) {
+  return (
+    <Shelf
+      title={collection.name}
+      items={await sagaShelf(collection.collectionId, locale)}
+    />
+  );
+}
+
+/**
+ * The saga has a shelf of its own, so the shelves under it leave its parts
+ * out: two rails opening on the same two sequels read as one list printed
+ * twice. `sagaShelf` is memoised per request, so asking again costs nothing.
+ */
+async function withoutSaga(
+  items: CatalogResult[],
+  collection: CollectionRef | null | undefined,
+  locale: string,
+): Promise<CatalogResult[]> {
+  if (!collection) return items;
+  const saga = await sagaShelf(collection.collectionId, locale);
+  const parts = new Set(saga.map((item) => `${item.kind}:${item.providerId}`));
+  return items.filter((item) => !parts.has(`${item.kind}:${item.providerId}`));
 }
 
 async function MoreFrom({
@@ -91,11 +149,13 @@ async function MoreFrom({
   kind,
   id,
   locale,
+  collection,
 }: {
   person: PersonCard;
   kind: "movie" | "tv";
   id: string;
   locale: string;
+  collection?: CollectionRef | null;
 }) {
   const { t } = await getI18n();
   const titles = await moreFrom(
@@ -108,7 +168,7 @@ async function MoreFrom({
     <Shelf
       title={t("title.moreFrom", { name: person.name })}
       href={`/person/${person.personId}`}
-      items={titles}
+      items={await withoutSaga(titles, collection, locale)}
     />
   );
 }
@@ -117,15 +177,22 @@ async function Similar({
   kind,
   id,
   locale,
+  collection,
 }: {
   kind: "movie" | "tv";
   id: string;
   locale: string;
+  collection?: CollectionRef | null;
 }) {
   const { t } = await getI18n();
   const similar = await similarTitles(kind, id, locale)
     .then(decorate)
     .catch(() => []);
 
-  return <Shelf title={t("title.similar")} items={similar} />;
+  return (
+    <Shelf
+      title={t("title.similar")}
+      items={await withoutSaga(similar, collection, locale)}
+    />
+  );
 }

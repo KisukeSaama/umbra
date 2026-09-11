@@ -17,10 +17,14 @@ import {
   type VisualStyle,
   DURATIONS,
   type Duration,
+  ERAS,
+  type Era,
   FORMATS,
   type Format,
   type Mood,
   MOODS,
+  ORIGINS,
+  type Origin,
 } from "@/lib/discovery/moods";
 import type { CatalogResult } from "@/lib/domain/catalog";
 import { translateError, type TranslationKey } from "@/lib/i18n";
@@ -69,6 +73,11 @@ export function MoodPicker() {
   const [format, setFormat] = useState<Format | null>(null);
   const [duration, setDuration] = useState<Duration | null>(null);
   const [commitment, setCommitment] = useState<Commitment | null>(null);
+  // Both start answered: most evenings have no opinion on either, and a
+  // question that must be answered to go on would make the picker longer for
+  // everyone to serve the few who do.
+  const [era, setEra] = useState<Era>("any");
+  const [origin, setOrigin] = useState<Origin>("any");
   const [lastRequest, setLastRequest] = useState<RollRequest | null>(null);
   const skipped = useRef(new Set<string>());
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -140,6 +149,8 @@ export function MoodPicker() {
     setFormat(null);
     setDuration(null);
     setCommitment(null);
+    setEra("any");
+    setOrigin("any");
     setLastRequest(null);
     setSelection(null);
   }
@@ -171,9 +182,19 @@ export function MoodPicker() {
             </Button>
           </div>
         </div>
-        <p className="text-muted-foreground text-sm">
-          {t("picker.resultHint")}
-        </p>
+        {/* The hint describes the two halves, so it follows what came back: it
+            used to promise titles on Kisuflix above a selection that had none. */}
+        {selection.tonight.length > 0 || selection.ideas.length > 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {t(
+              selection.tonight.length === 0
+                ? "picker.resultHint.noneHere"
+                : selection.ideas.length === 0
+                  ? "picker.resultHint.allHere"
+                  : "picker.resultHint",
+            )}
+          </p>
+        ) : null}
 
         {selection.tonight.length > 0 ? (
           <section>
@@ -254,6 +275,8 @@ export function MoodPicker() {
       label: t(`picker.${axis}.${value}` as TranslationKey),
       hint: t(`picker.${axis}.${value}.hint` as TranslationKey),
     }));
+  // An anime already says where it was made, so the language is not asked.
+  const animeOnly = visualStyles.length === 1 && visualStyles[0] === "anime";
   const ready =
     moods.length > 0 &&
     visualStyles.length > 0 &&
@@ -326,6 +349,24 @@ export function MoodPicker() {
           }}
         />
       ) : null}
+      {format && moods.length > 0 && visualStyles.length > 0 ? (
+        <Question
+          label={t("picker.era")}
+          options={options("era", ERAS)}
+          selected={[era]}
+          showHint={false}
+          onPick={(value) => setEra(value as Era)}
+        />
+      ) : null}
+      {format && moods.length > 0 && visualStyles.length > 0 && !animeOnly ? (
+        <Question
+          label={t("picker.origin")}
+          options={options("origin", ORIGINS)}
+          selected={[origin]}
+          showHint={false}
+          onPick={(value) => setOrigin(value as Origin)}
+        />
+      ) : null}
       {format &&
       moods.length > 0 &&
       visualStyles.length > 0 &&
@@ -361,6 +402,8 @@ export function MoodPicker() {
                   format,
                   duration: duration ?? "any",
                   commitment: commitment ?? "any",
+                  era,
+                  origin: animeOnly ? "any" : origin,
                 })
               }
             >

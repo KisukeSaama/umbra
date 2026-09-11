@@ -2,6 +2,7 @@ import "server-only";
 
 import { fitsMalGenres, malGenreFilter } from "@/lib/discovery/anime";
 import { worthSuggesting } from "@/lib/discovery/blend";
+import { releasedWithin } from "@/lib/discovery/moods";
 import { scoredAnime, tmdbTitleOf } from "@/lib/domain/similar";
 import type { DiscoverQuery, MediaSummary } from "@/lib/providers/metadata";
 import { myAnimeList, RANKING_PAGE } from "@/lib/providers/myanimelist";
@@ -34,8 +35,13 @@ export async function animeListing(
   const filter = malGenreFilter(query);
   const page = Math.floor(Math.random() * RANKING_PAGES);
   const ranked = await myAnimeList.ranking(query.kind, page * RANKING_PAGE);
+  // The era is read on MAL's start date before anything is looked up: a
+  // search spent on a title the era then throws out is a search for nothing.
   const candidates = shuffle(
-    ranked.filter((anime) => fitsMalGenres(anime, filter)),
+    ranked.filter(
+      (anime) =>
+        fitsMalGenres(anime, filter) && releasedWithin(anime.startDate, query),
+    ),
   ).slice(0, RESOLVED);
 
   const found = await Promise.all(
@@ -49,8 +55,10 @@ export async function animeListing(
   // of the show rather than of the season that ranked. The quality floor then
   // reads the number the card will show.
   const floor = query.voteAverageGte ?? RATING_FLOOR;
-  return (await scoredAnime(found, excluded)).filter((row) =>
-    worthSuggesting(row, floor),
+  // The ranking knows no era, so the one asked for is applied on the way out.
+  return (await scoredAnime(found, excluded, candidates)).filter(
+    (row) =>
+      worthSuggesting(row, floor) && releasedWithin(row.releaseDate, query),
   );
 }
 

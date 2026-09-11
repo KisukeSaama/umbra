@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { inReleaseOrder } from "@/lib/providers/metadata";
 import {
   castFromJson,
+  collectionRefFromJson,
   discoverParams,
   episodeFromJson,
   numericId,
@@ -10,6 +12,82 @@ import {
   summaryFromJsonWithKind,
   titleCreditsFromJson,
 } from "@/lib/providers/tmdb";
+
+describe("tmdb eras and sagas", () => {
+  it("spells an era on the date field of each kind", () => {
+    expect(
+      discoverParams({ kind: "movie", releasedFrom: 1980, releasedTo: 2009 }),
+    ).toMatchObject({
+      "primary_release_date.gte": "1980-01-01",
+      "primary_release_date.lte": "2009-12-31",
+    });
+    const show = discoverParams({ kind: "tv", releasedTo: 1979 });
+    expect(show["first_air_date.lte"]).toBe("1979-12-31");
+    expect(show["first_air_date.gte"]).toBeUndefined();
+  });
+
+  it("sends the genres a title must carry whenever a comma can say it", () => {
+    expect(
+      discoverParams({ kind: "movie", requireGenreIds: [16] }).with_genres,
+    ).toBe("16");
+    expect(
+      discoverParams({ kind: "movie", requireGenreIds: [16], genreIds: [35] })
+        .with_genres,
+    ).toBe("16,35");
+    // Two moods are a union, which a comma would turn into an intersection:
+    // that case stays a pipe and is filtered on the rows.
+    expect(
+      discoverParams({
+        kind: "tv",
+        requireGenreIds: [16],
+        genreIds: [9648, 80],
+      }).with_genres,
+    ).toBe("9648|80");
+  });
+
+  it("never lets an unknown runtime answer a ceiling", () => {
+    expect(discoverParams({ kind: "movie", runtimeLte: 119 })).toMatchObject({
+      "with_runtime.lte": 119,
+      "with_runtime.gte": 1,
+    });
+    expect(
+      discoverParams({ kind: "tv", runtimeLte: 119 })["with_runtime.gte"],
+    ).toBeUndefined();
+  });
+
+  it("reads the saga a film belongs to, and only from details", () => {
+    const film = summaryFromJsonWithKind(
+      {
+        id: 120,
+        title: "The Fellowship of the Ring",
+        belongs_to_collection: { id: 119, name: "The Lord of the Rings" },
+      },
+      "movie",
+    );
+    expect(film?.collection).toEqual({
+      collectionId: "119",
+      name: "The Lord of the Rings",
+    });
+    const alone = summaryFromJsonWithKind(
+      { id: 1, title: "Alone", belongs_to_collection: null },
+      "movie",
+    );
+    expect(alone?.collection).toBeNull();
+    const row = summaryFromJsonWithKind({ id: 1, title: "Row" }, "movie");
+    expect(row && "collection" in row).toBe(false);
+    expect(collectionRefFromJson({ id: 5 })).toBeNull();
+  });
+
+  it("orders a saga by release and leaves the announced part last", () => {
+    expect(
+      inReleaseOrder([
+        { releaseDate: null },
+        { releaseDate: "2003-12-17" },
+        { releaseDate: "2001-12-19" },
+      ]).map((part) => part.releaseDate),
+    ).toEqual(["2001-12-19", "2003-12-17", null]);
+  });
+});
 
 describe("tmdb credits", () => {
   it("reads a voice role and takes the marker out of the name", () => {

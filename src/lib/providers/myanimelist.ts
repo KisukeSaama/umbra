@@ -73,17 +73,17 @@ export const myAnimeList = {
     return animeRefsFromJson(body);
   },
 
-
   /**
    * One page of MAL's ranking by score, shows or films. Its genres come along,
-   * so a mood can be applied before anything is looked up on TMDB.
+   * so a mood can be applied before anything is looked up on TMDB, and so does
+   * the score, so a ranked title needs no second call to be scored.
    */
   async ranking(kind: MediaKind, offset: number): Promise<AnimeRef[]> {
     const body = await get("/anime/ranking", {
       ranking_type: kind === "movie" ? "movie" : "tv",
       limit: RANKING_PAGE,
       offset: Math.max(0, Math.trunc(offset)),
-      fields: "genres,media_type,start_date",
+      fields: `genres,media_type,start_date,${SCORE_FIELDS}`,
     });
     return animeRefsFromJson(body);
   },

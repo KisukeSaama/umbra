@@ -16,6 +16,8 @@ import {
   MOODS,
   SHORT_RUNTIME_MINUTES,
   matchesCommitment,
+  matchesQuery,
+  releasedWithin,
 } from "@/lib/discovery/moods";
 
 /**
@@ -208,6 +210,74 @@ describe("mood mapping", () => {
       duration: "any",
     });
     expect(queries.map((query) => query.kind)).toEqual(["movie", "tv"]);
+  });
+
+  it("turns an era into years of first release", () => {
+    const [classic] = discoverQueriesFor({
+      moods: ["drama"],
+      visualStyles: [...VISUAL_STYLES],
+      format: "movie",
+      duration: "any",
+      era: "classic",
+    });
+    expect(classic).toMatchObject({ releasedTo: 1979 });
+    expect(classic.releasedFrom).toBeUndefined();
+
+    const [open] = discoverQueriesFor({
+      moods: ["drama"],
+      visualStyles: [...VISUAL_STYLES],
+      format: "movie",
+      duration: "any",
+    });
+    expect(open.releasedFrom).toBeUndefined();
+    expect(open.releasedTo).toBeUndefined();
+  });
+
+  it("reads an era against a release date, and refuses an unknown one", () => {
+    const modern = { releasedFrom: 1980, releasedTo: 2009 };
+    expect(releasedWithin("1980-01-01", modern)).toBe(true);
+    expect(releasedWithin("2009-12-31", modern)).toBe(true);
+    expect(releasedWithin("1979-12-31", modern)).toBe(false);
+    expect(releasedWithin(null, modern)).toBe(false);
+    expect(releasedWithin(null, {})).toBe(true);
+    expect(
+      matchesQuery(
+        { kind: "movie", genreIds: [18], releaseDate: "1954-04-26" },
+        { kind: "movie", genreIds: [18], releasedFrom: 2010 },
+      ),
+    ).toBe(false);
+  });
+
+  it("asks for a French original or anything but English", () => {
+    const [french] = discoverQueriesFor({
+      moods: ["drama"],
+      visualStyles: ["live"],
+      format: "movie",
+      duration: "any",
+      origin: "french",
+    });
+    expect(french.originalLanguage).toBe("fr");
+
+    const [world] = discoverQueriesFor({
+      moods: ["drama"],
+      visualStyles: ["cartoon"],
+      format: "movie",
+      duration: "any",
+      origin: "world",
+    });
+    expect(world.excludeOriginalLanguages).toEqual(["ja", "en"]);
+  });
+
+  it("lets anime keep its own origin whatever language was asked", () => {
+    const [anime] = discoverQueriesFor({
+      moods: ["drama"],
+      visualStyles: ["anime"],
+      format: "movie",
+      duration: "any",
+      origin: "french",
+    });
+    expect(anime.originalLanguage).toBe("ja");
+    expect(anime.excludeOriginalLanguages).toBeUndefined();
   });
 
   it("refuses anything outside the closed sets", () => {

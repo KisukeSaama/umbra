@@ -8,6 +8,7 @@ import {
   matchAnime,
   mergeSimilar,
   pickTmdbMatch,
+  scoreFromSource,
   searchableTitle,
   withMalScore,
 } from "@/lib/discovery/anime";
@@ -83,6 +84,39 @@ describe("MAL scores", () => {
     const row = title("1", { voteAverage: 8.1, voteCount: 900 });
     expect(withMalScore(row, { score: null, scoringUsers: 0 })).toBe(row);
     expect(withMalScore(row, null)).toBe(row);
+  });
+
+  it("scores a ranked title from its own entry, with no second call", () => {
+    const ranked = {
+      ...entry(5114, "tv", "2009-04-05"),
+      score: 9.1,
+      scoringUsers: 2000000,
+    };
+    const scored = scoreFromSource(
+      title("31911", { releaseDate: "2009-04-05" }),
+      ranked,
+    );
+    expect(scored?.voteAverage).toBe(9.1);
+    expect(scored?.scoreSource).toBe("myanimelist");
+  });
+
+  it("does not hand a sequel's score to the whole show", () => {
+    // Gintama's fourth season ranks on MAL and lands on the show TMDB files
+    // from 2006: its score is the season's, so the show is looked up instead.
+    const sequel = {
+      ...entry(28977, "tv", "2015-04-08"),
+      score: 9.0,
+      scoringUsers: 200000,
+    };
+    expect(
+      scoreFromSource(title("57911", { releaseDate: "2006-04-04" }), sequel),
+    ).toBeNull();
+  });
+
+  it("says nothing without a scored entry", () => {
+    const row = title("1", { releaseDate: "2009-04-05" });
+    expect(scoreFromSource(row, entry(1, "tv", "2009-04-05"))).toBeNull();
+    expect(scoreFromSource(row, null)).toBeNull();
   });
 
   it("reads a score only within the scale", () => {

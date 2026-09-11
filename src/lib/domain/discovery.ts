@@ -15,6 +15,7 @@ import {
 import { type CatalogResult, decorate } from "@/lib/domain/catalog";
 import {
   availableByProviderIds,
+  type IndexFilters,
   randomAvailableByGenres,
   type RecentItem,
 } from "@/lib/domain/library";
@@ -384,6 +385,13 @@ export async function guidedSelection(
       const excludedIds = [...excluded]
         .filter((key) => key.startsWith(`${query.kind}:`))
         .map((key) => key.slice(key.indexOf(":") + 1));
+      const indexFilters: IndexFilters = {
+        releasedFrom: query.releasedFrom,
+        releasedTo: query.releasedTo,
+        originalLanguage: query.originalLanguage,
+        excludeOriginalLanguages: query.excludeOriginalLanguages,
+        runtimeLte: query.kind === "movie" ? query.runtimeLte : undefined,
+      };
       const [onServer, random, reusableRandom, rolled, fitting] =
         await Promise.all([
           availableByProviderIds(
@@ -399,6 +407,7 @@ export async function guidedSelection(
                 query.excludeGenreIds ?? [],
                 query.requireGenreIds ?? [],
                 excludedIds,
+                indexFilters,
               ),
           query.keyword || excludedIds.length === 0
             ? Promise.resolve([])
@@ -408,6 +417,8 @@ export async function guidedSelection(
                 12,
                 query.excludeGenreIds ?? [],
                 query.requireGenreIds ?? [],
+                [],
+                indexFilters,
               ),
           rolledPage(query, language, excluded),
           quietly(async () => fits),
@@ -415,32 +426,89 @@ export async function guidedSelection(
 
       // Details are checked before either half is cut down to its display size.
       const commitment = choice.commitment ?? "any";
-      const needsDetails =
-        query.runtimeLte !== undefined ||
+      const asksLanguage =
         query.originalLanguage !== undefined ||
-        Boolean(query.excludeOriginalLanguages?.length) ||
-        (query.kind === "tv" && commitment !== "any");
+        Boolean(query.excludeOriginalLanguages?.length);
+      const asksRuntime =
+        query.kind === "movie" && query.runtimeLte !== undefined;
+      const asksSeasons = query.kind === "tv" && commitment !== "any";
+      // An empty language is the provider not saying, and an unknown detail
+      // never answers a question that was asked.
       const matchesLanguage = (
         item: { originalLanguage?: string | null } | undefined,
-      ) =>
-        (!query.originalLanguage ||
-          item?.originalLanguage === query.originalLanguage) &&
-        !query.excludeOriginalLanguages?.includes(item?.originalLanguage ?? "");
+      ) => {
+        const spoken = item?.originalLanguage || null;
+        if (!spoken) return !asksLanguage;
+        return (
+          (!query.originalLanguage || spoken === query.originalLanguage) &&
+          !query.excludeOriginalLanguages?.includes(spoken)
+        );
+      };
+      const fitsRuntime = (runtime: number | null | undefined) =>
+        !asksRuntime ||
+        (typeof runtime === "number" &&
+          runtime > 0 &&
+          runtime <= (query.runtimeLte ?? Number.POSITIVE_INFINITY));
+
+      /*
+       * What is already known about a title answers without a call.
+       *
+       * Every details call counts against the quota the gateway keeps for the
+       * provider, and a selection used to spend one per candidate: a burst of
+       * them was refused mid-selection, each refused title fell out, and a half
+       * came back with two cards. So the index answers for what the server
+       * holds, the provider's own listing answers for what it filtered itself,
+       * and a call is only made for what neither of them knows, or for the
+       * seasons of a series, which nothing else carries.
+       */
+      type Known = { language: boolean | null; runtime: boolean | null };
+      const fromIndex = (item: RecentItem): Known => ({
+        language: !asksLanguage
+          ? true
+          : item.originalLanguage == null
+            ? null
+            : matchesLanguage(item),
+        runtime: !asksRuntime
+          ? true
+          : item.runtime == null
+            ? null
+            : fitsRuntime(item.runtime),
+      });
       const eligible = async <T extends { providerId: string | null }>(
         items: T[],
+        known: (item: T) => Known,
       ): Promise<T[]> => {
-        if (!needsDetails) return items;
-        const accepted: T[] = [];
+        const verdicts = new Map<T, boolean>();
+        const unknown: T[] = [];
+        for (const item of items) {
+          const facts = known(item);
+          if (
+            !item.providerId ||
+            facts.language === false ||
+            facts.runtime === false
+          )
+            verdicts.set(item, false);
+          else if (
+            asksSeasons ||
+            facts.language === null ||
+            facts.runtime === null
+          )
+            unknown.push(item);
+          else verdicts.set(item, true);
+        }
         // Bound work and concurrency; Janus owns response caching and retries.
-        for (let offset = 0; offset < Math.min(items.length, 24); offset += 4) {
-          const batch = items.slice(offset, offset + 4);
+        for (
+          let offset = 0;
+          offset < Math.min(unknown.length, 24);
+          offset += 4
+        ) {
+          const batch = unknown.slice(offset, offset + 4);
           const checks = await Promise.all(
             batch.map(async (item) => {
-              if (!item.providerId) return false;
               try {
                 if (query.kind === "tv") {
                   const details = await tmdbProvider.seriesDetails(
-                    item.providerId,
+                    item.providerId!,
                     language,
                   );
                   return (
@@ -450,29 +518,29 @@ export async function guidedSelection(
                 }
                 const details = await tmdbProvider.details(
                   "movie",
-                  item.providerId,
+                  item.providerId!,
                   language,
                 );
-                return (
-                  matchesLanguage(details) &&
-                  (query.runtimeLte === undefined ||
-                    (typeof details.runtime === "number" &&
-                      details.runtime > 0 &&
-                      details.runtime <= query.runtimeLte))
-                );
+                return matchesLanguage(details) && fitsRuntime(details.runtime);
               } catch (error) {
                 console.warn("[discovery] picker details unavailable", error);
                 return false;
               }
             }),
           );
-          accepted.push(...batch.filter((_, index) => checks[index]));
+          batch.forEach((item, index) => verdicts.set(item, checks[index]));
         }
-        return accepted;
+        return items.filter((item) => verdicts.get(item) === true);
       };
       const listedOnServer = await availableByProviderIds(
         query.kind,
-        rolled.map((item) => item.providerId),
+        rolled.items.map((item) => item.providerId),
+      );
+      // The ideas were all held to the language already: the personal ranking
+      // by `matchesQuery`, the listings by the provider or by being anime. The
+      // runtime is only vouched for by a listing the provider filtered.
+      const filtered = new Set(
+        rolled.filtered ? rolled.items.map((item) => item.providerId) : [],
       );
       const [eligibleServer, eligibleReusable, eligibleIdeas] =
         await Promise.all([
@@ -481,10 +549,15 @@ export async function guidedSelection(
               [...onServer, ...listedOnServer, ...random],
               (item) => item.ratingKey,
             ),
+            fromIndex,
           ),
-          eligible(reusableRandom),
+          eligible(reusableRandom, fromIndex),
           eligible(
-            uniqueBy([...fitting, ...rolled], (item) => item.providerId),
+            uniqueBy([...fitting, ...rolled.items], (item) => item.providerId),
+            (item) => ({
+              language: true,
+              runtime: !asksRuntime || filtered.has(item.providerId) || null,
+            }),
           ),
         ]);
       const unseenServer = eligibleServer.filter(
@@ -583,14 +656,18 @@ function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
  *
  * A narrow mood has few pages, and asking past the last one returns nothing at
  * all: rather than hand back an empty picker, the first page answers instead.
+ *
+ * `filtered` says the provider applied the query itself, runtime included, so
+ * its rows need no second look. MAL's ranking knows no runtime.
  */
 async function rolledPage(
   query: DiscoverQuery,
   language?: string,
   excluded = new Set<string>(),
-): Promise<CatalogResult[]> {
+): Promise<{ items: CatalogResult[]; filtered: boolean }> {
   const unseen = (items: CatalogResult[]) =>
     items.filter((item) => !excluded.has(`${item.kind}:${item.providerId}`));
+  const listed = (items: CatalogResult[]) => ({ items, filtered: true });
 
   // Anime are drawn from MAL's ranking, where the mood reads finer genres and
   // the score is given by people who watch anime. Short or failed, it hands
@@ -599,14 +676,14 @@ async function rolledPage(
     const anime = unseen(
       await quietly(() => animeListing({ ...query, language }, excluded)),
     );
-    if (anime.length >= THIN) return anime;
+    if (anime.length >= THIN) return { items: anime, filtered: false };
   }
 
   const page = 1 + Math.floor(Math.random() * ROLL_PAGES);
   const rolled = unseen(
     await quietly(() => tmdbProvider.discoverBy({ ...query, language, page })),
   );
-  if (rolled.length >= THIN) return rolled;
+  if (rolled.length >= THIN) return listed(rolled);
 
   const otherPage = page === ROLL_PAGES ? 1 : page + 1;
   const second = unseen(
@@ -615,7 +692,7 @@ async function rolledPage(
     ),
   );
   const combined = uniqueBy([...rolled, ...second], (item) => item.providerId);
-  if (combined.length >= THIN) return combined;
+  if (combined.length >= THIN) return listed(combined);
 
   const first =
     page === 1
@@ -625,7 +702,7 @@ async function rolledPage(
             tmdbProvider.discoverBy({ ...query, language, page: 1 }),
           ),
         );
-  if (first.length >= THIN) return first;
+  if (first.length >= THIN) return listed(first);
 
   // Still thin. The narrow moods stack their filters, and a runtime ceiling on
   // top of an origin and a vote floor leaves a shelf of one card. The vote
@@ -634,14 +711,16 @@ async function rolledPage(
   // What is given up is how widely a title was seen, never how well it was
   // received: the provider holds a score floor under every listing, and a
   // shelf that came back thin is exactly where a suggestion must not slip.
-  return unseen(
-    await quietly(() =>
-      tmdbProvider.discoverBy({
-        ...query,
-        language,
-        page: 1,
-        voteCountGte: RELAXED_VOTES,
-      }),
+  return listed(
+    unseen(
+      await quietly(() =>
+        tmdbProvider.discoverBy({
+          ...query,
+          language,
+          page: 1,
+          voteCountGte: RELAXED_VOTES,
+        }),
+      ),
     ),
   );
 }

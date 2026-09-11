@@ -24,6 +24,25 @@ export const DURATIONS = ["short", "any"] as const;
 export type Duration = (typeof DURATIONS)[number];
 export const COMMITMENTS = ["short", "long", "any"] as const;
 export type Commitment = (typeof COMMITMENTS)[number];
+export const ERAS = ["classic", "modern", "recent", "any"] as const;
+export type Era = (typeof ERAS)[number];
+export const ORIGINS = ["french", "world", "any"] as const;
+export type Origin = (typeof ORIGINS)[number];
+
+/** The years of first release each era covers, both ends included. */
+const ERA_YEARS: Record<
+  Era,
+  Pick<DiscoverQuery, "releasedFrom" | "releasedTo">
+> = {
+  classic: { releasedTo: 1979 },
+  modern: { releasedFrom: 1980, releasedTo: 2009 },
+  recent: { releasedFrom: 2010 },
+  any: {},
+};
+
+export function eraYears(era: Era) {
+  return ERA_YEARS[era];
+}
 export const SHORT_RUNTIME_MINUTES = 119;
 export const ANIMATION_GENRE_ID = 16;
 
@@ -44,6 +63,8 @@ export type PickerChoice = {
   format: Format;
   duration: Duration;
   commitment?: Commitment;
+  era?: Era;
+  origin?: Origin;
 };
 export function isMood(raw: unknown): raw is Mood {
   return MOODS.includes(raw as Mood);
@@ -78,9 +99,11 @@ export function matchesQuery(
     kind: MediaKind;
     genreIds: number[];
     originalLanguage?: string | null;
+    releaseDate?: string | null;
   },
   query: DiscoverQuery,
 ): boolean {
+  if (!releasedWithin(item.releaseDate, query)) return false;
   if (
     item.kind !== query.kind ||
     query.runtimeLte !== undefined ||
@@ -127,8 +150,8 @@ export function discoverQueriesFor(choice: PickerChoice): DiscoverQuery[] {
       ...(style === "anime" || style === "cartoon"
         ? { requireGenreIds: [ANIMATION_GENRE_ID] }
         : {}),
-      ...(style === "anime" ? { originalLanguage: "ja" } : {}),
-      ...(style === "cartoon" ? { excludeOriginalLanguages: ["ja"] } : {}),
+      ...languagesFor(style, choice.origin ?? "any"),
+      ...eraYears(choice.era ?? "any"),
       ...(kind === "tv" &&
       moods.length === 1 &&
       (moods[0] === "horror" || moods[0] === "love")
@@ -146,6 +169,43 @@ export function discoverQueriesFor(choice: PickerChoice): DiscoverQuery[] {
         : {}),
     }));
   });
+}
+
+/**
+ * The original languages a style and an origin ask for together. An anime
+ * already says where it was made, so the origin has nothing to add to it.
+ */
+function languagesFor(
+  style: VisualStyle | null,
+  origin: Origin,
+): Pick<DiscoverQuery, "originalLanguage" | "excludeOriginalLanguages"> {
+  if (style === "anime") return { originalLanguage: "ja" };
+  const refused = [
+    ...(style === "cartoon" ? ["ja"] : []),
+    ...(origin === "world" ? ["en"] : []),
+  ];
+  return {
+    ...(origin === "french" ? { originalLanguage: "fr" } : {}),
+    ...(refused.length > 0 ? { excludeOriginalLanguages: refused } : {}),
+  };
+}
+
+/**
+ * Whether a first release falls inside the years a query asks for. With an
+ * era asked, an unknown date does not qualify, like an unknown runtime.
+ */
+export function releasedWithin(
+  releaseDate: string | null | undefined,
+  query: Pick<DiscoverQuery, "releasedFrom" | "releasedTo">,
+): boolean {
+  if (query.releasedFrom === undefined && query.releasedTo === undefined)
+    return true;
+  const year = Number.parseInt(releaseDate?.slice(0, 4) ?? "", 10);
+  if (!Number.isFinite(year)) return false;
+  return (
+    (query.releasedFrom === undefined || year >= query.releasedFrom) &&
+    (query.releasedTo === undefined || year <= query.releasedTo)
+  );
 }
 
 /** Specials do not count as a season. Cancelled shows are never a complete short story. */

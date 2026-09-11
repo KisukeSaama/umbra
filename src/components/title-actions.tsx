@@ -39,6 +39,8 @@ export function TitleActions({
   followed = null,
   waiting = 0,
   alternateCut = null,
+  crowded = false,
+  removedOn = null,
 }: {
   kind: MediaKind;
   providerId: string;
@@ -50,6 +52,10 @@ export function TitleActions({
   waiting?: number;
   /** The re-cut the server holds it in, so the report says only what applies. */
   alternateCut?: AlternateCut | null;
+  /** The server is nearly full: said under the ask, and nowhere louder. */
+  crowded?: boolean;
+  /** When the title last left the server, already written for the reader. */
+  removedOn?: string | null;
 }) {
   const t = useTranslator();
   const locale = useLocale();
@@ -163,17 +169,29 @@ export function TitleActions({
     </Button>
   );
 
-  // Asked for by somebody else: the same button, which joins their request,
-  // and the one line that makes joining worth it.
-  if (state === "requested" && waiting > 0)
-    return (
-      <div className="flex flex-col items-start gap-2">
-        {button}
-        <p className="text-muted-foreground text-sm">
-          {t("title.waiting", { count: waiting })}
-        </p>
-      </div>
-    );
+  // What goes under the ask, each a quiet line: that somebody is already
+  // waiting, which makes joining worth it; that the title was here once; that
+  // the server is short of room. Never a banner, never a reason not to ask.
+  const notes = [
+    state === "requested" && waiting > 0
+      ? t("title.waiting", { count: waiting })
+      : null,
+    state === "absent" && removedOn
+      ? t("title.removedBefore", { date: removedOn })
+      : null,
+    crowded ? t("title.crowded") : null,
+  ].filter((note): note is string => note !== null);
 
-  return button;
+  if (notes.length === 0) return button;
+
+  return (
+    <div className="flex flex-col items-start gap-2">
+      {button}
+      {notes.map((note) => (
+        <p key={note} className="text-muted-foreground max-w-prose text-sm">
+          {note}
+        </p>
+      ))}
+    </div>
+  );
 }
