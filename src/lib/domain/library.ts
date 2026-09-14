@@ -586,7 +586,8 @@ export async function seasonsOnServer(providerId: string): Promise<number[]> {
         ON show.rating_key = ep.grandparent_rating_key
      WHERE ep.kind = 'episode'
        AND show.tmdb_id = ${providerId}::text
-       AND ep.season_number IS NOT NULL
+       -- Specials (season 0) are not inventoried: see episodesInWeek.
+       AND ep.season_number > 0
      ORDER BY ep.season_number
   `);
   return rows.map((row) => row.season_number);

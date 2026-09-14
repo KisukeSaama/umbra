@@ -2,8 +2,8 @@ import Link from "next/link";
 
 import { AnnouncementReactions } from "@/components/announcement-reactions";
 import { EmptyNote } from "@/components/empty-note";
-import { GlyphTile } from "@/components/glyph-tile";
 import { AnnounceIcon, ExternalLinkIcon } from "@/components/icons";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -12,11 +12,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { AnnouncementView } from "@/lib/domain/announcements";
+import { formatDate } from "@/lib/format";
 import { plainText } from "@/lib/markdown";
 import type { TranslationKey } from "@/lib/i18n";
-import { getTranslator } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
+import { cn } from "@/lib/utils";
 
-/** The latest announcement, in full. Editorial, never a status page. */
+/**
+ * The latest announcement, set as a note from the administration rather than
+ * a row in a feed. Editorial, never a status page.
+ *
+ * The title is the largest line of the card and the body is read at body size,
+ * because this is the one place the administration speaks to everyone. What a
+ * member can do with it sits on one line at the foot: follow its address, read
+ * it in full, react.
+ */
 export async function AnnouncementCard({
   announcement,
   className,
@@ -24,7 +34,7 @@ export async function AnnouncementCard({
   announcement: AnnouncementView | null;
   className?: string;
 }) {
-  const t = await getTranslator();
+  const { t, locale } = await getI18n();
 
   return (
     <Card className={className}>
@@ -43,56 +53,76 @@ export async function AnnouncementCard({
       </CardHeader>
       <CardContent>
         {announcement ? (
-          <div className="flex gap-3">
-            <GlyphTile
-              icon={AnnounceIcon}
-              className="bg-accent text-primary size-9"
-            />
-            <div className="min-w-0 space-y-1">
-              <p className="text-muted-foreground text-xs">
-                {t(`news.category.${announcement.category}` as TranslationKey)}
+          <article className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                <span className="text-foreground font-medium">
+                  {t(
+                    `news.category.${announcement.category}` as TranslationKey,
+                  )}
+                </span>
+                {announcement.publishedAt ? (
+                  <>
+                    <span aria-hidden>·</span>
+                    <time dateTime={announcement.publishedAt.toISOString()}>
+                      {formatDate(announcement.publishedAt, locale, "long")}
+                    </time>
+                  </>
+                ) : null}
               </p>
               {/* The teaser opens the note on the feed, at its anchor. The
-                  link and the thumbs below stay outside it: a control inside
-                  a link is two targets under one pointer. */}
+                  actions below stay outside it: a control inside a link is
+                  two targets under one pointer. */}
               <Link
                 href={`/news#${announcement.id}`}
-                className="group focus-visible:ring-ring/50 block space-y-1 rounded-md outline-none focus-visible:ring-3"
+                className="group focus-visible:ring-ring/50 block space-y-2 rounded-md outline-none focus-visible:ring-3"
               >
-                <p className="font-medium group-hover:underline">
+                <h3 className="text-lg leading-snug font-semibold tracking-tight text-balance group-hover:underline">
                   {announcement.title}
-                </p>
+                </h3>
                 {/* A teaser is a sentence that stops, so the marks come off
                     here rather than being clamped mid-block. The line breaks
-                    stay: a list read as one sentence runs its items together.
-                    The note is read in full on the feed. */}
-                <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-line">
+                    stay: a list read as one sentence runs its items together. */}
+                <p className="text-muted-foreground line-clamp-5 text-base whitespace-pre-line">
                   {plainText(announcement.content)}
                 </p>
               </Link>
-              {/* A note whose whole point is an address elsewhere carries it
-                  here too, so the home page is not a teaser for one click. */}
-              {announcement.link ? (
-                <a
-                  href={announcement.link.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="text-primary hover:text-primary/80 focus-visible:ring-ring/50 inline-flex max-w-full items-center gap-1.5 rounded-md pt-1 text-sm transition-colors outline-none focus-visible:ring-3"
-                >
-                  <span className="truncate">
-                    {announcement.link.label ?? t("news.openLink")}
-                  </span>
-                  <ExternalLinkIcon className="shrink-0" />
-                </a>
-              ) : null}
-              <div className="pt-1">
-                <AnnouncementReactions
-                  announcementId={announcement.id}
-                  reactions={announcement.reactions}
-                />
-              </div>
             </div>
-          </div>
+
+            <div className="border-border/60 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* A note whose whole point is an address elsewhere carries
+                    it here too, so the home page is not a teaser for one
+                    click. */}
+                {announcement.link ? (
+                  <a
+                    href={announcement.link.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "max-w-full",
+                    )}
+                  >
+                    <span className="truncate">
+                      {announcement.link.label ?? t("news.openLink")}
+                    </span>
+                    <ExternalLinkIcon className="shrink-0" />
+                  </a>
+                ) : null}
+                <Link
+                  href={`/news#${announcement.id}`}
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  {t("news.readMore")}
+                </Link>
+              </div>
+              <AnnouncementReactions
+                announcementId={announcement.id}
+                reactions={announcement.reactions}
+              />
+            </div>
+          </article>
         ) : (
           <EmptyNote icon={AnnounceIcon}>{t("news.none")}</EmptyNote>
         )}

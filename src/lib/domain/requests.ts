@@ -947,7 +947,7 @@ export async function listRequestsBy(
     .innerJoin(mediaRequests, eq(mediaRequests.id, requestFollowers.requestId))
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
     .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
-    .where(eq(requestFollowers.accountId, accountId))
+    .where(and(eq(requestFollowers.accountId, accountId), shownToFollower))
     .orderBy(desc(mediaRequests.createdAt))
     .$dynamic();
 
@@ -958,12 +958,23 @@ export async function listRequestsBy(
   return rows.map(toRequestRow);
 }
 
-/** How many requests this account waits or waited on, whatever became of them. */
+/**
+ * Whether the request being read still has a place on its follower's page.
+ *
+ * A refusal with no word says nothing the missing title does not, and kept on
+ * the page it only reads as a door shut in their face, so it leaves. A refusal
+ * that carries a word stays, since the word is the one thing worth reading, and
+ * writing one afterwards brings it back: the rule is read, never stored.
+ */
+const shownToFollower = sql`not (${mediaRequests.status} = 'rejected' and ${mediaRequests.adminNote} is null)`;
+
+/** How many requests this account's follow-up page lists. */
 export async function countRequestsBy(accountId: string): Promise<number> {
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(requestFollowers)
-    .where(eq(requestFollowers.accountId, accountId));
+    .innerJoin(mediaRequests, eq(mediaRequests.id, requestFollowers.requestId))
+    .where(and(eq(requestFollowers.accountId, accountId), shownToFollower));
   return row?.count ?? 0;
 }
 

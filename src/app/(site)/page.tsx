@@ -37,7 +37,7 @@ export default async function HomePage() {
   const [recent, inProgress, poll, announcement, storage, stats] =
     await Promise.all([
       recentlyAdded(14),
-      inProgressRequests(5),
+      inProgressRequests(6),
       activePoll(account?.id),
       // With the reader, so the thumbs on the home card show what they pressed
       // on the feed: read anonymously, the card forgot their reaction.
@@ -46,8 +46,7 @@ export default async function HomePage() {
       weeklyStats(),
     ]);
 
-  const grid =
-    GRID[1 + (inProgress.length > 0 ? 1 : 0) + (poll ? 1 : 0)] ?? GRID[1];
+  const aside = inProgress.length > 0 || poll !== null;
 
   return (
     <>
@@ -64,26 +63,32 @@ export default async function HomePage() {
           <TrendingRail locale={locale} />
         </Suspense>
 
-        {/* Two rows of like with like: the lists that can run long, then the
-            glances. Nothing is stretched to a neighbour's height, so a short
-            list stays a short card rather than a tall blank one. A card with
-            nothing to show leaves the row rather than holding a column for
-            an empty note, and the second row takes its columns from the first
-            so the two line up instead of floating past each other. */}
+        {/* Two rows cut on the same line: a wide card that is read, then a
+            narrow one that is glanced at. The week and the announcement take
+            two thirds, what is coming and the storage the last one, so the
+            columns meet from one row to the next instead of floating past
+            each other. Nothing is stretched to a neighbour's height, and a
+            side with nothing in it gives its third back to the week. */}
         <div className="space-y-6">
-          <div className={`grid gap-6 lg:items-start ${grid.first}`}>
-            <Suspense fallback={<CardSkeleton lines={5} />}>
-              <ThisWeek accountId={account.id} locale={locale} />
-            </Suspense>
-            <InProgressRequests requests={inProgress} />
-            {poll ? (
-              <PollCard poll={poll} daysLeft={daysUntil(poll.endsAt)} />
+          <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+            <div className={aside ? "lg:col-span-2" : "lg:col-span-3"}>
+              <Suspense fallback={<CardSkeleton lines={5} />}>
+                <ThisWeek accountId={account.id} locale={locale} />
+              </Suspense>
+            </div>
+            {aside ? (
+              <div className="space-y-6">
+                <InProgressRequests requests={inProgress} />
+                {poll ? (
+                  <PollCard poll={poll} daysLeft={daysUntil(poll.endsAt)} />
+                ) : null}
+              </div>
             ) : null}
           </div>
-          <div className={`grid gap-6 lg:items-start ${grid.second}`}>
+          <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
             <AnnouncementCard
               announcement={announcement}
-              className={grid.announcement}
+              className="lg:col-span-2"
             />
             <StorageCard storage={storage} />
           </div>
@@ -92,26 +97,6 @@ export default async function HomePage() {
     </>
   );
 }
-
-/**
- * The columns of the two card rows, by how many cards the first row holds.
- *
- * The announcement takes every column but the last, so its right edge falls
- * on a line the row above already drew. With one card above there is no line
- * to meet, and the glances share the row two to one rather than stacking.
- */
-const GRID: Record<
-  number,
-  { first: string; second: string; announcement: string }
-> = {
-  1: { first: "", second: "lg:grid-cols-3", announcement: "lg:col-span-2" },
-  2: { first: "lg:grid-cols-2", second: "lg:grid-cols-2", announcement: "" },
-  3: {
-    first: "lg:grid-cols-3",
-    second: "lg:grid-cols-3",
-    announcement: "lg:col-span-2",
-  },
-};
 
 /**
  * Smaller than the rail above it on purpose: what landed here is the reason

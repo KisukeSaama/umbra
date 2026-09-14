@@ -107,6 +107,23 @@ export function dateParts(
   };
 }
 
+/**
+ * A broadcast day taken apart, for a calendar tile: `{ weekday: "Tue",
+ * day: "9", month: "Sept" }`.
+ */
+export function airDayParts(
+  value: Date | string,
+  locale: DateLocale = "en",
+): { weekday: string; day: string; month: string } {
+  const date = toDate(value);
+  const tag = LOCALE_TAGS[locale];
+  return {
+    weekday: new Intl.DateTimeFormat(tag, { weekday: "short" }).format(date),
+    day: new Intl.DateTimeFormat(tag, { day: "numeric" }).format(date),
+    month: new Intl.DateTimeFormat(tag, { month: "short" }).format(date),
+  };
+}
+
 /** `9 Sept 2026, 10:23`: job runs and history entries. */
 export function formatDateTime(value: Date, locale: DateLocale = "en"): string {
   return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {

@@ -1,57 +1,68 @@
 import Link from "next/link";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Poster } from "@/components/poster";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { InProgressRequest } from "@/lib/domain/requests";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
  * Requests the staff took up and the server does not hold yet.
  *
+ * Posters rather than a list of names: a member recognises a title by its
+ * poster long before they read it, and what is on its way is a promise worth
+ * seeing. Every one of them is at the same step, being fetched, so the step is
+ * said once under the heading rather than on each poster.
+ *
  * Shown only when there is something to show: an empty "coming soon" says
  * nothing a member can act on, so the card leaves the page instead of standing
- * there blank. It names titles, never who asked. Every one of them is at the
- * same step, being fetched, so none carries a status of its own.
+ * there blank. It names titles, never who asked.
  */
 export async function InProgressRequests({
   requests,
+  className,
 }: {
   requests: InProgressRequest[];
+  className?: string;
 }) {
   if (requests.length === 0) return null;
   const { t } = await getI18n();
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>{t("section.inProgress")}</CardTitle>
+        <CardDescription>{t("home.inProgress.hint")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="divide-border/60 -my-2 divide-y">
+        <ul className="grid grid-cols-3 gap-x-3 gap-y-4">
           {requests.map((request) => (
-            <li key={request.id}>
-              {/* A row that opens a title says so the way a card does: the
-                  name underlines under the pointer, and the keyboard gets the
-                  same ring as everywhere else. */}
+            <li key={request.id} className="min-w-0">
               <Link
                 href={`/title/${request.media.kind}/${request.media.providerId}`}
-                className="group focus-visible:ring-ring/50 block min-w-0 rounded-md py-3 outline-none focus-visible:ring-3"
+                className="group focus-visible:ring-ring/50 block space-y-1.5 rounded-lg outline-none focus-visible:ring-3"
               >
-                {/* One small ochre dot per row: the shared state, being
-                    fetched, shown as a light rather than a label. */}
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  <span
-                    className="bg-primary size-1.5 shrink-0 rounded-full"
-                    aria-hidden
-                  />
-                  <span className="truncate group-hover:underline">
+                <Poster
+                  src={request.media.posterUrl}
+                  alt={request.media.title}
+                  captioned
+                  sizes="(min-width: 1024px) 8rem, 30vw"
+                />
+                <div>
+                  <p className="truncate text-sm font-medium group-hover:underline">
                     {request.media.title}
-                  </span>
-                </p>
-                {request.media.year ? (
-                  <p className="text-muted-foreground pl-3.5 text-xs tabular-nums">
-                    {request.media.year}
                   </p>
-                ) : null}
+                  {request.media.year ? (
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      {request.media.year}
+                    </p>
+                  ) : null}
+                </div>
               </Link>
             </li>
           ))}

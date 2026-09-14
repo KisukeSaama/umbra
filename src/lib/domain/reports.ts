@@ -534,6 +534,13 @@ function natureFilter(nature?: ReportNature) {
     : notInArray(reports.reason, [...ASK_REASONS]);
 }
 
+/**
+ * Whether the report being read still has a place on its follower's page. The
+ * rule `shownToFollower` applies to requests: a refusal without a word leaves,
+ * and writing one afterwards brings it back.
+ */
+const shownToFollower = sql`not (${reports.status} = 'rejected' and ${reports.adminNote} is null)`;
+
 /** The reports one member is waiting on, whether they opened them or joined. */
 export async function listReportsFollowedBy(
   accountId: string,
@@ -549,6 +556,7 @@ export async function listReportsFollowedBy(
       and(
         eq(reportFollowers.accountId, accountId),
         natureFilter(options?.nature),
+        shownToFollower,
       ),
     )
     .orderBy(desc(reports.createdAt))
@@ -560,7 +568,7 @@ export async function listReportsFollowedBy(
   return rows.map(toRow);
 }
 
-/** How many reports this account follows, open or long since settled. */
+/** How many reports this account's follow-up page lists. */
 export async function countReportsFollowedBy(
   accountId: string,
   nature?: ReportNature,
@@ -569,7 +577,13 @@ export async function countReportsFollowedBy(
     .select({ count: sql<number>`count(*)::int` })
     .from(reportFollowers)
     .innerJoin(reports, eq(reports.id, reportFollowers.reportId))
-    .where(and(eq(reportFollowers.accountId, accountId), natureFilter(nature)));
+    .where(
+      and(
+        eq(reportFollowers.accountId, accountId),
+        natureFilter(nature),
+        shownToFollower,
+      ),
+    );
   return row?.count ?? 0;
 }
 

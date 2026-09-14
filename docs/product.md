@@ -169,7 +169,10 @@ requested -> accepted -> available -> removed
   this", so declaring it before the index holds the title would close the
   request and hand the title back to the next member to ask for.
 - **rejected**: declined, straight from the queue or by cancelling an accepted
-  request, with an optional word for the member either way. The title can be
+  request, with an optional word for the member either way. A refusal without
+  a word leaves the member's follow-up page, since it says nothing the missing
+  title does not; writing a word afterwards brings it back. Reports follow the
+  same rule. The title can be
   requested again later, as a new request. The administration may also change
   its mind and reopen it, which is the one step back the lifecycle allows: it
   lands on requested, erases the word of the refusal and tells the member. If
