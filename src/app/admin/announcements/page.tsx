@@ -3,13 +3,9 @@ import Link from "next/link";
 
 import { ActionButton } from "@/components/admin/action-button";
 import { AnnouncementForm } from "@/components/admin/announcement-form";
+import { LikersDialog } from "@/components/admin/likers-dialog";
 import { formatPercent } from "@/components/formatting";
-import {
-  ExternalLinkIcon,
-  PollIcon,
-  ThumbsDownIcon,
-  ThumbsUpIcon,
-} from "@/components/icons";
+import { ExternalLinkIcon, PollIcon, ThumbsDownIcon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -130,13 +126,11 @@ export default async function AdminAnnouncementsPage({
                         ) : null}
                         {likes + dislikes > 0 ? (
                           <>
-                            <Badge
-                              variant="outline"
-                              title={t("admin.announcements.likes")}
-                            >
-                              <ThumbsUpIcon />
-                              {likes}
-                            </Badge>
+                            <LikersDialog
+                              title={announcement.title}
+                              likes={likes}
+                              names={likers ?? []}
+                            />
                             <Badge
                               variant="outline"
                               title={t("admin.announcements.dislikes")}
@@ -188,16 +182,6 @@ export default async function AdminAnnouncementsPage({
                           {announcement.embed.title ?? announcement.embed.url}
                         </span>
                       </a>
-                    ) : null}
-
-                    {likers ? (
-                      <details className="text-xs">
-                        <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-md transition-colors outline-none focus-visible:ring-3">
-                          <ThumbsUpIcon />
-                          {t("admin.announcements.reactions")}
-                        </summary>
-                        <p className="mt-2 break-words">{likers.join(", ")}</p>
-                      </details>
                     ) : null}
 
                     {poll ? (

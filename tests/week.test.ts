@@ -48,6 +48,17 @@ describe("this week", () => {
     ).toHaveLength(1);
   });
 
+  it("leaves specials out", () => {
+    const found = episodesInWeek(
+      {
+        lastEpisode: episode(0, 3, "2026-09-08"),
+        nextEpisode: episode(2, 5, "2026-09-12"),
+      },
+      day,
+    );
+    expect(found.map((e) => e.seasonNumber)).toEqual([2]);
+  });
+
   it("says where a broadcast stands", () => {
     expect(weekStatus("2026-09-08", true, day)).toBe("available");
     expect(weekStatus("2026-09-08", false, day)).toBe("aired_missing");

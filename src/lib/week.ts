@@ -39,6 +39,9 @@ export function episodesInWeek(
   return [show.lastEpisode, show.nextEpisode].filter(
     (episode): episode is EpisodeInfo => {
       if (!episode?.airDate) return false;
+      // Specials are added by hand when someone judges one worth it, never
+      // listed: Umbra keeps no inventory of season zero.
+      if (episode.seasonNumber <= 0) return false;
       if (episode.airDate < from || episode.airDate > to) return false;
       const key = `${episode.seasonNumber}:${episode.episodeNumber}`;
       if (seen.has(key)) return false;
