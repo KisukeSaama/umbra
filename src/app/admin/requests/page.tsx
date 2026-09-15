@@ -20,6 +20,7 @@ import {
   waitingOnRequests,
   type RequestRow,
 } from "@/lib/domain/requests";
+import { listEnabledSearchSites } from "@/lib/domain/search-sites";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import {
   mergePageBy,
@@ -87,11 +88,7 @@ export default async function AdminRequestsPage({
     ]);
     return requests + asks;
   });
-  const page = paginate(
-    counts[stage],
-    parsePage(params.get("page")),
-    PER_PAGE,
-  );
+  const page = paginate(counts[stage], parsePage(params.get("page")), PER_PAGE);
   const window = mergeWindow(page);
   const [requestRows, askRows] = await Promise.all([
     listRequests(requestStatuses, window, order),
@@ -112,9 +109,10 @@ export default async function AdminRequestsPage({
   const asks = entries.flatMap((entry) =>
     entry.kind === "ask" ? [entry.ask] : [],
   );
-  const [waiting, waitingOnAsks] = await Promise.all([
+  const [waiting, waitingOnAsks, searchSites] = await Promise.all([
     waitingOnRequests(requests.map(({ id }) => id)),
     waitingOnReports(asks.map(({ id }) => id)),
+    listEnabledSearchSites(),
   ]);
 
   if (counts.all === 0) {
@@ -144,6 +142,7 @@ export default async function AdminRequestsPage({
                 report={entry.ask}
                 waiting={waitingOnAsks.get(entry.ask.id) ?? []}
                 showStatus={showStatus}
+                searchSites={searchSites}
               />
             ) : (
               <RequestItem
@@ -151,6 +150,7 @@ export default async function AdminRequestsPage({
                 request={entry.request}
                 waiting={waiting.get(entry.request.id) ?? []}
                 showStatus={showStatus}
+                searchSites={searchSites}
               />
             ),
           )}

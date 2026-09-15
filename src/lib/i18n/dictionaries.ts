@@ -807,6 +807,42 @@ export const en = {
   "error.noteNotEditable": "There is nothing left to say here.",
   "error.requestReopenTaken":
     "This title has been asked for again since: the newer request is in the queue.",
+
+  "admin.nav.searchSites": "Search sites",
+  "admin.nav.searchSites.hint":
+    "The pages the administration searches when it fetches a title.",
+  "admin.searchSites.title": "Configured sites",
+  "admin.searchSites.intro":
+    "A site is a search page, the argument carrying the search terms, and the arguments that never change there. Every request and every report then carries a button, the first site on it and the others in the list next to it.",
+  "admin.searchSites.new": "New search site",
+  "admin.searchSites.edit": "Edit",
+  "admin.searchSites.name": "Name",
+  "admin.searchSites.url": "Search page address",
+  "admin.searchSites.queryParam": "Search argument",
+  "admin.searchSites.queryTemplate": "Search terms",
+  "admin.searchSites.templateHint":
+    "Available: {placeholders}. A value the title does not have is dropped rather than left in the terms.",
+  "admin.searchSites.params": "Fixed arguments",
+  "admin.searchSites.paramKey": "Name",
+  "admin.searchSites.paramValue": "Value",
+  "admin.searchSites.addParam": "Add an argument",
+  "admin.searchSites.removeParam": "Remove this argument",
+  "admin.searchSites.position": "Order",
+  "admin.searchSites.enabled": "Offered on the queues",
+  "admin.searchSites.enable": "Enable",
+  "admin.searchSites.disable": "Disable",
+  "admin.searchSites.disabled": "Disabled",
+  "admin.searchSites.preview": "Example",
+  "admin.searchSites.saved": "Search site saved.",
+  "admin.searchSites.deleteConfirm": "Delete {name}?",
+  "admin.searchSites.searchOn": "Search on {name}",
+  "admin.searchSites.others": "Other search sites",
+  "admin.searchSites.none": "No search site yet.",
+
+  "error.searchSiteNotFound": "Search site not found.",
+  "error.searchSiteName": "A search site already carries this name.",
+  "error.searchSiteUrl":
+    "The address must be a complete http or https address.",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -1593,6 +1629,42 @@ export const fr: Record<TranslationKey, string> = {
   "error.noteNotEditable": "Il n'y a plus rien à dire ici.",
   "error.requestReopenTaken":
     "Ce titre a été redemandé depuis : la nouvelle demande est dans la file.",
+
+  "admin.nav.searchSites": "Sites de recherche",
+  "admin.nav.searchSites.hint":
+    "Les pages où l'administration cherche quand elle récupère un titre.",
+  "admin.searchSites.title": "Sites configurés",
+  "admin.searchSites.intro":
+    "Un site, c'est une page de recherche, l'argument qui porte les termes cherchés, et les arguments qui ne changent jamais là-bas. Chaque demande et chaque signalement porte ensuite un bouton, le premier site dessus et les autres dans la liste à côté.",
+  "admin.searchSites.new": "Nouveau site de recherche",
+  "admin.searchSites.edit": "Modifier",
+  "admin.searchSites.name": "Nom",
+  "admin.searchSites.url": "Adresse de la page de recherche",
+  "admin.searchSites.queryParam": "Argument de recherche",
+  "admin.searchSites.queryTemplate": "Termes cherchés",
+  "admin.searchSites.templateHint":
+    "Disponibles : {placeholders}. Une valeur que le titre n'a pas est retirée plutôt que laissée dans les termes.",
+  "admin.searchSites.params": "Arguments fixes",
+  "admin.searchSites.paramKey": "Nom",
+  "admin.searchSites.paramValue": "Valeur",
+  "admin.searchSites.addParam": "Ajouter un argument",
+  "admin.searchSites.removeParam": "Retirer cet argument",
+  "admin.searchSites.position": "Ordre",
+  "admin.searchSites.enabled": "Proposé dans les files",
+  "admin.searchSites.enable": "Activer",
+  "admin.searchSites.disable": "Désactiver",
+  "admin.searchSites.disabled": "Désactivé",
+  "admin.searchSites.preview": "Exemple",
+  "admin.searchSites.saved": "Site de recherche enregistré.",
+  "admin.searchSites.deleteConfirm": "Supprimer {name} ?",
+  "admin.searchSites.searchOn": "Chercher sur {name}",
+  "admin.searchSites.others": "Autres sites de recherche",
+  "admin.searchSites.none": "Aucun site de recherche pour l'instant.",
+
+  "error.searchSiteNotFound": "Site de recherche introuvable.",
+  "error.searchSiteName": "Un site de recherche porte déjà ce nom.",
+  "error.searchSiteUrl":
+    "L'adresse doit être une adresse http ou https complète.",
 };
 
 export const dictionaries = { en, fr } as const;

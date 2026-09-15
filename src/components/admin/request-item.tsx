@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/admin/action-button";
 import { QueueRow } from "@/components/admin/queue-row";
+import { SearchSiteButtons } from "@/components/admin/search-site-buttons";
 import { WaitingList } from "@/components/admin/waiting-list";
 import { Badge } from "@/components/ui/badge";
 import type { RequestStatus } from "@/lib/db/schema";
@@ -11,6 +12,7 @@ import {
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
+import { searchLinksFor, type SearchSiteView } from "@/lib/search-sites";
 
 /**
  * One request row as the administration works it.
@@ -28,17 +30,23 @@ import { getI18n } from "@/lib/i18n/server";
  * the title lands on the server. That word can be rewritten afterwards, from
  * the same dialog, for as long as it is still displayed: what was being looked
  * for changes, and saying so should not mean moving the request.
+ *
+ * The row also carries the way out to the search pages the administration
+ * fetches from, aimed at this title and its year.
  */
 export async function RequestItem({
   request,
   waiting,
   showStatus,
+  searchSites,
 }: {
   request: RequestRow;
   /** Who is waiting on it, by name, the first being whoever asked first. */
   waiting: string[];
   /** Left out where the stage shown holds a single status. */
   showStatus: boolean;
+  /** Read once by the page: a row never queries for its own buttons. */
+  searchSites: SearchSiteView[];
 }) {
   const { t, locale } = await getI18n();
 
@@ -72,11 +80,7 @@ export async function RequestItem({
       meta={
         <>
           {formatDate(request.createdAt, locale)}
-          <WaitingList
-            names={waiting}
-            title={request.media.title}
-            lead=" · "
-          />
+          <WaitingList names={waiting} title={request.media.title} lead=" · " />
         </>
       }
       note={request.adminNote}
@@ -91,6 +95,13 @@ export async function RequestItem({
       }
       actions={
         <>
+          <SearchSiteButtons
+            links={searchLinksFor(searchSites, {
+              title: request.media.title,
+              year: request.media.year,
+            })}
+          />
+
           {nextActions(request.status).map((action) => (
             <ActionButton
               key={action.status}

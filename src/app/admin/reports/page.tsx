@@ -12,6 +12,7 @@ import {
   listReports,
   waitingOnReports,
 } from "@/lib/domain/reports";
+import { listEnabledSearchSites } from "@/lib/domain/search-sites";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
 import {
@@ -68,18 +69,17 @@ export default async function AdminReportsPage({
   const counts = await countByStage((one) =>
     countReports(REPORT_STAGE_STATUSES[one], "fault"),
   );
-  const page = paginate(
-    counts[stage],
-    parsePage(params.get("page")),
-    PER_PAGE,
-  );
+  const page = paginate(counts[stage], parsePage(params.get("page")), PER_PAGE);
   const reports = await listReports(
     REPORT_STAGE_STATUSES[stage],
     { limit: page.perPage, offset: page.offset },
     "fault",
     order,
   );
-  const waiting = await waitingOnReports(reports.map(({ id }) => id));
+  const [waiting, searchSites] = await Promise.all([
+    waitingOnReports(reports.map(({ id }) => id)),
+    listEnabledSearchSites(),
+  ]);
 
   if (counts.all === 0)
     return <EmptyNote icon={FlagIcon}>{t("admin.reports.none")}</EmptyNote>;
@@ -104,6 +104,7 @@ export default async function AdminReportsPage({
               report={report}
               waiting={waiting.get(report.id) ?? []}
               showStatus={stage !== "todo"}
+              searchSites={searchSites}
             />
           ))}
         </QueueList>

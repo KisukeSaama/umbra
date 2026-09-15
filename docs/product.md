@@ -398,6 +398,24 @@ destination.
 Nothing there depends on running at a precise moment. If Umbra is down for a week,
 the next run sees every date that has passed and catches up.
 
+## Search sites
+
+Fetching a title starts on somebody else's search page, and the typing that gets
+there is always the same. A search site is that page written down once: an
+address, the GET argument carrying the search terms, and the arguments that never
+change there. There can be as many as the work needs, and they are configured
+from the administration alone.
+
+Every request and every report then carries a button, "Search on X", built from
+the first site, with the others in a list next to it. The link opens in a new
+tab. Umbra never calls those pages itself, nothing about them is ever shown to a
+member, and none of it goes through Janus because none of it is a request.
+
+The terms are a template. `{title}`, `{year}`, `{season}`, `{episode}`, the
+padded `{season2}` and `{episode2}`, and `{code}` for `S01E02`. A value the row
+does not carry is dropped rather than left in the terms, so a movie is never
+searched for with an empty season.
+
 ## Privacy
 
 Stored: a Plex account id, a display name, a role, and when that
