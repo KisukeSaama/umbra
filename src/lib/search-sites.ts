@@ -2,10 +2,13 @@
  * Links that open a search the administration runs elsewhere.
  *
  * Fetching a title starts on somebody else's search page, and the typing that
- * gets there is always the same: the title, sometimes the year, sometimes the
- * season and the episode. A search site is that page written down once, as an
- * address, the GET argument carrying the search terms and any number of fixed
- * arguments, so the queues can offer a link instead of a copy and paste.
+ * gets there is always the same. A search site is that page written down once,
+ * as an address, the GET argument carrying the search terms and any number of
+ * fixed arguments, so the queues can offer a link instead of a copy and paste.
+ *
+ * The terms themselves are not configured: Umbra knows what is being looked
+ * for, a movie, a whole series, a season or an episode, and writes the terms
+ * the way release names are written for that case. See `searchQuery`.
  *
  * Umbra never calls those pages: it builds the address and the browser opens
  * it, which is why this module is pure and knows nothing about the database.
@@ -21,8 +24,6 @@ export type SearchSiteConfig = {
   url: string;
   /** Name of the GET argument carrying the search terms. */
   queryParam: string;
-  /** Template of those terms, for instance `{title} {year}`. */
-  queryTemplate: string;
   params: SearchSiteParam[];
 };
 
@@ -36,59 +37,66 @@ export type SearchSiteView = SearchSiteConfig & {
 /** One site, aimed at one title, ready to open. */
 export type SearchLink = { id: string; name: string; url: string };
 
-/** What is being looked for. Everything but the title is optional. */
+/** What is being looked for. Everything but the kind and the title is optional. */
 export type SearchTarget = {
+  kind: "movie" | "tv";
   title: string;
   year?: number | null;
   season?: number | null;
   episode?: number | null;
 };
 
-/** What a template may name. Anything else is left alone. */
-export const SEARCH_PLACEHOLDERS = [
-  "title",
-  "year",
-  "season",
-  "episode",
-  "season2",
-  "episode2",
-  "code",
-] as const;
-
-export type SearchPlaceholder = (typeof SEARCH_PLACEHOLDERS)[number];
-
-export const DEFAULT_QUERY_TEMPLATE = "{title} {year}";
+/** What the settings page shows a site against: one of each case. */
+export const SEARCH_SAMPLES: SearchTarget[] = [
+  { kind: "movie", title: "Dune: Part Two", year: 2024 },
+  { kind: "tv", title: "Severance", year: 2022, season: 2 },
+  { kind: "tv", title: "Severance", year: 2022, season: 2, episode: 3 },
+];
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
 /**
- * Fills a template.
+ * The title as a release name spells it.
  *
- * A value the title does not have becomes nothing rather than the placeholder
- * itself: a movie searched as "Dune {season}" finds nothing at all, and the
- * whitespace left behind is closed up so the terms read as they were meant to.
+ * Accents are folded, an apostrophe joins the letters around it ("Grey's"
+ * becomes "Greys"), and every other sign becomes a space: a colon or an
+ * ampersand in the terms narrows most search pages to nothing, while the words
+ * alone match whatever separator the release uses.
  */
-export function renderQuery(template: string, target: SearchTarget): string {
-  const { title, year, season, episode } = target;
-  const values: Record<SearchPlaceholder, string> = {
-    title: title.trim(),
-    year: year ? String(year) : "",
-    season: season != null ? String(season) : "",
-    episode: episode != null ? String(episode) : "",
-    season2: season != null ? pad(season) : "",
-    episode2: episode != null ? pad(episode) : "",
-    code:
-      season != null && episode != null
-        ? `S${pad(season)}E${pad(episode)}`
-        : "",
-  };
-
-  return template
-    .replace(/\{(\w+)\}/g, (match, name: string) =>
-      name in values ? values[name as SearchPlaceholder] : match,
-    )
-    .replace(/\s+/g, " ")
+export function searchableTitle(title: string): string {
+  return title
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/['’`]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
+}
+
+/**
+ * The terms for one target, written the way releases are named.
+ *
+ * - a movie: the title and its year, which is what tells a film from its remake
+ *   and from everything else sharing the name;
+ * - an episode: the title and `S01E02`;
+ * - a season: the title and `S01`, which matches the season pack and, on most
+ *   pages, the episodes of that season too;
+ * - a whole series: the title alone.
+ *
+ * A series never carries its year: release names leave it out unless two shows
+ * share a title, so adding it hides more than it finds. A year the title
+ * already ends with is not repeated either.
+ */
+export function searchQuery(target: SearchTarget): string {
+  const title = searchableTitle(target.title);
+  const { season, episode, year } = target;
+
+  if (target.kind === "movie") {
+    return year && !title.endsWith(String(year)) ? `${title} ${year}` : title;
+  }
+  if (season != null && episode != null)
+    return `${title} S${pad(season)}E${pad(episode)}`;
+  if (season != null) return `${title} S${pad(season)}`;
+  return title;
 }
 
 /**
@@ -126,10 +134,7 @@ export function buildSearchUrl(
     if (!param.key.trim()) continue;
     url.searchParams.set(param.key, param.value);
   }
-  url.searchParams.set(
-    site.queryParam,
-    renderQuery(site.queryTemplate, target),
-  );
+  url.searchParams.set(site.queryParam, searchQuery(target));
 
   return url.toString();
 }

@@ -101,6 +101,7 @@ export async function ReportItem({
         <>
           <SearchSiteButtons
             links={searchLinksFor(searchSites, {
+              kind: report.media.kind,
               title: report.media.title,
               year: report.media.year,
               season: report.seasonNumber,

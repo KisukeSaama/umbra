@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildSearchUrl,
   isValidSearchUrl,
-  renderQuery,
+  searchableTitle,
   searchLinksFor,
+  searchQuery,
   type SearchSiteConfig,
   type SearchSiteView,
 } from "@/lib/search-sites";
@@ -13,7 +14,6 @@ const site: SearchSiteConfig = {
   name: "Example",
   url: "https://example.org/search",
   queryParam: "q",
-  queryTemplate: "{title} {year}",
   params: [{ key: "category", value: "movies" }],
 };
 
@@ -25,56 +25,68 @@ const configured = (over: Partial<SearchSiteView> = {}): SearchSiteView => ({
   ...over,
 });
 
-describe("renderQuery", () => {
-  it("fills what the target carries", () => {
-    expect(
-      renderQuery("{title} {code}", { title: "Dune", season: 1, episode: 2 }),
-    ).toBe("Dune S01E02");
+describe("searchQuery", () => {
+  it("searches a movie by its title and year", () => {
+    expect(searchQuery({ kind: "movie", title: "Dune", year: 2021 })).toBe(
+      "Dune 2021",
+    );
+    expect(searchQuery({ kind: "movie", title: "Dune" })).toBe("Dune");
   });
 
-  it("drops a value the title does not have, and the gap it leaves", () => {
-    expect(renderQuery("{title} {year}", { title: "Dune" })).toBe("Dune");
-    expect(renderQuery("{title} S{season} E{episode}", { title: "Dune" })).toBe(
-      "Dune S E",
+  it("does not repeat a year the title already ends with", () => {
+    expect(searchQuery({ kind: "movie", title: "1917", year: 1917 })).toBe(
+      "1917",
     );
   });
 
-  it("pads season and episode where the site expects it", () => {
-    expect(
-      renderQuery("{season}x{episode} {season2}-{episode2}", {
-        title: "Show",
-        season: 1,
-        episode: 7,
-      }),
-    ).toBe("1x7 01-07");
+  it("searches an episode by its code and a season by its number", () => {
+    const show = { kind: "tv", title: "Severance", year: 2022 } as const;
+    expect(searchQuery({ ...show, season: 1, episode: 2 })).toBe(
+      "Severance S01E02",
+    );
+    expect(searchQuery({ ...show, season: 10 })).toBe("Severance S10");
   });
 
-  it("leaves a placeholder it does not know alone", () => {
-    expect(renderQuery("{title} {quality}", { title: "Dune" })).toBe(
-      "Dune {quality}",
+  it("leaves the year out of a series", () => {
+    expect(searchQuery({ kind: "tv", title: "Severance", year: 2022 })).toBe(
+      "Severance",
     );
+  });
+});
+
+describe("searchableTitle", () => {
+  it("spells the title the way a release does", () => {
+    expect(searchableTitle("Dune: Part Two")).toBe("Dune Part Two");
+    expect(searchableTitle("Grey's Anatomy")).toBe("Greys Anatomy");
+    expect(searchableTitle("Le Fabuleux Destin d’Amélie Poulain")).toBe(
+      "Le Fabuleux Destin dAmelie Poulain",
+    );
+    expect(searchableTitle("Law & Order")).toBe("Law Order");
   });
 });
 
 describe("buildSearchUrl", () => {
   it("carries the fixed arguments and then the search", () => {
-    expect(buildSearchUrl(site, { title: "Dune", year: 2021 })).toBe(
-      "https://example.org/search?category=movies&q=Dune+2021",
-    );
+    expect(
+      buildSearchUrl(site, { kind: "movie", title: "Dune", year: 2021 }),
+    ).toBe("https://example.org/search?category=movies&q=Dune+2021");
   });
 
   it("keeps what the saved address already carries", () => {
     expect(
       buildSearchUrl(
         { ...site, url: "https://example.org/search?lang=fr", params: [] },
-        { title: "Dune" },
+        { kind: "movie", title: "Dune" },
       ),
     ).toBe("https://example.org/search?lang=fr&q=Dune");
   });
 
   it("refuses an address a browser has no business following", () => {
     expect(
-      buildSearchUrl({ ...site, url: "javascript:alert(1)" }, { title: "x" }),
+      buildSearchUrl(
+        { ...site, url: "javascript:alert(1)" },
+        { kind: "movie", title: "x" },
+      ),
     ).toBeNull();
     expect(isValidSearchUrl("example.org")).toBe(false);
     expect(isValidSearchUrl("https://example.org")).toBe(true);
@@ -89,7 +101,7 @@ describe("searchLinksFor", () => {
         configured({ id: "broken", name: "Broken", url: "not a url" }),
         configured({ id: "second", name: "Second" }),
       ],
-      { title: "Dune" },
+      { kind: "movie", title: "Dune" },
     );
     expect(links.map((link) => link.id)).toEqual(["first", "second"]);
   });

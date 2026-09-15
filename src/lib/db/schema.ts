@@ -665,8 +665,6 @@ export const searchSites = pgTable(
     url: text("url").notNull(),
     /** Name of the GET argument carrying the search terms. */
     queryParam: text("query_param").notNull(),
-    /** Template of those terms: `{title}`, `{year}`, `{season}`, `{code}`, ... */
-    queryTemplate: text("query_template").notNull().default("{title} {year}"),
     /** The other GET arguments, with their fixed values. */
     params: jsonb("params").$type<SearchSiteParam[]>().notNull().default([]),
     /** Lowest first. The first site is the one on the button. */

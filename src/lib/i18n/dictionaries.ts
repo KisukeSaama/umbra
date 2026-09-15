@@ -819,9 +819,8 @@ export const en = {
   "admin.searchSites.name": "Name",
   "admin.searchSites.url": "Search page address",
   "admin.searchSites.queryParam": "Search argument",
-  "admin.searchSites.queryTemplate": "Search terms",
-  "admin.searchSites.templateHint":
-    "Available: {placeholders}. A value the title does not have is dropped rather than left in the terms.",
+  "admin.searchSites.queryParamHint":
+    "The name of the address argument that carries the search, q on most sites. The terms are written by Umbra: title and year for a movie, S01 for a season, S01E02 for an episode.",
   "admin.searchSites.params": "Fixed arguments",
   "admin.searchSites.paramKey": "Name",
   "admin.searchSites.paramValue": "Value",
@@ -832,7 +831,7 @@ export const en = {
   "admin.searchSites.enable": "Enable",
   "admin.searchSites.disable": "Disable",
   "admin.searchSites.disabled": "Disabled",
-  "admin.searchSites.preview": "Example",
+  "admin.searchSites.preview": "Examples: a movie, a season, an episode",
   "admin.searchSites.saved": "Search site saved.",
   "admin.searchSites.deleteConfirm": "Delete {name}?",
   "admin.searchSites.searchOn": "Search on {name}",
@@ -1641,9 +1640,8 @@ export const fr: Record<TranslationKey, string> = {
   "admin.searchSites.name": "Nom",
   "admin.searchSites.url": "Adresse de la page de recherche",
   "admin.searchSites.queryParam": "Argument de recherche",
-  "admin.searchSites.queryTemplate": "Termes cherchés",
-  "admin.searchSites.templateHint":
-    "Disponibles : {placeholders}. Une valeur que le titre n'a pas est retirée plutôt que laissée dans les termes.",
+  "admin.searchSites.queryParamHint":
+    "Le nom de l'argument de l'adresse qui porte la recherche, q sur la plupart des sites. Les termes sont écrits par Umbra : titre et année pour un film, S01 pour une saison, S01E02 pour un épisode.",
   "admin.searchSites.params": "Arguments fixes",
   "admin.searchSites.paramKey": "Nom",
   "admin.searchSites.paramValue": "Valeur",
@@ -1654,7 +1652,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.searchSites.enable": "Activer",
   "admin.searchSites.disable": "Désactiver",
   "admin.searchSites.disabled": "Désactivé",
-  "admin.searchSites.preview": "Exemple",
+  "admin.searchSites.preview": "Exemples : un film, une saison, un épisode",
   "admin.searchSites.saved": "Site de recherche enregistré.",
   "admin.searchSites.deleteConfirm": "Supprimer {name} ?",
   "admin.searchSites.searchOn": "Chercher sur {name}",

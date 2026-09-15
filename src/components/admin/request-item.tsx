@@ -97,6 +97,7 @@ export async function RequestItem({
         <>
           <SearchSiteButtons
             links={searchLinksFor(searchSites, {
+              kind: request.media.kind,
               title: request.media.title,
               year: request.media.year,
             })}
