@@ -30,7 +30,6 @@ export type SearchSiteInput = {
   name: string;
   url: string;
   queryParam: string;
-  queryTemplate: string;
   params: SearchSiteParam[];
   position: number;
   enabled: boolean;
@@ -41,7 +40,6 @@ const columns = {
   name: searchSites.name,
   url: searchSites.url,
   queryParam: searchSites.queryParam,
-  queryTemplate: searchSites.queryTemplate,
   params: searchSites.params,
   position: searchSites.position,
   enabled: searchSites.enabled,
@@ -123,9 +121,6 @@ function normalise<T extends Partial<SearchSiteInput>>(input: T) {
     ...(input.queryParam === undefined
       ? {}
       : { queryParam: input.queryParam.trim() }),
-    ...(input.queryTemplate === undefined
-      ? {}
-      : { queryTemplate: input.queryTemplate.trim() }),
     ...(input.params === undefined
       ? {}
       : {

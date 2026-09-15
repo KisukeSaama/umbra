@@ -15,7 +15,6 @@ const schema = z.object({
   name: z.string().min(1).max(60).optional(),
   url: z.string().min(1).max(500).optional(),
   queryParam: z.string().min(1).max(60).optional(),
-  queryTemplate: z.string().min(1).max(200).optional(),
   params: z.array(param).max(20).optional(),
   position: z.number().int().min(0).max(999).optional(),
   enabled: z.boolean().optional(),

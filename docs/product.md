@@ -411,10 +411,12 @@ the first site, with the others in a list next to it. The link opens in a new
 tab. Umbra never calls those pages itself, nothing about them is ever shown to a
 member, and none of it goes through Janus because none of it is a request.
 
-The terms are a template. `{title}`, `{year}`, `{season}`, `{episode}`, the
-padded `{season2}` and `{episode2}`, and `{code}` for `S01E02`. A value the row
-does not carry is dropped rather than left in the terms, so a movie is never
-searched for with an empty season.
+The terms are not configured: Umbra knows what the row is about and writes them
+the way release names are written. A movie is its title and its year, an
+episode is the title and `S01E02`, a season is the title and `S01`, a whole
+series is the title alone, since release names leave a show's year out. The
+title is folded to what a release spells: no accents, no apostrophes, and every
+other sign, a colon or an ampersand, turned into a space.
 
 ## Privacy
 

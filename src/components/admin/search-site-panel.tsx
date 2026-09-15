@@ -15,8 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
 import {
   buildSearchUrl,
-  DEFAULT_QUERY_TEMPLATE,
-  SEARCH_PLACEHOLDERS,
+  SEARCH_SAMPLES,
   type SearchSiteParam,
   type SearchSiteView,
 } from "@/lib/search-sites";
@@ -25,21 +24,21 @@ import {
  * Search sites, written down once.
  *
  * A site is an address, the argument carrying the search terms and the
- * arguments that never change on that page. The example under the form is built
- * with the function the queues use, so what is read here is what will open.
+ * arguments that never change on that page. The terms are Umbra's to write, so
+ * the form only asks which argument carries them, `q` being the usual answer.
+ * The examples under the form are built with the function the queues use, one
+ * per case, so what is read here is what will open.
  *
  * Order is the only ranking: the first enabled site is the one on the button of
  * every request and every report.
  */
 
-/** What the example link is aimed at, so a template can be read at a glance. */
-const SAMPLE = { title: "Dune", year: 2021, season: 1, episode: 2 };
+const [SAMPLE] = SEARCH_SAMPLES;
 
 type Draft = {
   name: string;
   url: string;
   queryParam: string;
-  queryTemplate: string;
   params: SearchSiteParam[];
   position: number;
   enabled: boolean;
@@ -49,7 +48,6 @@ const EMPTY: Draft = {
   name: "",
   url: "",
   queryParam: "q",
-  queryTemplate: DEFAULT_QUERY_TEMPLATE,
   params: [],
   position: 0,
   enabled: true,
@@ -170,12 +168,14 @@ function SiteForm({
   const patch = (values: Partial<Draft>) =>
     setDraft((current) => ({ ...current, ...values }));
 
-  const preview = buildSearchUrl(draft, SAMPLE);
+  const previews = SEARCH_SAMPLES.flatMap((sample) => {
+    const url = buildSearchUrl(draft, sample);
+    return url ? [url] : [];
+  });
   const ready =
     draft.name.trim().length > 0 &&
     draft.queryParam.trim().length > 0 &&
-    draft.queryTemplate.trim().length > 0 &&
-    preview !== null;
+    previews.length > 0;
 
   async function save() {
     setBusy(true);
@@ -233,38 +233,19 @@ function SiteForm({
         />
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
-        <div className="space-y-1.5">
-          <Label htmlFor={id("param")}>
-            {t("admin.searchSites.queryParam")}
-          </Label>
-          <Input
-            id={id("param")}
-            value={draft.queryParam}
-            placeholder="q"
-            onChange={(event) => patch({ queryParam: event.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={id("template")}>
-            {t("admin.searchSites.queryTemplate")}
-          </Label>
-          <Input
-            id={id("template")}
-            value={draft.queryTemplate}
-            placeholder={DEFAULT_QUERY_TEMPLATE}
-            onChange={(event) => patch({ queryTemplate: event.target.value })}
-          />
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={id("param")}>{t("admin.searchSites.queryParam")}</Label>
+        <Input
+          id={id("param")}
+          className="sm:w-40"
+          value={draft.queryParam}
+          placeholder="q"
+          onChange={(event) => patch({ queryParam: event.target.value })}
+        />
+        <p className="text-muted-foreground text-xs">
+          {t("admin.searchSites.queryParamHint")}
+        </p>
       </div>
-
-      <p className="text-muted-foreground text-xs">
-        {t("admin.searchSites.templateHint", {
-          placeholders: SEARCH_PLACEHOLDERS.map((name) => `{${name}}`).join(
-            ", ",
-          ),
-        })}
-      </p>
 
       <div className="space-y-2">
         <Label>{t("admin.searchSites.params")}</Label>
@@ -337,12 +318,15 @@ function SiteForm({
         <Label htmlFor={id("enabled")}>{t("admin.searchSites.enabled")}</Label>
       </div>
 
-      {preview ? (
-        <p className="text-muted-foreground text-xs break-all">
-          {t("admin.searchSites.preview")}
-          {": "}
-          {preview}
-        </p>
+      {previews.length > 0 ? (
+        <div className="text-muted-foreground space-y-1 text-xs break-all">
+          <p>{t("admin.searchSites.preview")}</p>
+          <ul className="space-y-0.5">
+            {previews.map((url) => (
+              <li key={url}>{url}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       <div className="flex gap-2">
@@ -364,7 +348,6 @@ function toDraft(site: SearchSiteView): Draft {
     name: site.name,
     url: site.url,
     queryParam: site.queryParam,
-    queryTemplate: site.queryTemplate,
     params: site.params,
     position: site.position,
     enabled: site.enabled,

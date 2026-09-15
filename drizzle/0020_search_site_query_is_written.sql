@@ -1,0 +1,1 @@
+ALTER TABLE "search_site" DROP COLUMN "query_template";
