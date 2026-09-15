@@ -116,12 +116,16 @@ export async function ReportItem({
               body={{ status }}
               size="sm"
               variant={actionVariant(status)}
-              noteField={{
-                name: "adminNote",
-                label: t("admin.reports.note"),
-                placeholder: t("admin.reports.notePlaceholder"),
-                defaultValue: report.adminNote,
-              }}
+              noteField={
+                status === "open"
+                  ? undefined
+                  : {
+                      name: "adminNote",
+                      label: t("admin.reports.note"),
+                      placeholder: t("admin.reports.notePlaceholder"),
+                      defaultValue: report.adminNote,
+                    }
+              }
             >
               {t(actionLabel(status))}
             </ActionButton>
@@ -188,6 +192,8 @@ function statusVariant(status: ReportStatus) {
 
 function actionLabel(status: ReportStatus): TranslationKey {
   switch (status) {
+    case "open":
+      return "admin.reports.reopen";
     case "acknowledged":
       return "admin.reports.acknowledge";
     case "in_progress":

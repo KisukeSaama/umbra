@@ -486,6 +486,7 @@ export const en = {
   "admin.storage.selected.one": "{count} selected",
   "admin.storage.clearSelection": "Clear",
   "admin.storage.openInEpisort": "Open in Episort",
+  "admin.storage.searchTitle": "Title to search on the sources",
   "admin.storage.openInEpisort.hint":
     "Opens this folder in Episort on this computer. Episort must be installed and connected to this server.",
   "admin.storage.openInEpisort.selection":
@@ -758,6 +759,11 @@ export const en = {
   "notifications.request.available": "{title} is on Kisuflix.",
   "notifications.request.rejected": "{title} was declined.",
   "notifications.request.requested": "{title} is being considered again.",
+  "notifications.report.open": "Your report on {title} was reopened.",
+  "notifications.ask.open": "Your request on {title} was reopened.",
+  "admin.reports.reopen": "Reopen",
+  "error.reportReopenTaken":
+    "An identical request or report is already open. Handle that one instead.",
   "notifications.report.acknowledged": "Your report on {title} was taken up.",
   "notifications.report.in_progress":
     "Your report on {title} is being worked on.",
@@ -827,7 +833,7 @@ export const en = {
   "admin.searchSites.addParam": "Add an argument",
   "admin.searchSites.removeParam": "Remove this argument",
   "admin.searchSites.position": "Order",
-  "admin.searchSites.enabled": "Offered on the queues",
+  "admin.searchSites.enabled": "Offered on the queues and in storage",
   "admin.searchSites.enable": "Enable",
   "admin.searchSites.disable": "Disable",
   "admin.searchSites.disabled": "Disabled",
@@ -1314,6 +1320,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.storage.selected.one": "{count} sélectionné",
   "admin.storage.clearSelection": "Désélectionner",
   "admin.storage.openInEpisort": "Ouvrir dans Episort",
+  "admin.storage.searchTitle": "Titre à rechercher sur les sources",
   "admin.storage.openInEpisort.hint":
     "Ouvre ce dossier dans Episort sur cet ordinateur. Episort doit être installé et connecté à ce serveur.",
   "admin.storage.openInEpisort.selection":
@@ -1582,6 +1589,11 @@ export const fr: Record<TranslationKey, string> = {
   "notifications.request.available": "{title} est sur Kisuflix.",
   "notifications.request.rejected": "{title} a été refusé.",
   "notifications.request.requested": "{title} est de nouveau à l'étude.",
+  "notifications.report.open": "Votre signalement sur {title} a été rouvert.",
+  "notifications.ask.open": "Votre demande sur {title} a été rouverte.",
+  "admin.reports.reopen": "Réouvrir",
+  "error.reportReopenTaken":
+    "Une demande ou un signalement identique est déjà en cours. Traitez cet élément.",
   "notifications.report.acknowledged":
     "Votre signalement sur {title} a été pris en compte.",
   "notifications.report.in_progress":
@@ -1648,7 +1660,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.searchSites.addParam": "Ajouter un argument",
   "admin.searchSites.removeParam": "Retirer cet argument",
   "admin.searchSites.position": "Ordre",
-  "admin.searchSites.enabled": "Proposé dans les files",
+  "admin.searchSites.enabled": "Proposé dans les files et le stockage",
   "admin.searchSites.enable": "Activer",
   "admin.searchSites.disable": "Désactiver",
   "admin.searchSites.disabled": "Désactivé",

@@ -223,7 +223,7 @@ const FAULT_TRANSITIONS = {
   acknowledged: ["in_progress", "resolved", "rejected", "duplicate"],
   in_progress: ["resolved", "rejected"],
   resolved: [],
-  rejected: [],
+  rejected: ["open"],
   duplicate: [],
 } satisfies Record<ReportStatus, ReportStatus[]>;
 
@@ -232,7 +232,7 @@ const ASK_TRANSITIONS = {
   acknowledged: ["resolved", "rejected", "duplicate"],
   in_progress: [],
   resolved: [],
-  rejected: [],
+  rejected: ["open"],
   duplicate: [],
 } satisfies Record<ReportStatus, ReportStatus[]>;
 

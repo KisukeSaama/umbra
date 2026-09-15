@@ -13,15 +13,15 @@ import type { SearchLink } from "@/lib/search-sites";
 import { useTranslator } from "@/lib/i18n/client";
 
 /**
- * The way from a queue row out to the search pages.
+ * The way from a queue row or a storage folder out to the search pages.
  *
  * One button for the first site, because that is the one the work usually
  * starts on, and the rest a press away rather than a row of eight buttons on
  * every line. Plain links, so a middle click opens a tab like anywhere else,
  * and always a new tab: the queue being worked is not a page to lose.
  *
- * The addresses are built on the server and handed over ready to open, so the
- * browser is never told what the sites are configured with.
+ * Callers hand over ready-to-open addresses. Storage rebuilds them as the
+ * current folder or the suggested search title changes.
  */
 export function SearchSiteButtons({ links }: { links: SearchLink[] }) {
   const t = useTranslator();

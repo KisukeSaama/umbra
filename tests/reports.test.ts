@@ -82,12 +82,19 @@ describe("report lifecycle", () => {
     expect(live).toEqual(["open", "acknowledged", "in_progress"]);
   });
 
-  it("only moves forward, and never out of a settled state", () => {
+  it("keeps resolved reports closed and refuses skipped steps", () => {
     expect(canTransition("open", "acknowledged", "bad_quality")).toBe(true);
     expect(canTransition("open", "resolved", "bad_quality")).toBe(false);
     expect(canTransition("acknowledged", "resolved", "bad_quality")).toBe(true);
     expect(canTransition("resolved", "open", "bad_quality")).toBe(false);
-    expect(nextStatuses("rejected", "bad_quality")).toHaveLength(0);
+    expect(nextStatuses("duplicate", "bad_quality")).toHaveLength(0);
+  });
+
+  it("reopens declined asks and faults into the waiting queue", () => {
+    for (const reason of REPORT_REASONS) {
+      expect(nextStatuses("rejected", reason)).toEqual(["open"]);
+      expect(canTransition("rejected", "acknowledged", reason)).toBe(false);
+    }
   });
 
   it("works a fault on, but takes an ask straight to settled", () => {
