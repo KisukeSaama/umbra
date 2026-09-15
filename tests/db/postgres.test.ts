@@ -21,6 +21,7 @@ let schema: typeof import("@/lib/db/schema");
 let requests: typeof import("@/lib/domain/requests");
 let series: typeof import("@/lib/domain/series");
 let session: typeof import("@/lib/auth/session");
+let reportDomain: typeof import("@/lib/domain/reports");
 
 beforeAll(async () => {
   if (!hasDatabase) return;
@@ -31,6 +32,92 @@ beforeAll(async () => {
   requests = await import("@/lib/domain/requests");
   series = await import("@/lib/domain/series");
   session = await import("@/lib/auth/session");
+  reportDomain = await import("@/lib/domain/reports");
+});
+
+describe.skipIf(!hasDatabase)("reopening a declined report", () => {
+  beforeEach(emptyDatabase);
+
+  async function declinedReport() {
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({
+        plexAccountId: "test:report",
+        username: "test",
+      })
+      .returning();
+    const [title] = await db()
+      .insert(schema.media)
+      .values({
+        providerId: "1",
+        mediaType: "tv",
+        title: "Test series",
+      })
+      .returning();
+    const [report] = await db()
+      .insert(schema.reports)
+      .values({
+        mediaId: title.id,
+        reportedBy: account.id,
+        reason: "missing_season",
+        seasonNumber: 2,
+        status: "rejected",
+        adminNote: "Unavailable",
+        acknowledgedAt: new Date(),
+        closedAt: new Date(),
+      })
+      .returning();
+    await db().insert(schema.reportFollowers).values({
+      reportId: report.id,
+      accountId: account.id,
+    });
+    return report;
+  }
+
+  it("clears the refusal and previous dates and tells the follower", async () => {
+    const report = await declinedReport();
+    await reportDomain.updateReportStatus(report.id, "open", "Stale note");
+    const [updated] = await db()
+      .select()
+      .from(schema.reports)
+      .where(eq(schema.reports.id, report.id));
+    expect(updated).toMatchObject({
+      status: "open",
+      adminNote: null,
+      acknowledgedAt: null,
+      closedAt: null,
+    });
+    const [notification] = await db()
+      .select()
+      .from(schema.notifications)
+      .where(eq(schema.notifications.subjectId, report.id));
+    expect(notification.payload).toMatchObject({
+      status: "open",
+      reason: "missing_season",
+    });
+    expect(notification.payload).not.toHaveProperty("note");
+  });
+
+  it("keeps the refusal intact when a newer identical ask is open", async () => {
+    const report = await declinedReport();
+    await db().insert(schema.reports).values({
+      mediaId: report.mediaId,
+      reason: report.reason,
+      seasonNumber: 2,
+    });
+    await expect(
+      reportDomain.updateReportStatus(report.id, "open"),
+    ).rejects.toThrow(/reportReopenTaken/);
+    const [unchanged] = await db()
+      .select()
+      .from(schema.reports)
+      .where(eq(schema.reports.id, report.id));
+    expect(unchanged).toMatchObject({
+      status: "rejected",
+      adminNote: "Unavailable",
+    });
+    expect(await db().select().from(schema.notifications)).toHaveLength(0);
+  });
 });
 
 /**

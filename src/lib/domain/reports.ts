@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { isUniqueViolation } from "@/lib/db/errors";
 import {
   accounts,
   libraryItems,
@@ -676,7 +677,7 @@ export async function updateReportStatus(
   if (!canTransition(current.status, status, current.reason))
     throw new ConflictError("error.illegalTransition");
 
-  const note = reportNoteFor(adminNote);
+  const note = status === "open" ? null : reportNoteFor(adminNote);
   const now = new Date();
   const closing =
     status === "resolved" || status === "rejected" || status === "duplicate";
@@ -686,8 +687,9 @@ export async function updateReportStatus(
       status,
       ...(note === undefined ? {} : { adminNote: note }),
       updatedAt: now,
-      acknowledgedAt: status === "acknowledged" ? now : undefined,
-      closedAt: closing ? now : undefined,
+      acknowledgedAt:
+        status === "open" ? null : status === "acknowledged" ? now : undefined,
+      closedAt: status === "open" ? null : closing ? now : undefined,
     })
     // The status this move started from is part of the condition: two people on
     // the queue at once would otherwise both pass the check above, and the
@@ -697,6 +699,12 @@ export async function updateReportStatus(
       id: reports.id,
       status: reports.status,
       adminNote: reports.adminNote,
+    })
+    .catch((error: unknown) => {
+      // A newer live report for the same place and reason owns the queue.
+      if (isUniqueViolation(error))
+        throw new ConflictError("error.reportReopenTaken");
+      throw error;
     });
 
   if (!updated) throw new ConflictError("error.illegalTransition");

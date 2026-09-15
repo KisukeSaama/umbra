@@ -15,6 +15,8 @@ import {
 } from "@/components/admin/file-explorer";
 import { StorageTreemap, nodeAt } from "@/components/admin/storage-treemap";
 import { EpisortLink } from "@/components/admin/episort-link";
+import { StorageSearch } from "@/components/admin/storage-search";
+import type { SearchSiteView } from "@/lib/search-sites";
 import { ChevronRightIcon } from "@/components/icons";
 import type { StorageNode } from "@/lib/db/schema";
 import type { StorageListing } from "@/lib/domain/storage-files";
@@ -52,12 +54,14 @@ export function StorageBrowser({
   volumes,
   roots,
   canDelete,
+  searchSites,
   note,
 }: {
   volumes: ExplorerVolume[];
   /** The last measured tree, empty when nothing has been measured yet. */
   roots: StorageNode[];
   canDelete: boolean;
+  searchSites: SearchSiteView[];
   /** When the measurement was taken, and the button that takes another. */
   note?: ReactNode;
 }) {
@@ -206,6 +210,12 @@ export function StorageBrowser({
               </span>
             </span>
           </div>
+
+          <StorageSearch
+            key={JSON.stringify([volume, path])}
+            path={path}
+            sites={searchSites}
+          />
 
           <StorageTreemap
             roots={roots}

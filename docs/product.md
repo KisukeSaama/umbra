@@ -256,6 +256,12 @@ missing", a season complete closes "a season is missing", and a series caught up
 closes "the series is behind". Everything else describes a codec, a track or a
 playback failure, which Umbra does not index and must never try to check.
 
+The administration can reopen a declined report, including an ask for a missing
+season or episode. It returns to `open`, clears the refusal note and the previous
+take-up and closure dates, and notifies its followers. If an identical live
+report now exists, the database refuses the reopening: that newer report is the
+one to handle.
+
 ### Asking for the rest
 
 A series that is on the server without being all there used to have no answer:
@@ -417,6 +423,14 @@ episode is the title and `S01E02`, a season is the title and `S01`, a whole
 series is the title alone, since release names leave a show's year out. The
 title is folded to what a release spells: no accents, no apostrophes, and every
 other sign, a colon or an ampersand, turned into a space.
+
+Storage offers the same enabled sites, in the same order, beside the current
+folder. Opening a folder from either the map or the list suggests a search title
+without release groups, quality or encoding details. Season and extras folders
+use the nearest title folder above them. Staff can correct the suggestion before
+opening a source to look for a smaller release; the correction is not saved and
+resets on navigation. Volume roots offer no search, and category folders start
+with an empty suggestion.
 
 ## Privacy
 

@@ -14,6 +14,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { requireStaffPage } from "@/lib/auth/session";
 import { storageDetail, storageTree } from "@/lib/domain/storage";
+import { listEnabledSearchSites } from "@/lib/domain/search-sites";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { runningJob } from "@/lib/jobs";
@@ -36,10 +37,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminStoragePage() {
   const account = await requireStaffPage();
   const { t, locale } = await getI18n();
-  const [detail, tree, running] = await Promise.all([
+  const [detail, tree, running, searchSites] = await Promise.all([
     storageDetail(),
     storageTree(),
     runningJob("storage-scan"),
+    listEnabledSearchSites(),
   ]);
 
   // The walk outlives the page that started it, so its state comes from the
@@ -115,6 +117,7 @@ export default async function AdminStoragePage() {
               }))}
               roots={tree?.roots ?? []}
               canDelete={account.role === "admin"}
+              searchSites={searchSites}
               note={
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-muted-foreground text-xs tabular-nums">
