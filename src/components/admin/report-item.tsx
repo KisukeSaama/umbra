@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/admin/action-button";
 import { QueueRow } from "@/components/admin/queue-row";
+import { SearchSiteButtons } from "@/components/admin/search-site-buttons";
 import { WaitingList } from "@/components/admin/waiting-list";
 import { Badge } from "@/components/ui/badge";
 import type { ReportStatus } from "@/lib/db/schema";
@@ -9,6 +10,7 @@ import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { nextStatuses, reasonKey } from "@/lib/reports/reasons";
+import { searchLinksFor, type SearchSiteView } from "@/lib/search-sites";
 
 /**
  * One report row as the administration works it.
@@ -20,17 +22,24 @@ import { nextStatuses, reasonKey } from "@/lib/reports/reasons";
  * The buttons come from the state machine in `src/lib/reports/reasons.ts`, so a
  * move that is not legal is never offered here and is refused by the domain if
  * it arrives anyway from a stale tab.
+ *
+ * The row also carries the way out to the search pages the administration
+ * fetches from, aimed at the place the member pointed at: the season and the
+ * episode where there are any, the title alone otherwise.
  */
 export async function ReportItem({
   report,
   waiting,
   showStatus = true,
+  searchSites,
 }: {
   report: ReportRow;
   /** Who is waiting on it, by name, the first being whoever reported first. */
   waiting: string[];
   /** Left out where the stage shown holds a single status. */
   showStatus?: boolean;
+  /** Read once by the page: a row never queries for its own buttons. */
+  searchSites: SearchSiteView[];
 }) {
   const { t, locale } = await getI18n();
   const gap = await seasonGap(report);
@@ -90,6 +99,15 @@ export async function ReportItem({
       note={report.adminNote}
       actions={
         <>
+          <SearchSiteButtons
+            links={searchLinksFor(searchSites, {
+              title: report.media.title,
+              year: report.media.year,
+              season: report.seasonNumber,
+              episode: report.episodeNumber,
+            })}
+          />
+
           {nextStatuses(report.status, report.reason).map((status) => (
             <ActionButton
               key={status}

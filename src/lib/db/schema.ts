@@ -16,6 +16,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { SearchSiteParam } from "@/lib/search-sites";
+
 /**
  * Umbra schema.
  *
@@ -641,6 +643,44 @@ export const storageTreeSnapshots = pgTable(
       .defaultNow(),
   },
   (t) => [index("storage_tree_snapshot_scanned_idx").on(t.scannedAt)],
+);
+
+/* ---------------------------------------------------------- search sites -- */
+
+/**
+ * A search page the administration goes to when it fetches a title.
+ *
+ * Configured entirely from the admin panel and in any number: an address, the
+ * GET argument carrying the search terms, and the other arguments with the
+ * values they always take on that site. What the queues do with it is build a
+ * link; Umbra never calls the page itself, so no key and no quota is involved
+ * and nothing about these sites is ever shown to a member.
+ */
+export const searchSites = pgTable(
+  "search_site",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    /** Absolute address of the search page. */
+    url: text("url").notNull(),
+    /** Name of the GET argument carrying the search terms. */
+    queryParam: text("query_param").notNull(),
+    /** Template of those terms: `{title}`, `{year}`, `{season}`, `{code}`, ... */
+    queryTemplate: text("query_template").notNull().default("{title} {year}"),
+    /** The other GET arguments, with their fixed values. */
+    params: jsonb("params").$type<SearchSiteParam[]>().notNull().default([]),
+    /** Lowest first. The first site is the one on the button. */
+    position: integer("position").notNull().default(0),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt,
+    updatedAt,
+  },
+  (t) => [
+    // The name is how two buttons tell each other apart, so the database is
+    // what refuses a second site carrying it.
+    uniqueIndex("search_site_name_idx").on(t.name),
+    index("search_site_order_idx").on(t.position, t.name),
+  ],
 );
 
 /* --------------------------------------------------------------- job runs -- */

@@ -5,6 +5,7 @@ import {
   DiskIcon,
   FlagIcon,
   RequestIcon,
+  SearchIcon,
   SeriesIcon,
   SyncIcon,
   type IconProps,
@@ -92,6 +93,13 @@ export const ADMIN_LINKS: AdminLink[] = [
     hint: "admin.nav.accounts.hint",
     icon: AccountsIcon,
     group: "community",
+  },
+  {
+    href: "/admin/search-sites",
+    key: "admin.nav.searchSites",
+    hint: "admin.nav.searchSites.hint",
+    icon: SearchIcon,
+    group: "server",
   },
   {
     href: "/admin/storage",
