@@ -5,7 +5,7 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   analyticsDaily,
-  libraryItems,
+  libraryArrivals,
   mediaRequests,
   reports,
 } from "@/lib/db/schema";
@@ -64,42 +64,50 @@ export async function latestMetric(metric: Metric): Promise<number | null> {
   return row?.count ?? null;
 }
 
-export type WeeklyStats = {
+/** How far back the home figures look. */
+const STATS_WINDOW_DAYS = 30;
+
+export type MonthlyStats = {
   newContent: number;
   requestsHandled: number;
   newEpisodes: number;
 };
 
-/** The public "this week" summary. Aggregated, anonymous. */
-export async function weeklyStats(): Promise<WeeklyStats> {
-  const since = daysAgo(7);
+/**
+ * The public summary of the last 30 days. Aggregated, anonymous.
+ *
+ * Counted from what happened, never from what is there now: the library index
+ * is swept and a request's row keeps moving, so reading either made the
+ * figures shrink every time a sync removed a title or touched a request.
+ */
+export async function monthlyStats(): Promise<MonthlyStats> {
+  const since = daysAgo(STATS_WINDOW_DAYS);
 
   const [content] = await db()
     .select({ count: sql<number>`count(*)::int` })
-    .from(libraryItems)
+    .from(libraryArrivals)
     .where(
       and(
-        gte(libraryItems.addedAt, since),
-        inArray(libraryItems.kind, ["movie", "show"]),
+        gte(libraryArrivals.addedAt, since),
+        inArray(libraryArrivals.kind, ["movie", "show"]),
       ),
     );
 
   const [episodesAdded] = await db()
     .select({ count: sql<number>`count(*)::int` })
-    .from(libraryItems)
+    .from(libraryArrivals)
     .where(
-      and(gte(libraryItems.addedAt, since), eq(libraryItems.kind, "episode")),
+      and(
+        gte(libraryArrivals.addedAt, since),
+        eq(libraryArrivals.kind, "episode"),
+      ),
     );
 
+  // Whatever the request became since: a title deleted later was still fetched.
   const [handled] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(mediaRequests)
-    .where(
-      and(
-        gte(mediaRequests.updatedAt, since),
-        eq(mediaRequests.status, "available"),
-      ),
-    );
+    .where(gte(mediaRequests.availableAt, since));
 
   // A fixed report is handled work too: the admin queue lists both side by side.
   const [fixed] = await db()

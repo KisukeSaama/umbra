@@ -6,13 +6,13 @@ import { InProgressRequests } from "@/components/home/in-progress-requests";
 import { RecentlyAdded } from "@/components/home/recently-added";
 import { StorageCard } from "@/components/home/storage-card";
 import { UpcomingEpisodes } from "@/components/home/upcoming";
-import { WeekStats } from "@/components/home/week-stats";
+import { MonthStats } from "@/components/home/month-stats";
 import { daysUntil } from "@/components/formatting";
 import { PollCard } from "@/components/poll-card";
 import { Shelf } from "@/components/shelf";
 import { CardSkeleton, ShelfSkeleton } from "@/components/skeletons";
 import { requireMemberPage } from "@/lib/auth/session";
-import { weeklyStats } from "@/lib/domain/analytics";
+import { monthlyStats } from "@/lib/domain/analytics";
 import { latestAnnouncement } from "@/lib/domain/announcements";
 import { trendingShelf } from "@/lib/domain/discovery";
 import { recentlyAdded } from "@/lib/domain/library";
@@ -43,7 +43,7 @@ export default async function HomePage() {
       // on the feed: read anonymously, the card forgot their reaction.
       latestAnnouncement(account.id),
       storageOutlook(),
-      weeklyStats(),
+      monthlyStats(),
     ]);
 
   const aside = inProgress.length > 0 || poll !== null;
@@ -53,7 +53,7 @@ export default async function HomePage() {
       <Hero posters={recent} />
 
       <div className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12">
-        <WeekStats stats={stats} />
+        <MonthStats stats={stats} />
         <RecentlyAdded items={recent} />
 
         {/* One shelf from the wider world on the home page, and only one: the

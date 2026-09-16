@@ -1,11 +1,11 @@
 /**
  * The state of the place, in one row.
  *
- * The same shape as the week strip on the home page, because it answers the
+ * The same shape as the figures strip on the home page, because it answers the
  * same kind of question: a large tabular figure over a small label, cells
  * divided by hairlines, no card per figure and no gauge. What is counted here
  * is work waiting, so a zero is worth showing, unlike on the member side where
- * an empty week simply removes the strip.
+ * an empty month simply removes the strip.
  *
  * It wraps rather than scrolls: on a phone the figures fall into two columns
  * and stay readable, instead of hiding the last three off the right edge. Each

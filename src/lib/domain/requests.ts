@@ -873,6 +873,7 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
     UPDATE media_request AS r
        SET status = 'available',
            admin_note = NULL,
+           available_at = COALESCE(r.available_at, now()),
            updated_at = now()
       FROM media AS m
       JOIN library_item AS l
@@ -935,7 +936,7 @@ export async function notifyArrivedRequests(): Promise<number> {
       JOIN request_follower AS f ON f.request_id = r.id
       JOIN media AS m ON m.id = r.media_id
      WHERE r.status = 'available'
-       AND r.updated_at > now() - interval '7 days'
+       AND r.available_at > now() - interval '7 days'
     ON CONFLICT (account_id, dedup_key) DO NOTHING
   `);
   return result.count ?? 0;

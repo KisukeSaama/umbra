@@ -15,7 +15,11 @@ import {
 } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { libraryItems, type LibraryKind } from "@/lib/db/schema";
+import {
+  libraryArrivals,
+  libraryItems,
+  type LibraryKind,
+} from "@/lib/db/schema";
 import {
   alternateCutOf,
   beginsWithTitle,
@@ -184,9 +188,32 @@ async function upsertItems(entries: LibraryItem[]): Promise<number> {
           syncedAt: new Date(),
         },
       });
+    await recordArrivals(chunk);
   }
 
   return entries.length;
+}
+
+/**
+ * Keeps what arrived, apart from what is still there (see `libraryArrivals`).
+ *
+ * The first date the server gave wins, so a pass that sweeps a title and one
+ * that finds it again count it once, and the figures never shrink on a resync.
+ */
+async function recordArrivals(entries: LibraryItem[]) {
+  const arrivals = entries.flatMap((entry) =>
+    entry.addedAt && entry.kind !== "season"
+      ? [
+          {
+            ratingKey: entry.ratingKey,
+            kind: entry.kind,
+            addedAt: entry.addedAt,
+          },
+        ]
+      : [],
+  );
+  if (arrivals.length === 0) return;
+  await db().insert(libraryArrivals).values(arrivals).onConflictDoNothing();
 }
 
 /** Recently added, movies and shows only: an episode rail would be noise. */

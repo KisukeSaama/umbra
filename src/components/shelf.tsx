@@ -6,7 +6,7 @@ import type { CatalogResult } from "@/lib/domain/catalog";
 /**
  * A named run of titles.
  *
- * It removes itself when it has nothing, the way the week strip does: an empty
+ * It removes itself when it has nothing, the way the figures strip does: an empty
  * rail with a heading over it is worse than no rail, and a page made of shelves
  * would otherwise fill with polite emptiness the first week.
  */

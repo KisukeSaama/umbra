@@ -303,6 +303,16 @@ export const mediaRequests = pgTable(
      * Cleared when the request is accepted again.
      */
     untrackedAt: timestamp("untracked_at", { withTimezone: true }),
+    /**
+     * When the title first reached the server for this request.
+     *
+     * Set once by the sync and never cleared, whatever the status does next. It
+     * is what "requests handled" on the home page counts: a title deleted since, or a
+     * row touched again for any other reason, was still handled when it was.
+     * `updated_at` moves on every write and the status can move on to
+     * `removed`, so neither can say it.
+     */
+    availableAt: timestamp("available_at", { withTimezone: true }),
     createdAt,
     updatedAt,
   },
@@ -316,6 +326,9 @@ export const mediaRequests = pgTable(
     index("media_request_media_idx").on(t.mediaId, t.status),
     // The follow-up page and the discover shelves both read a person's own.
     index("media_request_requester_idx").on(t.requestedBy, t.createdAt),
+    index("media_request_available_idx")
+      .on(t.availableAt)
+      .where(sql`available_at IS NOT NULL`),
     check(
       "media_request_status_check",
       sql`${t.status} IN ('requested', 'accepted', 'available', 'rejected', 'removed')`,
@@ -745,6 +758,27 @@ export const analyticsDaily = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.day, t.metric] })],
+);
+
+/**
+ * What arrived on the server, and when, as a fact rather than a state.
+ *
+ * `library_item` is what the server holds now: the sync sweeps it, so anything
+ * deleted since, or dropped by a pass that went wrong, leaves the index and
+ * would leave the home figures with it. A resync must never make them
+ * smaller than they were, so the figures count this table instead. One row per
+ * rating key, written with `ON CONFLICT DO NOTHING`, so the first date the
+ * server gave is the one kept; housekeeping drops rows too old to be counted.
+ * About the library, never about a person.
+ */
+export const libraryArrivals = pgTable(
+  "library_arrival",
+  {
+    ratingKey: text("rating_key").primaryKey(),
+    kind: text("kind").$type<LibraryKind>().notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("library_arrival_added_idx").on(t.addedAt, t.kind)],
 );
 
 /* ---------------------------------------------------------------- reports -- */
