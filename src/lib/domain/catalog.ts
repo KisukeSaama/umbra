@@ -246,7 +246,7 @@ async function libraryIndex(
 
   const index = new Map<string, string>();
   for (const row of rows) {
-    const providerId = row.tmdbId ?? row.cutProviderId;
+    const providerId = row.cutProviderId ?? row.tmdbId;
     if (!providerId) continue;
     const key = `${row.kind}:${providerId}`;
     if (!index.has(key)) index.set(key, row.title);

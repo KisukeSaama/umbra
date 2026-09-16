@@ -437,6 +437,7 @@ const inLibraryColumn = sql<boolean>`exists (
   select 1
     from library_item as l
    where l.tmdb_id = ${media.providerId}
+     and l.cut_provider_id is null
      and l.kind = case ${media.mediaType} when 'movie' then 'movie' else 'show' end
 )`;
 
@@ -876,6 +877,7 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
       FROM media AS m
       JOIN library_item AS l
         ON l.tmdb_id = m.provider_id
+       AND l.cut_provider_id IS NULL
        AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END
      WHERE r.media_id = m.id
        AND r.status IN ('requested', 'accepted')
@@ -908,7 +910,8 @@ export async function retireRequestsGoneFromLibrary(): Promise<number> {
        AND r.status = 'available'
        AND NOT EXISTS (
              SELECT 1 FROM library_item AS l
-              WHERE (l.tmdb_id = m.provider_id OR l.cut_provider_id = m.provider_id)
+              WHERE ((l.tmdb_id = m.provider_id AND l.cut_provider_id IS NULL)
+                     OR l.cut_provider_id = m.provider_id)
                 AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END)
   `);
   return result.count ?? 0;
