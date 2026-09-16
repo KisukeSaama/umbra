@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
  *
  * The free space is the figure a member reads first, set large; the total and
  * the share used are context around it. Then the same space in titles, in a
- * strip of two cells like the week strip, because a terabyte means nothing to
+ * strip of two cells like the figures strip, because a terabyte means nothing to
  * most members and a film means something to all of them (ADR 0019).
  *
  * It stays quiet while there is room: the bar is ink, not ochre, and nothing

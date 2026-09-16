@@ -610,3 +610,76 @@ describe.skipIf(!hasDatabase)("signing in with a Plex account", () => {
     expect(back.username).toBe("kisuke-renamed");
   });
 });
+
+/*
+ * The home figures went down when the owner's Plex password changed: the
+ * sync came back, touched rows, swept others, and the figures lost what had
+ * happened. What arrived stays arrived, whatever the server does next.
+ */
+describe.skipIf(!hasDatabase)("counting the last 30 days", () => {
+  beforeEach(emptyDatabase);
+
+  it("keeps what arrived through a sweep and a resync", async () => {
+    const { plexLibrary } = await import("@/lib/providers/plex");
+    const library = await import("@/lib/domain/library");
+    const analytics = await import("@/lib/domain/analytics");
+
+    const now = new Date();
+    const film = {
+      ratingKey: "10",
+      kind: "movie" as const,
+      title: "Alien",
+      year: 1979,
+      tmdbId: "1",
+      tvdbId: null,
+      imdbId: null,
+      parentRatingKey: null,
+      grandparentRatingKey: null,
+      grandparentTitle: null,
+      seasonNumber: null,
+      episodeNumber: null,
+      addedAt: now,
+      sectionKey: "1",
+    };
+    const other = { ...film, ratingKey: "11", title: "Aliens", tmdbId: "2" };
+
+    vi.spyOn(plexLibrary, "sections").mockResolvedValue([
+      { key: "1", title: "Films", kind: "movie" },
+    ]);
+    const items = vi
+      .spyOn(plexLibrary, "sectionItems")
+      .mockResolvedValue([film, other]);
+
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: "test:week", username: "week" })
+      .returning({ id: schema.accounts.id });
+    const [title] = await db()
+      .insert(schema.media)
+      .values({ providerId: "1", mediaType: "movie", title: "Alien" })
+      .returning({ id: schema.media.id });
+    await db()
+      .insert(schema.mediaRequests)
+      .values({ mediaId: title.id, requestedBy: account.id });
+
+    await library.syncLibrary();
+    await requests.closeRequestsPresentInLibrary();
+    expect(await analytics.monthlyStats()).toMatchObject({
+      newContent: 2,
+      requestsHandled: 1,
+    });
+
+    // The requested film is deleted from the server, then everything resyncs.
+    items.mockResolvedValue([other]);
+    await library.syncLibrary();
+    await requests.retireRequestsGoneFromLibrary();
+    await library.syncLibrary();
+    await requests.closeRequestsPresentInLibrary();
+
+    expect(await analytics.monthlyStats()).toMatchObject({
+      newContent: 2,
+      requestsHandled: 1,
+    });
+    vi.restoreAllMocks();
+  });
+});

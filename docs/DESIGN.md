@@ -242,7 +242,7 @@ marketing headline.
 | Code     | JetBrains Mono 400                                                | job names and identifiers, nothing else                                                    |
 
 Numbers a reader compares vertically or that update in place carry `tabular-nums`:
-the week strip, the stat strip, storage figures.
+the figures strip, the stat strip, storage figures.
 
 **The Every Age Rule.** Kisuflix is watched by teenagers and by their
 grandparents, and the interface is read by both. Body copy is 16px, the small
@@ -365,7 +365,8 @@ Header: sticky, 64px, bottom border at 60 percent, backdrop blur.
 in a screen, so weight and even library change in one place. Default 16px, never
 pointer events.
 
-**Week strip.** Three aggregate figures in one hairline-bordered row divided by
+**Figures strip.** Three aggregate figures for the last 30 days in one
+hairline-bordered row divided by
 vertical hairlines, each cell a large tabular number over a 12px muted label. It
 replaces the hero-metric block: no gradients, icons, trend arrows or cards. When
 every figure is zero the strip removes itself rather than rendering empty state
@@ -401,7 +402,7 @@ rail hides its scrollbar, and a hidden scrollbar with no other affordance leaves
 a keyboard or a trackpad-less mouse nowhere to go. They disappear at the ends
 rather than sitting there disabled, and the rail fades at both edges so it reads
 as continuing rather than as cut off. A shelf with nothing in it removes itself,
-the way the week strip does. Shelves arrive one after another, opacity and
+the way the figures strip does. Shelves arrive one after another, opacity and
 transform only, 420ms, and never all at once.
 
 **State on the card.** Every title card carries its own state, because the
@@ -421,7 +422,7 @@ screen.
 - Give every interactive element its full state set: default, hover, focus-visible, active, disabled, and where relevant loading and invalid.
 - Use skeletons shaped like the content that is coming, never a spinner parked mid-page. They do not pulse: one light passes over every block on the page at once, every three seconds or so, and rests in between (`.umbra-shimmer`). A block that pulses says something is off; a light crossing it says something is on its way.
 - Add every new user-visible string to both dictionaries in `src/lib/i18n/dictionaries.ts`. French is typed against English, so a missing translation fails the build.
-- Let a section remove itself when it has nothing to show, the way the week strip does.
+- Let a section remove itself when it has nothing to show, the way the figures strip does.
 - Write empty states that name the next action: "no request yet, search for a title".
 
 **Don't**

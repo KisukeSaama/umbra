@@ -530,6 +530,8 @@ async function purgeExpired(): Promise<number> {
     sql`DELETE FROM session WHERE expires_at < now()`,
     sql`DELETE FROM auth_pin WHERE expires_at < now() OR consumed_at IS NOT NULL`,
     sql`DELETE FROM job_run WHERE started_at < now() - interval '30 days'`,
+    // Only the last 30 days are ever counted; the margin covers a late clock.
+    sql`DELETE FROM library_arrival WHERE added_at < now() - interval '45 days'`,
     /*
      * Disk maps are large and only the latest is ever read. A week of them is
      * kept so a scan that went wrong can be compared against the one before,

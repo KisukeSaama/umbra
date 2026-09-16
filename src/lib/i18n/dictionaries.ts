@@ -47,7 +47,7 @@ export const en = {
   "section.poll": "Community poll",
   "section.announcement": "Announcement",
   "section.storage": "Kisuflix storage",
-  "section.thisWeek": "This week",
+  "section.last30Days": "Last 30 days",
   "section.results": "Results",
 
   "common.viewAll": "View all",
@@ -885,7 +885,7 @@ export const fr: Record<TranslationKey, string> = {
   "section.poll": "Sondage",
   "section.announcement": "Annonce",
   "section.storage": "Stockage de Kisuflix",
-  "section.thisWeek": "Cette semaine",
+  "section.last30Days": "Les 30 derniers jours",
   "section.results": "Résultats",
 
   "common.viewAll": "Tout voir",

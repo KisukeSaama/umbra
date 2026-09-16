@@ -50,4 +50,6 @@ no longer on Kisuflix, and search offers to ask for it again.
   title the index never held, are retired by the first sync after this change.
   They were already wrong.
 - "Requests handled" in the weekly figures counts `available` rows, so a title
-  deleted within the window stops counting there.
+  deleted within the window stops counting there. Superseded: the home figures
+  now cover 30 days and count `media_request.available_at`, which is set once
+  and survives the move to `removed`.
