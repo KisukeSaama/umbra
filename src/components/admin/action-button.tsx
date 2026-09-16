@@ -61,6 +61,8 @@ export function ActionButton({
     placeholder?: string;
     /** What is already written, so correcting a word starts from that word. */
     defaultValue?: string | null;
+    /** Matches what the route accepts, so the box stops where the API would. */
+    maxLength?: number;
   };
 } & Omit<ComponentProps<typeof Button>, "onClick" | "children">) {
   const router = useRouter();
@@ -140,7 +142,7 @@ export function ActionButton({
                 <Textarea
                   id={`${noteField.name}-note`}
                   value={note}
-                  maxLength={500}
+                  maxLength={noteField.maxLength ?? 500}
                   rows={3}
                   placeholder={noteField.placeholder}
                   onChange={(event) => setNote(event.target.value)}

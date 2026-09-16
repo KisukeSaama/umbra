@@ -403,6 +403,11 @@ export const en = {
   "admin.accounts.role.admin": "Administrator",
   "admin.accounts.role.assistant": "Assistant",
   "admin.accounts.role.member": "Member",
+  "admin.accounts.note": "Staff note, never shown to the member",
+  "admin.accounts.notePlaceholder":
+    "Who this is, for example: Julie, Marc's sister",
+  "admin.accounts.addNote": "Add a note",
+  "admin.accounts.editNote": "Edit the note",
   "admin.jobs.lastSuccess": "Last success",
   "admin.jobs.lastRun": "Last run",
   "admin.jobs.runNow": "Run now",
@@ -1235,6 +1240,11 @@ export const fr: Record<TranslationKey, string> = {
   "admin.accounts.role.admin": "Administrateur",
   "admin.accounts.role.assistant": "Assistant",
   "admin.accounts.role.member": "Membre",
+  "admin.accounts.note": "Note de l'équipe, jamais montrée au membre",
+  "admin.accounts.notePlaceholder":
+    "Qui c'est, par exemple : Julie, la sœur de Marc",
+  "admin.accounts.addNote": "Ajouter une note",
+  "admin.accounts.editNote": "Modifier la note",
   "admin.jobs.lastSuccess": "Dernier succès",
   "admin.jobs.lastRun": "Dernière exécution",
   "admin.jobs.runNow": "Lancer maintenant",

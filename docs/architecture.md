@@ -74,7 +74,7 @@ each sync.
 
 | Table                                         | Holds                                                             |
 | --------------------------------------------- | ----------------------------------------------------------------- |
-| `account`                                     | a Plex account id, a name, a role, a status                       |
+| `account`                                     | a Plex account id, a name, a role, a staff-only note              |
 | `session`                                     | a session digest and its expiry                                   |
 | `auth_pin`                                    | a plex.tv pin being confirmed, short-lived                        |
 | `media`                                       | a title Umbra knows about, because it was requested or is tracked |
@@ -238,8 +238,9 @@ therefore being a member, and the accounts page only names assistants.
 
 Three roles, and only one of them is granted from a screen. `requireStaff` gates
 the administration side, which the administrator shares with the assistants they
-named; `requireAdmin` keeps the accounts page and its route for the
-administrator alone. If `ADMIN_PLEX_ACCOUNT_ID` later names someone else, the
+named; `requireAdmin` keeps the role route behind the accounts page for the
+administrator alone. The staff note on an account has its own route, behind
+`requireStaff` (`docs/adr/0020-staff-remember-who-is-who.md`). If `ADMIN_PLEX_ACCOUNT_ID` later names someone else, the
 previous administrator steps down to assistant on the next sign-in, because
 `account_single_admin_idx` leaves room for one. See
 `docs/adr/0009-one-administrator-and-assistants.md`.

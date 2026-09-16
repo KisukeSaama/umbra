@@ -23,6 +23,8 @@ export type AccountRow = {
   role: AccountRole;
   createdAt: Date;
   lastSeenAt: Date;
+  /** The staff's own reminder of who this is, shown on the accounts page only. */
+  staffNote: string | null;
   /**
    * Whether the media server is still shared with this person, or `null` when
    * the share list cannot be had and the question stays unanswered.
@@ -45,6 +47,7 @@ export async function listAccounts(
       role: accounts.role,
       createdAt: accounts.createdAt,
       lastSeenAt: accounts.lastSeenAt,
+      staffNote: accounts.staffNote,
     })
     .from(accounts)
     .orderBy(desc(accounts.createdAt));
@@ -113,4 +116,30 @@ export async function updateAccountRole(
   if (!row) throw new NotFoundError("error.notFound");
 
   return row;
+}
+
+/** Long enough to say who someone is, short enough to stay on one row. */
+export const STAFF_NOTE_MAX = 200;
+
+/**
+ * Writes the staff's reminder of who an account is, or erases it.
+ *
+ * Open to the assistants as well as the administrator: it grants nothing and
+ * takes nothing away, it only helps whoever reads the list put a person behind
+ * a Plex name. It goes nowhere else: no notification, no member-facing page,
+ * and an empty box is how it is taken back.
+ */
+export async function setStaffNote(accountId: string, note: string | null) {
+  const [row] = await db()
+    .update(accounts)
+    .set({ staffNote: normaliseStaffNote(note) })
+    .where(eq(accounts.id, accountId))
+    .returning({ id: accounts.id, staffNote: accounts.staffNote });
+  if (!row) throw new NotFoundError("error.notFound");
+  return row;
+}
+
+/** Trimmed, and nothing rather than an empty sentence. */
+export function normaliseStaffNote(note: string | null | undefined) {
+  return note?.trim() || null;
 }

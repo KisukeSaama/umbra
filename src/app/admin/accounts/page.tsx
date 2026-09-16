@@ -5,7 +5,11 @@ import { EmptyNote } from "@/components/empty-note";
 import { AccountsIcon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
-import { countAccounts, listAccounts } from "@/lib/domain/accounts";
+import {
+  countAccounts,
+  listAccounts,
+  STAFF_NOTE_MAX,
+} from "@/lib/domain/accounts";
 import { serverMemberCount } from "@/lib/domain/membership";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
@@ -29,7 +33,7 @@ const PER_PAGE = 30;
  * on plex.tv, checked at sign-in and by the membership sweep
  * (`docs/adr/0014-only-members-of-the-server.md`).
  *
- * An assistant reads this page and changes nothing on it: knowing who is here
+ * An assistant reads this page and changes no role on it: knowing who is here
  * is part of helping, naming help is not. The buttons are not drawn for them
  * and the route behind those buttons asks for the administrator anyway.
  *
@@ -37,6 +41,10 @@ const PER_PAGE = 30;
  * opens the workspace to them, and unnamed again. The
  * administrator is not on that list: there is one, decided by configuration,
  * and their own row carries no action at all.
+ *
+ * Both roles may keep a note on a row, a reminder of who a Plex name belongs
+ * to. It grants nothing, so it is not the administrator's alone, and it is
+ * read here and nowhere else. See `docs/adr/0020-staff-remember-who-is-who.md`.
  *
  * The list is read one page at a time: every row carries up to three buttons,
  * and a community of two hundred was six hundred of them on one screen. The
@@ -90,6 +98,11 @@ export default async function AdminAccountsPage({
                 {" · "}
                 {formatDate(account.createdAt, locale)}
               </p>
+              {account.staffNote ? (
+                <p className="text-muted-foreground mt-1 text-xs break-words whitespace-pre-line italic">
+                  {account.staffNote}
+                </p>
+              ) : null}
             </div>
 
             {account.onServer === false ? (
@@ -97,6 +110,26 @@ export default async function AdminAccountsPage({
                 {t("admin.accounts.offServer")}
               </Badge>
             ) : null}
+
+            <ActionButton
+              url={`/api/admin/accounts/${account.id}/note`}
+              body={{}}
+              size="sm"
+              variant="ghost"
+              noteField={{
+                name: "staffNote",
+                label: t("admin.accounts.note"),
+                placeholder: t("admin.accounts.notePlaceholder"),
+                defaultValue: account.staffNote,
+                maxLength: STAFF_NOTE_MAX,
+              }}
+            >
+              {t(
+                account.staffNote
+                  ? "admin.accounts.editNote"
+                  : "admin.accounts.addNote",
+              )}
+            </ActionButton>
 
             {isAdmin && account.role === "member" ? (
               <ActionButton
