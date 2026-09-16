@@ -774,6 +774,8 @@ export async function updateRequestStatus(
     .set({
       status,
       ...(note === undefined ? {} : { adminNote: note }),
+      // Accepting again is asking for the tracker again.
+      ...(status === "accepted" ? { untrackedAt: null } : {}),
       updatedAt: new Date(),
     })
     // The status this move started from is part of the condition: two people

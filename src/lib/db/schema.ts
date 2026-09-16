@@ -293,6 +293,13 @@ export const mediaRequests = pgTable(
       .notNull()
       .default("requested"),
     adminNote: text("admin_note"),
+    /**
+     * When the administration took the series off the watch while this request
+     * was accepted. A request is a wish at one moment, not a subscription:
+     * once the tracker is dropped by hand, `trackAcceptedSeries` leaves it be.
+     * Cleared when the request is accepted again.
+     */
+    untrackedAt: timestamp("untracked_at", { withTimezone: true }),
     createdAt,
     updatedAt,
   },

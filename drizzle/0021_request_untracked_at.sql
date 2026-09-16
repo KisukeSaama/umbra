@@ -1,0 +1,1 @@
+ALTER TABLE "media_request" ADD COLUMN "untracked_at" timestamp with time zone;
