@@ -162,6 +162,13 @@
       "when": 1789593302588,
       "tag": "0022_home_figure_facts",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789596031751,
+      "tag": "0023_account_staff_note",
+      "breakpoints": true
     }
   ]
 }

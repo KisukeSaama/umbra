@@ -62,6 +62,13 @@ export const accounts = pgTable(
     plexAccountId: text("plex_account_id").notNull().unique(),
     username: text("username").notNull(),
     role: text("role").$type<AccountRole>().notNull().default("member"),
+    /**
+     * A reminder the staff keep for themselves: who this Plex name is. Written
+     * by the administrator or an assistant, read by them alone, and never
+     * selected by anything a member is served. See
+     * `docs/adr/0020-staff-remember-who-is-who.md`.
+     */
+    staffNote: text("staff_note"),
     createdAt,
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()

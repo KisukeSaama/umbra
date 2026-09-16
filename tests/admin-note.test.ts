@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { canCarryNote, noteFor } from "@/lib/domain/requests";
 import { reportNoteFor } from "@/lib/domain/reports";
+import { normaliseStaffNote } from "@/lib/domain/accounts";
 
 /**
  * The only free text in the product, and the rule that keeps it from lingering:
@@ -82,5 +83,19 @@ describe("the note left on a report", () => {
     expect(reportNoteFor("already reported elsewhere")).toBe(
       "already reported elsewhere",
     );
+  });
+});
+
+describe("the staff note on an account", () => {
+  it("stores what was typed, trimmed", () => {
+    expect(normaliseStaffNote("  Julie, Marc's sister ")).toBe(
+      "Julie, Marc's sister",
+    );
+  });
+
+  it("treats an empty box as an erasure", () => {
+    expect(normaliseStaffNote("   ")).toBeNull();
+    expect(normaliseStaffNote(null)).toBeNull();
+    expect(normaliseStaffNote(undefined)).toBeNull();
   });
 });

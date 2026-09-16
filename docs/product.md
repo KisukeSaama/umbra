@@ -20,7 +20,10 @@ There is exactly one, because there is one owner of the server.
 **The assistants**: members the administrator named to help on the queues. They
 open the same workspace and act on the same decisions, with one exception: who
 gets into the community stays the administrator's. They read the accounts page,
-since knowing who is here is part of helping, and change nothing on it. Naming
+since knowing who is here is part of helping, and change no role on it; like the
+administrator, they may keep a short note on an account to remember who a Plex
+name belongs to, which the member never sees
+(`docs/adr/0020-staff-remember-who-is-who.md`). Naming
 an assistant and taking the role back are both one click, on that page. See
 `docs/adr/0009-one-administrator-and-assistants.md`.
 
