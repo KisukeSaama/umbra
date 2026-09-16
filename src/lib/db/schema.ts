@@ -203,11 +203,14 @@ export const libraryItems = pgTable(
     originalLanguage: text("original_language"),
     runtime: integer("runtime"),
     /**
-     * The provider id of a re-cut the media server matched to nothing.
+     * The provider id of a re-cut the media server matched to nothing, or to
+     * the wrong series.
      *
      * A re-cut filed as personal media carries no guid at all, so the sync
      * leaves `tmdb_id` empty and the title is invisible to everything that
-     * reads presence. This is what a later pass works out from the name, and
+     * reads presence; one the agent misread carries some other series' id.
+     * This is what a later pass works out from the name, it wins over
+     * `tmdb_id` whenever both are set, and
      * it is kept apart from `tmdb_id` on purpose: the sync overwrites that
      * column from what the server says on every run, the tracker links its
      * series on it, and neither should be handed a link Umbra inferred.

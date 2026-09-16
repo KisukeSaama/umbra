@@ -388,6 +388,9 @@ export async function watchingThisWeek(
         inArray(libraryItems.ratingKey, keys),
         eq(libraryItems.kind, "show"),
         isNotNull(libraryItems.tmdbId),
+        // A re-cut has no calendar, and one the server matched to the wrong
+        // series would bring that series' calendar along.
+        isNull(libraryItems.cutProviderId),
       ),
     );
 
@@ -595,6 +598,7 @@ export async function linkSeriesToLibrary(): Promise<number> {
      WHERE s.media_id = m.id
        AND l.kind = 'show'
        AND l.tmdb_id = m.provider_id
+       AND l.cut_provider_id IS NULL
        AND (s.plex_rating_key IS DISTINCT FROM l.rating_key)
   `);
   return result.count ?? 0;

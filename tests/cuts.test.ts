@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   alternateCutOf,
   beginsWithTitle,
+  cutMatchedElsewhere,
   hasCutMarker,
   sameTitle,
   titleWithoutCut,
@@ -97,5 +98,37 @@ describe("matching a name against the provider", () => {
     expect(beginsWithTitle("Dragon Ball Z", "Dragon Ball")).toBe(true);
     expect(beginsWithTitle("Katekyo Hitman Reborn!", "Reborn")).toBe(false);
     expect(beginsWithTitle("Naruto", "Naruto")).toBe(false);
+  });
+});
+
+describe("a re-cut the server matched to another series", () => {
+  it("sees a match whose names have nothing to do with the title", () => {
+    expect(
+      cutMatchedElsewhere("Black Clover Kaï", [
+        "The Forsyte Saga",
+        "The Forsyte Saga",
+      ]),
+    ).toBe(true);
+  });
+
+  it("leaves a re-cut matched to its own series alone", () => {
+    expect(cutMatchedElsewhere("Naruto Kai", ["Naruto", "NARUTO"])).toBe(
+      false,
+    );
+    expect(
+      cutMatchedElsewhere("Boruto Kai", ["Boruto: Naruto Next Generations"]),
+    ).toBe(false);
+  });
+
+  it("leaves a series named with the marker alone", () => {
+    expect(
+      cutMatchedElsewhere("Dragon Ball Z Kai", ["Dragon Ball Z Kai"]),
+    ).toBe(false);
+    expect(cutMatchedElsewhere("Cobra Kai", ["Cobra Kai"])).toBe(false);
+  });
+
+  it("says nothing without a marker or without names to compare", () => {
+    expect(cutMatchedElsewhere("Bleach", ["The Forsyte Saga"])).toBe(false);
+    expect(cutMatchedElsewhere("Black Clover Kai", [])).toBe(false);
   });
 });

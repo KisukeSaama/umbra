@@ -19,6 +19,7 @@ import { libraryItems, type LibraryKind } from "@/lib/db/schema";
 import {
   alternateCutOf,
   beginsWithTitle,
+  cutMatchedElsewhere,
   hasCutMarker,
   sameTitle,
   titleWithoutCut,
@@ -272,7 +273,7 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
   const now = new Date();
   let filled = 0;
   for (const row of rows) {
-    const providerId = row.tmdbId ?? row.cutProviderId;
+    const providerId = row.cutProviderId ?? row.tmdbId;
     if (!providerId) continue;
     try {
       const summary = await tmdbProvider.details(
@@ -365,7 +366,7 @@ export async function searchLibrary(
   return Promise.all(
     rows.map(async (row) => {
       const kind = row.kind === "movie" ? ("movie" as const) : ("tv" as const);
-      const providerId = row.tmdbId ?? row.cutProviderId ?? "";
+      const providerId = row.cutProviderId ?? row.tmdbId ?? "";
       return {
         ratingKey: row.ratingKey,
         kind,
@@ -383,15 +384,19 @@ export async function searchLibrary(
  * Finds a title by either of the two ids it can be known by.
  *
  * The media server gives one, in `tmdb_id`, and a re-cut it matched to nothing
- * has the other, in `cut_provider_id`, worked out from its name by
- * `linkUnmatchedCuts`. Three different reads needed the same pair of
- * conditions, and they must stay the same pair: a title reachable by one of
- * them and not the other is a title that is on the server while search still
- * offers to request it.
+ * or to the wrong series has the other, in `cut_provider_id`, worked out from
+ * its name by `linkUnmatchedCuts`. When both are set the second one wins: it
+ * only exists because the first was wrong, so the server's id no longer finds
+ * the row. Three different reads needed the same conditions, and they must
+ * stay the same: a title reachable by one of them and not the other is a
+ * title that is on the server while search still offers to request it.
  */
 export function matchesProviderId(providerId: string) {
   return or(
-    eq(libraryItems.tmdbId, providerId),
+    and(
+      eq(libraryItems.tmdbId, providerId),
+      isNull(libraryItems.cutProviderId),
+    ),
     eq(libraryItems.cutProviderId, providerId),
   );
 }
@@ -399,7 +404,10 @@ export function matchesProviderId(providerId: string) {
 /** The same question, asked of several ids at once. */
 export function matchesAnyProviderId(providerIds: string[]) {
   return or(
-    inArray(libraryItems.tmdbId, providerIds),
+    and(
+      inArray(libraryItems.tmdbId, providerIds),
+      isNull(libraryItems.cutProviderId),
+    ),
     inArray(libraryItems.cutProviderId, providerIds),
   );
 }
@@ -408,7 +416,7 @@ export function matchesAnyProviderId(providerIds: string[]) {
  * A server that matched the series itself answers before one Umbra had to work
  * out, so a library holding both reads as the series rather than the re-cut.
  */
-export const REAL_MATCH_FIRST = sql`${libraryItems.tmdbId} NULLS LAST`;
+export const REAL_MATCH_FIRST = sql`${libraryItems.cutProviderId} NULLS FIRST`;
 
 /**
  * The re-cut a title on the server is in, or nothing.
@@ -456,12 +464,18 @@ async function libraryTitleOf(providerId: string): Promise<string | null> {
 }
 
 /**
- * Links re-cuts the media server matched to nothing.
+ * Links re-cuts the media server matched to nothing, or to the wrong series.
  *
  * A re-cut filed as personal media carries no guid at all: no TMDB id, no TVDB
  * id, nothing. The sync therefore files it with an empty `tmdb_id` and every
  * rule about presence walks straight past it, which is why a server holding
  * "Naruto Kai" still offered to request Naruto.
+ *
+ * A re-cut the server did match can be just as lost. The agent reads a name it
+ * does not know and picks the closest thing in its catalogue, which is how
+ * "Black Clover Kai" came to be filed as "The Forsyte Saga". Those are told
+ * apart by `cutMatchedElsewhere` and then looked up the same way; a series the
+ * server matched right is left exactly as it was.
  *
  * The name is the only thing left to go on, and for these it is enough: they
  * are filed as the original name with the marker stuck on the end. So the
@@ -488,12 +502,19 @@ export async function linkUnmatchedCuts(limit = 20): Promise<number> {
       id: libraryItems.id,
       title: libraryItems.title,
       year: libraryItems.year,
+      tmdbId: libraryItems.tmdbId,
     })
     .from(libraryItems)
     .where(
       and(
         eq(libraryItems.kind, "show"),
-        isNull(libraryItems.tmdbId),
+        or(
+          isNull(libraryItems.tmdbId),
+          // A loose net for the marker, in any accent: "kai", "kaï", "yabai".
+          // `hasCutMarker` decides; this only keeps the rest of the library
+          // from being walked through once a week.
+          sql`${libraryItems.title} ~* '(^|[^[:alnum:]])(ka|yaba).([^[:alnum:]]|$)'`,
+        ),
         isNull(libraryItems.cutProviderId),
         or(
           isNull(libraryItems.cutCheckedAt),
@@ -507,9 +528,14 @@ export async function linkUnmatchedCuts(limit = 20): Promise<number> {
   let linked = 0;
   for (const row of rows) {
     const base = titleWithoutCut(row.title);
-    // Not a re-cut, just a title the server could not match. Stamped all the
-    // same, so it is not looked at again on every run.
-    const providerId = base ? await lookUpSeries(base, row.year) : null;
+    // Not a re-cut, just a title the server could not match, or one it matched
+    // right. Stamped all the same, so it is not looked at again on every run.
+    const found =
+      base && (!row.tmdbId || (await matchedElsewhere(row.tmdbId, row.title)))
+        ? await lookUpSeries(base, row.year)
+        : null;
+    // Finding the series the server already chose changes nothing.
+    const providerId = found === row.tmdbId ? null : found;
 
     await db()
       .update(libraryItems)
@@ -518,6 +544,22 @@ export async function linkUnmatchedCuts(limit = 20): Promise<number> {
     if (providerId) linked += 1;
   }
   return linked;
+}
+
+/** Whether the series the server chose for this re-cut is some other one. */
+async function matchedElsewhere(
+  tmdbId: string,
+  title: string,
+): Promise<boolean> {
+  if (!hasCutMarker(title)) return false;
+  try {
+    const summary = await tmdbProvider.details("tv", tmdbId);
+    return cutMatchedElsewhere(title, [summary.title, summary.originalTitle]);
+  } catch (error) {
+    // Unknown keeps the server's match: overruling it takes a reason.
+    console.warn(`[library] cut match check failed tmdbId=${tmdbId}`, error);
+    return false;
+  }
 }
 
 /** The one series that answers to this name, or nothing. */

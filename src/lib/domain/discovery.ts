@@ -256,6 +256,7 @@ async function recentTitles(
       ratingKey: libraryItems.ratingKey,
       kind: libraryItems.kind,
       tmdbId: libraryItems.tmdbId,
+      cutProviderId: libraryItems.cutProviderId,
     })
     .from(libraryItems)
     .where(
@@ -271,7 +272,9 @@ async function recentTitles(
       row.ratingKey,
       {
         kind: (row.kind === "movie" ? "movie" : "tv") as MediaKind,
-        providerId: row.tmdbId as string,
+        // A re-cut the server matched to the wrong series was watched as the
+        // series it really is.
+        providerId: row.cutProviderId ?? (row.tmdbId as string),
       },
     ]),
   );

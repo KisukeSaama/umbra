@@ -118,6 +118,35 @@ function isMarkerWord(word: string): boolean {
 }
 
 /**
+ * A re-cut the media server matched to some other series.
+ *
+ * Asked of a title the server did match, which is not the same as a title it
+ * matched right: "Black Clover Kai" came back as "The Forsyte Saga", with the
+ * cast, the synopsis and the id to go with it. The name is still the one it
+ * was filed under, so the marker comes off and what is left is compared with
+ * the names the provider gives the series the server chose. None of them
+ * answering means the match is someone else's.
+ *
+ * Both rules that refuse elsewhere refuse here. A title that is no re-cut, or
+ * whose marker the provider carries, was never in question, and a name that is
+ * only the beginning of the provider's still counts as the same series, which
+ * keeps "Boruto Kai" on "Boruto: Naruto Next Generations".
+ */
+export function cutMatchedElsewhere(
+  libraryTitle: string | null | undefined,
+  providerTitles: readonly (string | null | undefined)[],
+): boolean {
+  if (!alternateCutOf(libraryTitle, providerTitles)) return false;
+  const base = titleWithoutCut(libraryTitle);
+  const names = providerTitles.filter((name): name is string => Boolean(name));
+  if (!base || names.length === 0) return false;
+
+  return !names.some(
+    (name) => sameTitle(name, base) || beginsWithTitle(name, base),
+  );
+}
+
+/**
  * Two names for the same series.
  *
  * Accents off, case off, and everything that is not a letter or a digit read
