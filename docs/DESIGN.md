@@ -366,8 +366,8 @@ in a screen, so weight and even library change in one place. Default 16px, never
 pointer events.
 
 **Figures strip.** Three aggregate figures for the last 30 days in one
-hairline-bordered row divided by
-vertical hairlines, each cell a large tabular number over a 12px muted label. It
+hairline-bordered row divided by vertical hairlines, each cell a large tabular
+number over a 12px muted label, under a 12px muted caption naming the period. It
 replaces the hero-metric block: no gradients, icons, trend arrows or cards. When
 every figure is zero the strip removes itself rather than rendering empty state
 theatre.
