@@ -228,8 +228,6 @@ export const en = {
   "error.requestUnderway":
     "This request has already been taken up and can no longer be cancelled.",
   "error.seriesNotFound": "Series not found.",
-  "error.seriesRequested":
-    "An accepted request keeps this series under watch. Pause it instead.",
   "error.seriesIsCut":
     "Kisuflix holds this series as a re-cut, which no calendar follows. It is looked after through reports.",
   "error.taskNotFound": "Task not found.",
@@ -1063,8 +1061,6 @@ export const fr: Record<TranslationKey, string> = {
   "error.requestUnderway":
     "Cette demande est déjà prise en charge et ne peut plus être annulée.",
   "error.seriesNotFound": "Série introuvable.",
-  "error.seriesRequested":
-    "Une demande acceptée garde cette série sous surveillance. Suspendez-la plutôt.",
   "error.seriesIsCut":
     "Kisuflix a cette série en version remontée, qu'aucun calendrier ne suit. Elle se gère par les signalements.",
   "error.taskNotFound": "Tâche introuvable.",

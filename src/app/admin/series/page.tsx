@@ -147,20 +147,18 @@ export default async function AdminSeriesPage({
                       ? t("admin.series.pause")
                       : t("admin.series.resume")}
                   </ActionButton>
-                  {show.removable ? (
-                    <ActionButton
-                      url={`/api/admin/series/${show.id}`}
-                      method="DELETE"
-                      size="sm"
-                      variant="ghost"
-                      confirmMessage={t("admin.series.removeConfirm", {
-                        title: show.title,
-                      })}
-                      successMessage={t("admin.series.removed")}
-                    >
-                      {t("admin.series.remove")}
-                    </ActionButton>
-                  ) : null}
+                  <ActionButton
+                    url={`/api/admin/series/${show.id}`}
+                    method="DELETE"
+                    size="sm"
+                    variant="ghost"
+                    confirmMessage={t("admin.series.removeConfirm", {
+                      title: show.title,
+                    })}
+                    successMessage={t("admin.series.removed")}
+                  >
+                    {t("admin.series.remove")}
+                  </ActionButton>
                 </li>
               ))}
             </ul>

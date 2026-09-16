@@ -7,6 +7,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  isNull,
   notInArray,
   or,
   sql,
@@ -85,34 +86,32 @@ export async function setSeriesEnabled(seriesId: string, enabled: boolean) {
   return row;
 }
 
-/** A request that puts a series back under watch on every cycle. */
-const activeRequest = sql`EXISTS (
-  SELECT 1 FROM media_request r
-   WHERE r.media_id = ${trackedSeries.mediaId}
-     AND r.status = 'accepted'
-)`;
-
 /**
  * Takes a series off the watch for good, with its calendar and its tasks.
  *
- * Refused while a request for it is accepted: the next cycle
- * would track it again (`trackAcceptedSeries`), so the delete would only look
- * like it worked. Pausing is the answer there. The condition sits in the
- * DELETE itself, so a request accepted in between cannot slip past it.
+ * Allowed whatever brought the series in. An accepted request is marked as
+ * dropped in the same transaction, so `trackAcceptedSeries` does not put the
+ * series back on the next cycle; accepting a request for it again does.
  */
 export async function untrackSeries(seriesId: string) {
-  const [row] = await db()
-    .delete(trackedSeries)
-    .where(and(eq(trackedSeries.id, seriesId), sql`NOT ${activeRequest}`))
-    .returning({ id: trackedSeries.id });
-  if (row) return row;
+  return db().transaction(async (tx) => {
+    const [row] = await tx
+      .delete(trackedSeries)
+      .where(eq(trackedSeries.id, seriesId))
+      .returning({ id: trackedSeries.id, mediaId: trackedSeries.mediaId });
+    if (!row) throw new NotFoundError("error.seriesNotFound");
 
-  const [exists] = await db()
-    .select({ id: trackedSeries.id })
-    .from(trackedSeries)
-    .where(eq(trackedSeries.id, seriesId));
-  if (exists) throw new ConflictError("error.seriesRequested");
-  throw new NotFoundError("error.seriesNotFound");
+    await tx
+      .update(mediaRequests)
+      .set({ untrackedAt: new Date() })
+      .where(
+        and(
+          eq(mediaRequests.mediaId, row.mediaId),
+          eq(mediaRequests.status, "accepted"),
+        ),
+      );
+    return { id: row.id };
+  });
 }
 
 /**
@@ -530,8 +529,6 @@ export async function listTrackedSeries(
       fromRequest: sql<boolean>`EXISTS (
         SELECT 1 FROM media_request r WHERE r.media_id = ${trackedSeries.mediaId}
       )`,
-      /** Whether `untrackSeries` would take it, so the button is not drawn otherwise. */
-      removable: sql<boolean>`NOT ${activeRequest}`,
     })
     .from(trackedSeries)
     .innerJoin(media, eq(media.id, trackedSeries.mediaId))
@@ -643,7 +640,8 @@ export async function seriesDueForSync(limit = 20) {
  * provider: when it does not answer, the decision still stands and the series
  * is left untracked. Rather than fail the decision, this picks up the leftovers
  * on the next cycle. Idempotent, since tracking a series that is already
- * tracked is an upsert.
+ * tracked is an upsert. A series the administration took off the watch by
+ * hand is not a leftover, and stays off.
  */
 export async function trackAcceptedSeries(limit = 10): Promise<number> {
   const rows = await db()
@@ -654,6 +652,7 @@ export async function trackAcceptedSeries(limit = 10): Promise<number> {
       and(
         eq(media.mediaType, "tv"),
         eq(mediaRequests.status, "accepted"),
+        isNull(mediaRequests.untrackedAt),
         sql`NOT EXISTS (
           SELECT 1 FROM tracked_series AS s WHERE s.media_id = ${media.id}
         )`,
