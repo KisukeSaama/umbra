@@ -82,14 +82,22 @@ export type JobProgress = {
 /** How often a step is allowed to write down where it is. */
 const PROGRESS_EVERY_MS = 1500;
 
+/** How often a running step says it is still there. */
+const HEARTBEAT_EVERY_MS = 15_000;
+
 /**
- * A step that has been "running" this long was interrupted.
+ * A step that has gone quiet this long was interrupted.
  *
  * A process restarted mid-walk leaves a row nothing will ever finish, and that
- * row would block the next attempt forever. Bounded by the clock like
- * everything else here rather than by a heartbeat nobody sends.
+ * row would block the next attempt forever. It used to be judged on how long
+ * it had been going, which is not the same question: a first walk of a large
+ * library runs past three quarters of an hour without being in any trouble,
+ * and it was declared interrupted while it was still walking, after which the
+ * button would gladly start a second one over it. So the runner stamps
+ * `heartbeat_at` for as long as it is on its feet, and what closes a run is
+ * silence. Generous against a busy event loop, and still far short of a step.
  */
-const STALE_AFTER_MS = 45 * 60_000;
+const STALE_AFTER_MS = 5 * 60_000;
 
 /**
  * The cycle records a run of its own, under a name that is not a step: it
@@ -98,7 +106,14 @@ const STALE_AFTER_MS = 45 * 60_000;
  */
 const SYNC_CYCLE = "sync-cycle";
 
-/** A cycle is every step in a row, so it is given the time of several. */
+/**
+ * A cycle is every step in a row, so it is given the time of several.
+ *
+ * Kept on the clock rather than on a beat of its own: the cycle does no work,
+ * its row is a lock, and a beat would only repeat what its steps already say.
+ * A crash costs the button three hours at worst, and nothing in the meantime
+ * runs twice, since each step holds its own row against a second cycle.
+ */
 const CYCLE_STALE_AFTER_MS = 3 * 60 * 60_000;
 
 type Report = (progress: JobProgress) => void;
@@ -137,6 +152,25 @@ async function runJob(
     void writeProgress(job, progress);
   };
 
+  /*
+   * Said by every step, whether or not it has anything to report.
+   *
+   * A step that writes no progress is not a step that has stopped, and this is
+   * what tells the two apart. Unreferenced so it can never hold the process
+   * open on its own, and failures are swallowed: a missed beat costs at worst
+   * a run closed early, a thrown one would cost the work.
+   */
+  const heartbeat = setInterval(() => {
+    void db()
+      .update(jobRuns)
+      .set({ heartbeatAt: new Date() })
+      .where(eq(jobRuns.id, run.id))
+      .catch((error: unknown) => {
+        console.warn(`[jobs] ${job} heartbeat not written`, error);
+      });
+  }, HEARTBEAT_EVERY_MS);
+  heartbeat.unref?.();
+
   try {
     const items = await work(report);
     await db()
@@ -166,6 +200,8 @@ async function runJob(
     await writeProgress(job, null);
 
     return { job, items: 0, error: message };
+  } finally {
+    clearInterval(heartbeat);
   }
 }
 
@@ -219,12 +255,16 @@ export async function runningJob(job: JobName): Promise<{
 }
 
 /**
- * Closes runs of one step that have been under way too long.
+ * Closes runs of one step that have gone quiet.
  *
  * A process that died mid-walk leaves a row nothing will ever finish. Since the
  * database is what refuses a second run of a step, that row would block the
  * next attempt for good, so it is closed on the way past rather than by a
- * sweeper nobody runs. Bounded by the clock, like everything else here.
+ * sweeper nobody runs.
+ *
+ * Read on the last beat rather than on the start, so a long step is left alone
+ * for as long as it keeps saying it is there. The cycle beats too, through the
+ * steps it is running; on its own row the two dates are the same thing.
  */
 async function closeStaleRuns(
   job: JobName | typeof SYNC_CYCLE,
@@ -238,7 +278,7 @@ async function closeStaleRuns(
       and(
         eq(jobRuns.jobName, job),
         eq(jobRuns.status, "running"),
-        lt(jobRuns.startedAt, stale),
+        lt(jobRuns.heartbeatAt, stale),
       ),
     )
     .returning({ id: jobRuns.id });
@@ -565,36 +605,46 @@ export type JobStatusRow = {
   progress: JobProgress | null;
 };
 
-/** What the synchronisation page shows. */
+/**
+ * What the synchronisation page shows.
+ *
+ * The last run of each step, asked for as such. Reading the last fifty rows and
+ * picking through them looked like the same thing and was not: a cycle writes
+ * one row per step every half hour, so fifty rows is about three hours, and the
+ * disk walk runs every six. Half the time its card had no last run, no duration
+ * and no count, for a step that had simply not come round yet.
+ */
 export async function jobStatus(): Promise<JobStatusRow[]> {
   const states = await db().select().from(jobState);
-  const lastRuns = await db()
-    .select({
-      jobName: jobRuns.jobName,
-      status: jobRuns.status,
-      startedAt: jobRuns.startedAt,
-      finishedAt: jobRuns.finishedAt,
-      itemsProcessed: jobRuns.itemsProcessed,
-      error: jobRuns.error,
-    })
-    .from(jobRuns)
-    .orderBy(desc(jobRuns.startedAt))
-    .limit(50);
+  const lastRuns = await db().execute<{
+    job_name: string;
+    status: string;
+    started_at: Date;
+    finished_at: Date | null;
+    items_processed: number;
+    error: string | null;
+  }>(sql`
+    SELECT DISTINCT ON (job_name)
+           job_name, status, started_at, finished_at, items_processed, error
+      FROM job_run
+     ORDER BY job_name, started_at DESC
+  `);
 
   return JOB_NAMES.map((jobName) => {
     const state = states.find((row) => row.jobName === jobName);
-    const run = lastRuns.find((row) => row.jobName === jobName);
+    const run = lastRuns.find((row) => row.job_name === jobName);
     return {
       jobName,
       lastSuccessAt: state?.lastSuccessAt ?? null,
       lastStatus: run?.status ?? null,
-      lastRunAt: run?.startedAt ?? null,
+      lastRunAt: run?.started_at ?? null,
       lastError: run?.error ?? null,
       lastDurationMs:
-        run?.finishedAt && run.startedAt
-          ? run.finishedAt.getTime() - run.startedAt.getTime()
+        run?.finished_at && run.started_at
+          ? new Date(run.finished_at).getTime() -
+            new Date(run.started_at).getTime()
           : null,
-      lastItems: run?.itemsProcessed ?? null,
+      lastItems: run?.items_processed ?? null,
       // The note only means anything while the step is on its feet: a cursor
       // left behind by a run that ended is stale, not progress.
       progress:

@@ -14,11 +14,7 @@ import {
 } from "@/lib/db/schema";
 import { bumpMetric } from "@/lib/domain/analytics";
 import { isOnServer } from "@/lib/domain/availability";
-import {
-  availabilityFor,
-  ensureMedia,
-  yearOf,
-} from "@/lib/domain/catalog";
+import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
 import { trackSeries } from "@/lib/domain/series";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
@@ -35,10 +31,7 @@ import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
  * was in hand could only be found again by opening the section and reading
  * every line that had ever been written. Being worked on is not being done.
  */
-export const LIVE_REQUEST_STATUSES = [
-  "requested",
-  "accepted",
-] as const;
+export const LIVE_REQUEST_STATUSES = ["requested", "accepted"] as const;
 
 export function isLiveRequest(status: RequestStatus): boolean {
   return (LIVE_REQUEST_STATUSES as readonly RequestStatus[]).includes(status);
@@ -591,10 +584,7 @@ export async function inProgressRequests(
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
     .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
     .where(
-      and(
-        eq(mediaRequests.status, "accepted"),
-        sql`not ${inLibraryColumn}`,
-      ),
+      and(eq(mediaRequests.status, "accepted"), sql`not ${inLibraryColumn}`),
     )
     .orderBy(desc(mediaRequests.updatedAt))
     .limit(limit);

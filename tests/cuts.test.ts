@@ -112,9 +112,7 @@ describe("a re-cut the server matched to another series", () => {
   });
 
   it("leaves a re-cut matched to its own series alone", () => {
-    expect(cutMatchedElsewhere("Naruto Kai", ["Naruto", "NARUTO"])).toBe(
-      false,
-    );
+    expect(cutMatchedElsewhere("Naruto Kai", ["Naruto", "NARUTO"])).toBe(false);
     expect(
       cutMatchedElsewhere("Boruto Kai", ["Boruto: Naruto Next Generations"]),
     ).toBe(false);

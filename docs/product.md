@@ -115,8 +115,16 @@ its numbering are the ones whoever made it chose, and nobody on this side can
 put another audio track into it or fix its order, so offering "the quality is
 poor" or "subtitles are missing" would build the administration a queue it can
 only close. What is left is the one thing that can be acted on, there is not all
-of it here yet: "an episode is missing" and "the series is behind". Both are
-asks, so they close themselves when the rest arrives.
+of it here yet: "an episode is missing" and "the series is behind".
+
+Both are asks, and both are closed by hand, which is the one place where an ask
+is. Everywhere else the sync settles it: the index says the episode is here, or
+the calendar says nothing that has aired is missing. A re-cut has neither. No
+provider lists a fan edit, so there is no way to know how many episodes a Kai or
+a Yabai is supposed to have, and the calendar of the series it was cut from
+counts episodes the edit dropped on purpose. So whoever went and looked is what
+closes it, and the administration is offered the button here where it is
+withheld elsewhere.
 
 There is no "where" step either. The report is about the series, since a
 numbering of its own gives nothing to point at. The rule is in
@@ -254,10 +262,20 @@ report itself only disappears when it is still untouched and the person leaving
 was the last one waiting on it, which is the case of someone who has just
 reported something and changed their mind.
 
-Three reasons settle themselves. An episode that arrives closes "an episode is
-missing", a season complete closes "a season is missing", and a series caught up
-closes "the series is behind". Everything else describes a codec, a track or a
-playback failure, which Umbra does not index and must never try to check.
+Three reasons settle themselves, when there is something to measure them
+against. An episode that arrives closes "an episode is missing"; a season whose
+aired episodes are all here closes "a season is missing" and "the rest of this
+season is missing" alike, since they are one question asked twice; a series
+caught up closes "the series is behind". Everything else describes a codec, a
+track or a playback failure, which Umbra does not index and must never try to
+check, so those are closed by hand.
+
+Settling and the manual close are two halves of one rule, and the second follows
+the first: the administration is offered "mark as fixed" exactly where no job
+will ever reach the row. It is withheld while a job can, because a hand closing
+an ask early tells the members a title is there when it is not. It is offered
+where nothing can count: a re-cut, and a series nobody put under watch, whose
+calendar was never pulled.
 
 The administration can reopen a declined report, including an ask for a missing
 season or episode. It returns to `open`, clears the refusal note and the previous

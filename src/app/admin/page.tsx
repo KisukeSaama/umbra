@@ -19,7 +19,10 @@ import {
   type RequestRow,
 } from "@/lib/domain/requests";
 import { seasonGap } from "@/lib/domain/season-gap";
-import { listOpenEpisodeTasks } from "@/lib/domain/series";
+import {
+  countOpenEpisodeTasks,
+  listOpenEpisodeTasks,
+} from "@/lib/domain/series";
 import { storageOverview } from "@/lib/domain/storage";
 import { formatDateTime, formatEpisodeCode } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
@@ -59,16 +62,30 @@ export default async function AdminDashboardPage() {
   await requireStaffPage();
   const { t, locale } = await getI18n();
 
-  const [requests, asks, reports, tasks, storage, latestRequest, latestReport] =
-    await Promise.all([
-      listRequests([...LIVE_REQUEST_STATUSES], undefined, "recent"),
-      listReports([...LIVE_REPORT_STATUSES], undefined, "ask", "recent"),
-      listReports([...LIVE_REPORT_STATUSES], undefined, "fault", "recent"),
-      listOpenEpisodeTasks(),
-      storageOverview(),
-      lastRequestAt(),
-      lastReportAt(),
-    ]);
+  /** What the board shows of a queue before sending the reader to it. */
+  const PREVIEW = 6;
+
+  const [
+    requests,
+    asks,
+    reports,
+    tasks,
+    openTasks,
+    storage,
+    latestRequest,
+    latestReport,
+  ] = await Promise.all([
+    listRequests([...LIVE_REQUEST_STATUSES], undefined, "recent"),
+    listReports([...LIVE_REPORT_STATUSES], undefined, "ask", "recent"),
+    listReports([...LIVE_REPORT_STATUSES], undefined, "fault", "recent"),
+    // The six shown, and the figure apart: a tracker catching up raises
+    // hundreds of these, and a board is not the place to load them.
+    listOpenEpisodeTasks({ limit: PREVIEW, offset: 0 }),
+    countOpenEpisodeTasks(),
+    storageOverview(),
+    lastRequestAt(),
+    lastReportAt(),
+  ]);
 
   // A season asked for is filed as a report and listed with the requests, as
   // on the request queue and on the member's follow-up page.
@@ -79,8 +96,7 @@ export default async function AdminDashboardPage() {
     (left, right) => createdAt(right).getTime() - createdAt(left).getTime(),
   );
 
-  const quiet =
-    asked.length === 0 && reports.length === 0 && tasks.length === 0;
+  const quiet = asked.length === 0 && reports.length === 0 && openTasks === 0;
 
   // The last time a member asked for something, request or report alike. It
   // tells the administration how warm the place is, which a job timestamp
@@ -95,7 +111,7 @@ export default async function AdminDashboardPage() {
         stats={[
           { label: t("admin.stat.requests"), value: asked.length },
           { label: t("admin.stat.reports"), value: reports.length },
-          { label: t("admin.stat.episodes"), value: tasks.length },
+          { label: t("admin.stat.episodes"), value: openTasks },
           {
             label: t("section.storage"),
             value: storage
@@ -137,12 +153,12 @@ export default async function AdminDashboardPage() {
                     request.status === "requested" && request.reasked
                       ? t("admin.requests.reasked")
                       : request.status === "requested"
-                      ? request.media.year
-                        ? String(request.media.year)
-                        : undefined
-                      : t(
-                          `admin.requests.status.${request.status}` as TranslationKey,
-                        )
+                        ? request.media.year
+                          ? String(request.media.year)
+                          : undefined
+                        : t(
+                            `admin.requests.status.${request.status}` as TranslationKey,
+                          )
                   }
                 >
                   {request.status === "requested" ? (
@@ -183,14 +199,14 @@ export default async function AdminDashboardPage() {
           </Queue>
         ) : null}
 
-        {tasks.length > 0 ? (
+        {openTasks > 0 ? (
           <Queue
-            title={t("admin.inbox.episodes", { count: tasks.length })}
+            title={t("admin.inbox.episodes", { count: openTasks })}
             href="/admin/series"
             label={t("admin.nav.series")}
-            more={tasks.length - 6}
+            more={openTasks - PREVIEW}
           >
-            {tasks.slice(0, 6).map((task) => (
+            {tasks.map((task) => (
               <Row
                 key={task.id}
                 main={task.seriesTitle}
@@ -257,7 +273,7 @@ async function ReportQueueRow({ report }: { report: ReportRow }) {
         >
           {t("admin.reports.acknowledge")}
         </ActionButton>
-      ) : canTransition(report.status, "resolved", report.reason) ? (
+      ) : canTransition(report.status, "resolved", report.reason, report) ? (
         <ActionButton
           url={`/api/admin/reports/${report.id}`}
           body={{ status: "resolved" }}

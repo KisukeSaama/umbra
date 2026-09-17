@@ -158,9 +158,10 @@ describe("guided selection constraints on both halves", () => {
       duration: "any",
       origin: "french",
     });
-    expect(
-      selection.tonight.map((item) => item.providerId).sort(),
-    ).toEqual(["1", "4"]);
+    expect(selection.tonight.map((item) => item.providerId).sort()).toEqual([
+      "1",
+      "4",
+    ]);
     // Only the row the enrichment pass has not reached costs a call.
     expect(mocks.details).toHaveBeenCalledTimes(1);
     expect(mocks.random).toHaveBeenCalledWith(

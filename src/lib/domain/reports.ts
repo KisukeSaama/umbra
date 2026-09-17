@@ -69,6 +69,14 @@ export type ReportRow = {
   waiting: number;
   libraryRatingKey: string | null;
   adminNote: string | null;
+  /**
+   * The series is under watch and its calendar has been pulled.
+   *
+   * What decides whether a job can still settle this row, and therefore
+   * whether the administration is offered the manual close: see
+   * `isSettledByJob`. A re-cut never has one.
+   */
+  hasCalendar: boolean;
   media: {
     providerId: string;
     kind: MediaKind;
@@ -362,6 +370,8 @@ export async function withdrawReport(reportId: string, accountId: string) {
       DELETE FROM notification
        WHERE account_id = ${accountId}::uuid
          AND subject_id = ${reportId}::uuid
+         AND (EXISTS (SELECT 1 FROM dropped)
+              OR EXISTS (SELECT 1 FROM unfollowed))
       RETURNING id
     )
     SELECT EXISTS (SELECT 1 FROM dropped) AS dropped,
@@ -383,8 +393,24 @@ const waitingColumn = sql<number>`(
    where f.report_id = ${reports.id}
 )`;
 
+/**
+ * Is there a calendar this report could be measured against?
+ *
+ * The same condition `closeReportsSolvedByCalendar` runs under, written once
+ * and read by both: a series under watch whose calendar has been pulled at
+ * least once. Anything else, a re-cut or a series nobody tracked, is settled
+ * by hand, and the administration has to be offered the button for it.
+ */
+const hasCalendarColumn = sql<boolean>`exists (
+  select 1
+    from tracked_series as s
+   where s.media_id = ${reports.mediaId}
+     and s.last_synced_at is not null
+)`;
+
 const REPORT_COLUMNS = {
   waiting: waitingColumn,
+  hasCalendar: hasCalendarColumn,
   id: reports.id,
   reason: reports.reason,
   status: reports.status,
@@ -416,6 +442,7 @@ function toRow(row: {
   adminNote: string | null;
   reportedBy: string | null;
   waiting: number;
+  hasCalendar: boolean;
   providerId: string;
   mediaType: MediaKind;
   title: string;
@@ -434,6 +461,7 @@ function toRow(row: {
     reportedBy: row.reportedBy,
     waiting: row.waiting,
     libraryRatingKey: row.libraryRatingKey,
+    hasCalendar: row.hasCalendar,
     adminNote: row.adminNote,
     media: {
       providerId: row.providerId,
@@ -669,12 +697,17 @@ export async function updateReportStatus(
       status: reports.status,
       reason: reports.reason,
       mediaId: reports.mediaId,
+      seasonNumber: reports.seasonNumber,
+      episodeNumber: reports.episodeNumber,
+      hasCalendar: hasCalendarColumn,
     })
     .from(reports)
     .where(eq(reports.id, reportId))
     .limit(1);
   if (!current) throw new NotFoundError("error.reportNotFound");
-  if (!canTransition(current.status, status, current.reason))
+  // The same question the queue asked before drawing the button, asked again
+  // here: the series may have gone under watch, or off it, in between.
+  if (!canTransition(current.status, status, current.reason, current))
     throw new ConflictError("error.illegalTransition");
 
   const note = status === "open" ? null : reportNoteFor(adminNote);
@@ -803,6 +836,11 @@ export async function closeReportsSolvedByLibrary(): Promise<number> {
     UPDATE report AS r
        SET status = 'resolved', closed_at = now(), updated_at = now()
      WHERE r.reason = 'missing_episode'
+       -- One episode named, and only that: an ask over a whole season is
+       -- measured against the calendar rather than against one row, and one
+       -- naming neither is a re-cut, which nothing counts.
+       AND r.episode_number IS NOT NULL
+       AND r.season_number IS NOT NULL
        AND r.status IN ('open', 'acknowledged', 'in_progress')
        AND EXISTS (
          SELECT 1
@@ -810,6 +848,10 @@ export async function closeReportsSolvedByLibrary(): Promise<number> {
            JOIN library_item AS parent
              ON parent.kind = 'show'
             AND parent.tmdb_id = m.provider_id
+            -- The id the server gave, and only when it is the one that
+            -- answers: a re-cut carries the id Umbra worked out instead, and
+            -- its numbering is not this series'.
+            AND parent.cut_provider_id IS NULL
            JOIN library_item AS ep
              ON ep.kind = 'episode'
             AND ep.grandparent_rating_key = parent.rating_key
@@ -822,13 +864,26 @@ export async function closeReportsSolvedByLibrary(): Promise<number> {
 }
 
 /**
- * Closes season and series reports once the calendar says nothing that has
- * aired is missing any more.
+ * Closes season and series asks once the calendar says nothing that has aired
+ * is missing any more.
+ *
+ * Every ask that named no single episode comes through here, whichever of the
+ * three reasons it carries: "this season is missing", "the rest of this season
+ * is missing" and "the series is behind" are one question asked at two
+ * heights, and the answer is the same statement read over a season or over the
+ * whole calendar. Leaving the season-wide `missing_episode` out was how it came
+ * to be the one ask nothing could ever close, by hand or otherwise.
  *
  * The two `EXISTS` guards are the whole point: without them a season the
  * provider does not know about, or a series whose calendar has never synced,
  * makes `NOT EXISTS` vacuously true and the report resolves itself having
- * changed nothing at all.
+ * changed nothing at all. `s.last_synced_at IS NOT NULL` is the same condition
+ * `hasCalendarColumn` reads, so what this closes and what the administration is
+ * refused the button for are the same set.
+ *
+ * A re-cut has no row here at all: it is never tracked, so the join finds
+ * nothing, which is the correct answer rather than an omission. Nothing can say
+ * how many episodes an edit keeps, so those are settled by hand.
  */
 export async function closeReportsSolvedByCalendar(): Promise<number> {
   const result = await db().execute(sql`
@@ -838,9 +893,10 @@ export async function closeReportsSolvedByCalendar(): Promise<number> {
      WHERE s.media_id = r.media_id
        AND s.last_synced_at IS NOT NULL
        AND r.status IN ('open', 'acknowledged', 'in_progress')
+       AND r.episode_number IS NULL
        AND (
-         (r.reason = 'missing_season'
-          AND r.season_number IS NOT NULL
+         (r.season_number IS NOT NULL
+          AND r.reason IN ('missing_season', 'missing_episode')
           AND EXISTS (SELECT 1 FROM episode e
                        WHERE e.series_id = s.id
                          AND e.season_number = r.season_number)
@@ -851,7 +907,10 @@ export async function closeReportsSolvedByCalendar(): Promise<number> {
                              AND e.air_date IS NOT NULL
                              AND e.air_date <= CURRENT_DATE))
          OR
-         (r.reason = 'series_outdated'
+         -- Nothing pointed at: the whole calendar answers. "A season is
+         -- missing" without saying which is that question too.
+         (r.season_number IS NULL
+          AND r.reason IN ('series_outdated', 'missing_season')
           AND EXISTS (SELECT 1 FROM episode e WHERE e.series_id = s.id)
           AND NOT EXISTS (SELECT 1 FROM episode e
                            WHERE e.series_id = s.id

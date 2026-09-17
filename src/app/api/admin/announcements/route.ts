@@ -3,11 +3,8 @@ import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
-import {
-  embedSchema,
-  linkSchema,
-} from "@/app/api/admin/announcements/schema";
-import { ANNOUNCEMENT_CATEGORIES } from "@/lib/db/schema";
+import { embedSchema, linkSchema } from "@/app/api/admin/announcements/schema";
+import { ANNOUNCEMENT_CATEGORIES } from "@/lib/announcements";
 import { createAnnouncement } from "@/lib/domain/announcements";
 import { checkRate, perMinute } from "@/lib/rate-limit";
 
