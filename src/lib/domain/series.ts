@@ -548,29 +548,47 @@ export async function countTrackedSeries(): Promise<number> {
   return row?.count ?? 0;
 }
 
-export async function listOpenEpisodeTasks() {
-  return (
-    db()
-      .select({
-        id: episodeTasks.id,
-        createdAt: episodeTasks.createdAt,
-        seriesTitle: media.title,
-        posterPath: media.posterPath,
-        seasonNumber: episodes.seasonNumber,
-        episodeNumber: episodes.episodeNumber,
-        episodeTitle: episodes.title,
-        airDate: episodes.airDate,
-      })
-      .from(episodeTasks)
-      .innerJoin(episodes, eq(episodes.id, episodeTasks.episodeId))
-      .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
-      .innerJoin(media, eq(media.id, trackedSeries.mediaId))
-      .where(eq(episodeTasks.status, "open"))
-      .orderBy(asc(episodes.airDate))
-      // Bounded: a tracker catching up on a long-running show can raise hundreds
-      // of these, and the page is a working queue rather than an archive.
-      .limit(200)
-  );
+/**
+ * The open tasks, oldest broadcast first.
+ *
+ * Paged in SQL like every other administration list. It used to read a capped
+ * two hundred and let the page slice the array, which meant the figure above
+ * the list was the cap rather than the count, and a tracker catching up on a
+ * long-running show hid the rest of its work behind a number that looked
+ * complete.
+ */
+export async function listOpenEpisodeTasks(
+  /** The slice to read, when the caller pages. Everything, when it does not. */
+  window?: { limit: number; offset: number },
+) {
+  const query = db()
+    .select({
+      id: episodeTasks.id,
+      createdAt: episodeTasks.createdAt,
+      seriesTitle: media.title,
+      posterPath: media.posterPath,
+      seasonNumber: episodes.seasonNumber,
+      episodeNumber: episodes.episodeNumber,
+      episodeTitle: episodes.title,
+      airDate: episodes.airDate,
+    })
+    .from(episodeTasks)
+    .innerJoin(episodes, eq(episodes.id, episodeTasks.episodeId))
+    .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
+    .innerJoin(media, eq(media.id, trackedSeries.mediaId))
+    .where(eq(episodeTasks.status, "open"))
+    .orderBy(asc(episodes.airDate));
+
+  return window ? query.limit(window.limit).offset(window.offset) : query;
+}
+
+/** How many tasks are open, for the pager and the figure above it. */
+export async function countOpenEpisodeTasks(): Promise<number> {
+  const [row] = await db()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(episodeTasks)
+    .where(eq(episodeTasks.status, "open"));
+  return row?.count ?? 0;
 }
 
 export async function closeEpisodeTask(

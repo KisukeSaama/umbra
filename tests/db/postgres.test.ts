@@ -683,3 +683,184 @@ describe.skipIf(!hasDatabase)("counting the last 30 days", () => {
     vi.restoreAllMocks();
   });
 });
+
+/**
+ * What closes an ask, and what nothing closes.
+ *
+ * Every ask shares one table and one lifecycle, and the administration is only
+ * offered the manual close where no job can reach the row. Get that pairing
+ * wrong in either direction and an ask is either settled by a hand that could
+ * not see, or stuck open for good. Both happened: an ask over a whole season
+ * carries no episode number, so the rule reading the index never matched it and
+ * the button was withheld all the same.
+ */
+describe.skipIf(!hasDatabase)("settling an ask", () => {
+  beforeEach(emptyDatabase);
+
+  /** A tracked series with one season of two episodes, both aired. */
+  async function trackedSeries(options: { available: boolean }) {
+    const [title] = await db()
+      .insert(schema.media)
+      .values({ providerId: "42", mediaType: "tv", title: "Test series" })
+      .returning({ id: schema.media.id });
+    const [tracked] = await db()
+      .insert(schema.trackedSeries)
+      .values({ mediaId: title.id, lastSyncedAt: new Date() })
+      .returning({ id: schema.trackedSeries.id });
+    await db()
+      .insert(schema.episodes)
+      .values(
+        [1, 2].map((episodeNumber) => ({
+          seriesId: tracked.id,
+          seasonNumber: 1,
+          episodeNumber,
+          airDate: "2020-01-01",
+          plexAvailable: options.available,
+          status: options.available
+            ? ("available" as const)
+            : ("aired_missing" as const),
+        })),
+      );
+    return { mediaId: title.id, seriesId: tracked.id };
+  }
+
+  async function ask(
+    mediaId: string,
+    reason: "missing_episode" | "missing_season" | "series_outdated",
+    place: { seasonNumber?: number | null; episodeNumber?: number | null } = {},
+  ) {
+    const [report] = await db()
+      .insert(schema.reports)
+      .values({
+        mediaId,
+        reason,
+        seasonNumber: place.seasonNumber ?? null,
+        episodeNumber: place.episodeNumber ?? null,
+        status: "acknowledged",
+        acknowledgedAt: new Date(),
+      })
+      .returning({ id: schema.reports.id });
+    return report.id;
+  }
+
+  async function statusOf(reportId: string) {
+    const [row] = await db()
+      .select({ status: schema.reports.status })
+      .from(schema.reports)
+      .where(eq(schema.reports.id, reportId));
+    return row.status;
+  }
+
+  it("closes the rest of a season once the calendar says nothing is late", async () => {
+    const short = await trackedSeries({ available: false });
+    const reportId = await ask(short.mediaId, "missing_episode", {
+      seasonNumber: 1,
+    });
+
+    // Still short: the ask stands, and so does the refusal to close it by hand.
+    expect(await reportDomain.closeReportsSolvedByCalendar()).toBe(0);
+    await expect(
+      reportDomain.updateReportStatus(reportId, "resolved"),
+    ).rejects.toThrow(/illegalTransition/);
+
+    await db()
+      .update(schema.episodes)
+      .set({ plexAvailable: true, status: "available" })
+      .where(eq(schema.episodes.seriesId, short.seriesId));
+
+    expect(await reportDomain.closeReportsSolvedByCalendar()).toBe(1);
+    expect(await statusOf(reportId)).toBe("resolved");
+  });
+
+  it("closes a series ask that named no season", async () => {
+    const whole = await trackedSeries({ available: true });
+    const outdated = await ask(whole.mediaId, "series_outdated");
+    const nameless = await ask(whole.mediaId, "missing_season");
+
+    expect(await reportDomain.closeReportsSolvedByCalendar()).toBe(2);
+    expect(await statusOf(outdated)).toBe("resolved");
+    expect(await statusOf(nameless)).toBe("resolved");
+  });
+
+  /*
+   * A re-cut is filed under the provider id of the series it was cut from, and
+   * no provider lists a fan edit: there is no way to know how many episodes a
+   * Kai or a Yabai is supposed to have. So it is never tracked, no job can ever
+   * answer for it, and the close has to be the staff's.
+   */
+  it("hands a re-cut's ask back to the staff, since nothing can count it", async () => {
+    const [title] = await db()
+      .insert(schema.media)
+      .values({ providerId: "77", mediaType: "tv", title: "Naruto" })
+      .returning({ id: schema.media.id });
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:cut",
+      kind: "show",
+      title: "Naruto Kai",
+      cutProviderId: "77",
+    });
+    // Neither a season nor an episode: the shape the route forces on a re-cut.
+    const reportId = await ask(title.id, "missing_episode");
+
+    expect(await reportDomain.closeReportsSolvedByLibrary()).toBe(0);
+    expect(await reportDomain.closeReportsSolvedByCalendar()).toBe(0);
+
+    const closed = await reportDomain.updateReportStatus(
+      reportId,
+      "resolved",
+      "fetched by hand",
+    );
+    expect(closed.status).toBe("resolved");
+  });
+
+  it("closes one named episode from the index, and never through a re-cut", async () => {
+    const [title] = await db()
+      .insert(schema.media)
+      .values({ providerId: "99", mediaType: "tv", title: "Black Clover" })
+      .returning({ id: schema.media.id });
+    const reportId = await ask(title.id, "missing_episode", {
+      seasonNumber: 1,
+      episodeNumber: 3,
+    });
+
+    /*
+     * The show the server matched to the wrong series: it holds the re-cut,
+     * files it under someone else's id, and Umbra worked the real one out into
+     * `cut_provider_id`. Its episode three is not this series' episode three.
+     */
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:wrong",
+      kind: "show",
+      title: "Black Clover Kai",
+      tmdbId: "99",
+      cutProviderId: "1234",
+    });
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:wrong:e3",
+      kind: "episode",
+      title: "Episode 3",
+      grandparentRatingKey: "plex:wrong",
+      seasonNumber: 1,
+      episodeNumber: 3,
+    });
+    expect(await reportDomain.closeReportsSolvedByLibrary()).toBe(0);
+
+    // The series itself, as the server files it when it gets it right.
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:right",
+      kind: "show",
+      title: "Black Clover",
+      tmdbId: "99",
+    });
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:right:e3",
+      kind: "episode",
+      title: "Episode 3",
+      grandparentRatingKey: "plex:right",
+      seasonNumber: 1,
+      episodeNumber: 3,
+    });
+    expect(await reportDomain.closeReportsSolvedByLibrary()).toBe(1);
+    expect(await statusOf(reportId)).toBe("resolved");
+  });
+});

@@ -35,11 +35,27 @@ import {
 
 const [SAMPLE] = SEARCH_SAMPLES;
 
+/**
+ * One fixed argument, with a key of its own.
+ *
+ * The row cannot be keyed by its position, or removing the second of four
+ * shifts the values up under the cursor while the caret stays put, and it
+ * cannot be keyed by the argument's name, which is empty until it is typed.
+ * The identity is the form's and is dropped before the draft is sent.
+ */
+type ParamRow = SearchSiteParam & { row: number };
+
+let paramRows = 0;
+function toRow(param: SearchSiteParam): ParamRow {
+  paramRows += 1;
+  return { ...param, row: paramRows };
+}
+
 type Draft = {
   name: string;
   url: string;
   queryParam: string;
-  params: SearchSiteParam[];
+  params: ParamRow[];
   position: number;
   enabled: boolean;
 };
@@ -182,7 +198,14 @@ function SiteForm({
     try {
       await request(
         site ? `/api/admin/search-sites/${site.id}` : "/api/admin/search-sites",
-        { method: site ? "PATCH" : "POST", body: draft },
+        {
+          method: site ? "PATCH" : "POST",
+          // Without the row identity, which is the form's business alone.
+          body: {
+            ...draft,
+            params: draft.params.map(({ key, value }) => ({ key, value })),
+          },
+        },
       );
       if (!site) setDraft(EMPTY);
       toast.success(t("admin.searchSites.saved"));
@@ -251,7 +274,7 @@ function SiteForm({
         <Label>{t("admin.searchSites.params")}</Label>
         {draft.params.map((param, index) => (
           <div
-            key={index}
+            key={param.row}
             className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center"
           >
             <Input
@@ -302,7 +325,9 @@ function SiteForm({
           size="sm"
           variant="secondary"
           onClick={() =>
-            patch({ params: [...draft.params, { key: "", value: "" }] })
+            patch({
+              params: [...draft.params, toRow({ key: "", value: "" })],
+            })
           }
         >
           {t("admin.searchSites.addParam")}
@@ -348,7 +373,7 @@ function toDraft(site: SearchSiteView): Draft {
     name: site.name,
     url: site.url,
     queryParam: site.queryParam,
-    params: site.params,
+    params: site.params.map(toRow),
     position: site.position,
     enabled: site.enabled,
   };

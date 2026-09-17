@@ -147,8 +147,14 @@ export function isReasonAllowed(
  * close, and teaches members that reporting achieves nothing.
  *
  * What is left is the one thing that can actually be acted on: there is not
- * all of it here yet, either in holes or at the end. Both are asks, so they
- * close themselves when the rest arrives, exactly like everywhere else.
+ * all of it here yet, either in holes or at the end.
+ *
+ * Neither closes itself. Nothing on this side can say how many episodes a Kai
+ * or a Yabai is supposed to have: the edit is whoever made it, no provider
+ * lists it, and the only calendar there is belongs to the series it was cut
+ * from and does not fit. So these are settled by hand, by whoever went and
+ * looked, and `isSettledByJob` says so rather than leaving the queue with rows
+ * nothing can ever take off it.
  *
  * There is no "where" to answer either. A re-cut numbers itself, and the page
  * shows no ladder to point at, so the report is about the series and the
@@ -237,20 +243,70 @@ const ASK_TRANSITIONS = {
 } satisfies Record<ReportStatus, ReportStatus[]>;
 
 /**
+ * Where a report points, and whether anything can measure it.
+ *
+ * The reason alone does not say whether a job can settle a report: "an episode
+ * is missing" on one episode is answered by the index, on a season by the
+ * broadcast calendar, and on neither by nothing at all, which is the shape a
+ * re-cut takes. So the place travels with the reason wherever the moves are
+ * worked out.
+ */
+export type ReportPlace = {
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+  /**
+   * The series is under watch and its calendar has been pulled at least once.
+   *
+   * A re-cut never is, and that is the whole of why its reports are closed by
+   * hand: see `CUT_REASONS` above.
+   */
+  hasCalendar: boolean;
+};
+
+/**
+ * Will a job settle this report on its own?
+ *
+ * Three answers, and each one names what does the measuring:
+ *
+ * - one episode: the library index holds it or it does not,
+ *   `closeReportsSolvedByLibrary` compares the two and needs no calendar;
+ * - a season, or the series: the calendar says what has aired and the index
+ *   says what is here, which is `closeReportsSolvedByCalendar`, and it only
+ *   runs for a series under watch;
+ * - neither a season nor an episode under "an episode is missing": a re-cut,
+ *   where there is nothing to count against.
+ *
+ * A fault is never settled by a job: a codec, a track or a playback failure is
+ * not something Umbra indexes, and pretending otherwise would mean walking
+ * media parts on the server.
+ */
+export function isSettledByJob(
+  reason: ReportReason,
+  place: ReportPlace,
+): boolean {
+  if (!isAutoClosable(reason)) return false;
+  if (place.episodeNumber !== null) return reason === "missing_episode";
+  if (reason === "missing_episode" && place.seasonNumber === null) return false;
+  return place.hasCalendar;
+}
+
+/**
  * The moves a person may make from here.
  *
- * Settling is left out wherever the sync can see the outcome: a missing season
- * or episode is fixed when Plex holds it, and the sync is what says so. A hand
- * closing it early told the members it was there when it was not. What Plex
- * cannot see (a codec, a track, a playback failure) keeps the manual close,
- * since nothing else would ever settle it.
+ * Settling is left out wherever a job can see the outcome: a missing season or
+ * episode is fixed when Plex holds it, and the sync is what says so. A hand
+ * closing it early told the members it was there when it was not. Everything
+ * else keeps the manual close, since nothing else would ever settle it: what
+ * Plex cannot see (a codec, a track, a playback failure), and what nothing can
+ * count (a re-cut, a series nobody put under watch).
  */
 export function nextStatuses(
   from: ReportStatus,
   reason: ReportReason,
+  place: ReportPlace,
 ): readonly ReportStatus[] {
   const moves = (isAsk(reason) ? ASK_TRANSITIONS : FAULT_TRANSITIONS)[from];
-  return isAutoClosable(reason)
+  return isSettledByJob(reason, place)
     ? moves.filter((status) => status !== "resolved")
     : moves;
 }
@@ -259,17 +315,19 @@ export function canTransition(
   from: ReportStatus,
   to: ReportStatus,
   reason: ReportReason,
+  place: ReportPlace,
 ): boolean {
-  return nextStatuses(from, reason).includes(to);
+  return nextStatuses(from, reason, place).includes(to);
 }
 
 /**
- * The three reasons a sync can settle on its own.
+ * The three reasons a sync can settle, when there is something to measure.
  *
  * Everything else describes something Umbra does not index: a codec, a track, a
  * playback failure. Nothing should ever try to close those automatically, since
  * doing so would mean walking media parts on the server, which Umbra
- * deliberately never does.
+ * deliberately never does. Whether a given report is one a job will actually
+ * reach is `isSettledByJob`, which reads the place as well as the reason.
  */
 const AUTO_CLOSABLE: readonly ReportReason[] = [
   "missing_episode",

@@ -191,7 +191,10 @@ function byDay(episodes: UpcomingEpisode[]) {
     }
     days.set(episode.airDate, shows);
   }
-  return [...days].map(([date, shows]) => ({ date, shows: [...shows.values()] }));
+  return [...days].map(([date, shows]) => ({
+    date,
+    shows: [...shows.values()],
+  }));
 }
 
 const BADGE = {
