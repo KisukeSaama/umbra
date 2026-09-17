@@ -151,7 +151,11 @@ describe("anime in the picker", () => {
     expect(fitsMalGenres({ genres: ["Comedy", "School"] }, laugh)).toBe(true);
     expect(fitsMalGenres({ genres: ["Drama"] }, laugh)).toBe(false);
 
-    const horror = malGenreFilter({ ...anime, genreIds: [], keyword: "horror" });
+    const horror = malGenreFilter({
+      ...anime,
+      genreIds: [],
+      keyword: "horror",
+    });
     expect(fitsMalGenres({ genres: ["Horror"] }, horror)).toBe(true);
     expect(fitsMalGenres({ genres: ["Comedy"] }, horror)).toBe(false);
   });

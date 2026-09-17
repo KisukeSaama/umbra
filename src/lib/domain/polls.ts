@@ -66,9 +66,17 @@ export async function activePoll(accountId?: string): Promise<PollView | null> {
   return poll ? pollView(poll.id, accountId) : null;
 }
 
+/**
+ * One question, its tally and what the visitor picked.
+ *
+ * `memberCount` is passed in wherever a page reads several questions at once:
+ * it is the same `count(*)` over the accounts for every one of them, and the
+ * feed was running it once per note.
+ */
 export async function pollView(
   pollId: string,
   accountId?: string,
+  memberCount?: number,
 ): Promise<PollView> {
   const [poll] = await db()
     .select()
@@ -111,7 +119,7 @@ export async function pollView(
     closed: isClosed(poll),
     endsAt: poll.endsAt,
     totalVotes,
-    memberCount: await countAccounts(),
+    memberCount: memberCount ?? (await countAccounts()),
     votedOptionId,
     options: options.map((option) => ({
       ...option,

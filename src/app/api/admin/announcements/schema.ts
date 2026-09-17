@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { EMBED_RATIOS } from "@/lib/db/schema";
+import { EMBED_RATIOS } from "@/lib/announcements";
 import { parseEmbedCode } from "@/lib/embed";
 
 /**
