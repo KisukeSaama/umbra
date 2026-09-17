@@ -32,11 +32,7 @@ import type {
   MediaKind,
   MediaSummary,
 } from "@/lib/providers/metadata";
-import {
-  plexAppUrl,
-  plexDetailsUrl,
-  plexLibrary,
-} from "@/lib/providers/plex";
+import { plexAppUrl, plexDetailsUrl, plexLibrary } from "@/lib/providers/plex";
 import { posterUrl, tmdbLanguage, tmdbProvider } from "@/lib/providers/tmdb";
 
 /** Search: the heart of Umbra. The states themselves live one file away. */

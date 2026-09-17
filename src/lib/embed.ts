@@ -1,4 +1,4 @@
-import type { EmbedRatio } from "@/lib/db/schema";
+import type { EmbedRatio } from "@/lib/announcements";
 
 /**
  * Reading the embed code a site hands out for integration.

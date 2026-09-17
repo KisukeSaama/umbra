@@ -1,0 +1,7 @@
+# Written by drizzle-kit, byte for byte, on every `db:generate`. Formatting them
+# means a diff on the next generation and nothing else.
+drizzle/meta/
+
+# Build output and dependencies.
+.next/
+node_modules/

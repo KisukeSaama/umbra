@@ -24,7 +24,7 @@ Send the request you would have sent to the API, with its address replaced by
 - One client per service, both headers set there and never at a call site. Do not retry POST or
   PATCH; Janus does not either.
 
-## Already handled — do not build it
+## Already handled: do not build it
 
     response cache    Janus reuses upstream responses; `X-Janus-Cache` reports HIT, MISS, STALE…
     retries, backoff  GET, HEAD, PUT, DELETE are retried; a failing API is paused for everyone
@@ -52,9 +52,8 @@ the API is called. An API at a slug not listed is not reachable at all.
 
 APIs marked **JSON** reach you as JSON whatever their own documentation shows: Janus converts XML,
 form-encoded and NDJSON responses on the way back. Parse JSON, add no XML parser and no new
-dependency for it. `X-Janus-Transform` names the conversion that ran, or says why none did — and
+dependency for it. `X-Janus-Transform` names the conversion that ran, or says why none did, and
 sending `Accept: application/xml` returns the untouched original if you ever need it.
-
 
 ## Errors
 
@@ -102,11 +101,11 @@ fault to work around: ask them, do not retry as `app` and call it equivalent.
 Stop and ask the operator to register it. Do not call the API directly, and never ask anyone for its
 key. In the Janus console at https://janus.kisukesaama.com, two records are needed:
 
-1. **Connections → Register an API**: its name and base address, e.g. `https://api.spotify.com` —
-   the gateway slug is derived from the name — then how that API expects its secret (bearer, custom
+1. **Connections, then Register an API**: its name and base address, e.g.
+   `https://api.spotify.com`, from which the gateway slug is derived, then how that API expects its secret (bearer, custom
    header, query parameter, basic, OAuth2 client credentials, or nothing at all for an open API) and
    its value, which goes to the vault and not into this repository.
-2. **Registry → Applications**: on `Umbra`, add the new API under
+2. **Registry, then Applications**: on `Umbra`, add the new API under
    **Subscribed APIs**. Registering an API does not authorise any caller; without that subscription
    the gateway answers 403.
 

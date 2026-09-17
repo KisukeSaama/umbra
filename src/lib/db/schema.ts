@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -16,6 +17,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { AnnouncementCategory, EmbedRatio } from "@/lib/announcements";
 import type { SearchSiteParam } from "@/lib/search-sites";
 
 /**
@@ -457,19 +459,18 @@ export const episodeTasks = pgTable(
 
 /* -------------------------------------------------------------- community -- */
 
-export const ANNOUNCEMENT_CATEGORIES = [
-  "information",
-  "infrastructure",
-  "content",
-  "update",
-  "storage",
-  "funding",
-] as const;
-export type AnnouncementCategory = (typeof ANNOUNCEMENT_CATEGORIES)[number];
-
-/** The shape of an embedded page: a video, a square, or a tall document. */
-export const EMBED_RATIOS = ["wide", "square", "tall"] as const;
-export type EmbedRatio = (typeof EMBED_RATIOS)[number];
+/*
+ * The two lists a note is built from live in `@/lib/announcements`, which
+ * depends on nothing: the composer is a client component, and importing a
+ * value from this file puts Drizzle and every index name in the browser
+ * bundle. They are re-exported here so the tables below read as one piece.
+ */
+export {
+  ANNOUNCEMENT_CATEGORIES,
+  EMBED_RATIOS,
+  type AnnouncementCategory,
+  type EmbedRatio,
+} from "@/lib/announcements";
 
 export const announcements = pgTable(
   "announcement",
@@ -581,7 +582,12 @@ export const pollOptions = pgTable(
     label: text("label").notNull(),
     position: integer("position").notNull().default(0),
   },
-  (t) => [index("poll_option_poll_idx").on(t.pollId, t.position)],
+  (t) => [
+    index("poll_option_poll_idx").on(t.pollId, t.position),
+    // What `vote_option_poll_fk` points at: an option is only ever an option of
+    // the poll it was written under.
+    uniqueIndex("poll_option_identity_idx").on(t.id, t.pollId),
+  ],
 );
 
 export const votes = pgTable(
@@ -591,16 +597,30 @@ export const votes = pgTable(
     pollId: uuid("poll_id")
       .notNull()
       .references(() => polls.id, { onDelete: "cascade" }),
-    optionId: uuid("option_id")
-      .notNull()
-      .references(() => pollOptions.id, { onDelete: "cascade" }),
+    optionId: uuid("option_id").notNull(),
     accountId: uuid("account_id")
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     createdAt,
   },
-  // One vote per person per poll.
-  (t) => [uniqueIndex("vote_unique_idx").on(t.pollId, t.accountId)],
+  (t) => [
+    // One vote per person per poll.
+    uniqueIndex("vote_unique_idx").on(t.pollId, t.accountId),
+    /*
+     * And the answer belongs to the question it is filed under.
+     *
+     * Both columns at once rather than the option alone: the option carries its
+     * own poll, so a vote naming an option of another question would otherwise
+     * be a row the tally of that other question counted, and one person would
+     * weigh twice there. The route checks it too, but a check in application
+     * code is the read-then-write this project keeps out of everything else.
+     */
+    foreignKey({
+      columns: [t.optionId, t.pollId],
+      foreignColumns: [pollOptions.id, pollOptions.pollId],
+      name: "vote_option_poll_fk",
+    }).onDelete("cascade"),
+  ],
 );
 
 /* ---------------------------------------------------------------- storage -- */
@@ -732,6 +752,18 @@ export const jobRuns = pgTable(
       .notNull()
       .defaultNow(),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
+    /**
+     * The last sign of life from the process running this step.
+     *
+     * A step used to be called interrupted on its start time alone, which
+     * meant a first walk of a large library was declared dead while it was
+     * still walking, and the button would start a second one over it. The
+     * runner stamps this every few seconds for as long as it is on its feet,
+     * so what closes a run is silence rather than duration.
+     */
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     status: text("status").$type<JobRunStatus>().notNull().default("running"),
     itemsProcessed: integer("items_processed").notNull().default(0),
     error: text("error"),

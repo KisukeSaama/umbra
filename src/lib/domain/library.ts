@@ -9,7 +9,6 @@ import {
   isNotNull,
   isNull,
   lt,
-  notInArray,
   or,
   sql,
 } from "drizzle-orm";
@@ -439,6 +438,29 @@ export function matchesAnyProviderId(providerIds: string[]) {
   );
 }
 
+/** The same question again, turned over: none of these ids. */
+export function matchesNoProviderId(providerIds: string[]) {
+  // `NOT (unknown)` is unknown, and a row filtered out on unknown is a row the
+  // picker would never offer: a title the server matched to nothing is not one
+  // of the ids asked about, so it passes.
+  return sql`coalesce(not (${matchesAnyProviderId(providerIds)}), true)`;
+}
+
+/**
+ * The id a title on the server answers to.
+ *
+ * The one Umbra worked out for a re-cut when there is one, since it only exists
+ * because the server's was wrong, and the server's otherwise. Every card links
+ * by it and every "is this here" is asked of it, so reading `tmdb_id` alone
+ * pointed a card at the series a re-cut had been mistaken for.
+ */
+export function effectiveProviderId(row: {
+  tmdbId: string | null;
+  cutProviderId: string | null;
+}): string | null {
+  return row.cutProviderId ?? row.tmdbId;
+}
+
 /**
  * A server that matched the series itself answers before one Umbra had to work
  * out, so a library holding both reads as the series rather than the re-cut.
@@ -640,6 +662,23 @@ function pickOne<T extends { releaseDate: string | null }>(
   return dated.length === 1 ? dated[0] : null;
 }
 
+/*
+ * The three reads below count what the server holds, season by season, and each
+ * of them finds its show by `tmdb_id AND cut_provider_id IS NULL`.
+ *
+ * The second half is the same rule `matchesProviderId` carries and it has to
+ * be: the id the server gave only answers while it is the one Umbra goes by,
+ * and a row with a `cut_provider_id` is a re-cut whose numbering is its own.
+ * Without it, the page of the series the server mistook a re-cut for counted
+ * that edit's episodes as its seasons, and the ladder promised a season
+ * nothing holds.
+ *
+ * A re-cut is not reachable through these at all, which is deliberate rather
+ * than missing. Its episodes cannot be laid over the provider's numbering,
+ * nothing anywhere says how many an edit keeps, and the title page draws it no
+ * ladder to fill: it states the cut instead.
+ */
+
 /**
  * The seasons of a show as the server actually holds them.
  *
@@ -655,6 +694,7 @@ export async function seasonsOnServer(providerId: string): Promise<number[]> {
         ON show.rating_key = ep.grandparent_rating_key
      WHERE ep.kind = 'episode'
        AND show.tmdb_id = ${providerId}::text
+       AND show.cut_provider_id IS NULL
        -- Specials (season 0) are not inventoried: see episodesInWeek.
        AND ep.season_number > 0
      ORDER BY ep.season_number
@@ -679,6 +719,7 @@ export async function episodeCountsBySeason(
         ON show.rating_key = ep.grandparent_rating_key
      WHERE ep.kind = 'episode'
        AND show.tmdb_id = ${providerId}::text
+       AND show.cut_provider_id IS NULL
        AND ep.season_number IS NOT NULL
        AND ep.episode_number IS NOT NULL
      GROUP BY ep.season_number
@@ -701,6 +742,7 @@ export async function episodesOnServer(
         ON show.rating_key = ep.grandparent_rating_key
      WHERE ep.kind = 'episode'
        AND show.tmdb_id = ${providerId}::text
+       AND show.cut_provider_id IS NULL
        AND ep.season_number = ${seasonNumber}::int
        AND ep.episode_number IS NOT NULL
      ORDER BY ep.episode_number
@@ -790,8 +832,11 @@ export async function randomAvailableByGenres(
         ...(requireGenreIds.length
           ? [sql`${libraryItems.genreIds} @> ${intArray(requireGenreIds)}`]
           : []),
+        // By the id the title answers to, never by the server's alone: a
+        // re-cut already on the shelf above would otherwise be proposed again
+        // as something to discover.
         ...(excludeProviderIds.length
-          ? [notInArray(libraryItems.tmdbId, excludeProviderIds)]
+          ? [matchesNoProviderId(excludeProviderIds)]
           : []),
         // An era asked for is an answer, so a title of unknown year does not
         // pass it: a null year fails both comparisons.
@@ -861,7 +906,10 @@ export async function availableByProviderIds(
       and(
         eq(libraryItems.kind, kind === "movie" ? "movie" : "show"),
         isNotNull(libraryItems.posterPath),
-        inArray(libraryItems.tmdbId, providerIds),
+        // The id the title answers to, so a re-cut the server matched to
+        // nothing is part of the answer: it can be played tonight, which is
+        // the whole question being asked here.
+        matchesAnyProviderId(providerIds),
       ),
     );
 
@@ -870,11 +918,13 @@ export async function availableByProviderIds(
   return rows
     .sort(
       (a, b) =>
-        (rank.get(a.tmdbId ?? "") ?? 0) - (rank.get(b.tmdbId ?? "") ?? 0),
+        (rank.get(effectiveProviderId(a) ?? "") ?? 0) -
+        (rank.get(effectiveProviderId(b) ?? "") ?? 0),
     )
     .filter((row) => {
-      if (!row.tmdbId || seen.has(row.tmdbId)) return false;
-      seen.add(row.tmdbId);
+      const providerId = effectiveProviderId(row);
+      if (!providerId || seen.has(providerId)) return false;
+      seen.add(providerId);
       return true;
     })
     .map(toRecentItem);
@@ -885,7 +935,9 @@ function toRecentItem(row: typeof libraryItems.$inferSelect): RecentItem {
     voteAverage: row.voteAverage,
     voteCount: row.voteCount ?? 0,
     ratingKey: row.ratingKey,
-    providerId: row.tmdbId,
+    // What the card links by: a re-cut carries the id Umbra worked out for it,
+    // and linking by the server's would open the series it was mistaken for.
+    providerId: effectiveProviderId(row),
     kind: row.kind === "season" ? "show" : row.kind,
     title: row.title,
     showTitle: row.grandparentTitle,

@@ -62,7 +62,12 @@ export function AnnouncementReactions({
   }
 
   const thumbs = [
-    { value: "like", Icon: ThumbsUpIcon, count: tally.likes, label: "news.like" },
+    {
+      value: "like",
+      Icon: ThumbsUpIcon,
+      count: tally.likes,
+      label: "news.like",
+    },
     {
       value: "dislike",
       Icon: ThumbsDownIcon,
