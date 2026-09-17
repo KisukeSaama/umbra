@@ -3,8 +3,11 @@ import { z } from "zod";
 
 import { idParam, jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
-import { embedSchema, linkSchema } from "@/app/api/admin/announcements/schema";
-import { ANNOUNCEMENT_CATEGORIES } from "@/lib/announcements";
+import {
+  embedSchema,
+  linkSchema,
+} from "@/app/api/admin/announcements/schema";
+import { ANNOUNCEMENT_CATEGORIES } from "@/lib/db/schema";
 import {
   deleteAnnouncement,
   updateAnnouncement,

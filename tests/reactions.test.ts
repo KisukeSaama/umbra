@@ -32,8 +32,8 @@ describe("applyReaction", () => {
   });
 
   it("removes the count when the reaction is taken back", () => {
-    expect(
-      applyReaction({ likes: 1, dislikes: 4, own: "dislike" }, null),
-    ).toEqual({ likes: 1, dislikes: 3, own: null });
+    expect(applyReaction({ likes: 1, dislikes: 4, own: "dislike" }, null)).toEqual(
+      { likes: 1, dislikes: 3, own: null },
+    );
   });
 });

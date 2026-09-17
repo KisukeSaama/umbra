@@ -26,7 +26,7 @@ import {
   EMBED_RATIOS,
   type AnnouncementCategory,
   type EmbedRatio,
-} from "@/lib/announcements";
+} from "@/lib/db/schema";
 import { embedCodeOf, parseEmbedCode } from "@/lib/embed";
 import { translateError, type TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
@@ -52,20 +52,6 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
  */
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 8;
-
-/**
- * An answer, with a key of its own.
- *
- * Keyed by position, removing the second of four answers made React reuse the
- * row rather than drop it: the values shifted up under the cursor and the
- * caret stayed where it was, in a field that now held somebody else's words.
- * The key belongs to the answer, so it goes with it.
- */
-let optionKeys = 0;
-function emptyOption() {
-  optionKeys += 1;
-  return { key: optionKeys, value: "" };
-}
 
 type Pane = "write" | "preview";
 
@@ -119,11 +105,11 @@ export function AnnouncementForm({
 
   const [withPoll, setWithPoll] = useState(false);
   const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState(() => [emptyOption(), emptyOption()]);
+  const [options, setOptions] = useState(["", ""]);
 
   const [busy, setBusy] = useState(false);
 
-  const filled = options.map((option) => option.value.trim()).filter(Boolean);
+  const filled = options.map((option) => option.trim()).filter(Boolean);
   const linkReady = !withLink || /^https?:\/\/\S+$/.test(linkUrl.trim());
   const embedReady = !withEmbed || parseEmbedCode(embedCode) !== null;
   const pollReady =
@@ -137,9 +123,7 @@ export function AnnouncementForm({
 
   function setOption(index: number, value: string) {
     setOptions((previous) =>
-      previous.map((option, i) =>
-        i === index ? { ...option, value } : option,
-      ),
+      previous.map((option, i) => (i === index ? value : option)),
     );
   }
 
@@ -155,7 +139,7 @@ export function AnnouncementForm({
     setEmbedRatio("wide");
     setWithPoll(false);
     setQuestion("");
-    setOptions([emptyOption(), emptyOption()]);
+    setOptions(["", ""]);
   }
 
   async function submit(published: boolean) {
@@ -437,9 +421,9 @@ export function AnnouncementForm({
                   {t("admin.polls.options")}
                 </legend>
                 {options.map((option, index) => (
-                  <div key={option.key} className="flex gap-2">
+                  <div key={index} className="flex gap-2">
                     <Input
-                      value={option.value}
+                      value={option}
                       aria-label={`${t("admin.polls.options")} ${index + 1}`}
                       onChange={(event) => setOption(index, event.target.value)}
                     />
@@ -465,9 +449,7 @@ export function AnnouncementForm({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      setOptions((previous) => [...previous, emptyOption()])
-                    }
+                    onClick={() => setOptions((previous) => [...previous, ""])}
                   >
                     <PlusIcon />
                     {t("admin.polls.addOption")}

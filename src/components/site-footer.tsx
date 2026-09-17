@@ -25,10 +25,7 @@ export async function SiteFooter() {
          * TMDB's terms ask for their approved logo, kept smaller than Umbra's own
          * mark, next to a fixed notice, inside a section named as credits.
          */}
-        <section
-          aria-labelledby="footer-credits"
-          className="max-w-sm space-y-2"
-        >
+        <section aria-labelledby="footer-credits" className="max-w-sm space-y-2">
           <h2
             id="footer-credits"
             className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase"

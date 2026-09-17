@@ -9,7 +9,6 @@ import {
   type AnnouncementCategory,
   type EmbedRatio,
 } from "@/lib/db/schema";
-import { countAccounts } from "@/lib/domain/accounts";
 import {
   notifyAllAccounts,
   retitleNotifications,
@@ -150,18 +149,10 @@ async function withPolls(
     reactionTallies(ids, accountId),
   ]);
 
-  // How many people could answer is the same number for every question on the
-  // page, and it is a count over the whole of `account`: asked once, not once
-  // per note.
-  const members = attached.length > 0 ? await countAccounts() : 0;
-
   const views = new Map<string, PollView>();
   await Promise.all(
     attached.map(async (poll) => {
-      views.set(
-        poll.announcementId,
-        await pollView(poll.id, accountId, members),
-      );
+      views.set(poll.announcementId, await pollView(poll.id, accountId));
     }),
   );
 

@@ -156,9 +156,9 @@ describe("released seasons", () => {
   });
 
   it("does not count a season with no date", () => {
-    expect(isSeasonReleased(season({ airDate: null, onServer: 0 }), now)).toBe(
-      false,
-    );
+    expect(
+      isSeasonReleased(season({ airDate: null, onServer: 0 }), now),
+    ).toBe(false);
   });
 
   it("does not count a season dated in the future", () => {

@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import {
   countTrackedSeries,
-  countOpenEpisodeTasks,
   listOpenEpisodeTasks,
   listTrackedSeries,
 } from "@/lib/domain/series";
@@ -62,13 +61,13 @@ export default async function AdminSeriesPage({
 
   // Two lists on one screen, each paged on its own parameter: acting on a task
   // must not send the series list back to its first page.
-  const [seriesTotal, taskTotal] = await Promise.all([
+  const [seriesTotal, allTasks] = await Promise.all([
     countTrackedSeries(),
-    countOpenEpisodeTasks(),
+    listOpenEpisodeTasks(),
   ]);
 
   const taskPage = paginate(
-    taskTotal,
+    allTasks.length,
     parsePage(params.get("tasks")),
     PER_PAGE,
   );
@@ -77,10 +76,14 @@ export default async function AdminSeriesPage({
     parsePage(params.get("series")),
     PER_PAGE,
   );
-  const [tasks, series] = await Promise.all([
-    listOpenEpisodeTasks({ limit: taskPage.perPage, offset: taskPage.offset }),
-    listTrackedSeries({ limit: seriesPage.perPage, offset: seriesPage.offset }),
-  ]);
+  const tasks = allTasks.slice(
+    taskPage.offset,
+    taskPage.offset + taskPage.perPage,
+  );
+  const series = await listTrackedSeries({
+    limit: seriesPage.perPage,
+    offset: seriesPage.offset,
+  });
 
   return (
     <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
@@ -177,13 +180,13 @@ export default async function AdminSeriesPage({
           <CardTitle>
             {t("admin.episodes.tasks")}{" "}
             <span className="text-muted-foreground font-normal tabular-nums">
-              {taskTotal}
+              {allTasks.length}
             </span>
           </CardTitle>
           <CardDescription>{t("admin.episodes.hint")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {taskTotal === 0 ? (
+          {allTasks.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               {t("admin.episodes.empty")}
             </p>

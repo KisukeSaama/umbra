@@ -14,7 +14,11 @@ import { requireStaffPage } from "@/lib/auth/session";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
-import { jobStatus, syncCycleRunning, type JobStatusRow } from "@/lib/jobs";
+import {
+  jobStatus,
+  syncCycleRunning,
+  type JobStatusRow,
+} from "@/lib/jobs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslator();
@@ -154,7 +158,9 @@ function JobCard({
           </p>
         ) : null}
 
-        <p className="text-muted-foreground font-mono text-xs">{job.jobName}</p>
+        <p className="text-muted-foreground font-mono text-xs">
+          {job.jobName}
+        </p>
       </CardContent>
     </Card>
   );

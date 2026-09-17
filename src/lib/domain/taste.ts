@@ -165,6 +165,8 @@ export const topGenres = cache(async function topGenres(
   return rows.map((row) => row.genreId);
 });
 
+/** Whether an account has enough of a profile for a shelf to be worth showing. */
+
 /* ------------------------------------------------------- followed shows -- */
 
 /** How far back the home page looks to know which shows a member is on. */

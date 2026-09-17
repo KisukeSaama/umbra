@@ -47,11 +47,8 @@ describe("ordering an administration queue", () => {
 
   it("merges two tables newest first", () => {
     const page = paginate(4, 1, 10);
-    const ids = mergePageBy(
-      page,
-      [requests, asks],
-      compareQueueRows("recent"),
-    ).map(({ id }) => id);
+    const ids = mergePageBy(page, [requests, asks], compareQueueRows("recent"))
+      .map(({ id }) => id);
     expect(ids).toEqual(["r1", "a1", "r2", "a2"]);
   });
 

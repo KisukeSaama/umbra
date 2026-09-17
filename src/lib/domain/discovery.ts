@@ -136,9 +136,9 @@ export const becauseYouAsked = cache(async function becauseYouAsked(
   // The provider's list carries no floor of its own, and this shelf is Umbra
   // putting titles forward, so it is held to the same bar as the others.
   const items = await quietly(async () =>
-    (await similarTitles(seed.mediaType, seed.providerId, language)).filter(
-      (item) => worthSuggesting(item, RATING_FLOOR),
-    ),
+    (
+      await similarTitles(seed.mediaType, seed.providerId, language)
+    ).filter((item) => worthSuggesting(item, RATING_FLOOR)),
   );
   return items.length > 0 ? { seed: seed.title, items } : null;
 });

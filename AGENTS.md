@@ -103,14 +103,4 @@ git remote set-url --add --push origin git@github.com:KisukeSaama/umbra.git
 npm run lint
 npm run typecheck
 npm test
-npm run format:check
-```
-
-`npm run format` writes what the last one reports. The database-backed part of
-the suite is skipped unless `UMBRA_TEST_DATABASE_URL` points at a database it
-may empty; the rules that live in SQL are asserted there and nowhere else, so
-run it whenever you touch one:
-
-```bash
-UMBRA_TEST_DATABASE_URL=postgres://umbra:umbra@localhost:5432/umbra_test npm test
 ```

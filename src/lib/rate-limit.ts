@@ -21,15 +21,7 @@ export function checkRate(
   quota: Quota,
   now = Date.now(),
 ) {
-  /*
-   * Opportunistic purge: the map stays the size of recent traffic.
-   *
-   * A full walk on every call, which is only reasonable because of what the
-   * map holds: one entry per bucket and key seen in the last few minutes, on a
-   * hub with a few dozen members. There is no eviction to tune and no timer to
-   * own, and if Umbra ever ran as more than one process this whole module
-   * would be a store rather than a map anyway.
-   */
+  // Opportunistic purge: the map stays the size of recent traffic.
   const ttl = Math.max(quota.windowMs * 4, 60_000);
   for (const [entryKey, window] of windows) {
     if (now - window.startedAt > ttl) windows.delete(entryKey);

@@ -109,7 +109,7 @@ export async function ReportItem({
             })}
           />
 
-          {nextStatuses(report.status, report.reason, report).map((status) => (
+          {nextStatuses(report.status, report.reason).map((status) => (
             <ActionButton
               key={status}
               url={`/api/admin/reports/${report.id}`}

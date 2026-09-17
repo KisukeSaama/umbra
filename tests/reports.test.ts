@@ -11,7 +11,6 @@ import {
   isLive,
   isReasonAllowed,
   isSettled,
-  isSettledByJob,
   nextStatuses,
   NOTHING_SETTLED,
   reasonKey,
@@ -25,27 +24,6 @@ import {
  * A report is entirely made of choices, so the rules that decide which choices
  * exist are the feature. These are the ones that would go wrong quietly.
  */
-
-/** A season of a series under watch: the ordinary case the moves assume. */
-const season = {
-  seasonNumber: 2,
-  episodeNumber: null,
-  hasCalendar: true,
-} as const;
-/** One episode of it. */
-const episode = { ...season, episodeNumber: 5 } as const;
-/** The series itself. */
-const series = {
-  seasonNumber: null,
-  episodeNumber: null,
-  hasCalendar: true,
-} as const;
-/** A re-cut: no season to point at, and no calendar anywhere to count it. */
-const cut = {
-  seasonNumber: null,
-  episodeNumber: null,
-  hasCalendar: false,
-} as const;
 
 describe("reason wording", () => {
   it("speaks of episodes in the plural when no episode is pointed at", () => {
@@ -105,87 +83,47 @@ describe("report lifecycle", () => {
   });
 
   it("keeps resolved reports closed and refuses skipped steps", () => {
-    expect(canTransition("open", "acknowledged", "bad_quality", episode)).toBe(
-      true,
-    );
-    expect(canTransition("open", "resolved", "bad_quality", episode)).toBe(
-      false,
-    );
-    expect(
-      canTransition("acknowledged", "resolved", "bad_quality", episode),
-    ).toBe(true);
-    expect(canTransition("resolved", "open", "bad_quality", episode)).toBe(
-      false,
-    );
-    expect(nextStatuses("duplicate", "bad_quality", episode)).toHaveLength(0);
+    expect(canTransition("open", "acknowledged", "bad_quality")).toBe(true);
+    expect(canTransition("open", "resolved", "bad_quality")).toBe(false);
+    expect(canTransition("acknowledged", "resolved", "bad_quality")).toBe(true);
+    expect(canTransition("resolved", "open", "bad_quality")).toBe(false);
+    expect(nextStatuses("duplicate", "bad_quality")).toHaveLength(0);
   });
 
   it("reopens declined asks and faults into the waiting queue", () => {
     for (const reason of REPORT_REASONS) {
-      expect(nextStatuses("rejected", reason, season)).toEqual(["open"]);
-      expect(canTransition("rejected", "acknowledged", reason, season)).toBe(
-        false,
-      );
+      expect(nextStatuses("rejected", reason)).toEqual(["open"]);
+      expect(canTransition("rejected", "acknowledged", reason)).toBe(false);
     }
   });
 
   it("works a fault on, but takes an ask straight to settled", () => {
-    expect(nextStatuses("acknowledged", "bad_quality", season)).toContain(
+    expect(nextStatuses("acknowledged", "bad_quality")).toContain(
       "in_progress",
     );
-    expect(
-      nextStatuses("acknowledged", "missing_season", season),
-    ).not.toContain("in_progress");
-    expect(nextStatuses("acknowledged", "missing_season", season)).toContain(
+    expect(nextStatuses("acknowledged", "missing_season")).not.toContain(
+      "in_progress",
+    );
+    expect(nextStatuses("acknowledged", "missing_season")).toContain(
       "rejected",
     );
   });
 
   it("leaves settling to the sync wherever the sync can see it", () => {
-    for (const [reason, place] of [
-      ["missing_episode", episode],
-      ["missing_season", season],
-      ["series_outdated", series],
+    for (const reason of [
+      "missing_episode",
+      "missing_season",
+      "series_outdated",
     ] as const)
       for (const status of REPORT_STATUSES)
-        expect(canTransition(status, "resolved", reason, place)).toBe(false);
-    expect(
-      canTransition("acknowledged", "resolved", "bad_quality", episode),
-    ).toBe(true);
-  });
-
-  /*
-   * The hole this closes: an ask over a whole season carries no episode
-   * number, so the rule that reads the index could never match it, and the
-   * button was withheld all the same. It could only ever leave the queue as
-   * refused.
-   */
-  it("hands back the close wherever no job can reach the row", () => {
-    // The rest of a season, on a series under watch: the calendar answers.
-    expect(isSettledByJob("missing_episode", season)).toBe(true);
-    expect(
-      canTransition("acknowledged", "resolved", "missing_episode", season),
-    ).toBe(false);
-
-    // The same ask on a series nobody put under watch: nothing counts it.
-    const untracked = { ...season, hasCalendar: false };
-    expect(isSettledByJob("missing_episode", untracked)).toBe(false);
-    expect(
-      canTransition("acknowledged", "resolved", "missing_episode", untracked),
-    ).toBe(true);
-
-    // A re-cut, which is the only shape with neither a season nor an episode:
-    // no provider lists a fan edit, so nothing knows how many episodes it has.
-    for (const reason of reasonsForCut()) {
-      expect(isSettledByJob(reason, cut)).toBe(false);
-      expect(canTransition("acknowledged", "resolved", reason, cut)).toBe(true);
-    }
+        expect(canTransition(status, "resolved", reason)).toBe(false);
+    expect(canTransition("acknowledged", "resolved", "bad_quality")).toBe(true);
   });
 
   it("proposes nothing that is not a real status", () => {
     for (const reason of ["bad_quality", "missing_season"] as const)
       for (const status of REPORT_STATUSES)
-        for (const next of nextStatuses(status, reason, season))
+        for (const next of nextStatuses(status, reason))
           expect(REPORT_STATUSES).toContain(next);
   });
 
@@ -289,17 +227,7 @@ describe("re-cut reasons", () => {
       expect(isCutReasonAllowed(reason)).toBe(false);
   });
 
-  /*
-   * A re-cut is the one place where the reasons a sync usually settles cannot
-   * be settled by one: there is no way to know how many episodes a Kai or a
-   * Yabai has. So they keep the manual close, and the queue is not left with
-   * rows the administration can only refuse.
-   */
-  it("keeps the asks it allows, and hands their closing back to the staff", () => {
-    for (const reason of reasonsForCut()) {
-      expect(isAsk(reason)).toBe(true);
-      expect(isAutoClosable(reason)).toBe(true);
-      expect(isSettledByJob(reason, cut)).toBe(false);
-    }
+  it("lets every reason it keeps close itself on the next scan", () => {
+    expect(reasonsForCut().every(isAutoClosable)).toBe(true);
   });
 });

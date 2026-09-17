@@ -70,6 +70,8 @@ describe("boolean flags", () => {
   });
 
   it("refuses a value that is neither", () => {
-    expect(() => read({ DEV_LOGIN: "maybe" })).toThrow(/Invalid configuration/);
+    expect(() => read({ DEV_LOGIN: "maybe" })).toThrow(
+      /Invalid configuration/,
+    );
   });
 });
