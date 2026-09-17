@@ -22,6 +22,8 @@ let requests: typeof import("@/lib/domain/requests");
 let series: typeof import("@/lib/domain/series");
 let session: typeof import("@/lib/auth/session");
 let reportDomain: typeof import("@/lib/domain/reports");
+let library: typeof import("@/lib/domain/library");
+let catalog: typeof import("@/lib/domain/catalog");
 
 beforeAll(async () => {
   if (!hasDatabase) return;
@@ -33,6 +35,8 @@ beforeAll(async () => {
   series = await import("@/lib/domain/series");
   session = await import("@/lib/auth/session");
   reportDomain = await import("@/lib/domain/reports");
+  library = await import("@/lib/domain/library");
+  catalog = await import("@/lib/domain/catalog");
 });
 
 describe.skipIf(!hasDatabase)("reopening a declined report", () => {
@@ -862,5 +866,147 @@ describe.skipIf(!hasDatabase)("settling an ask", () => {
     });
     expect(await reportDomain.closeReportsSolvedByLibrary()).toBe(1);
     expect(await statusOf(reportId)).toBe("resolved");
+  });
+});
+
+/**
+ * A re-cut reads available, and nothing counts it.
+ *
+ * "Kai", "Yabai" and the like drop the filler and renumber what is left. The
+ * media server files one under the original series, which is how a hundred
+ * episodes came to be read against a thousand and the title stayed forever
+ * short. The answer is not a better count, because there is no count to be had:
+ * no provider lists a fan edit. So a re-cut is on the server, whole, and it
+ * carries no ladder for anything to be missing from.
+ *
+ * The two halves of that live in SQL, which is why they are asserted here: what
+ * the index answers for the id a re-cut is reachable by, and what the season
+ * reads refuse to count.
+ */
+describe.skipIf(!hasDatabase)("a re-cut on the server", () => {
+  beforeEach(emptyDatabase);
+
+  /** "Naruto Kai", which the media server matched to nothing at all. */
+  async function unmatchedCut() {
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:kai",
+      kind: "show",
+      title: "Naruto Kai",
+      cutProviderId: "77",
+    });
+    await db()
+      .insert(schema.libraryItems)
+      .values(
+        [1, 2, 3].map((episodeNumber) => ({
+          ratingKey: `plex:kai:e${episodeNumber}`,
+          kind: "episode" as const,
+          title: `Episode ${episodeNumber}`,
+          grandparentRatingKey: "plex:kai",
+          seasonNumber: 1,
+          episodeNumber,
+        })),
+      );
+  }
+
+  it("is on the server under the id Umbra worked out for it", async () => {
+    await unmatchedCut();
+    // No provider id from the server at all, so every rule about presence used
+    // to walk straight past it and the search offered to request the series.
+    expect(await catalog.isInLibrary("tv", "77")).toBe(true);
+  });
+
+  it("builds no ladder, for itself or for anyone else", async () => {
+    await unmatchedCut();
+
+    // Its own page states the cut instead of drawing seasons, and there is
+    // nothing here for one to be drawn from.
+    expect(await library.seasonsOnServer("77")).toEqual([]);
+    expect([...(await library.episodeCountsBySeason("77"))]).toEqual([]);
+    expect(await library.episodesOnServer("77", 1)).toEqual([]);
+  });
+
+  it("never fills the ladder of the series it was mistaken for", async () => {
+    // The other case: the agent read a name it did not know and picked the
+    // closest thing in its catalogue, so the row carries someone else's id.
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:mismatched",
+      kind: "show",
+      title: "Black Clover Kai",
+      tmdbId: "99",
+      cutProviderId: "1234",
+    });
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:mismatched:e1",
+      kind: "episode",
+      title: "Episode 1",
+      grandparentRatingKey: "plex:mismatched",
+      seasonNumber: 1,
+      episodeNumber: 1,
+    });
+
+    // The series the server named is not here: its page must not count this
+    // edit's episodes as its own, nor read as partly present because of them.
+    expect(await library.seasonsOnServer("99")).toEqual([]);
+    expect([...(await library.episodeCountsBySeason("99"))]).toEqual([]);
+    expect(await catalog.isInLibrary("tv", "99")).toBe(false);
+
+    // And it answers for the series it really is a cut of.
+    expect(await catalog.isInLibrary("tv", "1234")).toBe(true);
+  });
+
+  /**
+   * What a search result says about it, which is the sentence a member reads.
+   *
+   * `decorate` is what every list goes through, and the cut is read from the
+   * name the server files the show under against the names the provider gives
+   * it: both are already in hand, so nothing is asked of the gateway here.
+   */
+  it("reads available rather than partly here", async () => {
+    await unmatchedCut();
+    const [result] = await catalog.decorate([
+      {
+        provider: "tmdb",
+        providerId: "77",
+        kind: "tv",
+        title: "Naruto",
+        originalTitle: "NARUTO",
+        overview: null,
+        releaseDate: "2002-10-03",
+        posterPath: null,
+        backdropPath: null,
+        popularity: 1,
+        genreIds: [],
+        voteAverage: null,
+        voteCount: 0,
+      },
+    ]);
+
+    expect(result.alternateCut).toBe("kai");
+    // Not "partial": the shortfall a thousand broadcasts would show against a
+    // hundred files is the edit, not something anyone can fetch.
+    expect(result.availability).toBe("available");
+  });
+
+  it("gives way to the series itself when the server holds both", async () => {
+    await unmatchedCut();
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:naruto",
+      kind: "show",
+      title: "Naruto",
+      tmdbId: "77",
+    });
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:naruto:e1",
+      kind: "episode",
+      title: "Episode 1",
+      grandparentRatingKey: "plex:naruto",
+      seasonNumber: 1,
+      episodeNumber: 1,
+    });
+
+    // The ladder is the series', and it counts the series' episode alone: the
+    // three the edit keeps are a different numbering.
+    expect(await library.seasonsOnServer("77")).toEqual([1]);
+    expect([...(await library.episodeCountsBySeason("77"))]).toEqual([[1, 1]]);
   });
 });
