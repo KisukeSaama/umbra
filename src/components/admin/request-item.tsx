@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/admin/action-button";
 import { QueueRow } from "@/components/admin/queue-row";
+import { QueueSelectBox } from "@/components/admin/queue-selection";
 import { SearchSiteButtons } from "@/components/admin/search-site-buttons";
 import { WaitingList } from "@/components/admin/waiting-list";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import {
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
+import { BULK_MOVES, bulkRequestTarget } from "@/lib/queue";
 import { searchLinksFor, type SearchSiteView } from "@/lib/search-sites";
 
 /**
@@ -39,6 +41,7 @@ export async function RequestItem({
   waiting,
   showStatus,
   searchSites,
+  selectable = false,
 }: {
   request: RequestRow;
   /** Who is waiting on it, by name, the first being whoever asked first. */
@@ -47,11 +50,23 @@ export async function RequestItem({
   showStatus: boolean;
   /** Read once by the page: a row never queries for its own buttons. */
   searchSites: SearchSiteView[];
+  /** Carries a box, inside a `QueueSelection`. */
+  selectable?: boolean;
 }) {
   const { t, locale } = await getI18n();
 
   return (
     <QueueRow
+      select={
+        selectable ? (
+          <QueueSelectBox
+            kind="request"
+            id={request.id}
+            title={request.media.title}
+            moves={bulkMoves(request.status)}
+          />
+        ) : undefined
+      }
       poster={{ src: request.media.posterUrl, alt: request.media.title }}
       heading={
         <>
@@ -265,4 +280,13 @@ function nextActions(status: RequestStatus): RequestAction[] {
   return OFFERED[status].filter((action) =>
     canMoveRequest(status, action.status),
   );
+}
+
+/**
+ * The moves a selection may make on this row: the ones its own buttons offer,
+ * so ticking a row never reaches further than pressing on it would.
+ */
+function bulkMoves(status: RequestStatus) {
+  const offered = nextActions(status).map((action) => action.status);
+  return BULK_MOVES.filter((move) => offered.includes(bulkRequestTarget(move)));
 }

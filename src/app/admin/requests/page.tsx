@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 import { QueueList } from "@/components/admin/queue-row";
+import {
+  QueueSelectPage,
+  QueueSelection,
+} from "@/components/admin/queue-selection";
 import { QueueToolbar } from "@/components/admin/queue-toolbar";
 import { ReportItem } from "@/components/admin/report-item";
 import { RequestItem } from "@/components/admin/request-item";
@@ -57,7 +61,8 @@ const PER_PAGE = 20;
  * Requests, cut by stage and opening on those waiting for a decision.
  *
  * The rows themselves, and what each move does, are described in
- * `RequestItem` and `ReportItem`.
+ * `RequestItem` and `ReportItem`. Rows can also be ticked and moved together,
+ * a page at a time: see `QueueSelection`.
  *
  * The queue is read one page at a time. Nothing is dropped off the end: a
  * settled request is what the administration comes back to look up, so it sits
@@ -129,32 +134,46 @@ export default async function AdminRequestsPage({
         counts={counts}
         pathname="/admin/requests"
         params={params}
+        pager={
+          <Pagination
+            page={page}
+            pathname="/admin/requests"
+            params={params}
+            label={t("pagination.requests")}
+            compact
+          />
+        }
       />
 
       {entries.length === 0 ? (
         <EmptyNote icon={RequestIcon}>{t("admin.queue.emptyStage")}</EmptyNote>
       ) : (
-        <QueueList>
-          {entries.map((entry) =>
-            entry.kind === "ask" ? (
-              <ReportItem
-                key={entry.ask.id}
-                report={entry.ask}
-                waiting={waitingOnAsks.get(entry.ask.id) ?? []}
-                showStatus={showStatus}
-                searchSites={searchSites}
-              />
-            ) : (
-              <RequestItem
-                key={entry.request.id}
-                request={entry.request}
-                waiting={waiting.get(entry.request.id) ?? []}
-                showStatus={showStatus}
-                searchSites={searchSites}
-              />
-            ),
-          )}
-        </QueueList>
+        <QueueSelection>
+          <QueueSelectPage />
+          <QueueList>
+            {entries.map((entry) =>
+              entry.kind === "ask" ? (
+                <ReportItem
+                  key={entry.ask.id}
+                  report={entry.ask}
+                  waiting={waitingOnAsks.get(entry.ask.id) ?? []}
+                  showStatus={showStatus}
+                  searchSites={searchSites}
+                  selectable
+                />
+              ) : (
+                <RequestItem
+                  key={entry.request.id}
+                  request={entry.request}
+                  waiting={waiting.get(entry.request.id) ?? []}
+                  showStatus={showStatus}
+                  searchSites={searchSites}
+                  selectable
+                />
+              ),
+            )}
+          </QueueList>
+        </QueueSelection>
       )}
 
       <Pagination

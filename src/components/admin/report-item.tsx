@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/admin/action-button";
 import { QueueRow } from "@/components/admin/queue-row";
+import { QueueSelectBox } from "@/components/admin/queue-selection";
 import { SearchSiteButtons } from "@/components/admin/search-site-buttons";
 import { WaitingList } from "@/components/admin/waiting-list";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { seasonGap } from "@/lib/domain/season-gap";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
+import { BULK_MOVES, bulkAskTarget } from "@/lib/queue";
 import { nextStatuses, reasonKey } from "@/lib/reports/reasons";
 import { searchLinksFor, type SearchSiteView } from "@/lib/search-sites";
 
@@ -32,6 +34,7 @@ export async function ReportItem({
   waiting,
   showStatus = true,
   searchSites,
+  selectable = false,
 }: {
   report: ReportRow;
   /** Who is waiting on it, by name, the first being whoever reported first. */
@@ -40,12 +43,30 @@ export async function ReportItem({
   showStatus?: boolean;
   /** Read once by the page: a row never queries for its own buttons. */
   searchSites: SearchSiteView[];
+  /**
+   * Carries a box, inside a `QueueSelection`. Only an ask is worked that way,
+   * in the request queue: a fault is looked at one at a time.
+   */
+  selectable?: boolean;
 }) {
   const { t, locale } = await getI18n();
   const gap = await seasonGap(report);
+  const moves = nextStatuses(report.status, report.reason, report);
 
   return (
     <QueueRow
+      select={
+        selectable ? (
+          <QueueSelectBox
+            kind="ask"
+            id={report.id}
+            title={`${report.media.title} · ${place(report.seasonNumber, report.episodeNumber, t)}`}
+            moves={BULK_MOVES.filter((move) =>
+              moves.includes(bulkAskTarget(move)),
+            )}
+          />
+        ) : undefined
+      }
       poster={{ src: report.media.posterUrl, alt: report.media.title }}
       heading={
         <>
@@ -109,7 +130,7 @@ export async function ReportItem({
             })}
           />
 
-          {nextStatuses(report.status, report.reason, report).map((status) => (
+          {moves.map((status) => (
             <ActionButton
               key={status}
               url={`/api/admin/reports/${report.id}`}

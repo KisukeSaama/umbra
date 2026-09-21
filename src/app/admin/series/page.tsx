@@ -6,6 +6,7 @@ import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -93,6 +94,17 @@ export default async function AdminSeriesPage({
             </span>
           </CardTitle>
           <CardDescription>{t("admin.series.hint")}</CardDescription>
+          <CardAction>
+            <Pagination
+              page={seriesPage}
+              pathname="/admin/series"
+              params={params}
+              paramKey="series"
+              hash="series"
+              label={t("pagination.series")}
+              compact
+            />
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-4">
           <TrackSeries />
@@ -181,6 +193,17 @@ export default async function AdminSeriesPage({
             </span>
           </CardTitle>
           <CardDescription>{t("admin.episodes.hint")}</CardDescription>
+          <CardAction>
+            <Pagination
+              page={taskPage}
+              pathname="/admin/series"
+              params={params}
+              paramKey="tasks"
+              hash="tasks"
+              label={t("pagination.tasks")}
+              compact
+            />
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-4">
           {taskTotal === 0 ? (

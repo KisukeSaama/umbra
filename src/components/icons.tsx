@@ -30,6 +30,7 @@ import {
   MagnifyingGlass,
   Megaphone,
   Monitor,
+  NotePencil,
   Moon,
   Play,
   Plus,
@@ -139,6 +140,8 @@ export const ThumbsUpIcon = icon(ThumbsUp, "regular");
 export const ThumbsDownIcon = icon(ThumbsDown, "regular");
 /** Filled, so a score reads as a mark rather than as an empty rating to give. */
 export const StarIcon = icon(Star, "fill");
+/** A staff note on an account: something the staff wrote, never a member. */
+export const NoteIcon = icon(NotePencil, "regular");
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

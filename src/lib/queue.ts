@@ -108,3 +108,57 @@ export function compareQueueRows(
     (order === "wanted" ? right.waiting - left.waiting : 0) ||
     newestFirst * (left.createdAt.getTime() - right.createdAt.getTime());
 }
+
+/**
+ * What a row of the request queue is, for a move made on several at once.
+ *
+ * The queue interleaves two tables: a title asked for is a request, a season
+ * or an episode asked for is filed as a report. The id alone does not say
+ * which, so it travels with its kind.
+ */
+export type QueueItemKind = "request" | "ask";
+
+/**
+ * The moves the queue offers on a selection.
+ *
+ * Only the ones that mean the same thing on both sides of the queue: taking
+ * the ask in hand, turning it down, putting it back. What needs a look at the
+ * row itself (a duplicate, a report closed by hand) stays on the row.
+ */
+export const BULK_MOVES = ["accept", "reject", "reopen"] as const;
+export type BulkMove = (typeof BULK_MOVES)[number];
+
+const BULK_TARGETS = {
+  request: { accept: "accepted", reject: "rejected", reopen: "requested" },
+  ask: { accept: "acknowledged", reject: "rejected", reopen: "open" },
+} as const satisfies {
+  request: Record<BulkMove, RequestStatus>;
+  ask: Record<BulkMove, ReportStatus>;
+};
+
+/** The status a move sends a request to. */
+export function bulkRequestTarget(move: BulkMove): RequestStatus {
+  return BULK_TARGETS.request[move];
+}
+
+/** The status a move sends an ask to. */
+export function bulkAskTarget(move: BulkMove): ReportStatus {
+  return BULK_TARGETS.ask[move];
+}
+
+/**
+ * The moves a selection is offered, with how many of its rows each applies to.
+ *
+ * A move shows as soon as one ticked row can take it, and only those rows are
+ * sent: in the "all" stage a selection mixes new asks with settled ones, and
+ * offering nothing because one row is closed would make the selection useless
+ * exactly where it is widest.
+ */
+export function bulkMovesFor(
+  items: readonly { moves: readonly BulkMove[] }[],
+): { move: BulkMove; count: number }[] {
+  return BULK_MOVES.map((move) => ({
+    move,
+    count: items.filter((item) => item.moves.includes(move)).length,
+  })).filter(({ count }) => count > 0);
+}

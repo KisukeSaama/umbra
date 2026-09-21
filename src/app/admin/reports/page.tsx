@@ -92,6 +92,15 @@ export default async function AdminReportsPage({
         counts={counts}
         pathname="/admin/reports"
         params={params}
+        pager={
+          <Pagination
+            page={page}
+            pathname="/admin/reports"
+            params={params}
+            label={t("pagination.reports")}
+            compact
+          />
+        }
       />
 
       {reports.length === 0 ? (
