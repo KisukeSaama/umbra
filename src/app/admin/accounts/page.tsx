@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ActionButton } from "@/components/admin/action-button";
+import { StaffNote } from "@/components/admin/staff-note";
 import { EmptyNote } from "@/components/empty-note";
 import { AccountsIcon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
@@ -79,17 +80,27 @@ export default async function AdminAccountsPage({
 
   return (
     <>
-      {onServer !== null ? (
-        <p className="text-muted-foreground mb-4 text-sm">
-          {t("admin.accounts.reach", { members: onServer, accounts: total })}
-        </p>
-      ) : null}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 empty:hidden">
+        {onServer !== null ? (
+          <p className="text-muted-foreground text-sm">
+            {t("admin.accounts.reach", { members: onServer, accounts: total })}
+          </p>
+        ) : null}
+        <Pagination
+          page={page}
+          pathname="/admin/accounts"
+          params={params}
+          label={t("pagination.accounts")}
+          compact
+          className="ml-auto"
+        />
+      </div>
 
       <ul className="divide-border/60 divide-y">
         {accounts.map((account) => (
           <li
             key={account.id}
-            className="flex flex-wrap items-center gap-3 py-3"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3"
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{account.username}</p>
@@ -98,11 +109,6 @@ export default async function AdminAccountsPage({
                 {" · "}
                 {formatDate(account.createdAt, locale)}
               </p>
-              {account.staffNote ? (
-                <p className="text-muted-foreground mt-1 text-xs break-words whitespace-pre-line italic">
-                  {account.staffNote}
-                </p>
-              ) : null}
             </div>
 
             {account.onServer === false ? (
@@ -110,26 +116,6 @@ export default async function AdminAccountsPage({
                 {t("admin.accounts.offServer")}
               </Badge>
             ) : null}
-
-            <ActionButton
-              url={`/api/admin/accounts/${account.id}/note`}
-              body={{}}
-              size="sm"
-              variant="ghost"
-              noteField={{
-                name: "staffNote",
-                label: t("admin.accounts.note"),
-                placeholder: t("admin.accounts.notePlaceholder"),
-                defaultValue: account.staffNote,
-                maxLength: STAFF_NOTE_MAX,
-              }}
-            >
-              {t(
-                account.staffNote
-                  ? "admin.accounts.editNote"
-                  : "admin.accounts.addNote",
-              )}
-            </ActionButton>
 
             {isAdmin && account.role === "member" ? (
               <ActionButton
@@ -152,6 +138,12 @@ export default async function AdminAccountsPage({
                 {t("admin.accounts.demote")}
               </ActionButton>
             ) : null}
+
+            <StaffNote
+              accountId={account.id}
+              note={account.staffNote}
+              maxLength={STAFF_NOTE_MAX}
+            />
           </li>
         ))}
       </ul>

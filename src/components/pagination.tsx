@@ -22,6 +22,11 @@ import { getI18n } from "@/lib/i18n/server";
  * The anchor is what makes paging bearable on a page holding two lists: the
  * link lands on the heading of the list that moved rather than at the top of
  * the screen.
+ *
+ * The compact form is the same bar drawn small enough to sit in a toolbar above
+ * the list: the steps keep their icon and lose their word, which stays for a
+ * screen reader. A queue worked through page after page needs the next step
+ * where the reader already is, not at the foot of twenty rows of buttons.
  */
 export async function Pagination({
   page,
@@ -30,6 +35,7 @@ export async function Pagination({
   paramKey = "page",
   hash,
   label,
+  compact = false,
   className,
 }: {
   page: Page;
@@ -39,12 +45,16 @@ export async function Pagination({
   hash?: string;
   /** Names the list this bar belongs to, for a reader who cannot see it. */
   label: string;
+  /** Icon steps around the position, for a toolbar above the list. */
+  compact?: boolean;
   className?: string;
 }) {
   const { t } = await getI18n();
   if (page.pageCount <= 1) return null;
 
-  const step = cn(buttonVariants({ variant: "ghost", size: "sm" }));
+  const step = cn(
+    buttonVariants({ variant: "ghost", size: compact ? "icon-sm" : "sm" }),
+  );
   // Drawn without the key: a step that leads nowhere must not look pressable.
   const spent = cn(
     step,
@@ -56,21 +66,31 @@ export async function Pagination({
   return (
     <nav
       aria-label={label}
-      className={cn("mt-8 flex items-center justify-between gap-4", className)}
+      className={cn(
+        compact
+          ? "flex items-center gap-1"
+          : "mt-8 flex items-center justify-between gap-4",
+        className,
+      )}
     >
       {page.page > 1 ? (
         <Link
           href={pageHref(pathname, params, paramKey, previous, hash)}
           className={step}
           rel="prev"
+          title={compact ? t("pagination.previous") : undefined}
         >
           <ChevronLeftIcon data-icon="inline-start" />
-          {t("pagination.previous")}
+          <span className={cn(compact && "sr-only")}>
+            {t("pagination.previous")}
+          </span>
         </Link>
       ) : (
         <span className={spent} aria-hidden>
           <ChevronLeftIcon data-icon="inline-start" />
-          {t("pagination.previous")}
+          <span className={cn(compact && "sr-only")}>
+            {t("pagination.previous")}
+          </span>
         </span>
       )}
 
@@ -86,13 +106,18 @@ export async function Pagination({
           href={pageHref(pathname, params, paramKey, next, hash)}
           className={step}
           rel="next"
+          title={compact ? t("pagination.next") : undefined}
         >
-          {t("pagination.next")}
+          <span className={cn(compact && "sr-only")}>
+            {t("pagination.next")}
+          </span>
           <ChevronRightIcon data-icon="inline-end" />
         </Link>
       ) : (
         <span className={spent} aria-hidden>
-          {t("pagination.next")}
+          <span className={cn(compact && "sr-only")}>
+            {t("pagination.next")}
+          </span>
           <ChevronRightIcon data-icon="inline-end" />
         </span>
       )}

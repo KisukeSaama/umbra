@@ -26,6 +26,7 @@ export function QueueList({ children }: { children: ReactNode }) {
  * room for two columns and the buttons go under the text, as before.
  */
 export function QueueRow({
+  select,
   poster,
   heading,
   detail,
@@ -34,6 +35,12 @@ export function QueueRow({
   footnote,
   actions,
 }: {
+  /**
+   * The row's box in a queue worked several rows at a time. The row is lit
+   * while it is ticked, read from the box itself so the row stays a server
+   * component.
+   */
+  select?: ReactNode;
   poster: { src: string | null; alt: string };
   /** The title and its chips, on one line that wraps. */
   heading: ReactNode;
@@ -47,7 +54,10 @@ export function QueueRow({
   actions: ReactNode;
 }) {
   return (
-    <li className="flex gap-3 p-3 sm:gap-4 sm:px-4">
+    <li className="has-[[data-queue-select]:checked]:bg-primary/5 flex gap-3 p-3 transition-colors sm:gap-4 sm:px-4">
+      {select ? (
+        <div className="flex shrink-0 items-center">{select}</div>
+      ) : null}
       <div className="w-10 shrink-0 sm:w-12">
         <Poster src={poster.src} alt={poster.alt} sizes="3rem" />
       </div>

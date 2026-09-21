@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
@@ -31,6 +32,10 @@ const STAGE_KEYS = {
  * arrow says which way it reads. Which way is the default depends on the stage
  * (see `defaultQueueOrder`), so a change of stage keeps "most wanted" but lets
  * the new stage read by date its own way.
+ *
+ * The pager, when the page hands one in, sits at the end of the bar: the next
+ * page is reached from where the reader already is, without scrolling past
+ * every row first. The bar at the foot of the list stays for whoever did.
  */
 export async function QueueToolbar({
   stage,
@@ -38,12 +43,15 @@ export async function QueueToolbar({
   counts,
   pathname,
   params,
+  pager,
 }: {
   stage: QueueStage;
   order: QueueOrder;
   counts: Record<QueueStage, number>;
   pathname: string;
   params: URLSearchParams;
+  /** A compact `Pagination`, drawn after the order. */
+  pager?: ReactNode;
 }) {
   const { t } = await getI18n();
 
@@ -103,29 +111,32 @@ export async function QueueToolbar({
         ))}
       </nav>
 
-      <nav aria-label={t("admin.queue.order")} className={track}>
-        <Link
-          href={href({ order: order === "oldest" ? "recent" : "oldest" })}
-          aria-current={byDate ? "true" : undefined}
-          title={byDate ? direction : undefined}
-          className={option(byDate)}
-        >
-          {t("admin.queue.recent")}
-          {byDate ? (
-            <>
-              <DateArrow aria-hidden className="text-muted-foreground" />
-              <span className="sr-only">{direction}</span>
-            </>
-          ) : null}
-        </Link>
-        <Link
-          href={href({ order: "wanted" })}
-          aria-current={order === "wanted" ? "true" : undefined}
-          className={option(order === "wanted")}
-        >
-          {t("admin.queue.wanted")}
-        </Link>
-      </nav>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <nav aria-label={t("admin.queue.order")} className={track}>
+          <Link
+            href={href({ order: order === "oldest" ? "recent" : "oldest" })}
+            aria-current={byDate ? "true" : undefined}
+            title={byDate ? direction : undefined}
+            className={option(byDate)}
+          >
+            {t("admin.queue.recent")}
+            {byDate ? (
+              <>
+                <DateArrow aria-hidden className="text-muted-foreground" />
+                <span className="sr-only">{direction}</span>
+              </>
+            ) : null}
+          </Link>
+          <Link
+            href={href({ order: "wanted" })}
+            aria-current={order === "wanted" ? "true" : undefined}
+            className={option(order === "wanted")}
+          >
+            {t("admin.queue.wanted")}
+          </Link>
+        </nav>
+        {pager}
+      </div>
     </div>
   );
 }
