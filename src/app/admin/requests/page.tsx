@@ -34,11 +34,14 @@ import {
   toSearchParams,
 } from "@/lib/pagination";
 import {
+  QUEUE_STAGES,
   REPORT_STAGE_STATUSES,
   REQUEST_STAGE_STATUSES,
   compareQueueRows,
   countByStage,
+  holdsReports,
   parseQueueOrder,
+  parseQueueSearch,
   parseQueueStage,
 } from "@/lib/queue";
 
@@ -64,6 +67,9 @@ const PER_PAGE = 20;
  * `RequestItem` and `ReportItem`. Rows can also be ticked and moved together,
  * a page at a time: see `QueueSelection`.
  *
+ * A search narrows every stage at once, by title, by member or by note: see
+ * `queueSearchFilter`.
+ *
  * The queue is read one page at a time. Nothing is dropped off the end: a
  * settled request is what the administration comes back to look up, so it sits
  * under its own stage rather than between two new ones, at an address that can
@@ -83,21 +89,27 @@ export default async function AdminRequestsPage({
   const params = toSearchParams(await searchParams);
   const stage = parseQueueStage(params.get("stage"));
   const order = parseQueueOrder(params.get("order"), stage);
+  const search = parseQueueSearch(params.get("q"));
   const requestStatuses = REQUEST_STAGE_STATUSES[stage];
-  const askStatuses = REPORT_STAGE_STATUSES[stage];
 
-  const counts = await countByStage(async (one) => {
+  // A season asked for is never put off, so the stage of what waits for room
+  // holds requests alone.
+  const counts = await countByStage(QUEUE_STAGES, async (one) => {
     const [requests, asks] = await Promise.all([
-      countRequests(REQUEST_STAGE_STATUSES[one]),
-      countReports(REPORT_STAGE_STATUSES[one], "ask"),
+      countRequests(REQUEST_STAGE_STATUSES[one], search),
+      holdsReports(one)
+        ? countReports(REPORT_STAGE_STATUSES[one], "ask", search)
+        : 0,
     ]);
     return requests + asks;
   });
   const page = paginate(counts[stage], parsePage(params.get("page")), PER_PAGE);
   const window = mergeWindow(page);
   const [requestRows, askRows] = await Promise.all([
-    listRequests(requestStatuses, window, order),
-    listReports(askStatuses, window, "ask", order),
+    listRequests(requestStatuses, window, order, search),
+    holdsReports(stage)
+      ? listReports(REPORT_STAGE_STATUSES[stage], window, "ask", order, search)
+      : [],
   ]);
   const compare = compareQueueRows(order);
   const entries = mergePageBy<Entry>(
@@ -120,7 +132,8 @@ export default async function AdminRequestsPage({
     listEnabledSearchSites(),
   ]);
 
-  if (counts.all === 0) {
+  // An empty queue says so; an empty search keeps its box, to be changed.
+  if (counts.all === 0 && !search) {
     return <EmptyNote icon={RequestIcon}>{t("common.empty")}</EmptyNote>;
   }
 
@@ -131,6 +144,8 @@ export default async function AdminRequestsPage({
       <QueueToolbar
         stage={stage}
         order={order}
+        search={search}
+        stages={QUEUE_STAGES}
         counts={counts}
         pathname="/admin/requests"
         params={params}
@@ -146,7 +161,9 @@ export default async function AdminRequestsPage({
       />
 
       {entries.length === 0 ? (
-        <EmptyNote icon={RequestIcon}>{t("admin.queue.emptyStage")}</EmptyNote>
+        <EmptyNote icon={RequestIcon}>
+          {t(search ? "admin.queue.noMatch" : "admin.queue.emptyStage")}
+        </EmptyNote>
       ) : (
         <QueueSelection>
           <QueueSelectPage />

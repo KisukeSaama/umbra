@@ -76,14 +76,24 @@ function useSelection(): SelectionState {
 
 const MOVE_LABELS = {
   accept: "admin.requests.accept",
+  postpone: "admin.requests.postpone",
   reject: "admin.requests.reject",
   reopen: "admin.requests.reopen",
 } as const satisfies Record<BulkMove, TranslationKey>;
 
 const MOVE_TITLES = {
   accept: "admin.queue.bulk.accept",
+  postpone: "admin.queue.bulk.postpone",
   reject: "admin.queue.bulk.reject",
   reopen: "admin.queue.bulk.reopen",
+} as const satisfies Record<BulkMove, TranslationKey>;
+
+/** What the box under a move invites, as on the row's own button. */
+const NOTE_PLACEHOLDERS = {
+  accept: "admin.requests.notePlaceholder",
+  postpone: "admin.requests.postponeNotePlaceholder",
+  reject: "admin.requests.declineNotePlaceholder",
+  reopen: "admin.requests.declineNotePlaceholder",
 } as const satisfies Record<BulkMove, TranslationKey>;
 
 export function QueueSelection({ children }: { children: ReactNode }) {
@@ -386,11 +396,7 @@ function BulkBar() {
                   value={note}
                   maxLength={500}
                   rows={3}
-                  placeholder={
-                    pending === "accept"
-                      ? t("admin.requests.notePlaceholder")
-                      : t("admin.requests.declineNotePlaceholder")
-                  }
+                  placeholder={t(NOTE_PLACEHOLDERS[pending])}
                   onChange={(event) => setNote(event.target.value)}
                 />
                 {pending === "accept" ? (

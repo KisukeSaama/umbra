@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import { bulkNote } from "@/lib/domain/queue-moves";
+import { canMoveRequest } from "@/lib/domain/requests";
 import {
   BULK_MOVES,
   bulkAskTarget,
   bulkMovesFor,
   bulkRequestTarget,
+  type BulkMove,
 } from "@/lib/queue";
 import { canTransition } from "@/lib/reports/reasons";
+
+/** Where a move sends an ask, for a move an ask can take. */
+function askTarget(move: BulkMove) {
+  const target = bulkAskTarget(move);
+  if (target === null) throw new Error(`an ask cannot take ${move}`);
+  return target;
+}
 
 /**
  * Several rows of the request queue moved at once. The moves themselves are
@@ -19,23 +28,23 @@ describe("a move made on a selection", () => {
     expect(bulkRequestTarget("accept")).toBe("accepted");
     expect(bulkRequestTarget("reject")).toBe("rejected");
     expect(bulkRequestTarget("reopen")).toBe("requested");
+    expect(bulkRequestTarget("postpone")).toBe("postponed");
+  });
+
+  it("never puts off an ask: a season asked for has no such step", () => {
+    expect(bulkAskTarget("postpone")).toBeNull();
   });
 
   it("sends an ask along the ask path, from where each move starts", () => {
     const place = { seasonNumber: 2, episodeNumber: null, hasCalendar: true };
     expect(
-      canTransition("open", bulkAskTarget("accept"), "missing_season", place),
+      canTransition("open", askTarget("accept"), "missing_season", place),
     ).toBe(true);
     expect(
-      canTransition("open", bulkAskTarget("reject"), "missing_season", place),
+      canTransition("open", askTarget("reject"), "missing_season", place),
     ).toBe(true);
     expect(
-      canTransition(
-        "rejected",
-        bulkAskTarget("reopen"),
-        "missing_season",
-        place,
-      ),
+      canTransition("rejected", askTarget("reopen"), "missing_season", place),
     ).toBe(true);
   });
 
@@ -82,7 +91,34 @@ describe("the word sent with a selection", () => {
     expect(bulkNote("reject", " not findable ")).toBe("not findable");
   });
 
+  it("sends the word typed when putting off, and nothing on an empty box", () => {
+    expect(bulkNote("postpone", "")).toBeNull();
+    expect(bulkNote("postpone", " next month ")).toBe("next month");
+  });
+
   it("says nothing on a reopening", () => {
     expect(bulkNote("reopen", "anything")).toBeUndefined();
+  });
+});
+
+/**
+ * A request put off until there is room keeps its place as the title's one
+ * live request, and leaves that place only by being decided again.
+ */
+describe("a request put off until there is room", () => {
+  it("can be put off before or after being taken up", () => {
+    expect(canMoveRequest("requested", "postponed")).toBe(true);
+    expect(canMoveRequest("accepted", "postponed")).toBe(true);
+  });
+
+  it("comes back by being accepted, or goes by being refused", () => {
+    expect(canMoveRequest("postponed", "accepted")).toBe(true);
+    expect(canMoveRequest("postponed", "rejected")).toBe(true);
+  });
+
+  it("is never declared on the server or reopened by hand", () => {
+    expect(canMoveRequest("postponed", "available")).toBe(false);
+    expect(canMoveRequest("postponed", "requested")).toBe(false);
+    expect(canMoveRequest("rejected", "postponed")).toBe(false);
   });
 });

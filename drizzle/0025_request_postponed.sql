@@ -1,0 +1,2 @@
+ALTER TABLE "media_request" DROP CONSTRAINT "media_request_status_check";--> statement-breakpoint
+ALTER TABLE "media_request" ADD CONSTRAINT "media_request_status_check" CHECK ("media_request"."status" IN ('requested', 'accepted', 'postponed', 'available', 'rejected', 'removed'));

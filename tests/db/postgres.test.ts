@@ -318,6 +318,158 @@ describe.skipIf(!hasDatabase)("moving a request", () => {
 });
 
 /**
+ * The search box above the administration queues.
+ *
+ * Every word has to be found somewhere on the row: in the title, under the
+ * name it was released with, as the provider id typed whole, in the staff's
+ * note, or as the name of anybody tied to the row. The counts on the stages
+ * read the same filter as the list.
+ */
+describe.skipIf(!hasDatabase)("searching a queue", () => {
+  beforeEach(emptyDatabase);
+
+  async function member(name: string) {
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: `test:${name}`, username: name })
+      .returning({ id: schema.accounts.id });
+    return account.id;
+  }
+
+  async function title(providerId: string, name: string, original?: string) {
+    const [row] = await db()
+      .insert(schema.media)
+      .values({
+        providerId,
+        mediaType: "movie",
+        title: name,
+        originalTitle: original,
+      })
+      .returning({ id: schema.media.id });
+    return row.id;
+  }
+
+  /** Dune, asked by kisuke and joined by rukia; Alien, asked by ichigo. */
+  async function queue() {
+    const kisuke = await member("kisuke");
+    const rukia = await member("rukia");
+    const ichigo = await member("ichigo");
+    const [dune] = await db()
+      .insert(schema.mediaRequests)
+      .values({
+        mediaId: await title("438631", "Dune"),
+        requestedBy: kisuke,
+      })
+      .returning({ id: schema.mediaRequests.id });
+    await db()
+      .insert(schema.requestFollowers)
+      .values([
+        { requestId: dune.id, accountId: kisuke },
+        { requestId: dune.id, accountId: rukia },
+      ]);
+    const [alien] = await db()
+      .insert(schema.mediaRequests)
+      .values({
+        mediaId: await title("348", "Alien", "Alien, le huitième passager"),
+        requestedBy: ichigo,
+        status: "accepted",
+        adminNote: "Looking for the 4K cut",
+      })
+      .returning({ id: schema.mediaRequests.id });
+    await db()
+      .insert(schema.requestFollowers)
+      .values({ requestId: alien.id, accountId: ichigo });
+  }
+
+  async function titlesFor(search: string) {
+    const rows = await requests.listRequests(
+      undefined,
+      undefined,
+      "oldest",
+      search,
+    );
+    return rows.map((row) => row.media.title);
+  }
+
+  it("finds a title by part of its name, case aside", async () => {
+    await queue();
+    expect(await titlesFor("dUn")).toEqual(["Dune"]);
+    expect(await titlesFor("huitième")).toEqual(["Alien"]);
+  });
+
+  it("finds a title by its provider id typed whole, not by part of it", async () => {
+    await queue();
+    expect(await titlesFor("348")).toEqual(["Alien"]);
+    expect(await titlesFor("34")).toEqual([]);
+  });
+
+  it("finds a row by whoever opened it or anybody waiting on it", async () => {
+    await queue();
+    expect(await titlesFor("kisu")).toEqual(["Dune"]);
+    expect(await titlesFor("rukia")).toEqual(["Dune"]);
+    expect(await titlesFor("ichigo")).toEqual(["Alien"]);
+  });
+
+  it("finds a row by the note the staff left on it", async () => {
+    await queue();
+    expect(await titlesFor("4k")).toEqual(["Alien"]);
+  });
+
+  it("wants every word somewhere on the row", async () => {
+    await queue();
+    expect(await titlesFor("dune rukia")).toEqual(["Dune"]);
+    expect(await titlesFor("dune ichigo")).toEqual([]);
+  });
+
+  it("reads wildcards as themselves", async () => {
+    await queue();
+    expect(await titlesFor("%")).toEqual([]);
+    expect(await titlesFor("_")).toEqual([]);
+  });
+
+  it("counts what it lists, stage by stage", async () => {
+    await queue();
+    expect(await requests.countRequests(undefined, "i")).toBe(2);
+    expect(await requests.countRequests(["requested"], "ichigo")).toBe(0);
+    expect(await requests.countRequests(["accepted"], "ichigo")).toBe(1);
+  });
+
+  it("searches reports the same way", async () => {
+    const kisuke = await member("kisuke");
+    const rukia = await member("rukia");
+    const mediaId = await title("1", "Test series");
+    const [report] = await db()
+      .insert(schema.reports)
+      .values({
+        mediaId,
+        reportedBy: kisuke,
+        reason: "missing_season",
+        seasonNumber: 2,
+      })
+      .returning({ id: schema.reports.id });
+    await db()
+      .insert(schema.reportFollowers)
+      .values([
+        { reportId: report.id, accountId: kisuke },
+        { reportId: report.id, accountId: rukia },
+      ]);
+
+    expect(await reportDomain.countReports(undefined, "ask", "rukia")).toBe(1);
+    expect(await reportDomain.countReports(undefined, "fault", "rukia")).toBe(
+      0,
+    );
+    const [row] = await reportDomain.listReports(
+      undefined,
+      undefined,
+      "ask",
+      "oldest",
+      "series kisuke",
+    );
+    expect(row?.id).toBe(report.id);
+  });
+});
+
+/**
  * Several members wanting the same title.
  *
  * The queue holds one row per title, and everybody who asked is waiting on it:
@@ -383,6 +535,51 @@ describe.skipIf(!hasDatabase)("sharing a request", () => {
       .from(schema.notifications)
       .where(eq(schema.notifications.subjectId, requestId));
     expect(told).toHaveLength(2);
+  });
+
+  /*
+   * No room for it yet. The title keeps its one request, so a member finding
+   * it joins rather than opens a second, and the title arriving anyway closes
+   * it like any other.
+   */
+  it("keeps a title put off on its one request until there is room", async () => {
+    const { requestId } = await askedFilm();
+    await requests.updateRequestStatus(requestId, "postponed", "next month");
+
+    const second = await member(2);
+    const outcome = await requests.createRequest("movie", "1", second);
+    expect(outcome).toMatchObject({
+      requestId,
+      joined: true,
+      status: "postponed",
+    });
+    expect(await requests.liveRequestFor("movie", "1")).toEqual({
+      status: "postponed",
+      waiting: 2,
+    });
+
+    // The one live request per title is the database's rule, not the code's.
+    const [film] = await db()
+      .select({ id: schema.media.id })
+      .from(schema.media);
+    await expect(
+      db().insert(schema.mediaRequests).values({ mediaId: film.id }),
+    ).rejects.toThrow();
+
+    // A member cannot take back what the administration decided.
+    await expect(requests.withdrawRequest(requestId, second)).rejects.toThrow(
+      /requestUnderway/,
+    );
+
+    await db().insert(schema.libraryItems).values({
+      ratingKey: "plex:1",
+      kind: "movie",
+      title: "Alien",
+      tmdbId: "1",
+    });
+    expect(await requests.closeRequestsPresentInLibrary()).toBe(1);
+    const [row] = await requests.listRequests();
+    expect(row).toMatchObject({ status: "available", adminNote: null });
   });
 
   it("keeps the request for those who stay, and hands it on", async () => {

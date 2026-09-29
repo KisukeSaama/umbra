@@ -126,20 +126,15 @@ export async function RequestItem({
               size="sm"
               variant={action.variant}
               noteField={
-                action.note === "keep"
+                action.note
                   ? {
                       name: "adminNote",
                       label: t("admin.requests.note"),
-                      placeholder: t("admin.requests.notePlaceholder"),
-                      defaultValue: request.adminNote,
+                      placeholder: t(NOTE_PLACEHOLDERS[action.status]),
+                      defaultValue:
+                        action.note === "keep" ? request.adminNote : undefined,
                     }
-                  : action.note === "fresh"
-                    ? {
-                        name: "adminNote",
-                        label: t("admin.requests.note"),
-                        placeholder: t("admin.requests.declineNotePlaceholder"),
-                      }
-                    : undefined
+                  : undefined
               }
             >
               {t(action.labelKey)}
@@ -183,11 +178,15 @@ function canEditNote(status: RequestStatus) {
   return status !== "requested" && canCarryNote(status);
 }
 
-/** New asks for attention; settled states are quiet, and a refusal is not an error. */
+/**
+ * New asks for attention; settled states are quiet, and neither a refusal nor
+ * a request put off is an error.
+ */
 function statusVariant(status: RequestStatus) {
   switch (status) {
     case "requested":
       return "default";
+    case "postponed":
     case "rejected":
       return "outline";
     default:
@@ -216,10 +215,21 @@ type RequestAction = {
    * `keep` opens on the word already there, which taking an ask in hand may
    * have left. `fresh` opens empty: a word written while fetching the title
    * says nothing true once the request is declined, and left untouched it
-   * would reach the member with the refusal.
+   * would reach the member with the refusal. The same goes for a word that
+   * said why a title waits for room, once it stops waiting.
    */
   note?: "keep" | "fresh";
 };
+
+/** What the box under a move invites, by where the move goes. */
+const NOTE_PLACEHOLDERS = {
+  requested: "admin.requests.notePlaceholder",
+  accepted: "admin.requests.notePlaceholder",
+  postponed: "admin.requests.postponeNotePlaceholder",
+  available: "admin.requests.notePlaceholder",
+  rejected: "admin.requests.declineNotePlaceholder",
+  removed: "admin.requests.notePlaceholder",
+} as const satisfies Record<RequestStatus, TranslationKey>;
 
 /**
  * The moves this screen puts on a row, before the domain has its say.
@@ -231,6 +241,12 @@ type RequestAction = {
  * is the title reaching the server, which the sync records on its own, unless
  * the administration gives up on it: cancelling is a refusal arriving late,
  * and like one it leaves the title askable again.
+ *
+ * Putting off is the answer for a title worth having and no room to put it:
+ * offered on a new request and on one taken up, it keeps the title's one
+ * request alive, so nobody asks again, and tells whoever waits that it will
+ * come once there is room. The day there is, it is accepted like any other,
+ * from its own stage; the day it is given up, it is refused.
  */
 const OFFERED = {
   requested: [
@@ -241,6 +257,12 @@ const OFFERED = {
       note: "keep",
     },
     {
+      status: "postponed",
+      labelKey: "admin.requests.postpone",
+      variant: "ghost",
+      note: "fresh",
+    },
+    {
       status: "rejected",
       labelKey: "admin.requests.reject",
       variant: "ghost",
@@ -249,8 +271,28 @@ const OFFERED = {
   ],
   accepted: [
     {
+      status: "postponed",
+      labelKey: "admin.requests.postpone",
+      variant: "ghost",
+      note: "fresh",
+    },
+    {
       status: "rejected",
       labelKey: "admin.requests.cancel",
+      variant: "ghost",
+      note: "fresh",
+    },
+  ],
+  postponed: [
+    {
+      status: "accepted",
+      labelKey: "admin.requests.accept",
+      variant: "default",
+      note: "fresh",
+    },
+    {
+      status: "rejected",
+      labelKey: "admin.requests.reject",
       variant: "ghost",
       note: "fresh",
     },

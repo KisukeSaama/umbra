@@ -2,7 +2,7 @@ import "server-only";
 
 import { updateReportStatus } from "@/lib/domain/reports";
 import { updateRequestStatus } from "@/lib/domain/requests";
-import { AppError } from "@/lib/errors";
+import { AppError, ConflictError } from "@/lib/errors";
 import {
   bulkAskTarget,
   bulkRequestTarget,
@@ -42,7 +42,7 @@ export async function moveQueueItems(
     try {
       if (item.kind === "request")
         await updateRequestStatus(item.id, bulkRequestTarget(move), note);
-      else await updateReportStatus(item.id, bulkAskTarget(move), note);
+      else await updateReportStatus(item.id, askTarget(move), note);
       outcome.moved += 1;
     } catch (error) {
       if (!(error instanceof AppError)) throw error;
@@ -53,6 +53,13 @@ export async function moveQueueItems(
   return outcome;
 }
 
+/** Where a move sends an ask, refused for the one move an ask cannot take. */
+function askTarget(move: BulkMove) {
+  const target = bulkAskTarget(move);
+  if (target === null) throw new ConflictError("error.illegalTransition");
+  return target;
+}
+
 /**
  * What the one word typed does to every row it is sent to.
  *
@@ -60,7 +67,8 @@ export async function moveQueueItems(
  * box cannot show them all: left empty, it leaves those words alone. Refusing
  * opens on nothing too, as it does on a row, and there an empty box means no
  * word, because what was said while fetching the title is no longer true once
- * it is declined. Reopening says nothing, as on a row.
+ * it is declined, and the same goes for putting it off: the word that goes
+ * with it says why it waits, or nothing. Reopening says nothing, as on a row.
  */
 export function bulkNote(
   move: BulkMove,
@@ -70,6 +78,7 @@ export function bulkNote(
   switch (move) {
     case "accept":
       return typed ?? undefined;
+    case "postpone":
     case "reject":
       return typed;
     case "reopen":

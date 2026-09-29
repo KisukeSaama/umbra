@@ -169,6 +169,7 @@ resolve stays unlinked and is looked at again a week later. See
 requested -> accepted -> available -> removed
           \-> rejected           (accepted -> rejected: cancelled)
                                  (rejected -> requested: reopened)
+requested, accepted -> postponed -> accepted, rejected
 ```
 
 - **requested**: waiting for the administrator.
@@ -179,8 +180,18 @@ requested -> accepted -> available -> removed
   it finds the title. This is the one step search reads as "stop offering
   this", so declaring it before the index holds the title would close the
   request and hand the title back to the next member to ask for.
+- **postponed**: worth having, no room for it yet. The member reads that it
+  will be added once there is more room on Kisuflix, with the administration's
+  word if there is one. It stays the title's one live request, so nobody asks
+  for it a second time, but a member finding it can still join it: how many
+  are waiting is what decides what to fetch first once there is room. It comes
+  back by being accepted, or goes by being refused, and the administration
+  finds it under a stage of its own, on hold. The sync closes it like any other
+  if the title arrives anyway. See `docs/adr/0021-a-request-can-wait-for-room.md`.
 - **rejected**: declined, straight from the queue or by cancelling an accepted
-  request, with an optional word for the member either way. A refusal without
+  request, with an optional word for the member either way. A refusal means no:
+  a title worth having that there is no room for is postponed instead, since a
+  refusal hands it straight back to the next member to ask. A refusal without
   a word leaves the member's follow-up page, since it says nothing the missing
   title does not; writing a word afterwards brings it back. Reports follow the
   same rule. The title can be

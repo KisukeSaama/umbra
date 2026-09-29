@@ -15,7 +15,7 @@ import { openAsksFor } from "@/lib/domain/reports";
 import {
   followedRequestFor,
   lastRemovedAt,
-  waitingOnTitle,
+  liveRequestFor,
 } from "@/lib/domain/requests";
 import { settledAsksFor } from "@/lib/domain/settled";
 import { storageOutlook } from "@/lib/domain/storage";
@@ -58,13 +58,13 @@ export async function TitleView({
   // The number is out of ten either way; the label says whose it is.
   const scoreKey =
     detail.scoreSource === "myanimelist" ? "title.scoreMal" : "title.score";
-  const [followed, waiting] =
+  const [followed, live] =
     detail.availability === "requested"
       ? await Promise.all([
           followedRequestFor(detail.kind, detail.providerId, accountId),
-          waitingOnTitle(detail.kind, detail.providerId),
+          liveRequestFor(detail.kind, detail.providerId),
         ])
-      : [null, 0];
+      : [null, null];
   /*
    * Two things a member about to ask should know, read only when there is an
    * ask to make: that the server is short of room, said where it changes
@@ -231,7 +231,8 @@ export async function TitleView({
             title={detail.title}
             availability={detail.availability}
             followed={followed}
-            waiting={waiting}
+            waiting={live?.waiting ?? 0}
+            postponed={live?.status === "postponed"}
             alternateCut={detail.alternateCut}
             crowded={storage?.state === "full"}
             removedOn={removedAt ? formatDate(removedAt, locale) : null}
