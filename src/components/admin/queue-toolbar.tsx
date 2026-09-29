@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { QueueSearch } from "@/components/admin/queue-search";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { getI18n } from "@/lib/i18n/server";
 import {
-  QUEUE_STAGES,
   defaultQueueOrder,
   type QueueOrder,
   type QueueStage,
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 const STAGE_KEYS = {
   todo: "admin.queue.stage.todo",
   doing: "admin.queue.stage.doing",
+  later: "admin.queue.stage.later",
   done: "admin.queue.stage.done",
   all: "admin.queue.stage.all",
 } as const;
@@ -33,6 +34,10 @@ const STAGE_KEYS = {
  * (see `defaultQueueOrder`), so a change of stage keeps "most wanted" but lets
  * the new stage read by date its own way.
  *
+ * The search box narrows every stage at once, and the counts on the stages are
+ * the rows that match: see `QueueSearch`. The links keep it, so changing stage
+ * or order does not lose what was being looked for.
+ *
  * The pager, when the page hands one in, sits at the end of the bar: the next
  * page is reached from where the reader already is, without scrolling past
  * every row first. The bar at the foot of the list stays for whoever did.
@@ -40,6 +45,8 @@ const STAGE_KEYS = {
 export async function QueueToolbar({
   stage,
   order,
+  search,
+  stages,
   counts,
   pathname,
   params,
@@ -47,7 +54,11 @@ export async function QueueToolbar({
 }: {
   stage: QueueStage;
   order: QueueOrder;
-  counts: Record<QueueStage, number>;
+  /** What the queue was searched for, as `parseQueueSearch` read it. */
+  search: string;
+  /** The stages this queue is cut into: the report queue has no `later`. */
+  stages: readonly QueueStage[];
+  counts: Partial<Record<QueueStage, number>>;
   pathname: string;
   params: URLSearchParams;
   /** A compact `Pagination`, drawn after the order. */
@@ -96,7 +107,7 @@ export async function QueueToolbar({
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
       <nav aria-label={t("admin.queue.stages")} className={track}>
-        {QUEUE_STAGES.map((one) => (
+        {stages.map((one) => (
           <Link
             key={one}
             href={href({ stage: one })}
@@ -105,13 +116,18 @@ export async function QueueToolbar({
           >
             {t(STAGE_KEYS[one])}
             <span className="text-muted-foreground tabular-nums">
-              {counts[one]}
+              {counts[one] ?? 0}
             </span>
           </Link>
         ))}
       </nav>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <QueueSearch
+          pathname={pathname}
+          query={params.toString()}
+          search={search}
+        />
         <nav aria-label={t("admin.queue.order")} className={track}>
           <Link
             href={href({ order: order === "oldest" ? "recent" : "oldest" })}

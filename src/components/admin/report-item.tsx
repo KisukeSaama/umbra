@@ -61,9 +61,10 @@ export async function ReportItem({
             kind="ask"
             id={report.id}
             title={`${report.media.title} · ${place(report.seasonNumber, report.episodeNumber, t)}`}
-            moves={BULK_MOVES.filter((move) =>
-              moves.includes(bulkAskTarget(move)),
-            )}
+            moves={BULK_MOVES.filter((move) => {
+              const target = bulkAskTarget(move);
+              return target !== null && moves.includes(target);
+            })}
           />
         ) : undefined
       }

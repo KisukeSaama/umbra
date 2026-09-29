@@ -95,8 +95,10 @@ each sync.
 Uniqueness lives in the database, never in a read-then-write:
 
 - `media_request_active_idx`, partial unique on `media_id` where the status is not
-  `rejected`: two simultaneous clicks cannot create two live requests, and the
-  second member joins the live one as a `request_follower` instead.
+  `rejected` or `removed`: two simultaneous clicks cannot create two live
+  requests, and the second member joins the live one as a `request_follower`
+  instead. A `postponed` request is live on purpose, which is what keeps a
+  title waiting for room from being asked for again.
 - `vote_unique_idx` on `(poll_id, account_id)`: one vote per person per poll.
 - `episode_unique_idx` on `(series_id, season_number, episode_number)`: a resync
   updates instead of duplicating.

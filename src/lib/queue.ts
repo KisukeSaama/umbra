@@ -10,7 +10,9 @@ import type { ReportStatus, RequestStatus } from "@/lib/db/schema";
  * first, or by how many members are waiting on a title.
  *
  * Both are carried in the query string, so a filtered and sorted queue is an
- * address that can be shared, and the defaults carry no parameter.
+ * address that can be shared, and the defaults carry no parameter. So is a
+ * search, which narrows every stage at once: the counts on the tabs are the
+ * rows that match.
  */
 
 /**
@@ -22,12 +24,30 @@ export type QueueOrder = "oldest" | "recent" | "wanted";
 
 const QUEUE_ORDERS: readonly QueueOrder[] = ["oldest", "recent", "wanted"];
 
-export const QUEUE_STAGES = ["todo", "doing", "done", "all"] as const;
+export const QUEUE_STAGES = ["todo", "doing", "later", "done", "all"] as const;
 
 /**
- * Waiting on a decision, taken up and not settled, settled, or everything.
+ * Waiting on a decision, taken up and not settled, put off until there is room,
+ * settled, or everything.
  */
 export type QueueStage = (typeof QUEUE_STAGES)[number];
+
+/**
+ * The stages of the report queue: a report is never put off, so it has no
+ * `later`. The request queue has every stage.
+ */
+export const REPORT_QUEUE_STAGES = [
+  "todo",
+  "doing",
+  "done",
+  "all",
+] as const satisfies readonly QueueStage[];
+export type ReportQueueStage = (typeof REPORT_QUEUE_STAGES)[number];
+
+/** Whether a stage holds reports at all, asks for a season included. */
+export function holdsReports(stage: QueueStage): stage is ReportQueueStage {
+  return (REPORT_QUEUE_STAGES as readonly QueueStage[]).includes(stage);
+}
 
 function first(value: string | string[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -36,13 +56,14 @@ function first(value: string | string[] | null | undefined) {
 /**
  * How a stage reads when nothing is asked for.
  *
- * Work still to do is read oldest first, so nothing is left to linger. What is
- * settled is looked up rather than worked through, and the one looked for is
- * most often the last to have closed, so it reads newest first, as does the
- * whole queue at once.
+ * Work still to do is read oldest first, so nothing is left to linger, and so
+ * is what was put off: the first to wait is the first to fetch once there is
+ * room. What is settled is looked up rather than worked through, and the one
+ * looked for is most often the last to have closed, so it reads newest first,
+ * as does the whole queue at once.
  */
 export function defaultQueueOrder(stage: QueueStage): QueueOrder {
-  return stage === "todo" || stage === "doing" ? "oldest" : "recent";
+  return stage === "done" || stage === "all" ? "recent" : "oldest";
 }
 
 /** Reads the order off the query string; anything unknown is the default. */
@@ -56,12 +77,57 @@ export function parseQueueOrder(
   );
 }
 
-/** Reads the stage off the query string; anything unknown is the default. */
-export function parseQueueStage(
+/**
+ * Reads the stage off the query string; anything unknown, or not one of the
+ * stages this queue has, is the default, which every queue has.
+ */
+export function parseQueueStage<S extends QueueStage = QueueStage>(
   value: string | string[] | null | undefined,
-): QueueStage {
+  stages: readonly S[] = QUEUE_STAGES as readonly QueueStage[] as readonly S[],
+): S {
   const raw = first(value);
-  return QUEUE_STAGES.find((stage) => stage === raw) ?? "todo";
+  return stages.find((stage) => stage === raw) ?? ("todo" as S);
+}
+
+/**
+ * The longest search the queues read, and the most words they split it into.
+ *
+ * A search is typed by the staff into a box, and is read into one condition
+ * per word: the cap keeps a pasted paragraph from becoming a query with a
+ * hundred clauses.
+ */
+const SEARCH_MAX_LENGTH = 100;
+const SEARCH_MAX_TERMS = 6;
+
+/**
+ * Reads the search off the query string: trimmed, inner runs of spaces made
+ * one, cut to a length a person types. Nothing, when nothing is left.
+ */
+export function parseQueueSearch(
+  value: string | string[] | null | undefined,
+): string {
+  const raw = first(value) ?? "";
+  return raw.replace(/\s+/g, " ").trim().slice(0, SEARCH_MAX_LENGTH).trim();
+}
+
+/**
+ * The words a search is read as.
+ *
+ * Every word has to be found somewhere on the row, not necessarily in the same
+ * place, so "dune kisu" finds the Dune that kisu asked for. The same word twice
+ * is one condition, case aside.
+ */
+export function queueSearchTerms(search: string): string[] {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const word of search.split(" ")) {
+    const key = word.toLowerCase();
+    if (!word || seen.has(key)) continue;
+    seen.add(key);
+    terms.push(word);
+    if (terms.length === SEARCH_MAX_TERMS) break;
+  }
+  return terms;
 }
 
 /** The request statuses each stage holds; everything, for `all`. */
@@ -71,13 +137,14 @@ export const REQUEST_STAGE_STATUSES: Record<
 > = {
   todo: ["requested"],
   doing: ["accepted"],
+  later: ["postponed"],
   done: ["available", "rejected", "removed"],
   all: undefined,
 };
 
 /** The report statuses each stage holds; everything, for `all`. */
 export const REPORT_STAGE_STATUSES: Record<
-  QueueStage,
+  ReportQueueStage,
   ReportStatus[] | undefined
 > = {
   todo: ["open"],
@@ -86,14 +153,15 @@ export const REPORT_STAGE_STATUSES: Record<
   all: undefined,
 };
 
-/** One count per stage, for the tabs above a queue. */
-export async function countByStage(
-  count: (stage: QueueStage) => Promise<number>,
-): Promise<Record<QueueStage, number>> {
-  const counts = await Promise.all(QUEUE_STAGES.map(count));
+/** One count per stage of a queue, for the tabs above it. */
+export async function countByStage<S extends QueueStage>(
+  stages: readonly S[],
+  count: (stage: S) => Promise<number>,
+): Promise<Record<S, number>> {
+  const counts = await Promise.all(stages.map(count));
   return Object.fromEntries(
-    QUEUE_STAGES.map((stage, index) => [stage, counts[index] ?? 0]),
-  ) as Record<QueueStage, number>;
+    stages.map((stage, index) => [stage, counts[index] ?? 0]),
+  ) as Record<S, number>;
 }
 
 /** The comparison `QueueOrder` stands for, for rows merged from two tables. */
@@ -121,19 +189,31 @@ export type QueueItemKind = "request" | "ask";
 /**
  * The moves the queue offers on a selection.
  *
- * Only the ones that mean the same thing on both sides of the queue: taking
- * the ask in hand, turning it down, putting it back. What needs a look at the
- * row itself (a duplicate, a report closed by hand) stays on the row.
+ * The ones that mean the same thing on both sides of the queue: taking the ask
+ * in hand, turning it down, putting it back. What needs a look at the row
+ * itself (a duplicate, a report closed by hand) stays on the row. Putting off
+ * until there is room is the one move a side lacks: a title is put off, a
+ * season asked for is not, so an ask never offers it.
  */
-export const BULK_MOVES = ["accept", "reject", "reopen"] as const;
+export const BULK_MOVES = ["accept", "postpone", "reject", "reopen"] as const;
 export type BulkMove = (typeof BULK_MOVES)[number];
 
 const BULK_TARGETS = {
-  request: { accept: "accepted", reject: "rejected", reopen: "requested" },
-  ask: { accept: "acknowledged", reject: "rejected", reopen: "open" },
+  request: {
+    accept: "accepted",
+    postpone: "postponed",
+    reject: "rejected",
+    reopen: "requested",
+  },
+  ask: {
+    accept: "acknowledged",
+    postpone: null,
+    reject: "rejected",
+    reopen: "open",
+  },
 } as const satisfies {
   request: Record<BulkMove, RequestStatus>;
-  ask: Record<BulkMove, ReportStatus>;
+  ask: Record<BulkMove, ReportStatus | null>;
 };
 
 /** The status a move sends a request to. */
@@ -141,8 +221,8 @@ export function bulkRequestTarget(move: BulkMove): RequestStatus {
   return BULK_TARGETS.request[move];
 }
 
-/** The status a move sends an ask to. */
-export function bulkAskTarget(move: BulkMove): ReportStatus {
+/** The status a move sends an ask to, or null when an ask cannot take it. */
+export function bulkAskTarget(move: BulkMove): ReportStatus | null {
   return BULK_TARGETS.ask[move];
 }
 

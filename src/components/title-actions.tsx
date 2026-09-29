@@ -30,6 +30,10 @@ import { cn } from "@/lib/utils";
  * A title somebody else has already asked for is not a dead end: the member
  * can ask for it too, which joins that request rather than opening a second
  * one, and from then on they hear about it like whoever asked first.
+ *
+ * A request the administration put off until there is room says so, to whoever
+ * is waiting on it and to whoever finds it: joining is still offered, since it
+ * is how the administration knows which title to fetch first once there is.
  */
 export function TitleActions({
   kind,
@@ -41,6 +45,7 @@ export function TitleActions({
   alternateCut = null,
   crowded = false,
   removedOn = null,
+  postponed = false,
 }: {
   kind: MediaKind;
   providerId: string;
@@ -56,6 +61,8 @@ export function TitleActions({
   crowded?: boolean;
   /** When the title last left the server, already written for the reader. */
   removedOn?: string | null;
+  /** The live request for it was put off until there is room. */
+  postponed?: boolean;
 }) {
   const t = useTranslator();
   const locale = useLocale();
@@ -140,7 +147,7 @@ export function TitleActions({
     return (
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-muted-foreground text-sm">
-          {t("title.requestedByYou")}
+          {t(postponed ? "title.postponedForYou" : "title.requestedByYou")}
         </p>
         {own.status === "requested" ? (
           <Button
@@ -173,6 +180,7 @@ export function TitleActions({
   // waiting, which makes joining worth it; that the title was here once; that
   // the server is short of room. Never a banner, never a reason not to ask.
   const notes = [
+    state === "requested" && postponed ? t("title.postponed") : null,
     state === "requested" && waiting > 0
       ? t("title.waiting", { count: waiting })
       : null,

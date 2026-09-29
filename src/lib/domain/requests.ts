@@ -16,9 +16,10 @@ import { bumpMetric } from "@/lib/domain/analytics";
 import { isOnServer } from "@/lib/domain/availability";
 import { availabilityFor, ensureMedia, yearOf } from "@/lib/domain/catalog";
 import { notify } from "@/lib/domain/notifications";
+import { queueSearchFilter } from "@/lib/domain/queue-search";
 import { trackSeries } from "@/lib/domain/series";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
-import type { QueueOrder } from "@/lib/queue";
+import { queueSearchTerms, type QueueOrder } from "@/lib/queue";
 import type { MediaKind } from "@/lib/providers/metadata";
 import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
 
@@ -30,6 +31,10 @@ import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
  * accepted: the work was starting exactly when the row disappeared, and what
  * was in hand could only be found again by opening the section and reading
  * every line that had ever been written. Being worked on is not being done.
+ *
+ * A request put off for lack of room is left out: nothing can be done about it
+ * until there is room, and it waits under a stage of its own rather than
+ * swelling the figure of what needs a hand today.
  */
 export const LIVE_REQUEST_STATUSES = ["requested", "accepted"] as const;
 
@@ -327,20 +332,22 @@ export async function followedRequestFor(
 }
 
 /**
- * How many members are waiting on the live request for a title, 0 when none.
+ * The live request for a title, whoever is waiting on it: where it stands, and
+ * how many members are waiting on it. Null when there is none.
  *
- * Shown on the title page alone, beside the ask, so a member who finds a title
- * somebody already asked for sees that joining is worth it. Never a ranking,
- * never on a card. See `docs/adr/0016-requests-have-followers.md`.
+ * The number is shown on the title page alone, beside the ask, so a member who
+ * finds a title somebody already asked for sees that joining is worth it.
+ * Never a ranking, never on a card. See `docs/adr/0016-requests-have-followers.md`.
+ * The status says whether it was put off until there is room, which the page
+ * says before anyone joins.
  */
-export async function waitingOnTitle(
+export async function liveRequestFor(
   kind: MediaKind,
   providerId: string,
-): Promise<number> {
+): Promise<{ status: RequestStatus; waiting: number } | null> {
   const [row] = await db()
-    .select({ count: sql<number>`count(*)::int` })
-    .from(requestFollowers)
-    .innerJoin(mediaRequests, eq(mediaRequests.id, requestFollowers.requestId))
+    .select({ status: mediaRequests.status, waiting: waitingColumn })
+    .from(mediaRequests)
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
     .where(
       and(
@@ -348,8 +355,9 @@ export async function waitingOnTitle(
         eq(media.mediaType, kind),
         notInArray(mediaRequests.status, [...CLOSED_REQUEST_STATUSES]),
       ),
-    );
-  return row?.count ?? 0;
+    )
+    .limit(1);
+  return row ?? null;
 }
 
 /**
@@ -498,6 +506,26 @@ const REQUEST_COLUMNS = {
   removedAt: removedAtColumn,
 };
 
+/**
+ * The rows of the queue at these statuses that match the search, for the list
+ * and its count alike, so the two never disagree about what the page holds.
+ */
+function queueFilter(statuses: RequestStatus[] | undefined, search: string) {
+  return and(
+    statuses?.length ? inArray(mediaRequests.status, statuses) : undefined,
+    queueSearchFilter(queueSearchTerms(search), {
+      id: mediaRequests.id,
+      openedBy: mediaRequests.requestedBy,
+      note: mediaRequests.adminNote,
+      followers: {
+        table: requestFollowers,
+        row: requestFollowers.requestId,
+        account: requestFollowers.accountId,
+      },
+    }),
+  );
+}
+
 export async function listRequests(
   statuses?: RequestStatus[],
   /** The slice to read, when the caller pages. Everything, when it does not. */
@@ -507,15 +535,15 @@ export async function listRequests(
    * followed first.
    */
   order: QueueOrder = "oldest",
+  /** What the staff typed in the queue's search box, if anything. */
+  search = "",
 ): Promise<RequestRow[]> {
   const query = db()
     .select(REQUEST_COLUMNS)
     .from(mediaRequests)
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
     .leftJoin(accounts, eq(accounts.id, mediaRequests.requestedBy))
-    .where(
-      statuses?.length ? inArray(mediaRequests.status, statuses) : undefined,
-    )
+    .where(queueFilter(statuses, search))
     .orderBy(
       ...(order === "wanted" ? [desc(waitingColumn)] : []),
       order === "recent"
@@ -607,13 +635,14 @@ export async function countLiveRequests(): Promise<number> {
 /** How many requests the queue holds, for the pager above it. */
 export async function countRequests(
   statuses?: RequestStatus[],
+  /** What the staff typed in the queue's search box, if anything. */
+  search = "",
 ): Promise<number> {
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(mediaRequests)
-    .where(
-      statuses?.length ? inArray(mediaRequests.status, statuses) : undefined,
-    );
+    .innerJoin(media, eq(media.id, mediaRequests.mediaId))
+    .where(queueFilter(statuses, search));
   return row?.count ?? 0;
 }
 
@@ -692,6 +721,14 @@ export function canCarryNote(status: RequestStatus): boolean {
  * back to `requested` handed a title that is on the server back to the queue
  * and told the member about a step they had already been told about.
  *
+ * Putting a request off is for a title worth having that there is no room
+ * for yet. It is neither a refusal nor a yes: the request keeps its place as
+ * the title's one live request, so nobody asks for it a second time, and the
+ * members waiting on it are told it will come once there is room. It can be
+ * put off before or after being taken up, and it comes back by being accepted,
+ * the day there is room, or by being refused, the day it is given up. See
+ * `docs/adr/0021-a-request-can-wait-for-room.md`.
+ *
  * The one step back is reopening a refusal, for an administrator who changes
  * their mind. It lands on `requested`, so the decision is made again from the
  * queue rather than skipped. A rejected request leaves the title askable,
@@ -711,8 +748,9 @@ export function canCarryNote(status: RequestStatus): boolean {
  * leaves the title askable again, as a new request, like a refusal does.
  */
 const TRANSITIONS = {
-  requested: ["accepted", "rejected"],
-  accepted: ["rejected"],
+  requested: ["accepted", "postponed", "rejected"],
+  accepted: ["postponed", "rejected"],
+  postponed: ["accepted", "rejected"],
   available: [],
   rejected: ["requested"],
   removed: [],
@@ -856,7 +894,8 @@ export async function notifyRequestFollowers(
 /**
  * Closes requests whose title has appeared on the server. Called by the library
  * sync, so nothing has to be closed by hand, and it clears the administrator
- * note on the way out for the same reason `updateRequestStatus` does.
+ * note on the way out for the same reason `updateRequestStatus` does. A request
+ * put off for lack of room is closed too: the title found its way in anyway.
  */
 export async function closeRequestsPresentInLibrary(): Promise<number> {
   const result = await db().execute(sql`
@@ -871,7 +910,7 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
        AND l.cut_provider_id IS NULL
        AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END
      WHERE r.media_id = m.id
-       AND r.status IN ('requested', 'accepted')
+       AND r.status IN ('requested', 'accepted', 'postponed')
   `);
   return result.count ?? 0;
 }

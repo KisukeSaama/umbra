@@ -288,6 +288,7 @@ export const en = {
   "admin.requests.status.requested": "New",
   "admin.requests.status.accepted": "Taken up",
   "admin.requests.status.available": "Available",
+  "admin.requests.status.postponed": "On hold",
   "admin.requests.status.rejected": "Rejected",
   "admin.requests.status.removed": "Removed from the server",
   "admin.requests.reasked": "Asked again",
@@ -299,6 +300,9 @@ export const en = {
   "admin.requests.reopen": "Reopen",
   "admin.requests.declineNotePlaceholder":
     "Shown to the member with the answer, for example why.",
+  "admin.requests.postpone": "Postpone",
+  "admin.requests.postponeNotePlaceholder":
+    "Optional. The member already reads that it will be added once there is more room.",
   "admin.requests.note": "Word for the member (optional)",
   "admin.requests.notePlaceholder":
     "Shown until the title is on the server, then erased.",
@@ -315,8 +319,13 @@ export const en = {
   "admin.queue.stage.todo": "To do",
   "admin.queue.stage.doing": "In progress",
   "admin.queue.stage.done": "Closed",
+  "admin.queue.stage.later": "On hold",
   "admin.queue.stage.all": "All",
   "admin.queue.emptyStage": "Nothing at this stage.",
+  "admin.queue.search": "Search the queue",
+  "admin.queue.searchPlaceholder": "Title, member, TMDB id, note...",
+  "admin.queue.clearSearch": "Clear the search",
+  "admin.queue.noMatch": "Nothing at this stage matches this search.",
   "admin.queue.select": "Select {title}",
   "admin.queue.selectPage": "Select this page",
   "admin.queue.selected": "{count} selected",
@@ -327,6 +336,8 @@ export const en = {
   "admin.queue.bulk.reject": "Reject {count} requests",
   "admin.queue.bulk.reject.one": "Reject {count} request",
   "admin.queue.bulk.reopen": "Reopen {count} requests",
+  "admin.queue.bulk.postpone": "Postpone {count} requests",
+  "admin.queue.bulk.postpone.one": "Postpone {count} request",
   "admin.queue.bulk.reopen.one": "Reopen {count} request",
   "admin.queue.bulk.onlySome":
     "Only {count} of the {total} selected can take this move; the others are left as they are.",
@@ -655,6 +666,10 @@ export const en = {
   "title.onServerPartly": "On Kisuflix, but not all of it",
   "title.requestedByYou": "You asked for it",
   "title.waiting": "Popular pick: {count} people are already waiting for it.",
+  "title.postponedForYou":
+    "You asked for it. It will be added once there is more room on Kisuflix.",
+  "title.postponed":
+    "On hold until there is more room on Kisuflix. Asking for it still counts when choosing what comes first.",
   "title.waiting.one": "Someone is already waiting for it.",
   "title.crowded":
     "The server is nearly full, so new requests may take a little longer.",
@@ -765,6 +780,8 @@ export const en = {
    * steps of a fix: nobody asked for a season to be repaired.
    */
   "ask.timeline.open": "Asked",
+  "activity.timeline.postponed":
+    "On hold: it will be added once there is more room on Kisuflix",
   "ask.timeline.acknowledged": "Being added",
   "ask.timeline.resolved": "On Kisuflix",
   "ask.timeline.rejected": "Declined",
@@ -785,6 +802,8 @@ export const en = {
   "notifications.request.available": "{title} is on Kisuflix.",
   "notifications.request.rejected": "{title} was declined.",
   "notifications.request.requested": "{title} is being considered again.",
+  "notifications.request.postponed":
+    "{title} will be added once there is more room on Kisuflix.",
   "notifications.report.open": "Your report on {title} was reopened.",
   "notifications.ask.open": "Your request on {title} was reopened.",
   "admin.reports.reopen": "Reopen",
@@ -1148,6 +1167,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.requests.status.requested": "Nouvelle",
   "admin.requests.status.accepted": "Prise en compte",
   "admin.requests.status.available": "Disponible",
+  "admin.requests.status.postponed": "Temporisée",
   "admin.requests.status.rejected": "Refusée",
   "admin.requests.status.removed": "Retirée du serveur",
   "admin.requests.reasked": "Redemandée",
@@ -1159,6 +1179,9 @@ export const fr: Record<TranslationKey, string> = {
   "admin.requests.reopen": "Réouvrir",
   "admin.requests.declineNotePlaceholder":
     "Affiché au membre avec la réponse, par exemple pourquoi.",
+  "admin.requests.postpone": "Refuser temporairement",
+  "admin.requests.postponeNotePlaceholder":
+    "Facultatif. Le membre lit déjà que ce sera ajouté quand il y aura davantage de place.",
   "admin.requests.note": "Mot pour le membre (facultatif)",
   "admin.requests.notePlaceholder":
     "Affiché jusqu'à ce que le titre soit sur le serveur, puis effacé.",
@@ -1175,8 +1198,13 @@ export const fr: Record<TranslationKey, string> = {
   "admin.queue.stage.todo": "À traiter",
   "admin.queue.stage.doing": "En cours",
   "admin.queue.stage.done": "Clos",
+  "admin.queue.stage.later": "Temporisées",
   "admin.queue.stage.all": "Tout",
   "admin.queue.emptyStage": "Rien à cette étape.",
+  "admin.queue.search": "Rechercher dans la file",
+  "admin.queue.searchPlaceholder": "Titre, membre, id TMDB, note...",
+  "admin.queue.clearSearch": "Effacer la recherche",
+  "admin.queue.noMatch": "Rien à cette étape ne correspond à cette recherche.",
   "admin.queue.select": "Sélectionner {title}",
   "admin.queue.selectPage": "Sélectionner la page",
   "admin.queue.selected": "{count} sélectionnées",
@@ -1187,6 +1215,8 @@ export const fr: Record<TranslationKey, string> = {
   "admin.queue.bulk.reject": "Refuser {count} demandes",
   "admin.queue.bulk.reject.one": "Refuser {count} demande",
   "admin.queue.bulk.reopen": "Réouvrir {count} demandes",
+  "admin.queue.bulk.postpone": "Refuser temporairement {count} demandes",
+  "admin.queue.bulk.postpone.one": "Refuser temporairement {count} demande",
   "admin.queue.bulk.reopen.one": "Réouvrir {count} demande",
   "admin.queue.bulk.onlySome":
     "Seules {count} des {total} sélectionnées sont concernées ; les autres restent telles quelles.",
@@ -1518,6 +1548,10 @@ export const fr: Record<TranslationKey, string> = {
   "title.onServerPartly": "Sur Kisuflix, mais pas en entier",
   "title.requestedByYou": "Vous l'avez demandé",
   "title.waiting": "Ce titre a du succès : {count} personnes l'attendent déjà.",
+  "title.postponedForYou":
+    "Vous l'avez demandé. Ce sera ajouté quand il y aura davantage de place sur Kisuflix.",
+  "title.postponed":
+    "En attente jusqu'à ce qu'il y ait davantage de place sur Kisuflix. Le demander compte tout de même au moment de choisir ce qui passe en premier.",
   "title.waiting.one": "Quelqu'un l'attend déjà.",
   "title.crowded":
     "Le serveur est presque plein : les nouvelles demandes peuvent prendre un peu plus de temps.",
@@ -1623,6 +1657,8 @@ export const fr: Record<TranslationKey, string> = {
   "activity.timeline.rejected": "Refusé",
   "activity.timeline.removed": "Plus sur Kisuflix",
   "ask.timeline.open": "Demandé",
+  "activity.timeline.postponed":
+    "En attente : ce sera ajouté quand il y aura davantage de place sur Kisuflix",
   "ask.timeline.acknowledged": "En cours d'ajout",
   "ask.timeline.resolved": "Sur Kisuflix",
   "ask.timeline.rejected": "Refusé",
@@ -1641,6 +1677,8 @@ export const fr: Record<TranslationKey, string> = {
   "notifications.request.available": "{title} est sur Kisuflix.",
   "notifications.request.rejected": "{title} a été refusé.",
   "notifications.request.requested": "{title} est de nouveau à l'étude.",
+  "notifications.request.postponed":
+    "{title} sera ajouté quand il y aura davantage de place sur Kisuflix.",
   "notifications.report.open": "Votre signalement sur {title} a été rouvert.",
   "notifications.ask.open": "Votre demande sur {title} a été rouverte.",
   "admin.reports.reopen": "Réouvrir",

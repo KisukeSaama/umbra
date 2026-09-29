@@ -16,9 +16,11 @@ import { listEnabledSearchSites } from "@/lib/domain/search-sites";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { paginate, parsePage, toSearchParams } from "@/lib/pagination";
 import {
+  REPORT_QUEUE_STAGES,
   REPORT_STAGE_STATUSES,
   countByStage,
   parseQueueOrder,
+  parseQueueSearch,
   parseQueueStage,
 } from "@/lib/queue";
 
@@ -51,6 +53,9 @@ const PER_PAGE = 20;
  * note per report and never a thread, so writing a new one from the same dialog
  * replaces the one that was there.
  *
+ * A search narrows every stage at once, by title, by member or by note: see
+ * `queueSearchFilter`.
+ *
  * The queue is read one page at a time, so a year of settled reports is not one
  * screen carrying a thousand rows and their buttons. The count and the slice
  * are two queries rather than one list cut down afterwards: the point is that
@@ -63,11 +68,12 @@ export default async function AdminReportsPage({
   const { t } = await getI18n();
 
   const params = toSearchParams(await searchParams);
-  const stage = parseQueueStage(params.get("stage"));
+  const stage = parseQueueStage(params.get("stage"), REPORT_QUEUE_STAGES);
   const order = parseQueueOrder(params.get("order"), stage);
+  const search = parseQueueSearch(params.get("q"));
 
-  const counts = await countByStage((one) =>
-    countReports(REPORT_STAGE_STATUSES[one], "fault"),
+  const counts = await countByStage(REPORT_QUEUE_STAGES, (one) =>
+    countReports(REPORT_STAGE_STATUSES[one], "fault", search),
   );
   const page = paginate(counts[stage], parsePage(params.get("page")), PER_PAGE);
   const reports = await listReports(
@@ -75,13 +81,15 @@ export default async function AdminReportsPage({
     { limit: page.perPage, offset: page.offset },
     "fault",
     order,
+    search,
   );
   const [waiting, searchSites] = await Promise.all([
     waitingOnReports(reports.map(({ id }) => id)),
     listEnabledSearchSites(),
   ]);
 
-  if (counts.all === 0)
+  // An empty queue says so; an empty search keeps its box, to be changed.
+  if (counts.all === 0 && !search)
     return <EmptyNote icon={FlagIcon}>{t("admin.reports.none")}</EmptyNote>;
 
   return (
@@ -89,6 +97,8 @@ export default async function AdminReportsPage({
       <QueueToolbar
         stage={stage}
         order={order}
+        search={search}
+        stages={REPORT_QUEUE_STAGES}
         counts={counts}
         pathname="/admin/reports"
         params={params}
@@ -104,7 +114,9 @@ export default async function AdminReportsPage({
       />
 
       {reports.length === 0 ? (
-        <EmptyNote icon={FlagIcon}>{t("admin.queue.emptyStage")}</EmptyNote>
+        <EmptyNote icon={FlagIcon}>
+          {t(search ? "admin.queue.noMatch" : "admin.queue.emptyStage")}
+        </EmptyNote>
       ) : (
         <QueueList>
           {reports.map((report) => (

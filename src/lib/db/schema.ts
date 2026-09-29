@@ -271,6 +271,7 @@ export const libraryItems = pgTable(
 export const REQUEST_STATUSES = [
   "requested",
   "accepted",
+  "postponed",
   "available",
   "rejected",
   "removed",
@@ -284,6 +285,10 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
  * server and was later deleted from it: the request that brought it keeps its
  * history as `removed`, and the next ask is a new row. Every read of "the live
  * request for this title" excludes these, as the unique index below does.
+ *
+ * `postponed` is not among them on purpose: a title put off until there is
+ * room keeps its one request, so nobody opens a second one in the meantime,
+ * and whoever asks for it joins the one that waits.
  */
 export const CLOSED_REQUEST_STATUSES = [
   "rejected",
@@ -340,7 +345,7 @@ export const mediaRequests = pgTable(
       .where(sql`available_at IS NOT NULL`),
     check(
       "media_request_status_check",
-      sql`${t.status} IN ('requested', 'accepted', 'available', 'rejected', 'removed')`,
+      sql`${t.status} IN ('requested', 'accepted', 'postponed', 'available', 'rejected', 'removed')`,
     ),
   ],
 );
