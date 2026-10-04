@@ -213,7 +213,9 @@ test:
     - npm config set cache "$CI_PROJECT_DIR/.npm"
   script:
     - npm ci --no-audit --no-fund
-    - npm audit --audit-level=high
+    # What ships: the build tooling (eslint, the shadcn CLI) can carry advisories
+    # with no fixed release, and those never reach the image.
+    - npm audit --omit=dev --audit-level=high
     - npm run lint
     - npm run typecheck
     - npm test
