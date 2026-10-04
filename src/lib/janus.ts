@@ -56,7 +56,11 @@ export async function janus<T = unknown>({
     });
   } catch (cause) {
     console.error(`[janus] network failure slug=${slug} path=${path}`, cause);
-    throw new UpstreamError(slug);
+    const reason =
+      cause instanceof Error && cause.name === "TimeoutError"
+        ? `no answer within ${CLIENT_TIMEOUT_MS / 1000} s`
+        : "network failure";
+    throw new UpstreamError(slug, `${reason} on ${path}`);
   }
 
   const correlationId = response.headers.get("X-Janus-Correlation-Id") ?? "";
@@ -72,7 +76,7 @@ export async function janus<T = unknown>({
         `[janus] unreadable response slug=${slug} path=${path}`,
         cause,
       );
-      throw new UpstreamError(slug);
+      throw new UpstreamError(slug, `unreadable response on ${path}`);
     }
   }
 
@@ -93,7 +97,7 @@ export async function janus<T = unknown>({
   if (response.status === 404 && isGatewayRefusal) {
     throw new UpstreamError(slug, `no API registered under slug "${slug}"`);
   }
-  throw new UpstreamError(slug);
+  throw new UpstreamError(slug, `status ${response.status} on ${path}`);
 }
 
 function safeJson(raw: string): { detail?: string } | null {
