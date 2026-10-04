@@ -66,7 +66,10 @@ export class RateLimitedError extends AppError {
 export class UpstreamError extends AppError {
   constructor(
     readonly slug: string,
-    /** Detail kept for the logs only. */
+    /**
+     * Detail for the logs and the administration's run history, never for a
+     * member: it names a gateway slug and a path.
+     */
     readonly detail?: string,
   ) {
     super("upstream_unavailable", 502, "error.upstream");

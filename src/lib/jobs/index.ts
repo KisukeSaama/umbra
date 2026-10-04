@@ -30,6 +30,7 @@ import {
 } from "@/lib/domain/series";
 import { recordStorageSnapshot, scanStorageTree } from "@/lib/domain/storage";
 import { accountsForTaste, refreshTasteProfile } from "@/lib/domain/taste";
+import { UpstreamError } from "@/lib/errors";
 
 /**
  * Scheduled work.
@@ -187,7 +188,7 @@ async function runJob(
 
     return { job, items };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = describeFailure(error);
     console.error(`[jobs] ${job} failed`, error);
     await db()
       .update(jobRuns)
@@ -411,6 +412,22 @@ async function finishCycle(runId: string): Promise<JobOutcome[]> {
 }
 
 /**
+ * What a failed run records for the administration.
+ *
+ * An application error's message is its translation key, which says that a
+ * provider failed but not which one or how. The run history is read by the
+ * administration only, so the gateway slug and the detail go with it.
+ */
+function describeFailure(error: unknown): string {
+  if (error instanceof UpstreamError) {
+    return [error.messageKey, error.slug, error.detail]
+      .filter(Boolean)
+      .join(" ");
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Every step, in dependency order.
  *
  * A failing step does not stop the others: a metadata provider being down must
@@ -457,10 +474,32 @@ async function runSteps(): Promise<JobOutcome[]> {
       // while the decision stands. This is where those catch up.
       await trackAcceptedSeries();
 
+      /*
+       * One series the provider no longer answers for must not hold back the
+       * others. It has not synced, so it comes back first on every pass, and a
+       * loop that stopped at it would starve every series behind it for as long
+       * as it stayed in the list. The step still fails, naming it, because only
+       * an administrator can decide what becomes of a series that is gone.
+       */
       const due = await seriesDueForSync();
       let synced = 0;
+      const failures: string[] = [];
       for (const series of due) {
-        synced += await syncSeriesEpisodes(series.id, series.providerId);
+        try {
+          synced += await syncSeriesEpisodes(series.id, series.providerId);
+        } catch (error) {
+          console.warn(
+            `[jobs] series-sync skipped providerId=${series.providerId}`,
+            error,
+          );
+          failures.push(`${series.providerId}: ${describeFailure(error)}`);
+        }
+      }
+      if (failures.length > 0) {
+        throw new Error(
+          `${failures.length} of ${due.length} series not synced; ` +
+            failures.join("; "),
+        );
       }
       return synced;
     }),
