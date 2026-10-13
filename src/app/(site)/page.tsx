@@ -47,13 +47,13 @@ export default async function HomePage() {
       storageOutlook(),
       monthlyStats(),
     ]);
-  // A pinned note is the page's one piece of news: a second card further down
-  // would make two announcements, so the card is only read when nothing is
-  // pinned. With the reader, so its thumbs show what they pressed on the feed.
-  const announcement = featured ? null : await latestAnnouncement(account.id);
+  // With the reader, so the thumbs on the home card show what they pressed on
+  // the feed: read anonymously, the card forgot their reaction. The note
+  // already leading the page is left out, so the card below says something
+  // else rather than the same thing twice.
+  const announcement = await latestAnnouncement(account.id, featured?.id);
 
-  // With the announcement row gone, the storage joins the narrow column.
-  const aside = inProgress.length > 0 || poll !== null || featured !== null;
+  const aside = inProgress.length > 0 || poll !== null;
 
   return (
     <>
@@ -92,19 +92,20 @@ export default async function HomePage() {
                 {poll ? (
                   <PollCard poll={poll} daysLeft={daysUntil(poll.endsAt)} />
                 ) : null}
-                {featured ? <StorageCard storage={storage} /> : null}
               </div>
             ) : null}
           </div>
-          {featured ? null : (
-            <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+          <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+            {/* With the only note pinned above, an empty card here would say
+                there is no news right under the one there is. */}
+            {announcement || !featured ? (
               <AnnouncementCard
                 announcement={announcement}
                 className="lg:col-span-2"
               />
-              <StorageCard storage={storage} />
-            </div>
-          )}
+            ) : null}
+            <StorageCard storage={storage} />
+          </div>
         </div>
       </div>
     </>
