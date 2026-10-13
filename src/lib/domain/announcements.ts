@@ -202,11 +202,18 @@ export async function publishedAnnouncements(
   limit = 20,
   accountId?: string,
   offset = 0,
+  /** A note to leave out, the one the home page already leads with. */
+  except?: string,
 ): Promise<AnnouncementView[]> {
   const rows = await db()
     .select(listedColumns)
     .from(announcements)
-    .where(eq(announcements.published, true))
+    .where(
+      and(
+        eq(announcements.published, true),
+        except ? ne(announcements.id, except) : undefined,
+      ),
+    )
     .orderBy(desc(announcements.publishedAt))
     .limit(limit)
     .offset(offset);
@@ -225,8 +232,9 @@ export async function countPublishedAnnouncements(): Promise<number> {
 
 export async function latestAnnouncement(
   accountId?: string,
+  except?: string,
 ): Promise<AnnouncementView | null> {
-  const [row] = await publishedAnnouncements(1, accountId);
+  const [row] = await publishedAnnouncements(1, accountId, 0, except);
   return row ?? null;
 }
 
