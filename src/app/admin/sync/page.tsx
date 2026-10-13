@@ -24,9 +24,9 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Synchronisation.
  *
- * This page used to list job names and timestamps, which answered a question
- * only the person who wrote them could ask. What an administrator wants to
- * know is plainer: what does this machine do on its own, did it work, and when.
+ * Job names and timestamps answer a question only the person who wrote them
+ * could ask. What an administrator wants to know is plainer: what does this
+ * machine do on its own, did it work, and when.
  *
  * So every step is named in words, says what it is for, and reports its last
  * attempt as a sentence. The identifier stays, small and in monospace, because

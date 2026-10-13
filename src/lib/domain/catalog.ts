@@ -151,7 +151,7 @@ export async function availabilityFor(
  *
  * The last one is the only one that does not come from a scan: it carries what
  * the administration answered since the last pass, and it can only ever take a
- * shortfall away. A title nobody has asked about is decided exactly as before.
+ * shortfall away. A title nobody has asked about is decided by the scans alone.
  */
 function stateOf(
   summary: Pick<MediaSummary, "providerId" | "kind">,
@@ -557,10 +557,11 @@ export function yearOf(releaseDate: string | null | undefined): number | null {
  * `language` is the language the summary was fetched in, when it was fetched
  * for somebody in particular. The row is written in one language whatever
  * language it was asked in: it is what the administration reads in its queues
- * and what every notification carries, so a French member's request used to
- * rename the title for everyone, and the next English report renamed it back.
- * The canonical summary is asked for instead, which Janus answers from its
- * cache, and the wording the member sees is the one their own call returned.
+ * and what every notification carries, so writing a French member's summary
+ * would rename the title for everyone, and the next English report would
+ * rename it back. The canonical summary is asked for, which Janus answers from
+ * its cache, and the wording the member sees is the one their own call
+ * returned.
  */
 export async function ensureMedia(
   summary: MediaSummary,

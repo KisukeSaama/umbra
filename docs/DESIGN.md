@@ -215,7 +215,7 @@ did: by needing to tell things apart, not by wanting to look colourful.
 current selection and state indicators. Prohibited on headings, icon fills,
 dividers, non-action badges and anything decorative. Two ochre areas competing on
 one screen means one is wrong. The storage treemap is the one exception, and it
-is an exception to the palette rather than to the rule: see Data colour below.
+is an exception to the palette rather than to the rule: see Data colour above.
 
 **The Tinted Neutral Rule.** No `#000`, no `#fff`, no untinted grey. The one
 sanctioned pure value is the daylight card, `oklch(1 0 0)`, the sheet of paper.
@@ -280,7 +280,7 @@ percent). No glass cards, no frosted panels.
 
 The rule is about glass, not about atmosphere. A picture that is already blurred
 and dimmed, sitting behind the page as a background, is not a frosted surface and
-is allowed once per page. The home hero is built from the posters that actually
+is allowed once per page. The home hero is built from the posters that
 arrived this week, blurred back under a wash and a fine grain until it is weather
 rather than content, which is why the page feels different in a week where a lot
 arrived. No card may ever do this.
@@ -304,7 +304,7 @@ default, small and icon sizes all come up to 40px: a finger is not a cursor.
 
 **Chips.** Pill shaped (31.2px radius on a 20px height), 13px text at weight 500,
 a one-pixel transparent border variants fill in. The default variant is ochre and
-is reserved for something genuinely primary; `secondary` and `outline` carry the
+is reserved for the primary case; `secondary` and `outline` carry the
 ordinary cases, here request states and episode states.
 
 **Page rhythm.** Every page opens the same way, so moving between them does not
@@ -430,12 +430,12 @@ screen.
 - Use `border-left` or `border-right` above one pixel as a coloured accent stripe. Use a full ring, a background tint, or nothing.
 - Apply `background-clip: text` with a gradient. Emphasis comes from weight and size.
 - Build the big-number-plus-gradient hero metric block, or fill a screen with identically sized icon-heading-text cards. The home grid is deliberately uneven.
-- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, the list of who is waiting on a row of the administration queues, and genuine confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not one of them: it is a page, with a back link at the top left and, once that row has scrolled away, a dock centred at the bottom (a blurred pill, as licensed for anything content scrolls under) carrying the way back, the way to Plex and the return to the top.
+- Reach for a modal before exhausting the inline alternative. The dialogs are the report flow (a decision in three steps), the search palette, the list of who is waiting on a row of the administration queues, and confirmations, which are real dialogs rather than the browser prompt so they can be translated and themed. A title is not one of them: it is a page, with a back link at the top left and, once that row has scrolled away, a dock centred at the bottom (a blurred pill, as licensed for anything content scrolls under) carrying the way back, the way to Plex and the return to the top.
 - Animate anything that does not convey state, or animate a layout property. Transitions run 150 to 250ms; the poster scale at 500ms is the outer limit.
 - Use an em dash or an emoji anywhere: code, comments, documentation, interface copy.
 
 The named rules above hold everywhere: One Lamp, Tinted Neutral, Destructive Wash,
 One Serif Line, Uppercase Budget, Flat-By-Default, Blur Licence. The product
 refusals that shape screens (no free text, no uptime indicator, no payment
-affordance, no request counter in front of members, no stored watch history, no wording that turns an
+affordance, no request counter on a card or in search, no stored watch history, no wording that turns an
 aired episode into a downloaded one) are in [product.md](product.md).

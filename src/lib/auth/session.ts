@@ -21,8 +21,7 @@ import type { PlexAccount } from "@/lib/providers/plex-tv";
  * on a cookie set `Secure`, on `/` and with no `Domain`: a sibling subdomain,
  * or anything that answers over plain HTTP, cannot plant or shadow it. The
  * prefix needs HTTPS, so development over `http://localhost` keeps the bare
- * name. A cookie under the old name is simply no longer read, which signs its
- * holder out once.
+ * name.
  */
 export function sessionCookie() {
   return isProduction() ? "__Host-umbra_session" : "umbra_session";
@@ -46,9 +45,9 @@ function hashToken(token: string) {
  * How many sessions one account keeps.
  *
  * A person is a handful of devices: a desktop, a phone, a tablet, a browser
- * they signed in with once. Nothing used to bound the list, so every sign-in
- * added a cookie that stayed valid for a month, and one of them lost with an
- * old device stayed valid too. Signing in again therefore lets the oldest go.
+ * they signed in with once. Unbounded, every sign-in would add a cookie that
+ * stays valid for a month, and one of them lost with an old device would stay
+ * valid too. Signing in again therefore lets the oldest go.
  */
 const MAX_SESSIONS_PER_ACCOUNT = 8;
 
@@ -304,11 +303,11 @@ export async function upsertAccountFromPlex(
    * One statement, because a sign-in is not a conversation.
    *
    * Read first and written after, two browsers finishing the same first
-   * sign-in in the same instant both saw no account and both inserted one: the
-   * second was refused by the unique index and the person was shown a server
-   * error on the way in. What is being said here is unchanged, only said in
-   * SQL: an account keeps the role it already had unless the configuration
-   * names it as the administrator.
+   * sign-in in the same instant would both see no account and both insert
+   * one: the second would be refused by the unique index and the person shown
+   * a server error on the way in. The rule, said in SQL: an account keeps the
+   * role it already had unless the configuration names it as the
+   * administrator.
    */
   const [account] = await db()
     .insert(accounts)

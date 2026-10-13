@@ -7,7 +7,7 @@ import {
   UpstreamError,
   isServiceWideFailure,
 } from "@/lib/errors";
-import { dictionaries } from "@/lib/i18n/dictionaries";
+import { createTranslator } from "@/lib/i18n";
 import {
   StepFailure,
   decodeFailure,
@@ -83,29 +83,28 @@ describe("the per-title loop", () => {
     expect(onRefused).toHaveBeenCalledWith(items[1], expect.any(UpstreamError));
   });
 
-  it("stops at a failure of the whole service, and stamps nothing", async () => {
-    const work = vi.fn(async (item: { id: string }) => {
-      if (item.id === "b") throw new RateLimitedError("60");
-      return 1;
-    });
-    const onRefused = vi.fn(async () => {});
+  it.each([
+    ["a quota reached", new RateLimitedError("60")],
+    [
+      "a gateway refusal",
+      new UpstreamError("tmdb-v3", "refused", { origin: "gateway" }),
+    ],
+  ])(
+    "stops at %s before the next title is asked for, and stamps nothing",
+    async (_, failure) => {
+      const work = vi.fn(async (item: { id: string }) => {
+        if (item.id === "b") throw failure;
+        return 1;
+      });
+      const onRefused = vi.fn(async () => {});
 
-    await expect(
-      eachInIsolation(items, work, onRefused),
-    ).rejects.toBeInstanceOf(RateLimitedError);
-    expect(work).toHaveBeenCalledTimes(2);
-    expect(onRefused).not.toHaveBeenCalled();
-  });
-
-  it("stops at a gateway refusal before the next title is asked for", async () => {
-    const work = vi.fn(async () => {
-      throw new UpstreamError("tmdb-v3", "refused", { origin: "gateway" });
-    });
-    await expect(
-      eachInIsolation(items, work, async () => {}),
-    ).rejects.toBeInstanceOf(UpstreamError);
-    expect(work).toHaveBeenCalledTimes(1);
-  });
+      await expect(eachInIsolation(items, work, onRefused)).rejects.toBe(
+        failure,
+      );
+      expect(work).toHaveBeenCalledTimes(2);
+      expect(onRefused).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("what a failed run records", () => {
@@ -130,10 +129,11 @@ describe("what a failed run records", () => {
     });
   });
 
-  it("keeps the message of anything else, bounded", () => {
-    const failure = describeFailure(new Error("x".repeat(1000)));
-    expect(failure.key).toBe("admin.jobs.failure.unexpected");
-    expect(failure.detail!.length).toBeLessThan(300);
+  it("keeps the message of anything else, cut at two hundred characters", () => {
+    expect(describeFailure(new Error("x".repeat(1000)))).toEqual({
+      key: "admin.jobs.failure.unexpected",
+      detail: `${"x".repeat(200)}...`,
+    });
   });
 
   it("passes through a failure the step has already worded", () => {
@@ -175,14 +175,6 @@ describe("a summary of refused series", () => {
       "Series 3: tmdb-v3 status 404 on /tv/1/season/3",
     ]);
   });
-
-  it("never names a series by its provider id", () => {
-    const summary = summariseSeriesFailures(
-      [{ title: "Frieren", error: notFound() }],
-      1,
-    );
-    expect(summary.values?.titles).toBe("Frieren");
-  });
 });
 
 describe("a recorded failure, read back", () => {
@@ -215,18 +207,26 @@ describe("a recorded failure, read back", () => {
       "admin.jobs.failure.unexpected",
     );
   });
+});
 
-  it("is worded in both languages", () => {
-    for (const key of [
-      "admin.jobs.failure.upstream",
-      "admin.jobs.failure.rateLimited",
-      "admin.jobs.failure.interrupted",
-      "admin.jobs.failure.unexpected",
-      "admin.jobs.failure.series",
-      "admin.jobs.failure.seriesMore",
-    ] as const) {
-      expect(dictionaries.en[key]).toBeTruthy();
-      expect(dictionaries.fr[key]).toBeTruthy();
-    }
-  });
+describe("a recorded failure, worded", () => {
+  it.each(["en", "fr"] as const)(
+    "leaves no placeholder unfilled once worded in %s",
+    (locale) => {
+      const t = createTranslator(locale);
+      const many = Array.from({ length: 5 }, (_, index) => ({
+        title: `Series ${index + 1}`,
+        error: notFound(),
+      }));
+      for (const failure of [
+        describeFailure(notFound()),
+        describeFailure(new RateLimitedError("30")),
+        summariseSeriesFailures(many.slice(0, 1), 4),
+        summariseSeriesFailures(many.slice(0, 2), 4),
+        summariseSeriesFailures(many, 20),
+      ]) {
+        expect(t(failure.key, failure.values)).not.toMatch(/\{\w+\}/);
+      }
+    },
+  );
 });

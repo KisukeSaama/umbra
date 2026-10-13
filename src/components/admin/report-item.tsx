@@ -31,7 +31,7 @@ import { searchLinksFor, type SearchSiteView } from "@/lib/search-sites";
  */
 export async function ReportItem({
   report,
-  gap = null,
+  gap,
   waiting,
   showStatus = true,
   searchSites,
@@ -42,7 +42,7 @@ export async function ReportItem({
    * What a season asked for as a whole lacks in files, read by the page for
    * all its rows at once: see `seasonGaps`.
    */
-  gap?: SeasonGap | null;
+  gap?: SeasonGap;
   /** Who is waiting on it, by name, the first being whoever reported first. */
   waiting: string[];
   /** Left out where the stage shown holds a single status. */

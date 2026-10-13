@@ -27,10 +27,10 @@ import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
  * A request the administration still has something to do about.
  *
  * The mirror of `LIVE_REPORT_STATUSES`. A report taken up stays in the queue
- * until it is closed, and a request had been leaving it the moment it was
- * accepted: the work was starting exactly when the row disappeared, and what
- * was in hand could only be found again by opening the section and reading
- * every line that had ever been written. Being worked on is not being done.
+ * until it is closed, and so does an accepted request: dropped the moment it
+ * is accepted, the row would disappear exactly when the work starts, and what
+ * is in hand could only be found again by opening the section and reading
+ * every line ever written. Being worked on is not being done.
  *
  * A request put off for lack of room is left out: nothing can be done about it
  * until there is room, and it waits under a stage of its own rather than
@@ -673,7 +673,7 @@ export function noteFor(
  * Rewrites the note alone, without moving the request.
  *
  * A word left when taking an ask in hand ages: what was being looked for is
- * found, the season that was missing has a date. Saying so used to mean moving
+ * found, the season that was missing has a date. Saying so must not mean moving
  * the request somewhere it does not belong, so the note is editable for as long
  * as it is displayed, which is until the title reaches the server.
  *
@@ -718,10 +718,11 @@ export function canCarryNote(status: RequestStatus): boolean {
 /**
  * Where a request may go from where it is.
  *
- * The lifecycle in `docs/product.md` moves forward, and it used to be a drawing
- * rather than a rule: any status was accepted from any status. `available`
- * back to `requested` handed a title that is on the server back to the queue
- * and told the member about a step they had already been told about.
+ * The lifecycle in `docs/product.md` moves forward, and this is what makes it a
+ * rule rather than a drawing. With any status accepted from any status,
+ * `available` back to `requested` would hand a title that is on the server
+ * back to the queue and tell the member about a step they had already been
+ * told about.
  *
  * Putting a request off is for a title worth having that there is no room
  * for yet. It is neither a refusal nor a yes: the request keeps its place as
@@ -838,9 +839,10 @@ export async function updateRequestStatus(
   /*
    * Starting the tracker is a consequence of the decision, not part of it.
    *
-   * It calls the metadata provider, and a provider that does not answer used
-   * to take the whole move down with it: the row had already changed, the
-   * administrator saw a gateway error, and the member was never told. So a
+   * It calls the metadata provider, and a provider that does not answer must
+   * not take the whole move down with it: the row has already changed, the
+   * administrator would see a gateway error, and the member would never be
+   * told. So a
    * failure here is recorded and left to `trackAcceptedSeries`, which picks up
    * on the next cycle exactly the series this should have started.
    */
@@ -873,9 +875,9 @@ export async function updateRequestStatus(
  * a job replaying the same move says nothing twice.
  *
  * A move made by hand passes the moment it was written, and that moment joins
- * the step. Since ADR 0021 a request goes back and forth as the normal flow,
- * accepted, put off for lack of room, accepted again the day there is room, and
- * keyed on the status alone the second acceptance met the first and was
+ * the step. A request goes back and forth as the normal flow (ADR 0021):
+ * accepted, put off for lack of room, accepted again the day there is room.
+ * Keyed on the status alone, the second acceptance would meet the first and be
  * dropped, leaving every follower on "waiting for room". Each manual move is a
  * decision of its own; the same press sent twice is still one, since only one
  * of the two passes the status check of `updateRequestStatus`. A job replaying

@@ -103,9 +103,9 @@ export function AccountMenu({
   /**
    * The way out.
    *
-   * A logout that was refused or never answered used to leave the item
-   * disabled on an unhandled rejection, so the menu looked as though it were
-   * still leaving. The session is only gone when the server says so: until
+   * A logout that is refused or never answered must not leave the item
+   * disabled on an unhandled rejection, as though the menu were still
+   * leaving. The session is only gone when the server says so: until
    * then nothing moves and the refusal is said out loud.
    */
   async function signOut() {

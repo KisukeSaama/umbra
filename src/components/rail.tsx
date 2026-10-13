@@ -49,7 +49,7 @@ export function Rail({
       const saved = Number(sessionStorage.getItem(storageKey));
       if (saved > 0) node.scrollLeft = saved;
     } catch {
-      // Storage can be unavailable; the rail then simply starts at the beginning.
+      // Storage can be unavailable; the rail then starts at the beginning.
     }
   }, [storageKey]);
 

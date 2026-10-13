@@ -88,8 +88,8 @@ async function animeRecommendations(
  * `sources`, index for index with `rows`, are the MAL entries that led to each
  * row when the caller has them scored already, as a ranking page does. An
  * entry that is the title itself gives its score at no cost; only the others
- * are looked up. Asking MAL twice for every ranked title was thirty searches a
- * roll, most of them refused by the gateway's quota.
+ * are looked up. Asking MAL twice for every ranked title would be thirty
+ * searches a roll, most of them refused by the gateway's quota.
  */
 export async function scoredAnime(
   rows: (MediaSummary | null)[],

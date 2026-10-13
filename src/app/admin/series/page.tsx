@@ -60,8 +60,6 @@ export default async function AdminSeriesPage({
 
   const params = toSearchParams(await searchParams);
 
-  // Two lists on one screen, each paged on its own parameter: acting on a task
-  // must not send the series list back to its first page.
   const [seriesTotal, taskTotal] = await Promise.all([
     countTrackedSeries(),
     countOpenEpisodeTasks(),

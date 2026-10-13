@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
  * is built like one: the sections stay on screen with their counts, the heading
  * says where you are, and the content column gets the rest of the width.
  *
- * From the large breakpoint the sidebar is simply there, at rest, scrolling on
+ * From the large breakpoint the sidebar is there, at rest, scrolling on
  * its own. Below it, it becomes a drawer: a phone has no room for a permanent
  * column, and a row of nine tabs scrolling sideways is a menu you have to hunt
  * through. The section bar above the content names where you are either way.
@@ -40,10 +40,10 @@ import { cn } from "@/lib/utils";
  * access is drawn for them. Hiding is a courtesy, not the guard: the page and
  * the route check for themselves.
  *
- * The drawer is a real dialog rather than a panel that says it is one. It used
- * to announce `aria-modal` while leaving focus behind on the page underneath,
- * so Tab walked out of the open menu into the content it was covering and
- * closing it left the keyboard nowhere. Moving the focus, trapping it and
+ * The drawer is a real dialog rather than a panel that says it is one. A panel
+ * announcing `aria-modal` while leaving focus behind on the page underneath
+ * lets Tab walk out of the open menu into the content it covers, and closing
+ * it leaves the keyboard nowhere. Moving the focus, trapping it and
  * giving it back is exactly what the dialog primitive already does, and it
  * brings the Escape key and the scroll lock with it.
  */
@@ -159,9 +159,8 @@ function SectionBar({
 /**
  * The sections, as a sheet down the left edge.
  *
- * The same panel as before, on the dialog primitive: it travels in from the
- * side rather than growing out of the middle, so the geometry and the one
- * motion the panel has are all that is restyled. The heading is the dialog
+ * Built on the dialog primitive, travelling in from the side rather than
+ * growing out of the middle. The heading is the dialog
  * title, which is what names the drawer to a reader who cannot see it, and the
  * close button is the primitive's own.
  */
@@ -276,7 +275,7 @@ function Count({ link, counts }: { link: AdminLink; counts: AdminCounts }) {
  * The way out. A workspace that cannot be left is a trap, not a workspace.
  *
  * It sits at the foot of the sidebar, which is a column tall enough to have a
- * foot. In the drawer it simply follows the sections, since a sheet is as tall
+ * foot. In the drawer it follows the sections, since a sheet is as tall
  * as what is in it.
  */
 function BackToSite({ className }: { className?: string }) {

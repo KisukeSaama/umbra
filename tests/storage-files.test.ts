@@ -267,7 +267,7 @@ describe("playback", () => {
 describe("what the root listing hides", () => {
   /*
    * The listing leaves the machine's working data out of a volume root, and
-   * naming it in a path used to reach it anyway: a deletion could then happen
+   * naming it in a path must not reach it either: a deletion would then happen
    * inside `data` or `lost+found`, which ADR 0012 says the page never offers.
    */
   it("refuses a path whose first name is not a library", async () => {
@@ -304,9 +304,8 @@ describe("what the root listing hides", () => {
 
 describe("the size of a selection", () => {
   /*
-   * The depth of a path and the size of a selection are two different bounds,
-   * and they used to share one check: a selection of more than thirty-two
-   * names was refused although the documented cap is two hundred.
+   * The depth of a path and the size of a selection are two different bounds:
+   * a path stops at thirty-two levels, a selection at two hundred names.
    */
   it("accepts more names than a path may have levels", async () => {
     const names = Array.from({ length: 40 }, (_, index) => `absent-${index}`);

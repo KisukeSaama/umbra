@@ -56,8 +56,8 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * Longer than a feed on the member side: this is a queue somebody works
  * through rather than a page somebody browses, and every row carries buttons
- * that are client components. A year of history on one screen was hundreds of
- * them mounted at once.
+ * that are client components. A year of history on one screen would be
+ * hundreds of them mounted at once.
  */
 const PER_PAGE = 20;
 
@@ -79,7 +79,8 @@ const PER_PAGE = 20;
  * A season or an episode asked for is listed here too, interleaved with the
  * requests, as it is on the member's follow-up page: it is filed as a report
  * and keeps the report's buttons, but the member asked for it, and listing it
- * with the reports had the two sides disagreeing about what the same row was.
+ * with the reports would have the two sides disagreeing about what the same
+ * row is.
  */
 export default async function AdminRequestsPage({
   searchParams,
@@ -175,7 +176,7 @@ export default async function AdminRequestsPage({
                 <ReportItem
                   key={entry.ask.id}
                   report={entry.ask}
-                  gap={gaps.get(entry.ask.id) ?? null}
+                  gap={gaps.get(entry.ask.id)}
                   waiting={waitingOnAsks.get(entry.ask.id) ?? []}
                   showStatus={showStatus}
                   searchSites={searchSites}

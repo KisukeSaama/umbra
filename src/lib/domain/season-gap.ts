@@ -8,7 +8,11 @@ import {
   type ReportReason,
 } from "@/lib/db/schema";
 import { type EpisodeState, seasonEpisodes } from "@/lib/domain/catalog";
-import { mergeEpisodes, seasonShortfall } from "@/lib/domain/seasons";
+import {
+  type CalendarEpisode,
+  mergeEpisodes,
+  seasonShortfall,
+} from "@/lib/domain/seasons";
 import { formatEpisodeRuns } from "@/lib/format";
 
 export type SeasonGap = {
@@ -38,7 +42,7 @@ type GapReport = {
  * Read for a whole page at once. A series under watch already has its calendar
  * in the `episode` table, so its seasons cost one query for the page, plus one
  * for what the server holds. Only a season the tracker has no calendar for is
- * asked of the provider, through Janus, as before.
+ * asked of the provider, through Janus.
  *
  * `missing` is zero when the provider could not be reached, or when the gap has
  * been filled since the ask: `held` is then still true on its own.
@@ -62,24 +66,25 @@ export async function seasonGaps(
     heldEpisodes(providerIds, seasonNumbers),
   ]);
 
+  // Two asks for the same season share one read of it.
   const seasons = new Map<string, Promise<EpisodeState[]>>();
-  for (const ask of asks) {
-    const key = pairKey(ask.media.providerId, ask.seasonNumber);
-    if (seasons.has(key)) continue;
-    const listed = calendar.get(key);
-    seasons.set(
-      key,
-      listed
+  const seasonOf = (providerId: string, seasonNumber: number) => {
+    const key = pairKey(providerId, seasonNumber);
+    let season = seasons.get(key);
+    if (!season) {
+      const listed = calendar.get(key);
+      season = listed
         ? Promise.resolve(mergeEpisodes(listed, held.get(key) ?? []))
-        : seasonEpisodes(ask.media.providerId, ask.seasonNumber),
-    );
-  }
+        : seasonEpisodes(providerId, seasonNumber);
+      seasons.set(key, season);
+    }
+    return season;
+  };
 
   await Promise.all(
     asks.map(async (ask) => {
-      const key = pairKey(ask.media.providerId, ask.seasonNumber);
       const { aired, missing, runs } = seasonShortfall(
-        await (seasons.get(key) as Promise<EpisodeState[]>),
+        await seasonOf(ask.media.providerId, ask.seasonNumber),
       );
       gaps.set(ask.id, {
         missing,
@@ -104,12 +109,7 @@ function pairKey(providerId: string, seasonNumber: number): string {
 async function trackedCalendar(
   providerIds: string[],
   seasonNumbers: number[],
-): Promise<
-  Map<
-    string,
-    { episodeNumber: number; title: string | null; airDate: string | null }[]
-  >
-> {
+): Promise<Map<string, CalendarEpisode[]>> {
   const rows = await db()
     .select({
       providerId: media.providerId,
@@ -130,10 +130,7 @@ async function trackedCalendar(
       ),
     );
 
-  const calendar = new Map<
-    string,
-    { episodeNumber: number; title: string | null; airDate: string | null }[]
-  >();
+  const calendar = new Map<string, CalendarEpisode[]>();
   for (const row of rows) {
     const key = pairKey(row.providerId, row.seasonNumber);
     const season = calendar.get(key) ?? [];

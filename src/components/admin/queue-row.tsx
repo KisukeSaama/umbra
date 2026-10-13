@@ -5,8 +5,8 @@ import { Poster } from "@/components/poster";
 /**
  * The surface a queue is drawn on: one card, rows divided by hairlines.
  *
- * A card per row was twenty rings on a screen, each as heavy as the next, and a
- * long queue read as a wall. One surface with dividers reads as a list, which
+ * A card per row is twenty rings on a screen, each as heavy as the next, and a
+ * long queue reads as a wall. One surface with dividers reads as a list, which
  * is what it is.
  */
 export function QueueList({ children }: { children: ReactNode }) {
@@ -23,7 +23,7 @@ export function QueueList({ children }: { children: ReactNode }) {
  * What the row is about on the left, what can be done with it on the right, so
  * the buttons of every row line up in one column the eye runs down instead of
  * sitting under titles of every length. Below the large breakpoint there is no
- * room for two columns and the buttons go under the text, as before.
+ * room for two columns and the buttons go under the text.
  */
 export function QueueRow({
   select,

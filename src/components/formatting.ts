@@ -8,8 +8,8 @@ import type { Locale } from "@/lib/i18n";
  * safe to build with string concatenation:
  *
  * A percentage is punctuated by the language. French puts a narrow no-break
- * space before the sign and English puts none, so `${percent}%` was wrong in
- * one of the two languages wherever it appeared.
+ * space before the sign and English puts none, so `${percent}%` is wrong in
+ * one of the two languages wherever it appears.
  *
  * A number of days left is wall-clock arithmetic, and a client component doing
  * it computes one answer while the server is rendering and another a

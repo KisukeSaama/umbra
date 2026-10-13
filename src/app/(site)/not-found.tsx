@@ -8,10 +8,11 @@ import { getTranslator } from "@/lib/i18n/server";
  * A wrong address inside the community, which is not the same thing as a wrong
  * address on the site.
  *
- * `notFound()` from a page under this layout used to render the root screen,
- * outside the gate: the header, the nav and the way to anywhere else vanished
- * along with the title that did not exist. The same words are said here, inside
- * the layout, so a member who followed a stale link is still somewhere.
+ * Without this file, `notFound()` from a page under this layout renders the
+ * root screen, outside the gate: the header, the nav and the way to anywhere
+ * else vanish along with the title that does not exist. The same words are
+ * said here, inside the layout, so a member who followed a stale link is still
+ * somewhere.
  */
 export default async function SiteNotFound() {
   const t = await getTranslator();

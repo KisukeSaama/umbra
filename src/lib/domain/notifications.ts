@@ -46,9 +46,9 @@ export type NotificationRow = {
  *
  * A step is whatever the caller says makes a moment distinct. A job replaying
  * a move names the status alone, so running it again adds nothing. A request
- * moved by hand names the status and the moment of the move, because since ADR
- * 0021 going back to a status held before is the normal flow (accepted, put
- * off for lack of room, accepted again) and the follower has to hear it.
+ * moved by hand names the status and the moment of the move, because going
+ * back to a status held before is the normal flow (accepted, put off for lack
+ * of room, accepted again; see ADR 0021) and the follower has to hear it.
  */
 export function dedupKeyFor(entry: NotificationEntry): string {
   return `${entry.kind}:${entry.subjectId ?? "none"}:${entry.step}`;

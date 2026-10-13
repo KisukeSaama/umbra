@@ -241,10 +241,10 @@ export async function reconcileEpisodes(): Promise<{
   /*
    * 2. What the server no longer holds.
    *
-   * Presence used to be a one-way door: an episode marked available stayed
-   * available even after its file was deleted, so the gap never reappeared in
-   * the calendar, no task was raised, and a report saying the series was
-   * behind could resolve itself against a calendar that claimed everything was
+   * Without this, presence is a one-way door: an episode marked available
+   * stays available even after its file is deleted, so the gap never reappears
+   * in the calendar, no task is raised, and a report saying the series is
+   * behind could resolve itself against a calendar that claims everything is
    * there.
    *
    * Only for a series whose entry on the server is known, and read as an
@@ -357,8 +357,8 @@ const WATCHED_SHOWS = 8;
  * The week of the shows a member is on, whether or not anybody asked for them.
  *
  * The tracker only knows the series that came in through a request, so reading
- * the week from it answered "what happened to what was asked for", which is not
- * the question. This starts from the member's recent history instead, read live
+ * the week from it would answer "what happened to what was asked for", which is
+ * not the question. This starts from the member's recent history, read live
  * and dropped with the render, and asks the provider for the last and the next
  * broadcast of each show. The server index then says which of them are here.
  *
@@ -557,11 +557,10 @@ export async function countTrackedSeries(): Promise<number> {
 /**
  * The open tasks, oldest broadcast first.
  *
- * Paged in SQL like every other administration list. It used to read a capped
- * two hundred and let the page slice the array, which meant the figure above
- * the list was the cap rather than the count, and a tracker catching up on a
- * long-running show hid the rest of its work behind a number that looked
- * complete.
+ * Paged in SQL like every other administration list, so the figure above the
+ * list is the count rather than a cap, and a tracker catching up on a
+ * long-running show does not hide the rest of its work behind a number that
+ * looks complete.
  */
 export async function listOpenEpisodeTasks(
   /** The slice to read, when the caller pages. Everything, when it does not. */
@@ -650,9 +649,9 @@ export async function linkSeriesToLibrary(): Promise<number> {
  * never asked about again.
  *
  * "Looked at" is the later of the last full sync and the last refused attempt.
- * Read on the sync alone, a series the provider keeps refusing never moved and
- * stayed first in line, so twenty of them took every slot on every cycle and
- * no healthy series was synced again.
+ * Read on the sync alone, a series the provider keeps refusing would never
+ * move and would stay first in line, so twenty of them would take every slot
+ * on every cycle and no healthy series would be synced again.
  */
 export async function seriesDueForSync(limit = 20) {
   const lookedAt = sql`GREATEST(${trackedSeries.lastSyncedAt}, ${trackedSeries.syncAttemptedAt})`;

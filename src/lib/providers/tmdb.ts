@@ -173,8 +173,8 @@ export function discoverParams({
   // A pipe is "any of these", a comma demands all of them at once, and TMDB
   // takes one or the other in a value. The genres a title must carry go up
   // with the query whenever the mood leaves room for a comma: filtered after
-  // the fact instead, "anime before 1980" read a page of Kurosawa sorted by
-  // score and kept nothing of it. `discoverBy` still filters the rest.
+  // the fact, "anime before 1980" would read a page of Kurosawa sorted by
+  // score and keep nothing of it. `discoverBy` still filters the rest.
   const required = requireGenreIds ?? [];
   if (required.length > 0 && (genreIds?.length ?? 0) <= 1)
     query.with_genres = [...new Set([...required, ...(genreIds ?? [])])].join(

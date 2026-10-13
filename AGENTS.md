@@ -84,7 +84,7 @@ the deployment remote CI/CD and the server pull from. `gh` is GitHub,
 issues and review.
 
 `origin` carries two push URLs, so a single `git push` sends the same refs to
-both. Never push to only one: they must stay aligned commit for commit. Verify
+both. Never push to only one. Verify
 with `git remote -v`, where `origin` must list two `(push)` lines. If GitHub
 rejects a push GitLab accepted, the two sides have drifted; fix it with
 `git push gh <branch>` before doing anything else.

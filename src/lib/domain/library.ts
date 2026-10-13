@@ -229,6 +229,14 @@ export async function recentlyAdded(limit = 12): Promise<RecentItem[]> {
 }
 
 /**
+ * How long a row the pass could not complete waits before it is tried again.
+ *
+ * A poster can appear at the provider months after the title did, so a row is
+ * never given up on for good; it stops being asked for on every run.
+ */
+const ENRICH_RETRY_DAYS = 30;
+
+/**
  * Fills in what the media server does not say: the poster, and the genres.
  *
  * Capped per run: the point is a steady trickle after each sync, not a burst of
@@ -242,14 +250,6 @@ export async function recentlyAdded(limit = 12): Promise<RecentItem[]> {
  * for the same reason, and it is what lets the half of the picker drawn from
  * the server hold the same bar as the half drawn from the provider.
  */
-/**
- * How long a row the pass could not complete waits before it is tried again.
- *
- * A poster can appear at the provider months after the title did, so a row is
- * never given up on for good; it simply stops being asked for on every run.
- */
-const ENRICH_RETRY_DAYS = 30;
-
 export async function enrichLibraryPosters(limit = 120): Promise<number> {
   const retryBefore = new Date(
     Date.now() - ENRICH_RETRY_DAYS * 24 * 60 * 60 * 1000,
@@ -330,9 +330,9 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
     } catch (error) {
       /*
        * A quota reached, a gateway refusing or a provider out of reach says
-       * nothing about this title. Stamping it then parked a whole sync's worth
-       * of new titles for a month over one 429, and they are what the picker
-       * filters on. So the row is left as it was, for the next run, and the
+       * nothing about this title. Stamping it then would park a whole sync's
+       * worth of new titles for a month over one 429, and they are what the
+       * picker filters on. So the row is left as it was, for the next run, and the
        * pass ends: every row behind it would fail the same way.
        */
       if (isServiceWideFailure(error)) throw error;

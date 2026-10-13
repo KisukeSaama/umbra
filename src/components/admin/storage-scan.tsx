@@ -14,9 +14,9 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
 /**
  * Measuring the disk, watched rather than waited for.
  *
- * The walk takes minutes, and the first version of this was an ordinary button
- * holding its "busy" flag in its own state. Navigate away and that state is
- * gone with the component: the button comes back pressable while the walk is
+ * The walk takes minutes, which an ordinary button holding its "busy" flag in
+ * its own state cannot follow. Navigate away and that state is gone with the
+ * component: the button comes back pressable while the walk is
  * still running, and pressing it starts a second one.
  *
  * So the truth lives on the server, in the run the step records, and this only

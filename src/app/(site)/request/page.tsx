@@ -5,8 +5,8 @@ import { getTranslator } from "@/lib/i18n/server";
 
 /**
  * It names itself on the way past, as the polls address does: a page that
- * forwards is still a tab for the instant it exists, and "Umbra" alone said
- * nothing about where it was going.
+ * forwards is still a tab for the instant it exists, and "Umbra" alone says
+ * nothing about where it is going.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslator();
@@ -14,10 +14,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Requesting is no longer a page of its own: it happens from a title, and a
- * title is reached from the shelves or from the search palette. A query string
- * is carried across, and the discover page opens the palette on it, so an old
- * bookmark lands on the search it asked for rather than on a page that ignores
+ * Requesting is not a page of its own: it happens from a title, and a title is
+ * reached from the shelves or from the search palette. This address stays for
+ * the bookmarks that point at it. A query string is carried across, and the
+ * discover page opens the palette on it, so a bookmark lands on the search it asked for rather than on a page that ignores
  * half its own address.
  */
 export default async function RequestPage({

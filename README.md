@@ -94,7 +94,7 @@ in the Janus vault; Umbra only carries its own Janus key. See `JANUS.md`.
 | `SYNC_STARTUP_DELAY_SECONDS` | no       | Worker wait before its first call, default 45      |
 
 `DEV_LOGIN` is spelled `true` or `false` and read as that word rather than for
-the truthiness of a string, so `false` is genuinely off. Absent or empty falls
+the truthiness of a string, so `false` is off. Absent or empty falls
 back to the default, which is off, and a word neither of them recognises fails the boot
 rather than being guessed at: a switch that guards who gets in is not a place to
 be lenient.

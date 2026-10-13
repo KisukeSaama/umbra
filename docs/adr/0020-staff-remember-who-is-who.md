@@ -14,15 +14,14 @@ and the staff had to keep that in their heads or in a notebook next to Umbra.
 Each account carries an optional `staff_note`, a single short text of at most
 200 characters, written from the accounts page.
 
-- **Staff only.** The administrator and the assistants read it and write it.
+- The administrator and the assistants read it and write it, and nobody else.
   It is selected by the accounts page and by nothing a member is served: no
   profile, no notification, no export. The member never sees it.
-- **Shared, not personal.** One note per account, the same for every staff
-  member, because the question it answers ("who is this?") has one answer.
-- **Open to assistants.** It grants and removes nothing, so it does not belong
+- One note per account, the same for every staff member, because the question it answers ("who is this?") has one answer.
+- Assistants may write it. It grants and removes nothing, so it does not belong
   with naming help, which stays the administrator's. It has its own route,
   `PATCH /api/admin/accounts/{id}/note`, behind `requireStaff`.
-- **Taken back by emptying it.** An empty box stores nothing.
+- Emptying it takes it back: an empty box stores nothing.
 
 ## Consequences
 

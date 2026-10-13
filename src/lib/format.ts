@@ -65,9 +65,9 @@ export function toDate(value: Date | string): Date {
  *
  * The one calendar everything is judged against. The database asks
  * `air_date <= CURRENT_DATE`, which is the day where the server stands, so a
- * page that compared an air date with an instant instead read a different day
- * for part of every day: the calendar said an episode had aired and raised a
- * task for it while the page still called it scheduled. Both sides now ask the
+ * page comparing an air date with an instant would read a different day for
+ * part of every day: the calendar would say an episode had aired and raise a
+ * task for it while the page still called it scheduled. Both sides ask the
  * same question of the same clock.
  */
 export function dayKey(value: Date = new Date()): string {

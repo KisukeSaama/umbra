@@ -176,8 +176,8 @@ describe("mood mapping", () => {
   });
 
   it("does not answer romance with drama", () => {
-    // Drama used to sit in this mood, and it is what made "romance" return
-    // The Godfather: nearly every serious film carries that genre.
+    // Nearly every serious film carries Drama, so with it this mood would
+    // answer "romance" with The Godfather.
     expect(genresFor("love", "movie")).not.toContain(18);
   });
 

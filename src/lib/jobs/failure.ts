@@ -79,10 +79,9 @@ export type ItemFailure = { title: string; error: unknown };
  * Several titles that failed, as one line: how many, the first few by name,
  * and how many more.
  *
- * The run's text used to be every failure in a row, cut at five hundred
- * characters, which kept about six of them, could stop halfway through one,
- * and named each series by its provider id. The detail keeps the technical
- * reason of the titles it names, each one whole.
+ * Every failure in a row, cut at a length, would keep only a few of them and
+ * could stop halfway through one. The detail keeps the technical reason of the
+ * titles it names, each one whole.
  */
 export function summariseSeriesFailures(
   failures: ItemFailure[],

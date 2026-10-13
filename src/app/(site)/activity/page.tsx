@@ -54,10 +54,10 @@ const ASK_STEPS = ["open", "acknowledged", "resolved"] as const;
  * at: following a line in the bell lands on the request or the report it is
  * about rather than at the top of the page.
  *
- * Asking for something used to end at "request sent". This page is the other
- * end of that: what you asked for and what you reported, on one screen. The
+ * Asking for something does not end at "request sent". This page is the other
+ * end of it: what you asked for and what you reported, on one screen. The
  * notifications stay in the bell, which is where they are already read: a
- * second copy of the same feed here only made the page longer.
+ * second copy of the same feed here would only make the page longer.
  *
  * "What you asked for" is one list of two shapes. A missing title is a request
  * row, a missing season is a report row, because the administration works one

@@ -30,9 +30,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * Each shelf streams on its own. That is not a performance trick: the gateway
  * can refuse one listing and this way it costs a rail rather than the page.
  *
- * An address carrying a query comes from `/request?q=`, the page requesting
- * used to be, and it opens the search palette on that query: the old link
- * promised a search, so it has to be one.
+ * An address carrying a query comes from a bookmarked `/request?q=`, and it
+ * opens the search palette on that query: the link promised a search, so it
+ * has to be one.
  */
 export default async function DiscoverPage({
   searchParams,

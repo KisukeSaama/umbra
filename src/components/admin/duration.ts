@@ -3,9 +3,8 @@ import type { Translator } from "@/lib/i18n";
 /**
  * Durations, in the reader's language.
  *
- * Two screens report how long the machine took, and both used to build the
- * answer out of a number and a hard-coded symbol. The symbol is not the same
- * word everywhere and French sets a no-break space in front of it, so the
+ * Two screens report how long the machine took. A number and a hard-coded
+ * symbol will not do: the symbol is not the same word everywhere and French sets a no-break space in front of it, so the
  * assembly belongs to the dictionary: `unit.*` carries the punctuation and
  * these two only decide which unit the figure deserves.
  *

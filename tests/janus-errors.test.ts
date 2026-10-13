@@ -12,7 +12,7 @@ import { RateLimitedError, UpstreamError } from "@/lib/errors";
 import { janus } from "@/lib/janus";
 
 function answer(status: number, body: unknown, contentType: string) {
-  const fetch = vi.fn(
+  const fetch = vi.fn<typeof globalThis.fetch>(
     async () =>
       new Response(JSON.stringify(body), {
         status,
@@ -46,8 +46,7 @@ describe("the Janus client", () => {
         "X-Janus-Api-Key": "forged",
       },
     });
-    const init = fetch.mock.calls[0] as unknown as [URL, RequestInit];
-    const headers = init[1].headers as Record<string, string>;
+    const headers = fetch.mock.calls[0][1]?.headers as Record<string, string>;
     expect(headers["X-Janus-Application-Id"]).toBe("app");
     expect(headers["X-Janus-Api-Key"]).toBe("key");
   });

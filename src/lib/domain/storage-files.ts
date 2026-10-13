@@ -93,9 +93,9 @@ function assertPathNames(names: string[]) {
  * Each name in a selection.
  *
  * Kept apart from the path check on purpose: a selection is bounded by
- * `MAX_BATCH`, a path by `MAX_DEPTH`. Sharing one function meant a selection of
- * more than thirty-two entries was refused as though it were a path thirty-two
- * directories deep, which is not what any caller was told.
+ * `MAX_BATCH`, a path by `MAX_DEPTH`. Sharing one function would refuse a
+ * selection of more than thirty-two entries as though it were a path
+ * thirty-two directories deep, which is not what any caller is told.
  */
 function assertEachName(names: string[]) {
   if (!Array.isArray(names)) throw new BadRequestError("error.invalidPath");

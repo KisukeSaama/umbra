@@ -89,6 +89,9 @@ export function seasonShortfall(
   };
 }
 
+/** An episode as a calendar lists it, before the server is asked about it. */
+export type CalendarEpisode = Omit<EpisodeState, "onServer">;
+
 /**
  * One season's episodes, from a calendar and from what the server holds.
  *
@@ -98,11 +101,7 @@ export function seasonShortfall(
  * contradict the card above it.
  */
 export function mergeEpisodes(
-  listed: readonly {
-    episodeNumber: number;
-    title: string | null;
-    airDate: string | null;
-  }[],
+  listed: readonly CalendarEpisode[],
   held: readonly { episodeNumber: number; title: string | null }[],
 ): EpisodeState[] {
   const present = new Map(held.map((row) => [row.episodeNumber, row.title]));

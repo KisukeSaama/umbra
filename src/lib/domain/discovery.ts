@@ -41,7 +41,6 @@ import {
 } from "@/lib/discovery/moods";
 import type {
   DiscoverQuery,
-  Genre,
   MediaKind,
   MediaSummary,
 } from "@/lib/providers/metadata";
@@ -336,18 +335,6 @@ async function familiarQueries(accountId: string): Promise<DiscoverQuery[]> {
   );
 }
 
-export const genreOptions = cache(async function genreOptions(
-  kind: MediaKind,
-  language?: string,
-): Promise<Genre[]> {
-  try {
-    return await tmdbProvider.genres(kind, language);
-  } catch (error) {
-    console.warn("[discovery] genre list unavailable", error);
-    return [];
-  }
-});
-
 export type GuidedSelection = {
   /** Already here: the evening can start now. */
   tonight: (Omit<RecentItem, "kind"> & { kind: MediaKind })[];
@@ -462,9 +449,9 @@ export async function guidedSelection(
        * What is already known about a title answers without a call.
        *
        * Every details call counts against the quota the gateway keeps for the
-       * provider, and a selection used to spend one per candidate: a burst of
-       * them was refused mid-selection, each refused title fell out, and a half
-       * came back with two cards. So the index answers for what the server
+       * provider, and a selection spending one per candidate would have a burst
+       * of them refused mid-selection: each refused title falls out, and a half
+       * comes back with two cards. So the index answers for what the server
        * holds, the provider's own listing answers for what it filtered itself,
        * and a call is only made for what neither of them knows, or for the
        * seasons of a series, which nothing else carries.

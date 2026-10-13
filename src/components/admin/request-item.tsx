@@ -312,11 +312,10 @@ const OFFERED = {
 } satisfies Record<RequestStatus, RequestAction[]>;
 
 /**
- * What the row actually shows.
+ * What the row shows.
  *
- * The page used to hold its own idea of which move followed which, which is a
- * second copy of a rule that has an owner: `canMoveRequest` is the one the API
- * answers with, so anything it refuses is filtered out here rather than
+ * Which move follows which is a rule that has an owner, and the page keeps no
+ * second copy of it: `canMoveRequest` is the one the API answers with, so anything it refuses is filtered out here rather than
  * offered and then met with a 409 from a button that looked live.
  */
 function nextActions(status: RequestStatus): RequestAction[] {

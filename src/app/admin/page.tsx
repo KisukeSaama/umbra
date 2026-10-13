@@ -47,10 +47,10 @@ export async function generateMetadata(): Promise<Metadata> {
  * on the row rather than three pages away.
  *
  * A queue holds what is live, which for a request means taken in hand as well
- * as new. Accepting one used to remove it from here, so the work left the desk
- * the moment it started and the next move on it had to be gone looking for. A
- * report has always stayed until it closed, and the two are one queue read
- * twice: what leaves is what is settled.
+ * as new. Accepting one keeps it here, so the work stays on the desk once it
+ * has started and its next move is a row away. A report stays until it
+ * closes, and the two are one queue read twice: what leaves is what is
+ * settled.
  *
  * The figures are counts of work, never a scoreboard: no trend arrow, no
  * gauge, and nothing about whether the server is up. If Umbra answered, it is.
@@ -97,16 +97,15 @@ export default async function AdminDashboardPage() {
   );
 
   const quiet = asked.length === 0 && reports.length === 0 && openTasks === 0;
+  const shownAsked = asked.slice(0, PREVIEW);
   // Measured for the asks on the board alone, in one read for all of them.
   const gaps = await seasonGaps(
-    asked
-      .slice(0, PREVIEW)
-      .flatMap((entry) => (entry.kind === "ask" ? [entry.ask] : [])),
+    shownAsked.flatMap((entry) => (entry.kind === "ask" ? [entry.ask] : [])),
   );
 
   // The last time a member asked for something, request or report alike. It
   // tells the administration how warm the place is, which a job timestamp
-  // never did.
+  // does not.
   const lastSubmission = [latestRequest, latestReport]
     .filter((date): date is Date => date !== null)
     .sort((a, b) => b.getTime() - a.getTime())[0];
@@ -144,15 +143,15 @@ export default async function AdminDashboardPage() {
             title={t("admin.inbox.requests", { count: asked.length })}
             href="/admin/requests"
             label={t("admin.nav.requests")}
-            more={asked.length - 6}
+            more={asked.length - PREVIEW}
           >
-            {asked.slice(0, 6).map((entry) => {
+            {shownAsked.map((entry) => {
               if (entry.kind === "ask")
                 return (
                   <ReportQueueRow
                     key={entry.ask.id}
                     report={entry.ask}
-                    gap={gaps.get(entry.ask.id) ?? null}
+                    gap={gaps.get(entry.ask.id)}
                   />
                 );
               const { request } = entry;
@@ -203,9 +202,9 @@ export default async function AdminDashboardPage() {
             title={t("admin.inbox.reports", { count: reports.length })}
             href="/admin/reports"
             label={t("admin.nav.reports")}
-            more={reports.length - 6}
+            more={reports.length - PREVIEW}
           >
-            {reports.slice(0, 6).map((report) => (
+            {reports.slice(0, PREVIEW).map((report) => (
               <ReportQueueRow key={report.id} report={report} />
             ))}
           </Queue>
@@ -266,11 +265,11 @@ function createdAt(
 /** A live report on the desk, fault or ask, with the one move that comes next. */
 async function ReportQueueRow({
   report,
-  gap = null,
+  gap,
 }: {
   report: ReportRow;
   /** Read by the page for every ask on the board: see `seasonGaps`. */
-  gap?: SeasonGap | null;
+  gap?: SeasonGap;
 }) {
   const t = await getTranslator();
   return (

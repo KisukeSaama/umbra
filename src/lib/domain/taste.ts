@@ -15,7 +15,7 @@ import { plexLibrary } from "@/lib/providers/plex";
  * is shaped so that they barely can. The job reads a rolling window from the
  * media server, turns it into genre counts, and replaces the rows. No title is
  * written down, no date, no history: run it a month later and the earlier month
- * is simply gone. See `docs/adr/0007-aggregated-taste-profile.md`.
+ * is gone. See `docs/adr/0007-aggregated-taste-profile.md`.
  */
 
 /** How far back a profile looks. Anything older stops counting on its own. */
@@ -120,7 +120,7 @@ async function weighKeys(keys: string[]): Promise<TasteWeight[]> {
  * Somebody the server is no longer shared with is left out: their history is
  * not ours to read any more, and the profile would be rebuilt for a person who
  * cannot sign in. When the share list cannot be had the question is not asked,
- * and every account is served as before.
+ * and every account is served.
  */
 export async function accountsForTaste(): Promise<
   { id: string; plexAccountId: string }[]
