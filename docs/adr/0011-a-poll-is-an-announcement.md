@@ -42,5 +42,5 @@ was running.
   case that still deserves one: reopening a question on a note that was already
   published. Publishing a note that carries a question does not use it.
 - Nothing changes for the vote itself, which is what
-  `docs/adr/0008-reports-are-choices.md` is really about: a closed set of
+  `docs/adr/0008-reports-are-choices.md` is about: a closed set of
   options, one per person, enforced by a unique index.

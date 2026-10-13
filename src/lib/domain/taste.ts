@@ -1,16 +1,11 @@
 import "server-only";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
 import { serverMembersOrNull, stillOnServer } from "@/lib/domain/membership";
-import {
-  accounts,
-  libraryItems,
-  type MediaType,
-  tasteProfiles,
-} from "@/lib/db/schema";
+import { accounts, type MediaType, tasteProfiles } from "@/lib/db/schema";
 import { plexLibrary } from "@/lib/providers/plex";
 
 /**
@@ -20,7 +15,7 @@ import { plexLibrary } from "@/lib/providers/plex";
  * is shaped so that they barely can. The job reads a rolling window from the
  * media server, turns it into genre counts, and replaces the rows. No title is
  * written down, no date, no history: run it a month later and the earlier month
- * is simply gone. See `docs/adr/0007-aggregated-taste-profile.md`.
+ * is gone. See `docs/adr/0007-aggregated-taste-profile.md`.
  */
 
 /** How far back a profile looks. Anything older stops counting on its own. */
@@ -85,35 +80,38 @@ export async function refreshTasteProfile(account: {
 /**
  * Turns a set of server keys into genre counts.
  *
- * The counting happens in the database and only the totals come back, so the
- * list of what was watched never becomes a value this process holds on to.
+ * The counting happens in the database and only the strongest totals come
+ * back, so the titles behind them never become rows this process holds on to.
+ * A title counts once however often it was played: the keys arrive deduplicated
+ * and each is one row of the index.
  */
 async function weighKeys(keys: string[]): Promise<TasteWeight[]> {
-  const rows = await db()
-    .select({
-      kind: libraryItems.kind,
-      genreIds: libraryItems.genreIds,
-    })
-    .from(libraryItems)
-    .where(
-      and(
-        inArray(libraryItems.ratingKey, keys),
-        inArray(libraryItems.kind, ["movie", "show"]),
-      ),
-    );
+  const rows = await db().execute<{
+    media_kind: MediaType;
+    genre_id: number;
+    weight: number;
+  }>(sql`
+    SELECT CASE WHEN item.kind = 'movie' THEN 'movie' ELSE 'tv' END
+             AS media_kind,
+           genre.id AS genre_id,
+           count(*)::int AS weight
+      FROM library_item AS item
+     CROSS JOIN LATERAL unnest(item.genre_ids) AS genre(id)
+     WHERE item.rating_key IN (${sql.join(
+       keys.map((key) => sql`${key}::text`),
+       sql`, `,
+     )})
+       AND item.kind IN ('movie', 'show')
+     GROUP BY 1, 2
+     ORDER BY weight DESC, media_kind, genre_id
+     LIMIT 24
+  `);
 
-  const totals = new Map<string, TasteWeight>();
-  for (const row of rows) {
-    const mediaKind: MediaType = row.kind === "movie" ? "movie" : "tv";
-    for (const genreId of row.genreIds ?? []) {
-      const key = `${mediaKind}:${genreId}`;
-      const current = totals.get(key);
-      if (current) current.weight += 1;
-      else totals.set(key, { mediaKind, genreId, weight: 1 });
-    }
-  }
-
-  return [...totals.values()].sort((a, b) => b.weight - a.weight).slice(0, 24);
+  return rows.map((row) => ({
+    mediaKind: row.media_kind,
+    genreId: row.genre_id,
+    weight: row.weight,
+  }));
 }
 
 /**
@@ -122,7 +120,7 @@ async function weighKeys(keys: string[]): Promise<TasteWeight[]> {
  * Somebody the server is no longer shared with is left out: their history is
  * not ours to read any more, and the profile would be rebuilt for a person who
  * cannot sign in. When the share list cannot be had the question is not asked,
- * and every account is served as before.
+ * and every account is served.
  */
 export async function accountsForTaste(): Promise<
   { id: string; plexAccountId: string }[]

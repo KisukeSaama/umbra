@@ -5,7 +5,8 @@ not go through it: server components call the domain layer directly.
 
 ## Conventions
 
-- JSON in, JSON out. Session in an `HttpOnly` cookie, `umbra_session`.
+- JSON in, JSON out. Session in an `HttpOnly` cookie, `__Host-umbra_session`
+  in production and `umbra_session` in development, where there is no HTTPS.
 - An error is `{ "error": "<code>", "messageKey": "<key>" }` with a matching HTTP
   status. The client resolves `messageKey` in its own language; the server never
   sends a sentence. Codes: `bad_request`, `unauthorized`, `forbidden`,
@@ -26,6 +27,8 @@ not go through it: server components call the domain layer directly.
   command-line tools) are not affected.
 - A body over 64 kB is refused as a bad request without being parsed. The longest
   field on the whole surface is four thousand characters.
+  The one exception is the picture sent to `POST /api/admin/uploads`, which
+  may weigh up to ten megabytes and is counted the same way.
 - Every path that names a row expects a `uuid`. Anything else is a 404, rather
   than a query the database refuses and a fault in the logs.
 - The administration shares one bucket per account, sixty a minute, with less for
@@ -109,8 +112,10 @@ somebody else opened, 409 with `error.requestUnderway` once the administration
 has acted on it. Shares the requests bucket.
 
 **`POST /api/polls/{id}/vote`** (member), body `{ "optionId": "uuid" }`. Ten a
-minute. Returns the poll with its results; 409 with `error.alreadyVoted` on a
-second attempt or `error.pollClosed` on a closed poll.
+minute. Returns the poll with its results. One vote per person: a second one
+moves the first rather than being refused. 400 with `error.invalidOption` for an
+option that is not the poll's, 404 with `error.pollNotFound` for a poll that does
+not exist or hangs off a draft, 409 with `error.pollClosed` on a closed poll.
 
 **`PUT /api/announcements/{id}/reaction`** (member), body
 `{ "value": "like" | "dislike" | null }`. Thirty a minute. Sets the visitor's
@@ -124,7 +129,7 @@ counts; the names are shown on the administration page. 404 with
 minute. The reason comes from a fixed list and must apply to what was pointed at,
 so a film cannot be reported as missing a season. Answers
 `{ "reportId": "uuid", "title": "...", "joined": false }`, or `joined: true` when
-an identical live report already existed and the member simply joined it. 409
+an identical live report already existed and the member joined it. 409
 with `error.notOnServer` for a title that is not there, 400 with
 `error.reasonNotAllowed` for a reason that does not apply, which is also the
 answer for a re-cut pointed at a season or offered a reason its own list does not
@@ -185,27 +190,63 @@ All of these are open to the administrator and to the assistants, except
 the administrator's alone: an assistant works the queues, and does not hand out
 access or take anything away for good.
 
-| Route                                  | Body                                                       | Effect                                                                                                                                                                                                                                                                                                       |
-| -------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PATCH /api/admin/requests/{id}`       | `{ status?, adminNote? }`                                  | Moves a request along its lifecycle. An illegal move is a 409, as is `available` for a title the index does not hold yet. `accepted` on a series also starts tracking it; `adminNote` is an optional word shown to the requester and cleared on `available`. A body without a status rewrites the word alone |
-| `PATCH /api/admin/reports/{id}`        | `{ status?, adminNote? }`                                  | Moves a report along its state machine, where an illegal move is also a 409. `acknowledged` on a series also starts tracking it. A body without a status rewrites the word alone                                                                                                                             |
-| `POST /api/admin/series`               | `{ providerId }`                                           | Tracks a series and pulls its calendar. A 409 with `error.seriesIsCut` when the server holds it as a re-cut                                                                                                                                                                                                  |
-| `PATCH /api/admin/series/{id}`         | `{ enabled }`                                              | Pauses or resumes tracking                                                                                                                                                                                                                                                                                   |
-| `DELETE /api/admin/series/{id}`        |                                                            | Stops tracking a series and drops its calendar and tasks. An accepted request for it is marked as dropped in the same transaction, so the next cycle does not put it back; accepting a request for it again does                                                                                             |
-| `PATCH /api/admin/episodes/tasks/{id}` | `{ status: "done" \| "dismissed" }`                        | Closes a task by hand                                                                                                                                                                                                                                                                                        |
-| `POST /api/admin/announcements`        | `{ title, content, category, published, link?, poll? }`    | Creates a note. `link` is `{ url, label? }`, http or https only. `embed` is `{ url, title?, ratio? }`, https only, `ratio` one of `wide`, `square`, `tall` (default `wide`). `poll` is `{ question, options[], endsAt? }` and opens with the note                                                            |
-| `PATCH /api/admin/announcements/{id}`  | partial                                                    | Edits or publishes                                                                                                                                                                                                                                                                                           |
-| `DELETE /api/admin/announcements/{id}` |                                                            | Deletes                                                                                                                                                                                                                                                                                                      |
-| `PATCH /api/admin/polls/{id}`          | `{ active }`                                               | Opens or closes the question of a note. Opening closes the others                                                                                                                                                                                                                                            |
-| `DELETE /api/admin/polls/{id}`         |                                                            | Removes the question from its note, votes included                                                                                                                                                                                                                                                           |
-| `PATCH /api/admin/accounts/{id}`       | `{ role }`                                                 | Names or unnames an assistant. Access is not set here: it follows the share on plex.tv. `role` accepts `member` and `assistant` only, and it refuses to act on yourself or on the administrator                                                                                                              |
-| `PATCH /api/admin/accounts/{id}/note`  | `{ staffNote }`                                            | Writes the staff's reminder of who an account is, at most 200 characters; empty or `null` erases it. Open to assistants. Never shown to the member                                                                                                                                                           |
-| `POST /api/admin/jobs/run`             |                                                            | Starts a sync cycle and answers `{ started: true }` without waiting for it. 409 with `error.syncRunning` when one is already on its feet                                                                                                                                                                     |
-| `POST /api/admin/storage/scan`         |                                                            | Starts a measurement and a full walk of the configured volumes, and answers `{ started: true }`. Minutes of work, so the run is the record, not the response. 409 with `error.scanRunning`                                                                                                                   |
-| `GET /api/admin/storage/scan`          |                                                            | Where that walk is: `{ running, startedAt, progress }`, polled by the page while it runs                                                                                                                                                                                                                     |
-| `POST /api/admin/search-sites`         | `{ name, url, queryParam, params[], position?, enabled? }` | Adds a search page the queues can open. `url` must be http or https, `params` is `{ key, value }[]`, and a name already taken is a 409. The terms are written by Umbra, never configured                                                                                                                     |
-| `PATCH /api/admin/search-sites/{id}`   | partial                                                    | Edits a site, reorders it, enables or disables it                                                                                                                                                                                                                                                            |
-| `DELETE /api/admin/search-sites/{id}`  |                                                            | Deletes a site                                                                                                                                                                                                                                                                                               |
+| Route                                  | Body                                                                               | Effect                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PATCH /api/admin/requests/{id}`       | `{ status?, adminNote? }`                                                          | Moves a request along its lifecycle. An illegal move is a 409, as is `available` for a title the index does not hold yet. `accepted` on a series also starts tracking it; `adminNote` is an optional word shown to the requester and cleared on `available`. A body without a status rewrites the word alone |
+| `PATCH /api/admin/requests`            | `{ move, adminNote?, items[] }`                                                    | Moves several rows of the request queue at once; see below                                                                                                                                                                                                                                                   |
+| `PATCH /api/admin/reports/{id}`        | `{ status?, adminNote? }`                                                          | Moves a report along its state machine, where an illegal move is also a 409. `acknowledged` on a series also starts tracking it. A body without a status rewrites the word alone                                                                                                                             |
+| `POST /api/admin/series`               | `{ providerId }`                                                                   | Tracks a series and pulls its calendar. A 409 with `error.seriesIsCut` when the server holds it as a re-cut                                                                                                                                                                                                  |
+| `PATCH /api/admin/series/{id}`         | `{ enabled }`                                                                      | Pauses or resumes tracking                                                                                                                                                                                                                                                                                   |
+| `DELETE /api/admin/series/{id}`        |                                                                                    | Stops tracking a series and drops its calendar and tasks. An accepted request for it is marked as dropped in the same transaction, so the next cycle does not put it back; accepting a request for it again does                                                                                             |
+| `PATCH /api/admin/episodes/tasks/{id}` | `{ status: "done" \| "dismissed" }`                                                | Closes a task by hand                                                                                                                                                                                                                                                                                        |
+| `POST /api/admin/announcements`        | `{ title, content, category, published, link?, embed?, image?, featured?, poll? }` | Creates a note; `image` and `featured` are described below. `link` is `{ url, label? }`, http or https only. `embed` is `{ url, title?, ratio? }`, https only, `ratio` one of `wide`, `square`, `tall` (default `wide`). `poll` is `{ question, options[], endsAt? }` and opens with the note                |
+| `PATCH /api/admin/announcements/{id}`  | partial                                                                            | Edits or publishes. `image: null` takes the visual off and `featured: null` the pin; an absent field is left as it is. Withdrawing a note takes its pin off                                                                                                                                                  |
+| `DELETE /api/admin/announcements/{id}` |                                                                                    | Deletes                                                                                                                                                                                                                                                                                                      |
+| `PATCH /api/admin/polls/{id}`          | `{ active }`                                                                       | Opens or closes the question of a note. Opening closes the others                                                                                                                                                                                                                                            |
+| `DELETE /api/admin/polls/{id}`         |                                                                                    | Removes the question from its note, votes included                                                                                                                                                                                                                                                           |
+| `PATCH /api/admin/accounts/{id}`       | `{ role }`                                                                         | Names or unnames an assistant. Access is not set here: it follows the share on plex.tv. `role` accepts `member` and `assistant` only, and it refuses to act on yourself or on the administrator                                                                                                              |
+| `PATCH /api/admin/accounts/{id}/note`  | `{ staffNote }`                                                                    | Writes the staff's reminder of who an account is, at most 200 characters; empty or `null` erases it. Open to assistants. Never shown to the member                                                                                                                                                           |
+| `POST /api/admin/jobs/run`             |                                                                                    | Starts a sync cycle and answers `{ started: true }` without waiting for it. 409 with `error.syncRunning` when one is already on its feet                                                                                                                                                                     |
+| `POST /api/admin/storage/scan`         |                                                                                    | Starts a measurement and a full walk of the configured volumes, and answers `{ started: true }`. Minutes of work, so the run is the record, not the response. 409 with `error.scanRunning`                                                                                                                   |
+| `GET /api/admin/storage/scan`          |                                                                                    | Where that walk is: `{ running, startedAt, progress }`, polled by the page while it runs                                                                                                                                                                                                                     |
+| `POST /api/admin/search-sites`         | `{ name, url, queryParam, params[], position?, enabled? }`                         | Adds a search page the queues can open. `url` must be http or https, `params` is `{ key, value }[]`, and a name already taken is a 409. The terms are written by Umbra, never configured                                                                                                                     |
+| `PATCH /api/admin/search-sites/{id}`   | partial                                                                            | Edits a site, reorders it, enables or disables it                                                                                                                                                                                                                                                            |
+| `DELETE /api/admin/search-sites/{id}`  |                                                                                    | Deletes a site                                                                                                                                                                                                                                                                                               |
+
+### The request queue
+
+A request moves `requested` to `accepted`, `postponed` or `rejected`;
+`accepted` to `postponed` or `rejected`; `postponed` to `accepted` or
+`rejected`; `rejected` back to `requested`. `available` and `removed` are the
+library sync's alone, and a request in any live status, `postponed` included,
+is closed as `available` when its title reaches the server. `postponed` means
+worth having, no room yet (`docs/adr/0021-a-request-can-wait-for-room.md`): it
+keeps the title's one live request, so a member asking for it joins it, and a
+member cannot withdraw from it. Leaving it for `accepted` without a word erases
+the word it carried, which said why it waited. Every move made here notifies
+the followers, a move back to a status held before included.
+
+**`PATCH /api/admin/requests`** (staff), body
+`{ "move": "accept" | "postpone" | "reject" | "reopen", "adminNote"?: "...", "items": [{ "kind": "request" | "ask", "id": "uuid" }] }`,
+one to fifty items, an id sent twice moved once. Each row goes through the same
+move as its own route, one after the other: a request to `accepted`,
+`postponed`, `rejected` or `requested`, a season asked for (filed as a report)
+to `acknowledged`, `rejected` or `open`. An ask cannot be postponed, and an id
+sent as an ask that is a fault report is refused. `adminNote`, at most 500
+characters, goes to every row; left empty, an acceptance keeps each row's word
+(except on a request leaving `postponed`), a refusal or a postponement erases
+it, and a reopening ignores it. Answers `{ "moved": 3, "failed": [{ "id",
+"messageKey" }] }`: a row that refuses the move (`error.illegalTransition`, a
+row already settled by somebody else, `error.requestNotFound`, an unexpected
+fault as `error.internal`) does not stop the others. Shares the administration
+bucket.
+
+The queue pages, `/admin/requests` and `/admin/reports`, take a `q` search
+parameter alongside the stage and the page. It is trimmed and cut to a hundred
+characters and six words, and every word must be found somewhere on the row:
+the title or its original title, the provider id typed whole, the staff's note,
+or the name of whoever opened it or waits on it. Wildcards are read as
+themselves, and the counts on the stages read the same filter as the list.
 
 ### The storage explorer
 
@@ -241,6 +282,48 @@ file as it is on disk, with `Range` so the player can seek, and 416 with a
 route here that answers bytes rather than JSON. Umbra never transcodes: the media
 server next door already does, and whether the browser can decode the file is the
 browser's answer.
+
+### Notes, visuals and the pin
+
+**`POST /api/admin/uploads`** (staff). The body is the picture itself, not
+JSON and not a form: whatever the browser has, sent as is. Ten megabytes at
+most, counted as the bytes arrive (400 with `error.imageTooLarge`). The file is
+decoded rather than believed: JPEG, PNG, WebP, GIF, HEIF and AVIF pass, anything
+else, SVG included, is a 400 with `error.imageUnreadable`. Umbra turns it the
+way its EXIF says, fits it inside 1600 by 1600, re-encodes it as WebP with no
+metadata and answers
+`{ "key": "<sha256>", "width": 1600, "height": 900, "url": "/api/uploads/<sha256>.webp" }`.
+A 409 with `error.uploadsUnwritable` means the uploads volume cannot be written.
+Ten a minute, on the administration bucket. This route is not behind
+`src/proxy.ts`, so it refuses a cross-site browser itself with the same 403.
+
+The key goes on the note as `image: { key, alt }`: `key` is the 64 hex
+characters the upload answered, `alt` the description, 2 to 200 characters
+and required. The size is read from the stored file, and a key that names no
+file is a 400 with `error.imageMissing`. A file no note names is deleted by the
+housekeeping step once it is a day old.
+
+`featured: { until? }` pins a published note to the top of the home page,
+`until` being an optional end date that must lie ahead (`error.featureEndPast`).
+Pinning one unpins any other; a draft is a 400 with `error.featureNeedsPublish`,
+and two pins at the same instant leave the second a 409 with
+`error.featureTaken`. A pin past its date stops showing by itself.
+
+A note of category `funding` needs its `link`, at creation and after any edit:
+400 with `error.fundingNeedsLink`. The button then reads the label, or a
+default wording the client owns.
+
+**`GET /api/uploads/{key}.webp`** (member). One visual, as bytes. A member is
+served the visual of a published note and nothing else; the staff are served
+any stored file, for the composer's preview. Anything else is a 404, a name
+that is not a key included. `Cache-Control: private, max-age=31536000,
+immutable`, since the name is the digest of the file. Three hundred a minute.
+
+**`POST /api/news/seen`** (member), body `{ "through": "<ISO date>" }`, the
+publication date of the newest note the news page showed. Moves the account's
+`news_seen_at` forward to it, never back and never past now, which takes the
+dot off the "news" entry until a newer note goes out. Sent by the page once it
+is shown, never by its render. Thirty a minute. Answers `{ "seen": true }`.
 
 ## Operations
 

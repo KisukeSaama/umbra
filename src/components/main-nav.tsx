@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useNewsUnread } from "@/components/news-seen";
 import { useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -25,9 +26,17 @@ const LINKS = [
   { href: "/news", key: "nav.news" },
 ] as const;
 
-export function MainNav({ isStaff }: { isStaff: boolean }) {
+export function MainNav({
+  isStaff,
+  newsUnread = false,
+}: {
+  isStaff: boolean;
+  /** A note went out since this member last opened the feed. */
+  newsUnread?: boolean;
+}) {
   const t = useTranslator();
   const pathname = usePathname();
+  const unread = useNewsUnread(newsUnread);
 
   const links = isStaff
     ? [...LINKS, { href: "/admin", key: "nav.admin" } as const]
@@ -51,6 +60,7 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
             )}
           >
             {t(link.key)}
+            {link.href === "/news" && unread ? <NewsDot /> : null}
             {active ? (
               <span className="bg-primary absolute inset-x-3 -bottom-px h-px rounded-full xl:inset-x-4" />
             ) : null}
@@ -58,5 +68,25 @@ export function MainNav({ isStaff }: { isStaff: boolean }) {
         );
       })}
     </nav>
+  );
+}
+
+/**
+ * Something new on the feed. A state indicator, so it may take the lamp, and a
+ * dot alone is a code: the words are there for whoever cannot see it.
+ */
+export function NewsDot({ className }: { className?: string }) {
+  const t = useTranslator();
+  return (
+    <>
+      <span
+        aria-hidden
+        className={cn(
+          "bg-primary ml-1.5 inline-block size-1.5 rounded-full align-middle",
+          className,
+        )}
+      />
+      <span className="sr-only">{t("nav.newsUnread")}</span>
+    </>
   );
 }

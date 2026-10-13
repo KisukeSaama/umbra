@@ -49,9 +49,8 @@ describe("boolean flags", () => {
   }
 
   /*
-   * The bug this covers: `z.coerce.boolean()` is `Boolean(value)`, so the
-   * string the deployment actually writes read as true and a switch meant to
-   * be off was on.
+   * `z.coerce.boolean()` is `Boolean(value)`, so read that way the string the
+   * deployment writes would turn a switch meant to be off on.
    */
   it("reads the word false as false", () => {
     expect(read({ DEV_LOGIN: "false" }).DEV_LOGIN).toBe(false);

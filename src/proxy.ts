@@ -12,11 +12,10 @@ import { isCrossSiteMutation } from "@/lib/csrf";
  * domain layer.
  *
  * And it stamps the Content Security Policy, with a nonce made for that one
- * request. The policy used to be a static header, and a static header cannot
- * name a nonce, so it had to allow every inline script instead: the one thing
- * a policy is there to refuse. Next reads the nonce back out of the header and
- * puts it on the scripts it writes itself, so nothing here has to be threaded
- * through the pages.
+ * request. A static header cannot name a nonce, so it would have to allow
+ * every inline script: the one thing a policy is there to refuse. Next reads
+ * the nonce back out of the header and puts it on the scripts it writes
+ * itself, so nothing here has to be threaded through the pages.
  */
 
 /** Development needs `eval`: React rebuilds server stacks in the browser with it. */
@@ -85,8 +84,18 @@ export const config = {
      * cross-site check happens, and a rule that could be stepped around by
      * naming a header would not be a check. In particular it is not filtered
      * on prefetch headers, which a caller writes itself.
+     *
+     * One path is left to its route: the upload of a note's visual. Next
+     * buffers in memory every body this function sees, up to
+     * `proxyClientMaxBodySize`, and that limit is one for the whole surface.
+     * Raising it to a picture's ten megabytes would let any caller of any
+     * route make the server hold ten megabytes before the 64 kB cap of
+     * `jsonBody` turned it away. The upload route makes the same cross-site
+     * check itself, first thing, and counts its own bytes as they arrive; a
+     * spelling of its path that slipped past this pattern would only land
+     * here, under the small limit, and be refused as too short to decode.
      */
-    "/api/:path*",
+    "/api/((?!admin/uploads$).*)",
     /*
      * And every document, minus the files that need no policy of their own:
      * the build output, the image optimiser and the icons. A prefetch is

@@ -7,6 +7,7 @@ import { MainNav } from "@/components/main-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { OpenPlex } from "@/components/open-plex";
 import { currentAccount } from "@/lib/auth/session";
+import { hasUnreadNews } from "@/lib/domain/announcements";
 import { unreadCount } from "@/lib/domain/notifications";
 import { getLocaleOverride, getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,9 @@ export async function SiteHeader({ full = false }: { full?: boolean } = {}) {
 
   // Rendered with the page rather than polled: the count is true on arrival and
   // catches up on the next navigation, which is enough for a bell.
-  const unread = account ? await unreadCount(account.id) : 0;
+  const [unread, newsUnread] = account
+    ? await Promise.all([unreadCount(account.id), hasUnreadNews(account.id)])
+    : [0, false];
 
   return (
     <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b pt-[env(safe-area-inset-top)] backdrop-blur">
@@ -57,7 +60,7 @@ export async function SiteHeader({ full = false }: { full?: boolean } = {}) {
         </Link>
 
         <div className="hidden lg:block">
-          <MainNav isStaff={isStaff} />
+          <MainNav isStaff={isStaff} newsUnread={newsUnread} />
         </div>
 
         <div className="flex items-center gap-0.5 sm:gap-1">

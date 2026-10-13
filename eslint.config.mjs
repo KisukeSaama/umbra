@@ -2,6 +2,66 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+/*
+ * What a client module may not import as a value: the schema, the connection,
+ * and Drizzle itself. Each one ships the query builder, and with the schema
+ * every table and index, to the browser.
+ */
+const SERVER_ONLY_SOURCES = [
+  {
+    test: (source) => source === "@/lib/db/schema",
+    message:
+      "A client module must not import a value from the schema: it ships Drizzle to the browser. Put the value in a module of its own, as `@/lib/announcements` does.",
+  },
+  {
+    test: (source) => source === "@/lib/db",
+    message: "A client module must not import the database connection.",
+  },
+  {
+    test: (source) =>
+      source === "drizzle-orm" || source.startsWith("drizzle-orm/"),
+    message:
+      "A client module must not import Drizzle: queries belong to the domain layer, on the server.",
+  },
+];
+
+/**
+ * The same guard for any module that declares `"use client"`, wherever it
+ * lives: a path pattern only covers the folders someone thought of, and the
+ * error pages and the i18n provider are client modules outside
+ * `src/components`.
+ */
+const clientBoundary = {
+  rules: {
+    "no-server-imports": {
+      meta: { type: "problem", schema: [] },
+      create(context) {
+        let isClient = false;
+        return {
+          Program(node) {
+            isClient = node.body.some(
+              (statement) =>
+                statement.type === "ExpressionStatement" &&
+                statement.directive === "use client",
+            );
+          },
+          ImportDeclaration(node) {
+            if (!isClient || node.importKind === "type") return;
+            const valueSpecifiers = node.specifiers.filter(
+              (specifier) => specifier.importKind !== "type",
+            );
+            if (node.specifiers.length > 0 && valueSpecifiers.length === 0)
+              return;
+            const source = String(node.source.value);
+            const hit = SERVER_ONLY_SOURCES.find((entry) => entry.test(source));
+            if (hit) context.report({ node, message: hit.message });
+          },
+        };
+      },
+    },
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -32,10 +92,29 @@ const eslintConfig = defineConfig([
               message:
                 "A client component must not import a value from the schema: it ships Drizzle to the browser. Put the value in a module of its own, as `@/lib/announcements` does.",
             },
+            {
+              name: "drizzle-orm",
+              allowTypeImports: true,
+              message:
+                "A component must not import Drizzle: queries belong to the domain layer, on the server.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["drizzle-orm/*"],
+              allowTypeImports: true,
+              message:
+                "A component must not import Drizzle: queries belong to the domain layer, on the server.",
+            },
           ],
         },
       ],
     },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { umbra: clientBoundary },
+    rules: { "umbra/no-server-imports": "error" },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([

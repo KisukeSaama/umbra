@@ -127,9 +127,9 @@ describe.skipIf(!hasDatabase)("reopening a declined report", () => {
 /**
  * The request lifecycle, against the table it lives in.
  *
- * The graph in `docs/product.md` only ever moves forward, and it used to be a
- * drawing rather than a rule: every status was accepted from every status. This
- * is the regression test for the two moves that did real damage.
+ * The graph in `docs/product.md` is a rule, not a drawing: a status is reached
+ * only from the statuses that lead to it. The two moves asserted here are the
+ * ones that do real damage when allowed.
  */
 describe.skipIf(!hasDatabase)("moving a request", () => {
   beforeEach(emptyDatabase);
@@ -582,6 +582,76 @@ describe.skipIf(!hasDatabase)("sharing a request", () => {
     expect(row).toMatchObject({ status: "available", adminNote: null });
   });
 
+  /*
+   * Going back is the normal flow (ADR 0021): taken up, put off for lack of
+   * room, taken up again the day there is room. The second acceptance is news
+   * of its own, not a repeat of the first.
+   */
+  it("tells the followers every time a request is accepted again", async () => {
+    const { first, requestId } = await askedFilm();
+
+    await requests.updateRequestStatus(requestId, "accepted");
+    await requests.updateRequestStatus(requestId, "postponed", "no disk");
+    await requests.updateRequestStatus(requestId, "accepted");
+
+    const told = await db()
+      .select({ payload: schema.notifications.payload })
+      .from(schema.notifications)
+      .where(eq(schema.notifications.accountId, first))
+      .orderBy(schema.notifications.createdAt);
+    expect(told.map((row) => row.payload.status)).toEqual([
+      "accepted",
+      "postponed",
+      "accepted",
+    ]);
+  });
+
+  /*
+   * The row's own accept opens on an empty box on a request put off, so the
+   * word about room goes with it; a selection accepted with nothing typed
+   * must not reach further, nor less far, than that button.
+   */
+  it("erases the word about room when a selection is accepted", async () => {
+    const { requestId } = await askedFilm();
+    await requests.updateRequestStatus(requestId, "postponed", "no disk");
+
+    const { moveQueueItems } = await import("@/lib/domain/queue-moves");
+    const outcome = await moveQueueItems(
+      [{ kind: "request", id: requestId }],
+      "accept",
+      null,
+    );
+    expect(outcome).toEqual({ moved: 1, failed: [] });
+
+    const [row] = await requests.listRequests();
+    expect(row).toMatchObject({ status: "accepted", adminNote: null });
+  });
+
+  it("moves only asks as asks, whatever the selection says", async () => {
+    const { first } = await askedFilm();
+    const [film] = await db()
+      .select({ id: schema.media.id })
+      .from(schema.media);
+    const [fault] = await db()
+      .insert(schema.reports)
+      .values({ mediaId: film.id, reportedBy: first, reason: "bad_quality" })
+      .returning({ id: schema.reports.id });
+
+    const { moveQueueItems } = await import("@/lib/domain/queue-moves");
+    const outcome = await moveQueueItems(
+      [{ kind: "ask", id: fault.id }],
+      "accept",
+    );
+    expect(outcome).toEqual({
+      moved: 0,
+      failed: [{ id: fault.id, messageKey: "error.illegalTransition" }],
+    });
+    const [report] = await db()
+      .select({ status: schema.reports.status })
+      .from(schema.reports);
+    expect(report.status).toBe("open");
+  });
+
   it("keeps the request for those who stay, and hands it on", async () => {
     const { first, requestId } = await askedFilm();
     const second = await member(2);
@@ -613,10 +683,10 @@ describe.skipIf(!hasDatabase)("sharing a request", () => {
 /**
  * Reconciliation, against the tables it compares.
  *
- * Presence used to be a one-way door: an episode marked available stayed
- * available after its file was deleted, so no task came back and a report
- * saying the series was behind could settle itself against a calendar that
- * claimed everything was there. Both directions are asserted here.
+ * Presence goes both ways: an episode whose file is deleted stops being
+ * available, so its task comes back and a report saying the series is behind
+ * cannot settle itself against a calendar claiming everything is there. Both
+ * directions are asserted here.
  */
 describe.skipIf(!hasDatabase)("reconciling episodes", () => {
   beforeEach(emptyDatabase);
@@ -1112,6 +1182,36 @@ describe.skipIf(!hasDatabase)("a re-cut on the server", () => {
     expect(await catalog.isInLibrary("tv", "77")).toBe(true);
   });
 
+  /*
+   * The series was asked for and accepted, and what arrives is its "Kai",
+   * matched to nothing. Search already reads it as on the server; the request
+   * has to close with it, or it waits as coming soon for ever.
+   */
+  it("closes the request for the series it is a cut of", async () => {
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: "test:cut", username: "test" })
+      .returning({ id: schema.accounts.id });
+    const [show] = await db()
+      .insert(schema.media)
+      .values({ providerId: "77", mediaType: "tv", title: "Naruto" })
+      .returning({ id: schema.media.id });
+    await db().insert(schema.mediaRequests).values({
+      mediaId: show.id,
+      requestedBy: account.id,
+      status: "accepted",
+    });
+
+    await unmatchedCut();
+    expect((await requests.listRequests())[0]?.inLibrary).toBe(true);
+    expect(await requests.closeRequestsPresentInLibrary()).toBe(1);
+    expect(await requests.closeRequestsPresentInLibrary()).toBe(0);
+    // And it stays closed: the retirement reads presence the same way.
+    expect(await requests.retireRequestsGoneFromLibrary()).toBe(0);
+    const [row] = await requests.listRequests();
+    expect(row.status).toBe("available");
+  });
+
   it("builds no ladder, for itself or for anyone else", async () => {
     await unmatchedCut();
 
@@ -1184,6 +1284,32 @@ describe.skipIf(!hasDatabase)("a re-cut on the server", () => {
     expect(result.availability).toBe("available");
   });
 
+  it("seeds the personal shelf under the id Umbra worked out", async () => {
+    await unmatchedCut();
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: "plex-viewer", username: "Viewer" })
+      .returning({ id: schema.accounts.id });
+    const { plexLibrary } = await import("@/lib/providers/plex");
+    const discovery = await import("@/lib/domain/discovery");
+    vi.spyOn(plexLibrary, "watchHistory").mockResolvedValue([
+      {
+        ratingKey: "plex:kai:e2",
+        grandparentRatingKey: "plex:kai",
+        kind: "episode",
+      },
+    ]);
+
+    try {
+      // The server gives the cut no provider id: the shelf has to use the one
+      // Umbra matched, or the one title this member watched is left out.
+      const { history } = await discovery.recentTitles(account.id);
+      expect(history).toEqual([{ kind: "tv", providerId: "77" }]);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it("gives way to the series itself when the server holds both", async () => {
     await unmatchedCut();
     await db().insert(schema.libraryItems).values({
@@ -1205,5 +1331,630 @@ describe.skipIf(!hasDatabase)("a re-cut on the server", () => {
     // three the edit keeps are a different numbering.
     expect(await library.seasonsOnServer("77")).toEqual([1]);
     expect([...(await library.episodeCountsBySeason("77"))]).toEqual([[1, 1]]);
+  });
+});
+
+/*
+ * An ask for the rest of a season is measured on every administration page
+ * that lists it. A series under watch already holds that calendar, so the page
+ * reads it rather than asking the gateway once per row.
+ */
+describe.skipIf(!hasDatabase)("measuring a season asked for", () => {
+  beforeEach(emptyDatabase);
+
+  it("reads the tracker's calendar and asks the provider about nothing", async () => {
+    const { tmdbProvider } = await import("@/lib/providers/tmdb");
+    const { seasonGaps } = await import("@/lib/domain/season-gap");
+    const provider = vi.spyOn(tmdbProvider, "seasonEpisodes");
+
+    const [show] = await db()
+      .insert(schema.media)
+      .values({ providerId: "42", mediaType: "tv", title: "Cowboy Bebop" })
+      .returning({ id: schema.media.id });
+    const [tracked] = await db()
+      .insert(schema.trackedSeries)
+      .values({ mediaId: show.id, lastSyncedAt: new Date() })
+      .returning({ id: schema.trackedSeries.id });
+    await db()
+      .insert(schema.episodes)
+      .values(
+        [1, 2, 3, 4].map((episodeNumber) => ({
+          seriesId: tracked.id,
+          seasonNumber: 1,
+          episodeNumber,
+          airDate: episodeNumber < 4 ? "2026-01-06" : "2099-01-06",
+        })),
+      );
+    await db()
+      .insert(schema.libraryItems)
+      .values([
+        { ratingKey: "show:42", kind: "show", title: "Bebop", tmdbId: "42" },
+        {
+          ratingKey: "show:42:e1",
+          kind: "episode",
+          title: "Episode 1",
+          grandparentRatingKey: "show:42",
+          seasonNumber: 1,
+          episodeNumber: 1,
+        },
+      ]);
+
+    try {
+      const ask = {
+        reason: "missing_episode" as const,
+        seasonNumber: 1,
+        episodeNumber: null,
+        media: { providerId: "42" },
+      };
+      const gaps = await seasonGaps([
+        { ...ask, id: "ask" },
+        // A single episode has no gap to measure.
+        { ...ask, id: "episode", episodeNumber: 2 },
+      ]);
+
+      // Two aired and absent, the one still to come left out.
+      expect(gaps.get("ask")).toEqual({
+        missing: 2,
+        held: 1,
+        aired: 3,
+        codes: "S01E02-S01E03",
+      });
+      expect(gaps.has("episode")).toBe(false);
+      expect(provider).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});
+
+/*
+ * A question belongs to the note that carries it, and only one is open at a
+ * time. Opening the poll of a draft rang every member's bell for a note none of
+ * them could read; two publications at once left two questions open.
+ */
+describe.skipIf(!hasDatabase)("opening a poll", () => {
+  beforeEach(emptyDatabase);
+
+  async function pollOn(published: boolean) {
+    const polls = await import("@/lib/domain/polls");
+    const [note] = await db()
+      .insert(schema.announcements)
+      .values({ title: "Note", content: "Body", published })
+      .returning();
+    const poll = await polls.attachPoll({
+      announcementId: note.id,
+      question: "Which one?",
+      options: ["One", "Two"],
+    });
+    const [option] = await db()
+      .select()
+      .from(schema.pollOptions)
+      .where(eq(schema.pollOptions.pollId, poll.id))
+      .limit(1);
+    return { polls, note, poll, option };
+  }
+
+  it("refuses to open the question of a draft", async () => {
+    const { polls, poll } = await pollOn(false);
+    await expect(polls.setPollActive(poll.id, true)).rejects.toMatchObject({
+      messageKey: "error.pollNotPublished",
+    });
+    const [row] = await db()
+      .select()
+      .from(schema.polls)
+      .where(eq(schema.polls.id, poll.id));
+    expect(row.active).toBe(false);
+  });
+
+  it("takes no vote on the question of a draft", async () => {
+    const { polls, poll, option } = await pollOn(false);
+    // Opened behind the note's back, as a withdrawal by other means would.
+    await db()
+      .update(schema.polls)
+      .set({ active: true })
+      .where(eq(schema.polls.id, poll.id));
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: "test:vote", username: "voter" })
+      .returning();
+    await expect(
+      polls.castVote(poll.id, option.id, account.id),
+    ).rejects.toMatchObject({ messageKey: "error.pollNotFound" });
+  });
+
+  it("opens the question of a published note", async () => {
+    const { polls, poll } = await pollOn(true);
+    const row = await polls.setPollActive(poll.id, true, { notify: false });
+    expect(row.active).toBe(true);
+  });
+
+  it("keeps a single question open, whatever writes it", async () => {
+    const first = await pollOn(true);
+    const second = await pollOn(true);
+    await first.polls.setPollActive(first.poll.id, true, { notify: false });
+    await expect(
+      db()
+        .update(schema.polls)
+        .set({ active: true })
+        .where(eq(schema.polls.id, second.poll.id)),
+    ).rejects.toThrow();
+  });
+});
+
+/*
+ * The genres a member leans towards are counted in SQL, a title once however
+ * often it was played, and only the totals come back.
+ */
+describe.skipIf(!hasDatabase)("weighing a taste profile", () => {
+  beforeEach(emptyDatabase);
+
+  it("counts each title once, an episode against its show", async () => {
+    const { plexLibrary } = await import("@/lib/providers/plex");
+    const taste = await import("@/lib/domain/taste");
+    const [account] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: "plex-taste", username: "Taste" })
+      .returning({ id: schema.accounts.id });
+    await db()
+      .insert(schema.libraryItems)
+      .values([
+        { ratingKey: "film", kind: "movie", title: "A", genreIds: [18, 35] },
+        { ratingKey: "show", kind: "show", title: "B", genreIds: [18] },
+        {
+          ratingKey: "show:e1",
+          kind: "episode",
+          title: "E1",
+          grandparentRatingKey: "show",
+          seasonNumber: 1,
+          episodeNumber: 1,
+        },
+      ]);
+    vi.spyOn(plexLibrary, "watchHistory").mockResolvedValue([
+      { ratingKey: "film", grandparentRatingKey: null, kind: "movie" },
+      { ratingKey: "film", grandparentRatingKey: null, kind: "movie" },
+      { ratingKey: "show:e1", grandparentRatingKey: "show", kind: "episode" },
+      { ratingKey: "show:e1", grandparentRatingKey: "show", kind: "episode" },
+    ]);
+
+    try {
+      expect(
+        await taste.refreshTasteProfile({
+          id: account.id,
+          plexAccountId: "plex-taste",
+        }),
+      ).toBe(3);
+      const rows = await db()
+        .select({
+          mediaKind: schema.tasteProfiles.mediaKind,
+          genreId: schema.tasteProfiles.genreId,
+          weight: schema.tasteProfiles.weight,
+        })
+        .from(schema.tasteProfiles)
+        .orderBy(schema.tasteProfiles.mediaKind, schema.tasteProfiles.genreId);
+      expect(rows).toEqual([
+        { mediaKind: "movie", genreId: 18, weight: 1 },
+        { mediaKind: "movie", genreId: 35, weight: 1 },
+        { mediaKind: "tv", genreId: 18, weight: 1 },
+      ]);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});
+
+describe.skipIf(!hasDatabase)("titles the provider keeps refusing", () => {
+  beforeEach(emptyDatabase);
+
+  const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000);
+
+  async function trackedSeries(
+    title: string,
+    dates: { lastSyncedAt?: Date; syncAttemptedAt?: Date },
+  ) {
+    const [show] = await db()
+      .insert(schema.media)
+      .values({ providerId: title, mediaType: "tv", title })
+      .returning({ id: schema.media.id });
+    const [row] = await db()
+      .insert(schema.trackedSeries)
+      .values({ mediaId: show.id, enabled: true, ...dates })
+      .returning({ id: schema.trackedSeries.id });
+    return row.id;
+  }
+
+  it("does not bring a failing series back before a healthy one", async () => {
+    await trackedSeries("failing", {
+      lastSyncedAt: hoursAgo(48),
+      syncAttemptedAt: hoursAgo(13),
+    });
+    await trackedSeries("healthy", { lastSyncedAt: hoursAgo(14) });
+
+    const due = await series.seriesDueForSync();
+    expect(due.map((row) => row.title)).toEqual(["healthy", "failing"]);
+  });
+
+  it("waits half a day after a refused attempt, like after a sync", async () => {
+    const failing = await trackedSeries("failing", {});
+    await trackedSeries("never", {});
+
+    await series.markSeriesSyncAttempted(failing);
+
+    const due = await series.seriesDueForSync();
+    expect(due.map((row) => row.title)).toEqual(["never"]);
+  });
+
+  async function acceptedSeriesRequest() {
+    const [show] = await db()
+      .insert(schema.media)
+      .values({ providerId: "77", mediaType: "tv", title: "Announced" })
+      .returning({ id: schema.media.id });
+    const [request] = await db()
+      .insert(schema.mediaRequests)
+      .values({ mediaId: show.id, status: "accepted" })
+      .returning({ id: schema.mediaRequests.id });
+    return request.id;
+  }
+
+  async function trackAttemptedAt(requestId: string) {
+    const [row] = await db()
+      .select({ at: schema.mediaRequests.trackAttemptedAt })
+      .from(schema.mediaRequests)
+      .where(eq(schema.mediaRequests.id, requestId));
+    return row.at;
+  }
+
+  it("stamps a request whose series the provider refuses, and waits", async () => {
+    const { tmdbProvider } = await import("@/lib/providers/tmdb");
+    const { UpstreamError } = await import("@/lib/errors");
+    const requestId = await acceptedSeriesRequest();
+    const details = vi.spyOn(tmdbProvider, "seriesDetails").mockRejectedValue(
+      new UpstreamError("tmdb-v3", "status 404 on /tv/77", {
+        origin: "upstream",
+        status: 404,
+      }),
+    );
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      expect(await series.trackAcceptedSeries()).toBe(0);
+      expect(await trackAttemptedAt(requestId)).not.toBeNull();
+
+      // Not asked again on the next cycle.
+      expect(await series.trackAcceptedSeries()).toBe(0);
+      expect(details).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("stops on a quota reached, and stamps nothing", async () => {
+    const { tmdbProvider } = await import("@/lib/providers/tmdb");
+    const { RateLimitedError } = await import("@/lib/errors");
+    const requestId = await acceptedSeriesRequest();
+    vi.spyOn(tmdbProvider, "seriesDetails").mockRejectedValue(
+      new RateLimitedError("30"),
+    );
+
+    try {
+      await expect(series.trackAcceptedSeries()).rejects.toBeInstanceOf(
+        RateLimitedError,
+      );
+      expect(await trackAttemptedAt(requestId)).toBeNull();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  async function indexedTitle() {
+    const [row] = await db()
+      .insert(schema.libraryItems)
+      .values({
+        ratingKey: "film:1",
+        kind: "movie",
+        title: "Film",
+        tmdbId: "550",
+      })
+      .returning({ id: schema.libraryItems.id });
+    return row.id;
+  }
+
+  async function enrichedAt(id: string) {
+    const [row] = await db()
+      .select({ at: schema.libraryItems.enrichedAt })
+      .from(schema.libraryItems)
+      .where(eq(schema.libraryItems.id, id));
+    return row.at;
+  }
+
+  it("leaves a title unstamped for the next run when the gateway is down", async () => {
+    const { tmdbProvider } = await import("@/lib/providers/tmdb");
+    const { UpstreamError } = await import("@/lib/errors");
+    const id = await indexedTitle();
+    vi.spyOn(tmdbProvider, "details").mockRejectedValue(
+      new UpstreamError("tmdb-v3", "no answer within 40 s", {
+        origin: "network",
+      }),
+    );
+
+    try {
+      await expect(library.enrichLibraryPosters()).rejects.toBeInstanceOf(
+        UpstreamError,
+      );
+      expect(await enrichedAt(id)).toBeNull();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("parks a title the provider itself refused", async () => {
+    const { tmdbProvider } = await import("@/lib/providers/tmdb");
+    const { UpstreamError } = await import("@/lib/errors");
+    const id = await indexedTitle();
+    vi.spyOn(tmdbProvider, "details").mockRejectedValue(
+      new UpstreamError("tmdb-v3", "status 404 on /movie/550", {
+        origin: "upstream",
+        status: 404,
+      }),
+    );
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      expect(await library.enrichLibraryPosters()).toBe(0);
+      expect(await enrichedAt(id)).not.toBeNull();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});
+
+describe.skipIf(!hasDatabase)("the featured note and the news dot", () => {
+  let announcements: typeof import("@/lib/domain/announcements");
+  let uploads: typeof import("@/lib/domain/uploads");
+  let uploadsDirectory: string;
+
+  beforeAll(async () => {
+    if (!hasDatabase) return;
+    const { mkdtemp } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { resetEnvCache } = await import("@/lib/env");
+    uploadsDirectory = await mkdtemp(path.join(tmpdir(), "umbra-db-uploads-"));
+    process.env.UPLOADS_PATH = uploadsDirectory;
+    resetEnvCache();
+    announcements = await import("@/lib/domain/announcements");
+    uploads = await import("@/lib/domain/uploads");
+  });
+
+  beforeEach(emptyDatabase);
+
+  async function note(
+    values: Partial<typeof schema.announcements.$inferInsert> = {},
+  ) {
+    const [row] = await db()
+      .insert(schema.announcements)
+      .values({
+        title: "A note",
+        content: "Body",
+        published: true,
+        publishedAt: new Date(),
+        ...values,
+      })
+      .returning();
+    return row;
+  }
+
+  async function member(name = "reader") {
+    const [row] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: `test:${name}`, username: name })
+      .returning();
+    return row;
+  }
+
+  it("refuses a second pinned note at the database", async () => {
+    await note({ featured: true });
+    await expect(note({ featured: true })).rejects.toThrow();
+  });
+
+  it("refuses a pinned draft at the database", async () => {
+    await expect(
+      note({ featured: true, published: false, publishedAt: null }),
+    ).rejects.toThrow();
+  });
+
+  it("moves the pin rather than refusing it, through the domain", async () => {
+    const first = await note({ featured: true });
+    const second = await note();
+    await announcements.updateAnnouncement(second.id, {
+      featured: { until: null },
+    });
+    const pinned = await db()
+      .select({ id: schema.announcements.id })
+      .from(schema.announcements)
+      .where(eq(schema.announcements.featured, true));
+    expect(pinned).toEqual([{ id: second.id }]);
+    expect((await announcements.featuredAnnouncement())?.id).toBe(second.id);
+    expect(first.id).not.toBe(second.id);
+  });
+
+  it("stops showing a pin past its date, with nothing run to take it down", async () => {
+    await note({
+      featured: true,
+      featuredUntil: new Date(Date.now() - 60_000),
+    });
+    expect(await announcements.featuredAnnouncement()).toBeNull();
+
+    await db()
+      .update(schema.announcements)
+      .set({
+        featuredUntil: new Date(Date.now() + 60_000),
+      });
+    expect(await announcements.featuredAnnouncement()).not.toBeNull();
+  });
+
+  it("takes the pin off a note that is withdrawn", async () => {
+    const pinned = await note({ featured: true });
+    await announcements.updateAnnouncement(pinned.id, { published: false });
+    const [row] = await db()
+      .select({ featured: schema.announcements.featured })
+      .from(schema.announcements)
+      .where(eq(schema.announcements.id, pinned.id));
+    expect(row.featured).toBe(false);
+  });
+
+  it("refuses a fundraiser without the address of its page", async () => {
+    await expect(
+      announcements.createAnnouncement({
+        title: "Fundraiser",
+        content: "What it is for",
+        category: "funding",
+        published: false,
+      }),
+    ).rejects.toMatchObject({ messageKey: "error.fundingNeedsLink" });
+
+    const funding = await note({
+      category: "funding",
+      linkUrl: "https://example.org/pot",
+    });
+    await expect(
+      announcements.updateAnnouncement(funding.id, { link: null }),
+    ).rejects.toMatchObject({ messageKey: "error.fundingNeedsLink" });
+  });
+
+  it("attaches a stored visual with its own size, and refuses one that is not there", async () => {
+    const sharp = (await import("sharp")).default;
+    const stored = await uploads.storeUpload(
+      await sharp({
+        create: { width: 90, height: 30, channels: 3, background: "#c80" },
+      })
+        .png()
+        .toBuffer(),
+    );
+    const { id } = await announcements.createAnnouncement({
+      title: "With a picture",
+      content: "Body",
+      category: "information",
+      published: false,
+      image: { key: stored.key, alt: "An ochre band" },
+    });
+    const [row] = await db()
+      .select()
+      .from(schema.announcements)
+      .where(eq(schema.announcements.id, id));
+    expect(row).toMatchObject({
+      imageKey: stored.key,
+      imageWidth: 90,
+      imageHeight: 30,
+      imageAlt: "An ochre band",
+    });
+
+    // A draft's picture is for the staff alone.
+    expect(await uploads.canReadUpload(stored.key, { role: "member" })).toBe(
+      false,
+    );
+    expect(await uploads.canReadUpload(stored.key, { role: "assistant" })).toBe(
+      true,
+    );
+    await announcements.updateAnnouncement(id, { published: true });
+    expect(await uploads.canReadUpload(stored.key, { role: "member" })).toBe(
+      true,
+    );
+
+    await expect(
+      announcements.createAnnouncement({
+        title: "Missing picture",
+        content: "Body",
+        category: "information",
+        published: false,
+        image: { key: "e".repeat(64), alt: "Nothing" },
+      }),
+    ).rejects.toMatchObject({ messageKey: "error.imageMissing" });
+  });
+
+  it("refuses a visual without words at the database", async () => {
+    await expect(
+      note({
+        imageKey: "f".repeat(64),
+        imageWidth: 10,
+        imageHeight: 10,
+        imageAlt: "  ",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("keeps a visual a note still names when the sweep runs", async () => {
+    const { readdir, utimes } = await import("node:fs/promises");
+    const path = await import("node:path");
+    const sharp = (await import("sharp")).default;
+    const make = (background: string) =>
+      sharp({ create: { width: 20, height: 20, channels: 3, background } })
+        .png()
+        .toBuffer();
+    const kept = await uploads.storeUpload(await make("#123"));
+    const orphan = await uploads.storeUpload(await make("#456"));
+    await note({
+      imageKey: kept.key,
+      imageWidth: kept.width,
+      imageHeight: kept.height,
+      imageAlt: "Kept",
+    });
+    const old = new Date(Date.now() - 2 * 86_400_000);
+    for (const key of [kept.key, orphan.key])
+      await utimes(path.join(uploadsDirectory, `${key}.webp`), old, old);
+
+    expect(await uploads.sweepOrphanUploads()).toBe(1);
+    const left = await readdir(uploadsDirectory);
+    expect(left).toContain(`${kept.key}.webp`);
+    expect(left).not.toContain(`${orphan.key}.webp`);
+    // A second pass finds nothing left to do.
+    expect(await uploads.sweepOrphanUploads()).toBe(0);
+  });
+
+  it("lights the dot for a note published since the last visit, and only then", async () => {
+    const reader = await member();
+    // Nothing published: nothing to read.
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(false);
+
+    const first = await note({ publishedAt: new Date(Date.now() - 60_000) });
+    // Never opened the feed: everything there is new.
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(true);
+
+    await announcements.markNewsSeen(reader.id, first.publishedAt!);
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(false);
+
+    // A draft is news to nobody.
+    await note({ published: false, publishedAt: null });
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(false);
+
+    await note({ publishedAt: new Date() });
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(true);
+  });
+
+  it("never moves the seen marker backwards, nor past now", async () => {
+    const reader = await member();
+    const seen = async () =>
+      (
+        await db()
+          .select({ at: schema.accounts.newsSeenAt })
+          .from(schema.accounts)
+          .where(eq(schema.accounts.id, reader.id))
+      )[0].at;
+
+    const recent = new Date(Date.now() - 1000);
+    await announcements.markNewsSeen(reader.id, recent);
+    await announcements.markNewsSeen(
+      reader.id,
+      new Date(Date.now() - 86_400_000),
+    );
+    expect((await seen())?.getTime()).toBe(recent.getTime());
+
+    await announcements.markNewsSeen(
+      reader.id,
+      new Date(Date.now() + 86_400_000),
+    );
+    expect((await seen())!.getTime()).toBeLessThanOrEqual(Date.now());
+    // A note published after the call is still unread.
+    await note({ publishedAt: new Date(Date.now() + 5_000) });
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(true);
   });
 });

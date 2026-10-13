@@ -4,13 +4,17 @@
 # dependencies only, not the whole node_modules tree. The build stays a single
 # image: one application, one container.
 
-FROM node:24-alpine AS deps
+# Pinned by digest as well as tag: a tag moves, and the image that passed the
+# pipeline is the one that should be rebuilt. Bump both together.
+ARG NODE_IMAGE=node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+
+FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 # Development: source is bind mounted, Next watches it. Never deployed.
-FROM node:24-alpine AS dev
+FROM ${NODE_IMAGE} AS dev
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1     NODE_ENV=development     PORT=3000     HOSTNAME=0.0.0.0
 COPY --from=deps /app/node_modules ./node_modules
@@ -18,14 +22,15 @@ COPY . .
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
-FROM node:24-alpine AS builder
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# The build fails, and no image is pushed, if Drizzle reached the browser bundle.
+RUN npm run build && npm run check:bundle
 
-FROM node:24-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production     NEXT_TELEMETRY_DISABLED=1     PORT=3000     HOSTNAME=0.0.0.0
 

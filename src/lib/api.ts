@@ -98,13 +98,60 @@ export async function jsonBody<T>(
 
   let raw: unknown;
   try {
-    const text = await request.text();
-    // A caller that declares nothing, or lies about it, is measured instead.
-    if (text.length > MAX_BODY_BYTES) throw new BadRequestError();
+    const text = await cappedText(request);
     raw = text === "" ? {} : JSON.parse(text);
   } catch (error) {
     if (error instanceof AppError) throw error;
     raw = {};
   }
   return schema.parse(raw);
+}
+
+/**
+ * The body as text, read chunk by chunk and given up on as soon as it passes
+ * the cap. A caller that declares nothing (a chunked body), or lies about it,
+ * is measured instead, in bytes: a string's length counts UTF-16 units, which
+ * lets a body of multi-byte characters weigh up to three times the cap.
+ */
+async function cappedText(request: Request): Promise<string> {
+  return new TextDecoder().decode(await cappedBytes(request, MAX_BODY_BYTES));
+}
+
+/**
+ * The body as bytes, refused with a 400 as soon as it is over `max`.
+ *
+ * The declared length is believed only when it says too much; otherwise the
+ * bytes are counted as they arrive, so a chunked body or a false header costs
+ * at most `max` bytes of memory before it is turned away.
+ */
+export async function cappedBytes(
+  request: Request,
+  max: number,
+  messageKey = "error.badRequest",
+): Promise<Uint8Array> {
+  const declared = Number(request.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > max)
+    throw new BadRequestError(messageKey);
+  if (!request.body) return new Uint8Array(0);
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => {});
+      throw new BadRequestError(messageKey);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }

@@ -5,10 +5,9 @@ import { translateError, type Locale } from "@/lib/i18n";
 /**
  * The one way a client component talks to the API.
  *
- * `@/lib/api` is the server half of the same contract and is `server-only`, so
- * every button in here used to carry its own copy of the same fifteen lines:
- * fetch, parse, read `messageKey`, throw, catch, toast. What is left of that is
- * one call and one `catch`.
+ * `@/lib/api` is the server half of the same contract and is `server-only`.
+ * This half keeps fetch, parse, read `messageKey` and throw in one place, so a
+ * button is left with one call and one `catch`.
  *
  * The error carries the key rather than a sentence, exactly as the route
  * returns it: the wording is chosen at the point it is shown, in the language

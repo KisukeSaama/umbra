@@ -18,7 +18,7 @@ const MIGRATION_LOCK = 0x756d6272;
  *
  * Run before the server starts, on every deployment. Drizzle records what it has
  * applied, so running it twice is a no-op and a half-finished deployment can
- * simply be run again.
+ * be run again.
  */
 async function main() {
   const url = process.env.DATABASE_URL;

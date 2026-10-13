@@ -3,9 +3,9 @@
  *
  * A result is always in exactly one of them, and that state decides both the
  * wording and whether the request button exists at all. `partial` exists
- * because the other three made the search lie: a series the server holds three
- * seasons of answered "available on the server" exactly like one it holds
- * whole, and a member had to open the page to find out.
+ * because the other three alone make the search lie: a series the server holds
+ * three seasons of would answer "available on the server" exactly like one it
+ * holds whole, and a member would have to open the page to find out.
  *
  * Pure on purpose: search, the title page and the write guards all read the
  * same rule, so no screen can promise something a route would refuse.

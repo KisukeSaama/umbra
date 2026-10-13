@@ -1,11 +1,25 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import {
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 import { toast } from "sonner";
 
-import { CloseIcon, PlusIcon } from "@/components/icons";
+import { ApiError, requestError } from "@/components/client-api";
+import {
+  CloseIcon,
+  ImageIcon,
+  PlusIcon,
+  SpinnerIcon,
+  UploadIcon,
+} from "@/components/icons";
 import { Markdown } from "@/components/markdown";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,12 +38,14 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ANNOUNCEMENT_CATEGORIES,
   EMBED_RATIOS,
+  MAX_UPLOAD_BYTES,
   type AnnouncementCategory,
   type EmbedRatio,
 } from "@/lib/announcements";
 import { embedCodeOf, parseEmbedCode } from "@/lib/embed";
 import { translateError, type TranslationKey } from "@/lib/i18n";
 import { useLocale, useTranslator } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
 
 /**
  * Writing an announcement.
@@ -38,12 +54,17 @@ import { useLocale, useTranslator } from "@/lib/i18n/client";
  * A note is a title, a body and a category; two optional blocks hang off it and
  * stay folded until they are wanted:
  *
+ * - a visual, dropped, pasted or picked, which Umbra re-encodes and keeps
+ *   itself, with the words that describe it (see ADR 0022);
  * - a link, for the note whose reason to exist is an address elsewhere, a
- *   fundraiser page being the case this was built for;
+ *   fundraiser page being the case this was built for, and the one block a
+ *   fundraiser cannot go without;
  * - a page set inside the note, a trailer or a map, for what reads better in
  *   place than behind a click (see ADR 0018);
  * - a question, because a poll is an announcement that expects something back,
- *   not a second kind of object with a page of its own.
+ *   not a second kind of object with a page of its own;
+ * - a place at the top of the home page, for the one note everybody should
+ *   see, until a date or until it is taken off.
  *
  * Publishing is a second button on the same form rather than a second step: a
  * note is either a draft or out there, and both are one click away. Publishing
@@ -77,7 +98,34 @@ export type EditedAnnouncement = {
   category: AnnouncementCategory;
   link: { url: string; label: string | null } | null;
   embed: { url: string; title: string | null; ratio: EmbedRatio } | null;
+  image: UploadedImage | null;
+  published: boolean;
+  featured: boolean;
+  featuredUntil: Date | null;
 };
+
+/** A picture the upload route kept, as the composer shows and sends it. */
+type UploadedImage = {
+  key: string;
+  url: string;
+  width: number;
+  height: number;
+  alt?: string;
+};
+
+/** `yyyy-mm-dd` in the reader's own calendar, what a date field holds. */
+function dateField(date: Date | null): string {
+  if (!date) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** The last moment of the day picked, where the person picking it lives. */
+function endOfDay(field: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(field)) return null;
+  const date = new Date(`${field}T23:59:59`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 /**
  * With `editing`, the same composer corrects a note instead of writing one.
@@ -117,6 +165,25 @@ export function AnnouncementForm({
     editing?.embed?.ratio ?? "wide",
   );
 
+  const [image, setImage] = useState<UploadedImage | null>(
+    editing?.image ?? null,
+  );
+  const [imageAlt, setImageAlt] = useState(editing?.image?.alt ?? "");
+  const [withImage, setWithImage] = useState(Boolean(editing?.image));
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  // A draft is shown to nobody, so the pin is only offered to a note that is,
+  // or is about to be, published.
+  const canFeature = !editing || editing.published;
+  // Read once: the earliest end a pin may be given, today included.
+  const [today] = useState(() => dateField(new Date()));
+  const [withFeature, setWithFeature] = useState(Boolean(editing?.featured));
+  const [featureUntil, setFeatureUntil] = useState(
+    dateField(editing?.featuredUntil ?? null),
+  );
+
   const [withPoll, setWithPoll] = useState(false);
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(() => [emptyOption(), emptyOption()]);
@@ -124,7 +191,17 @@ export function AnnouncementForm({
   const [busy, setBusy] = useState(false);
 
   const filled = options.map((option) => option.value.trim()).filter(Boolean);
-  const linkReady = !withLink || /^https?:\/\/\S+$/.test(linkUrl.trim());
+  // A fundraiser is a note pointing at its page: the link is not optional.
+  const funding = category === "funding";
+  const linkOn = withLink || funding;
+  const linkReady = !linkOn || /^https?:\/\/\S+$/.test(linkUrl.trim());
+  const imageReady =
+    !withImage || (image !== null && imageAlt.trim().length > 1 && !uploading);
+  const untilDate = endOfDay(featureUntil);
+  const featureReady =
+    !withFeature ||
+    featureUntil === "" ||
+    (untilDate !== null && featureUntil >= today);
   const embedReady = !withEmbed || parseEmbedCode(embedCode) !== null;
   const pollReady =
     !withPoll || (question.trim().length > 1 && filled.length >= MIN_OPTIONS);
@@ -133,6 +210,8 @@ export function AnnouncementForm({
     content.trim().length > 1 &&
     linkReady &&
     embedReady &&
+    imageReady &&
+    featureReady &&
     pollReady;
 
   function setOption(index: number, value: string) {
@@ -153,9 +232,78 @@ export function AnnouncementForm({
     setWithEmbed(false);
     setEmbedCode("");
     setEmbedRatio("wide");
+    setWithImage(false);
+    setImage(null);
+    setImageAlt("");
+    setWithFeature(false);
+    setFeatureUntil("");
     setWithPoll(false);
     setQuestion("");
     setOptions([emptyOption(), emptyOption()]);
+  }
+
+  /**
+   * Sends the file as it is and shows what came back: the picture Umbra kept,
+   * already resized and stripped, so the preview is what members will see.
+   */
+  async function upload(file: File) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast.error(translateError(locale, "error.imageTooLarge"));
+      return;
+    }
+    setWithImage(true);
+    setUploading(true);
+    try {
+      const response = await fetch("/api/admin/uploads", {
+        method: "POST",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      let body: { messageKey?: string } & Partial<UploadedImage> = {};
+      try {
+        body = await response.json();
+      } catch {
+        body = {};
+      }
+      if (!response.ok || !body.key || !body.url)
+        throw new ApiError(body.messageKey);
+      setImage({
+        key: body.key,
+        url: body.url,
+        width: body.width ?? 1,
+        height: body.height ?? 1,
+      });
+    } catch (error) {
+      toast.error(requestError(locale, error));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function pickedFile(files: FileList | null | undefined): File | null {
+    const file = files?.[0];
+    return file && file.type.startsWith("image/") ? file : null;
+  }
+
+  function onDrop(event: DragEvent) {
+    event.preventDefault();
+    setDragging(false);
+    // Whatever was dropped is sent: the server decodes it, and a file that is
+    // not a picture is refused with a reason rather than ignored in silence.
+    const file = event.dataTransfer.files[0];
+    if (file) void upload(file);
+  }
+
+  /*
+   * A picture pasted anywhere in the composer is the visual: a screenshot is
+   * usually on the clipboard, not in a file. Text pastes as text, since only
+   * a clipboard carrying an image is taken over.
+   */
+  function onPaste(event: ClipboardEvent) {
+    const file = pickedFile(event.clipboardData.files);
+    if (!file) return;
+    event.preventDefault();
+    void upload(file);
   }
 
   async function submit(published: boolean) {
@@ -165,10 +313,19 @@ export function AnnouncementForm({
         title,
         content,
         category,
-        link: withLink
+        link: linkOn
           ? { url: linkUrl.trim(), label: linkLabel.trim() || null }
           : null,
         embed: withEmbed ? { code: embedCode, ratio: embedRatio } : null,
+        image:
+          withImage && image ? { key: image.key, alt: imageAlt.trim() } : null,
+        ...(canFeature
+          ? {
+              featured: withFeature
+                ? { until: untilDate?.toISOString() ?? null }
+                : null,
+            }
+          : {}),
       };
       const response = await fetch(
         editing
@@ -242,7 +399,7 @@ export function AnnouncementForm({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="space-y-5" onSubmit={onSubmit}>
+        <form className="space-y-5" onSubmit={onSubmit} onPaste={onPaste}>
           <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
             <div className="space-y-1.5">
               <Label htmlFor="announcement-title">{t("common.title")}</Label>
@@ -326,9 +483,144 @@ export function AnnouncementForm({
           </div>
 
           <Block
+            title={t("admin.announcements.image")}
+            hint={t("admin.announcements.image.hint")}
+            checked={withImage}
+            onCheckedChange={setWithImage}
+          >
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void upload(file);
+              }}
+            />
+            {image ? (
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+                <div className="bg-muted ring-foreground/10 relative overflow-hidden rounded-lg ring-1">
+                  {/* Served by Umbra to signed-in readers, so the optimiser,
+                      which fetches without the reader's session, is skipped. */}
+                  <Image
+                    src={image.url}
+                    alt={imageAlt.trim() || ""}
+                    width={image.width}
+                    height={image.height}
+                    unoptimized
+                    className={cn(
+                      "h-auto max-h-64 w-full object-contain",
+                      uploading && "opacity-50",
+                    )}
+                  />
+                  {uploading ? (
+                    <SpinnerIcon className="absolute inset-0 m-auto size-6" />
+                  ) : null}
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="announcement-image-alt">
+                      {t("admin.announcements.image.alt")}
+                    </Label>
+                    <Input
+                      id="announcement-image-alt"
+                      value={imageAlt}
+                      maxLength={200}
+                      aria-invalid={
+                        (imageAlt !== "" && imageAlt.trim().length < 2) ||
+                        undefined
+                      }
+                      aria-describedby="announcement-image-alt-hint"
+                      onChange={(event) => setImageAlt(event.target.value)}
+                    />
+                    <p
+                      id="announcement-image-alt-hint"
+                      className="text-muted-foreground text-sm"
+                    >
+                      {t("admin.announcements.image.altHint")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={uploading}
+                      onClick={() => fileInput.current?.click()}
+                    >
+                      <UploadIcon />
+                      {t("admin.announcements.image.replace")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={uploading}
+                      onClick={() => setImage(null)}
+                    >
+                      <CloseIcon />
+                      {t("admin.announcements.image.remove")}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+                className={cn(
+                  "flex flex-col items-center gap-3 rounded-lg border border-dashed px-4 py-8 text-center transition-colors",
+                  dragging
+                    ? "border-ring bg-accent"
+                    : "border-border bg-transparent",
+                )}
+              >
+                {uploading ? (
+                  <SpinnerIcon className="text-muted-foreground size-6" />
+                ) : (
+                  <ImageIcon className="text-muted-foreground size-6" />
+                )}
+                <p className="text-sm">
+                  {uploading
+                    ? t("admin.announcements.image.uploading")
+                    : t("admin.announcements.image.drop")}
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <UploadIcon />
+                  {t("admin.announcements.image.choose")}
+                </Button>
+                <p className="text-muted-foreground max-w-prose text-sm">
+                  {t("admin.announcements.image.formats")}
+                </p>
+              </div>
+            )}
+          </Block>
+
+          <Block
             title={t("admin.announcements.link")}
-            hint={t("admin.announcements.link.hint")}
-            checked={withLink}
+            hint={
+              funding
+                ? t("admin.announcements.link.fundingRequired", {
+                    label: t("news.funding.cta"),
+                  })
+                : t("admin.announcements.link.hint")
+            }
+            checked={linkOn}
+            locked={funding}
             onCheckedChange={setWithLink}
           >
             <div className="grid gap-4 sm:grid-cols-[1fr_14rem]">
@@ -353,7 +645,9 @@ export function AnnouncementForm({
                 <Input
                   id="announcement-link-label"
                   value={linkLabel}
-                  placeholder={t("common.optional")}
+                  placeholder={
+                    funding ? t("news.funding.cta") : t("common.optional")
+                  }
                   onChange={(event) => setLinkLabel(event.target.value)}
                 />
               </div>
@@ -413,6 +707,40 @@ export function AnnouncementForm({
               </div>
             </div>
           </Block>
+
+          {canFeature ? (
+            <Block
+              title={t("admin.announcements.feature")}
+              hint={t("admin.announcements.feature.hint")}
+              checked={withFeature}
+              onCheckedChange={setWithFeature}
+            >
+              <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-start">
+                <div className="space-y-1.5">
+                  <Label htmlFor="announcement-feature-until">
+                    {t("admin.announcements.feature.until")}
+                  </Label>
+                  <Input
+                    id="announcement-feature-until"
+                    type="date"
+                    value={featureUntil}
+                    min={today}
+                    aria-invalid={!featureReady || undefined}
+                    aria-describedby="announcement-feature-until-hint"
+                    onChange={(event) => setFeatureUntil(event.target.value)}
+                  />
+                </div>
+                <p
+                  id="announcement-feature-until-hint"
+                  className="text-muted-foreground text-sm sm:pt-7"
+                >
+                  {editing
+                    ? t("admin.announcements.feature.untilHint")
+                    : `${t("admin.announcements.feature.untilHint")} ${t("admin.announcements.feature.draft")}`}
+                </p>
+              </div>
+            </Block>
+          ) : null}
 
           {editing ? null : (
             <Block
@@ -497,7 +825,7 @@ export function AnnouncementForm({
               <Button
                 type="button"
                 variant="secondary"
-                disabled={!ready || busy}
+                disabled={!ready || busy || withFeature}
                 onClick={() => void submit(false)}
               >
                 {t("admin.announcements.saveDraft")}
@@ -521,20 +849,29 @@ function Block({
   title,
   hint,
   checked,
+  locked = false,
   onCheckedChange,
   children,
 }: {
   title: string;
   hint: string;
   checked: boolean;
+  /** On and staying on: the note cannot go out without this block. */
+  locked?: boolean;
   onCheckedChange: (checked: boolean) => void;
   children: React.ReactNode;
 }) {
   return (
     <div className="border-border/60 rounded-xl border">
-      <label className="flex cursor-pointer items-start gap-3 p-3">
+      <label
+        className={cn(
+          "flex items-start gap-3 p-3",
+          locked ? "cursor-default" : "cursor-pointer",
+        )}
+      >
         <Switch
           checked={checked}
+          disabled={locked}
           onCheckedChange={onCheckedChange}
           className="mt-0.5"
         />

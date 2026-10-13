@@ -29,9 +29,9 @@ import { cn } from "@/lib/utils";
 /**
  * Where the palette is, for everything that wants to open it.
  *
- * There is one search dialog on a page and there has to be one: the header and
- * the home hero each used to mount their own, so the shortcut opened two at
- * once and Escape closed the top one only. What is open, and what is typed in
+ * There is one search dialog on a page and there has to be one: if the header
+ * and the home hero each mounted their own, the shortcut would open two at
+ * once and Escape close the top one only. What is open, and what is typed in
  * it, therefore lives beside the component rather than inside it, in a store
  * small enough to be read at a glance: a flag, a string, and the subscribers
  * React hands `useSyncExternalStore`.
@@ -433,9 +433,8 @@ export function SearchField() {
 /**
  * An address that carries a search opens on it.
  *
- * `/request?q=` has forwarded here since requesting stopped being a page of its
- * own, and until now the query was dropped on the floor: the palette now opens
- * with it typed in, which is what the old address promised.
+ * `/request?q=` forwards here, and the palette opens with the query typed in,
+ * which is what that address promises.
  */
 export function SearchOnArrival({ query }: { query: string }) {
   useEffect(() => {

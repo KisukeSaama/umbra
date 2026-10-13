@@ -30,16 +30,16 @@ upstream error, which is the gateway telling you the subscription is missing.
 
 ## Working on the code
 
-- **Business rules go in `src/lib/domain`.** Pages and routes stay thin: a page
+- Business rules go in `src/lib/domain`. Pages and routes stay thin: a page
   reads, a route validates and delegates.
-- **Uniqueness belongs to the database.** Add a partial unique index rather than
+- Uniqueness belongs to the database. Add a partial unique index rather than
   a read-then-write; two concurrent requests must not both succeed.
-- **Jobs must be replayable.** Upsert on a natural key, `ON CONFLICT DO NOTHING`
+- Jobs must be replayable. Upsert on a natural key, `ON CONFLICT DO NOTHING`
   where a duplicate would be noise, and compare dates against now rather than
   reacting to a moment in time.
-- **New wording means a key in both dictionaries.** `fr` is typed against `en`,
+- New wording means a key in both dictionaries. `fr` is typed against `en`,
   so a missing translation fails the build rather than showing a blank.
-- **Icons come from `src/components/icons.tsx`.** Adding a glyph means adding an
+- Icons come from `src/components/icons.tsx`. Adding a glyph means adding an
   export there, never an import from the library in a screen.
 
 ## Changing the schema
@@ -97,9 +97,9 @@ The same three run in CI on `develop`, on tags and on merge requests.
 
 Two dependencies are deliberately not on their newest release:
 
-- **TypeScript 6**, because typescript-eslint refuses to load against the
+- TypeScript 6, because typescript-eslint refuses to load against the
   TypeScript 7 API.
-- **ESLint 9**, because `eslint-config-next` still carries a React plugin that
+- ESLint 9, because `eslint-config-next` still carries a React plugin that
   crashes on ESLint 10.
 
 Both move up as soon as the plugins do. Everything else tracks the latest.

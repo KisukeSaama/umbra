@@ -3,7 +3,12 @@ import { z } from "zod";
 
 import { idParam, jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
-import { embedSchema, linkSchema } from "@/app/api/admin/announcements/schema";
+import {
+  embedSchema,
+  featureSchema,
+  imageSchema,
+  linkSchema,
+} from "@/app/api/admin/announcements/schema";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/announcements";
 import {
   deleteAnnouncement,
@@ -18,6 +23,10 @@ const schema = z.object({
   published: z.boolean().optional(),
   link: linkSchema.nullish(),
   embed: embedSchema.nullish(),
+  /** `null` takes the visual off; absent leaves it as it is. */
+  image: imageSchema.nullish(),
+  /** `null` takes the pin off; absent leaves it as it is. */
+  featured: featureSchema.nullish(),
 });
 
 export async function PATCH(

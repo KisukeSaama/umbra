@@ -5,7 +5,7 @@
  * same kind of question: a large tabular figure over a small label, cells
  * divided by hairlines, no card per figure and no gauge. What is counted here
  * is work waiting, so a zero is worth showing, unlike on the member side where
- * an empty month simply removes the strip.
+ * an empty month removes the strip.
  *
  * It wraps rather than scrolls: on a phone the figures fall into two columns
  * and stay readable, instead of hiding the last three off the right edge. Each

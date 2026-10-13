@@ -48,7 +48,7 @@ before changing behaviour and `docs/architecture.md` before changing structure.
 ## Shape of the code
 
 ```
-src/app/(site)      community pages, gated on an approved account
+src/app/(site)      community pages, gated on a member of the server
 src/app/admin       administration, gated on the admin or assistant role
 src/app/api         REST routes: mutations, search, sign-in, scheduled sync
 src/lib/domain      the business rules; pages and routes stay thin
@@ -84,7 +84,7 @@ the deployment remote CI/CD and the server pull from. `gh` is GitHub,
 issues and review.
 
 `origin` carries two push URLs, so a single `git push` sends the same refs to
-both. Never push to only one: they must stay aligned commit for commit. Verify
+both. Never push to only one. Verify
 with `git remote -v`, where `origin` must list two `(push)` lines. If GitHub
 rejects a push GitLab accepted, the two sides have drifted; fix it with
 `git push gh <branch>` before doing anything else.

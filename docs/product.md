@@ -38,8 +38,11 @@ and keeps both the interface and the security surface small.
 title already on the list joins that request rather than opening another: it
 appears on their follow-up page and they hear about each of its steps. The
 administration reads who and how many are waiting on each request and each report,
-because that is what decides what to fetch or fix first. Members never see that
-number: no counter, no ranking, nothing that turns asking into a contest. See
+because that is what decides what to fetch or fix first. Members see that number
+in one place only: on the page of a title somebody already asked for, under the
+button that joins the request, so a title already asked for does not read as a
+dead end. There is no counter on a card or in search, no ranking and no "most
+wanted" shelf, nothing that turns asking into a contest. See
 `docs/adr/0016-requests-have-followers.md`.
 
 **A broadcast is never a download.** The tracker knows when an episode is
@@ -47,10 +50,15 @@ scheduled to air and never claims availability from a passed date. The wording i
 always: scheduled, aired, to add, on the server.
 
 **No money.** Umbra holds no amount at all. A fundraiser lives on a page
-elsewhere, and Umbra announces it: a note that says what it is for, with a
-button leading to that page. No target, no progress bar, no payment integration,
-no donor identity, and nothing on screen may suggest that contributing grants
-access or privileges. See `docs/adr/0010-no-funding-goal.md`.
+elsewhere, and Umbra announces it: a note filed as a fundraiser ("Cagnotte" in
+French) that says what it is for, with a button leading to that page. No target,
+no progress bar, no payment integration, no donor identity, and nothing on
+screen may suggest that contributing grants access or privileges. Such a note
+always carries its link, and wherever it appears it reads the same way: its
+visual, the staff's words about what the money is for, the button ("Take part
+in the fundraiser" unless the staff word it otherwise), and a fixed line saying
+that taking part is voluntary and changes nothing about access to Kisuflix.
+That line is not the staff's to write. See `docs/adr/0010-no-funding-goal.md`.
 
 **Not a status page.** Umbra and the media server run on the same machine, so if
 Umbra answers the server is up. Uptime indicators, availability alerts and
@@ -114,11 +122,11 @@ be said about it is its own. A re-cut is a fan edit: its picture, its tracks and
 its numbering are the ones whoever made it chose, and nobody on this side can
 put another audio track into it or fix its order, so offering "the quality is
 poor" or "subtitles are missing" would build the administration a queue it can
-only close. What is left is the one thing that can be acted on, there is not all
-of it here yet: "an episode is missing" and "the series is behind".
+only close. What is left is the one thing that can be acted on, that some of it
+is not here yet: "an episode is missing" and "the series is behind".
 
-Both are asks, and both are closed by hand, which is the one place where an ask
-is. Everywhere else the sync settles it: the index says the episode is here, or
+Both are asks, and this is the one place where an ask is closed by hand.
+Everywhere else the sync settles it: the index says the episode is here, or
 the calendar says nothing that has aired is missing. A re-cut has neither. No
 provider lists a fan edit, so there is no way to know how many episodes a Kai or
 a Yabai is supposed to have, and the calendar of the series it was cut from
@@ -220,8 +228,8 @@ the rule that members never write free text holds.
 That word can be rewritten, or taken back, for as long as it is displayed, and
 without moving the request: what is being looked for changes, and correcting it
 should not mean pretending the request advanced. Rewriting announces nothing,
-since the member was already told about the step; the new wording is simply
-what their follow-up page shows from then on.
+since the member was already told about the step; the new wording is what
+their follow-up page shows from then on.
 
 A request can be left by anyone waiting on it, from the title and from the
 follow-up page, but only while it is still `requested`. Once it is accepted the
@@ -232,6 +240,25 @@ leaves, it is handed to whoever joined next. The request itself only goes when
 the last person waiting leaves, and then it leaves no row: nothing happened to
 it, and the title has to be askable again.
 
+### Working the queue
+
+The request queue and the report queue each carry a search box. Every word typed
+has to be found somewhere on the row: the title, under either of its names, the
+provider id typed whole, the staff's note, or the name of anybody who asked or
+waits. The stage counts follow the search, so they always describe what is
+listed.
+
+Rows of the request queue, seasons asked for included, can be ticked and moved
+together: accepted, put on hold, refused or reopened in one gesture, behind a
+confirmation that names every row it reaches. A shift-press ticks a range and
+Escape lets go. A selection never spans pages, and it never reaches further than
+the rows' own buttons: a move is offered to the rows that could take it alone,
+each row goes through that same move, and its followers are told exactly as they
+would have been one by one. One word may go with the move, to every row; left
+empty, an acceptance keeps each row's own word, except on a request leaving on
+hold, whose word about room has nothing left to say. A row a colleague settled in
+the meantime is reported back and stays ticked; the rest goes through.
+
 ## Reporting a problem
 
 A request says a title is missing. A report says a title is here and is wrong.
@@ -239,8 +266,8 @@ They are the same shape on purpose: the administrator works one queue and the
 member follows one list.
 
 A report is three closed questions, and never a sentence. Which title, chosen
-from what the server actually holds. Where, for a series: the whole thing, a
-season, or an episode. What is wrong, from a list that changes with the answer
+from what the server holds. Where, for a series: the whole thing, a season,
+or an episode. What is wrong, from a list that changes with the answer
 before it, so a film is never offered "a season is missing". See
 `docs/adr/0008-reports-are-choices.md`.
 
@@ -258,9 +285,10 @@ fetched", and the sync settles it once the server holds what was asked for.
 
 Taking a report up may carry the same optional word, for everyone waiting on it,
 under the same rules: it reaches them in the notification and on their follow-up
-page, it can be rewritten or taken back afterwards without moving the report,
-and it is erased when the report is marked fixed. A refusal keeps its word,
-which is the one place the reason for it can be read.
+page, and it can be rewritten or taken back afterwards without moving the
+report. It stays when the report closes, whether it is marked fixed, refused or
+settled by the sync, since the last word is the one place the outcome can be
+read; closing may replace it with another. Only reopening a report clears it.
 
 One live report per title, place and reason. A second member reporting the same
 thing joins the existing one and is told what happens to it. The staff see how
@@ -308,13 +336,12 @@ worded "ask for the update", and it said the same thing twice: the same missing
 episodes could be asked for once at the top of the page and once on the season
 that lacked them, as two asks the administrator then had to read as one.
 
-It is not a fourth kind of thing. Each of them sends the report the three
-questions would have produced, with the reason taken from what the panel already
-knows rather than asked again: still a choice out of a list, still one queue for
-the administrator, still withdrawable in the moment that follows. An ask that is
-already open shows as asked instead of offering itself again, for everybody and
-not only for whoever pressed first, because the report they would send is one
-and the same.
+Each press sends the report the three questions would have produced, with the
+reason taken from what the panel already knows rather than asked again: still a
+choice out of a list, still one queue for the administrator, still withdrawable
+in the moment that follows. An ask that is already open shows as asked instead
+of offering itself again, for everybody and not only for whoever pressed first,
+because the report they would send is one and the same.
 
 An ask that has been answered stops being offered before the scan says so.
 Presence is read from the index the library sync fills, so between the moment
@@ -339,11 +366,11 @@ wrong.
 
 ## Following what you asked for
 
-A request used to end at "request sent". It no longer does. One page carries what
-you asked for and what you reported, with where each of them has got to, and the
-header carries a bell that says whether any of it changed. The page does not
-repeat the bell: notifications are read where they arrive, and a second copy of
-the same feed only made the page longer.
+A request does not end at "request sent". One page carries what you asked for
+and what you reported, with where each of them has got to, and the header
+carries a bell that says whether any of it changed. The page does not repeat the
+bell: notifications are read where they arrive, and a second copy of the same
+feed only made the page longer.
 
 What you asked for is one list of two kinds of row, a request for a title and an
 ask for a missing season, interleaved by date. They are counted and paged
@@ -464,16 +491,39 @@ opening a source to look for a smaller release; the correction is not saved and
 resets on navigation. Volume roots offer no search, and category folders start
 with an empty suggestion.
 
+## What the administration says
+
+The administration speaks through notes: a title, a body, a category, and
+optional blocks hanging off it, a visual, a link, an embedded page, a question.
+Members read them on the news page and on the home page, react with a thumb up
+or down, and answer the question when there is one. They never write anything
+back.
+
+A visual is a picture the staff drop on the composer, paste or pick. Umbra
+keeps its own copy, re-encoded, bounded in size and stripped of everything the
+file said about where and when it was taken, and serves it to members only. It
+always comes with a description the staff write for whoever cannot see it.
+
+Notes went unnoticed, so two things now point at them. The "news" entry of the
+nav carries a dot while a note has gone out since the member last opened the
+feed, with words for screen readers; opening the feed takes it off. And the
+staff can feature one published note at the top of the home page, as the first
+card under the hero, large and with its visual, until a date or until they take
+it off. One note at a time: featuring another takes the pin off the first, and a
+pin past its date simply stops showing. See
+`docs/adr/0022-uploaded-visuals-and-the-featured-note.md`.
+
 ## Privacy
 
-Stored: a Plex account id, a display name, a role, and when that
-account last signed in. The last one is a single timestamp, overwritten on every
-sign-in rather than added to, and it exists so the administration can tell an
-account somebody still uses from one nobody has opened in a year. It is not a
-history: not of visits, not of pages, not of anything. Sessions are stored as a
-digest, never as a token, and the visitor's Plex token is used twice on the way
-in, to read their account id and to ask plex.tv whether the server is currently
-shared with them, and then dropped.
+Stored: a Plex account id, a display name, a role, and when that account last
+signed in. The last one is a single timestamp, overwritten on every sign-in
+rather than added to, and it exists so the administration can tell an account
+somebody still uses from one nobody has opened in a year. It is not a history of
+any kind. One more timestamp says when the member last opened the news page, as
+the date of the newest note it showed them; it lights the dot on "news" and says
+nothing about what was read. Sessions are stored as a digest, never as a token, and the visitor's
+Plex token is used twice on the way in, to read their account id and to ask
+plex.tv whether the server is currently shared with them, and then dropped.
 
 Who gets in follows the server: an account the server is not shared with is
 refused at sign-in and is not created; one it is shared with is in, with no

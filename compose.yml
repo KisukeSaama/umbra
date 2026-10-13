@@ -15,6 +15,9 @@ services:
       # Everything else comes from .env.local, which Next reads itself.
       NODE_ENV: development
       TZ: Europe/Paris
+      # Outside the bind-mounted checkout, so uploaded visuals neither land in
+      # the working tree nor vanish with the container.
+      UPLOADS_PATH: /data/uploads
     env_file:
       - path: .env.local
         required: false
@@ -26,6 +29,7 @@ services:
       # be shared with a build made on the host.
       - /app/node_modules
       - /app/.next
+      - umbra-uploads:/data/uploads
       # No media is mounted by default: the path differs on every machine and a
       # missing one would stop the stack from starting. To exercise the storage
       # gauge, mount a folder read-only here and point STORAGE_PATHS at the
@@ -63,7 +67,7 @@ services:
       - app
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     environment:
       POSTGRES_DB: umbra
       POSTGRES_USER: umbra
@@ -83,3 +87,4 @@ services:
 
 volumes:
   umbra-postgres:
+  umbra-uploads:

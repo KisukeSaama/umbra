@@ -71,6 +71,7 @@ export async function accountOf(authToken: string): Promise<PlexAccount> {
     slug: env().JANUS_PLEX_TV_SLUG,
     path: "/api/v2/user",
     headers: { ...headers(), "X-Plex-Token": authToken },
+    refuseCached: true,
   });
 
   const id = field(body, "id");
@@ -103,6 +104,7 @@ export async function hasServerAccess(
     path: "/api/v2/resources",
     query: { includeHttps: "1" },
     headers: { ...headers(), "X-Plex-Token": authToken },
+    refuseCached: true,
   });
   return listsServer(body, machineIdentifier);
 }

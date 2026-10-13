@@ -267,7 +267,7 @@ describe("playback", () => {
 describe("what the root listing hides", () => {
   /*
    * The listing leaves the machine's working data out of a volume root, and
-   * naming it in a path used to reach it anyway: a deletion could then happen
+   * naming it in a path must not reach it either: a deletion would then happen
    * inside `data` or `lost+found`, which ADR 0012 says the page never offers.
    */
   it("refuses a path whose first name is not a library", async () => {
@@ -277,6 +277,19 @@ describe("what the root listing hides", () => {
     await expect(
       deleteStorageEntries("Media", ["lost+found"], ["anything"], volumes),
     ).rejects.toThrow(AppError);
+  });
+
+  it("neither weighs nor plays what it hides at the root", async () => {
+    await writeFile(join(base, "media", "data", "dump.mkv"), "x");
+    expect(
+      await code(weighStorageEntries("Media", [], ["data"], volumes)),
+    ).toBe("error.invalidPath");
+    expect(
+      await code(openStorageVideo("Media", [], "data", null, volumes)),
+    ).toBe("error.invalidPath");
+    // A library at the root is still weighed.
+    const weight = await weighStorageEntries("Media", [], ["Movies"], volumes);
+    expect(weight.files).toBe(3);
   });
 
   it("still allows the same name deeper down", async () => {
@@ -291,9 +304,8 @@ describe("what the root listing hides", () => {
 
 describe("the size of a selection", () => {
   /*
-   * The depth of a path and the size of a selection are two different bounds,
-   * and they used to share one check: a selection of more than thirty-two
-   * names was refused although the documented cap is two hundred.
+   * The depth of a path and the size of a selection are two different bounds:
+   * a path stops at thirty-two levels, a selection at two hundred names.
    */
   it("accepts more names than a path may have levels", async () => {
     const names = Array.from({ length: 40 }, (_, index) => `absent-${index}`);

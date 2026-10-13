@@ -202,20 +202,6 @@ export async function storageDetail(): Promise<StorageDetail | null> {
   return row ? { ...overviewOf(row), volumes: row.volumes } : null;
 }
 
-/** History, for the admin trend view. */
-export async function storageHistory(limit = 60) {
-  return db()
-    .select({
-      recordedAt: storageSnapshots.recordedAt,
-      totalBytes: storageSnapshots.totalBytes,
-      usedBytes: storageSnapshots.usedBytes,
-      availableBytes: storageSnapshots.availableBytes,
-    })
-    .from(storageSnapshots)
-    .orderBy(desc(storageSnapshots.recordedAt))
-    .limit(limit);
-}
-
 function sum<T>(items: T[], pick: (item: T) => number) {
   return items.reduce((total, item) => total + pick(item), 0);
 }
@@ -227,7 +213,7 @@ function sum<T>(items: T[], pick: (item: T) => number) {
  *
  * `check-disk-space` answers "how full", never "with what", and that second
  * question is the one an administrator asks before deleting anything. Umbra
- * runs on the media server, so it can simply walk the configured paths.
+ * runs on the media server, so it can walk the configured paths.
  *
  * The walk stays inside those paths: it never follows a symbolic link, and no
  * path ever arrives from a request. What leaves the server is a tree of names

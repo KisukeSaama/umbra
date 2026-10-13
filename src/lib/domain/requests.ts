@@ -27,20 +27,16 @@ import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
  * A request the administration still has something to do about.
  *
  * The mirror of `LIVE_REPORT_STATUSES`. A report taken up stays in the queue
- * until it is closed, and a request had been leaving it the moment it was
- * accepted: the work was starting exactly when the row disappeared, and what
- * was in hand could only be found again by opening the section and reading
- * every line that had ever been written. Being worked on is not being done.
+ * until it is closed, and so does an accepted request: dropped the moment it
+ * is accepted, the row would disappear exactly when the work starts, and what
+ * is in hand could only be found again by opening the section and reading
+ * every line ever written. Being worked on is not being done.
  *
  * A request put off for lack of room is left out: nothing can be done about it
  * until there is room, and it waits under a stage of its own rather than
  * swelling the figure of what needs a hand today.
  */
 export const LIVE_REQUEST_STATUSES = ["requested", "accepted"] as const;
-
-export function isLiveRequest(status: RequestStatus): boolean {
-  return (LIVE_REQUEST_STATUSES as readonly RequestStatus[]).includes(status);
-}
 
 export type RequestRow = {
   id: string;
@@ -437,8 +433,8 @@ function toRequestRow(row: {
 const inLibraryColumn = sql<boolean>`exists (
   select 1
     from library_item as l
-   where l.tmdb_id = ${media.providerId}
-     and l.cut_provider_id is null
+   where ((l.tmdb_id = ${media.providerId} and l.cut_provider_id is null)
+          or l.cut_provider_id = ${media.providerId})
      and l.kind = case ${media.mediaType} when 'movie' then 'movie' else 'show' end
 )`;
 
@@ -657,13 +653,19 @@ export async function countRequests(
  *
  * Reopening a refusal erases it too: the word that came with the refusal
  * explained it, and would contradict a request back in the queue.
+ *
+ * Leaving `postponed` with no word sent erases it as well: what it said was
+ * why the title waits for room, and that stops being true the moment it stops
+ * waiting. The row's own button opens on an empty box for that reason; a
+ * selection accepted with nothing typed has to end in the same place.
  */
 export function noteFor(
   status: RequestStatus,
   adminNote?: string | null,
+  from?: RequestStatus,
 ): string | null | undefined {
   if (status === "available" || status === "requested") return null;
-  if (adminNote === undefined) return undefined;
+  if (adminNote === undefined) return from === "postponed" ? null : undefined;
   return adminNote?.trim() || null;
 }
 
@@ -671,7 +673,7 @@ export function noteFor(
  * Rewrites the note alone, without moving the request.
  *
  * A word left when taking an ask in hand ages: what was being looked for is
- * found, the season that was missing has a date. Saying so used to mean moving
+ * found, the season that was missing has a date. Saying so must not mean moving
  * the request somewhere it does not belong, so the note is editable for as long
  * as it is displayed, which is until the title reaches the server.
  *
@@ -716,10 +718,11 @@ export function canCarryNote(status: RequestStatus): boolean {
 /**
  * Where a request may go from where it is.
  *
- * The lifecycle in `docs/product.md` moves forward, and it used to be a drawing
- * rather than a rule: any status was accepted from any status. `available`
- * back to `requested` handed a title that is on the server back to the queue
- * and told the member about a step they had already been told about.
+ * The lifecycle in `docs/product.md` moves forward, and this is what makes it a
+ * rule rather than a drawing. With any status accepted from any status,
+ * `available` back to `requested` would hand a title that is on the server
+ * back to the queue and tell the member about a step they had already been
+ * told about.
  *
  * Putting a request off is for a title worth having that there is no room
  * for yet. It is neither a refusal nor a yes: the request keeps its place as
@@ -780,8 +783,6 @@ export async function updateRequestStatus(
   status: RequestStatus,
   adminNote?: string | null,
 ) {
-  const note = noteFor(status, adminNote);
-
   const [subject] = await db()
     .select({
       status: mediaRequests.status,
@@ -797,6 +798,8 @@ export async function updateRequestStatus(
   if (!subject) throw new NotFoundError("error.requestNotFound");
   if (!canMoveRequest(subject.status, status))
     throw new ConflictError("error.illegalTransition");
+
+  const note = noteFor(status, adminNote, subject.status);
 
   const [updated] = await db()
     .update(mediaRequests)
@@ -821,6 +824,7 @@ export async function updateRequestStatus(
       mediaId: mediaRequests.mediaId,
       status: mediaRequests.status,
       adminNote: mediaRequests.adminNote,
+      updatedAt: mediaRequests.updatedAt,
     })
     // Only a reopening can meet the index: the title was asked for again after
     // the refusal, and that newer request is the one to work.
@@ -835,9 +839,10 @@ export async function updateRequestStatus(
   /*
    * Starting the tracker is a consequence of the decision, not part of it.
    *
-   * It calls the metadata provider, and a provider that does not answer used
-   * to take the whole move down with it: the row had already changed, the
-   * administrator saw a gateway error, and the member was never told. So a
+   * It calls the metadata provider, and a provider that does not answer must
+   * not take the whole move down with it: the row has already changed, the
+   * administrator would see a gateway error, and the member would never be
+   * told. So a
    * failure here is recorded and left to `trackAcceptedSeries`, which picks up
    * on the next cycle exactly the series this should have started.
    */
@@ -857,6 +862,7 @@ export async function updateRequestStatus(
     status,
     subject.title,
     updated.adminNote,
+    updated.updatedAt,
   );
   return updated;
 }
@@ -867,12 +873,22 @@ export async function updateRequestStatus(
  * The step is part of the notification key, so a request moving through
  * accepted and then available says both things rather than only the first, and
  * a job replaying the same move says nothing twice.
+ *
+ * A move made by hand passes the moment it was written, and that moment joins
+ * the step. A request goes back and forth as the normal flow (ADR 0021):
+ * accepted, put off for lack of room, accepted again the day there is room.
+ * Keyed on the status alone, the second acceptance would meet the first and be
+ * dropped, leaving every follower on "waiting for room". Each manual move is a
+ * decision of its own; the same press sent twice is still one, since only one
+ * of the two passes the status check of `updateRequestStatus`. A job replaying
+ * a move passes nothing and keeps the plain status, so it stays idempotent.
  */
 export async function notifyRequestFollowers(
   requestId: string,
   status: RequestStatus,
   title: string,
   note?: string | null,
+  movedAt?: Date,
 ) {
   const rows = await db()
     .select({ accountId: requestFollowers.accountId })
@@ -885,7 +901,7 @@ export async function notifyRequestFollowers(
     {
       kind: "request_status",
       subjectId: requestId,
-      step: status,
+      step: movedAt ? `${status}:${movedAt.getTime()}` : status,
       payload: note ? { title, status, note } : { title, status },
     },
   );
@@ -896,6 +912,10 @@ export async function notifyRequestFollowers(
  * sync, so nothing has to be closed by hand, and it clears the administrator
  * note on the way out for the same reason `updateRequestStatus` does. A request
  * put off for lack of room is closed too: the title found its way in anyway.
+ *
+ * Presence is read as `retireRequestsGoneFromLibrary` reads it, the id worked
+ * out for a re-cut included: a series that arrives only as its "Kai" is on the
+ * server for search and the title page, and its request has to say so too.
  */
 export async function closeRequestsPresentInLibrary(): Promise<number> {
   const result = await db().execute(sql`
@@ -905,12 +925,13 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
            available_at = COALESCE(r.available_at, now()),
            updated_at = now()
       FROM media AS m
-      JOIN library_item AS l
-        ON l.tmdb_id = m.provider_id
-       AND l.cut_provider_id IS NULL
-       AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END
      WHERE r.media_id = m.id
        AND r.status IN ('requested', 'accepted', 'postponed')
+       AND EXISTS (
+             SELECT 1 FROM library_item AS l
+              WHERE ((l.tmdb_id = m.provider_id AND l.cut_provider_id IS NULL)
+                     OR l.cut_provider_id = m.provider_id)
+                AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END)
   `);
   return result.count ?? 0;
 }

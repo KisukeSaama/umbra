@@ -15,9 +15,8 @@ import type { MediaKind } from "@/lib/providers/metadata";
  * Asking for the part that is not here yet.
  *
  * A title on the server is not a title that is finished: a series can be four
- * episodes into a season of ten, and until now the only way to say so was the
- * report flow, three steps away from the very line that shows the shortfall.
- * This is that same report, sent in one press from where the gap is visible,
+ * episodes into a season of ten, and the report flow is three steps away from
+ * the very line that shows the shortfall. This is that same report, sent in one press from where the gap is visible,
  * with the reason decided by what the panel already knows rather than by a
  * question. Nothing new reaches the administrator: it is one report queue.
  *

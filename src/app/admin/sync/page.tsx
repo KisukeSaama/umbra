@@ -24,9 +24,9 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Synchronisation.
  *
- * This page used to list job names and timestamps, which answered a question
- * only the person who wrote them could ask. What an administrator wants to
- * know is plainer: what does this machine do on its own, did it work, and when.
+ * Job names and timestamps answer a question only the person who wrote them
+ * could ask. What an administrator wants to know is plainer: what does this
+ * machine do on its own, did it work, and when.
  *
  * So every step is named in words, says what it is for, and reports its last
  * attempt as a sentence. The identifier stays, small and in monospace, because
@@ -148,10 +148,15 @@ function JobCard({
           </p>
         ) : null}
 
+        {/* Worded here, in the reader's language; the technical detail stays
+            as recorded, in monospace, because it is what matches the logs. */}
         {job.lastError ? (
-          <p className="bg-destructive/10 text-destructive rounded-lg px-2.5 py-2 font-mono text-xs break-words">
-            {job.lastError}
-          </p>
+          <div className="bg-destructive/10 text-destructive space-y-1 rounded-lg px-2.5 py-2 text-xs break-words">
+            <p>{t(job.lastError.key, job.lastError.values)}</p>
+            {job.lastError.detail ? (
+              <p className="font-mono">{job.lastError.detail}</p>
+            ) : null}
+          </div>
         ) : null}
 
         <p className="text-muted-foreground font-mono text-xs">{job.jobName}</p>

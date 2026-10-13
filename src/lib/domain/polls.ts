@@ -155,11 +155,18 @@ export async function castVote(
   if (!option) throw new BadRequestError("error.invalidOption");
 
   const [poll] = await db()
-    .select({ active: polls.active, endsAt: polls.endsAt })
+    .select({
+      active: polls.active,
+      endsAt: polls.endsAt,
+      published: announcements.published,
+    })
     .from(polls)
+    .innerJoin(announcements, eq(announcements.id, polls.announcementId))
     .where(eq(polls.id, pollId))
     .limit(1);
-  if (!poll) throw new NotFoundError("error.pollNotFound");
+  // The question of a draft is not there for anyone to answer: it reads as
+  // missing, exactly as the note carrying it does.
+  if (!poll || !poll.published) throw new NotFoundError("error.pollNotFound");
   if (isClosed(poll)) throw new ConflictError("error.pollClosed");
 
   const [existing] = await db()
@@ -223,33 +230,54 @@ export async function attachPoll(
    * question on the home page that nobody could answer and that no page had
    * any way to take back.
    */
-  return on.transaction(async (tx) => {
-    // Only one poll is active at a time: activating a new one closes the others.
-    if (input.active)
-      await tx
-        .update(polls)
-        .set({ active: false })
-        .where(eq(polls.active, true));
+  return onlyOneOpen(() =>
+    on.transaction(async (tx) => {
+      // Only one poll is active at a time: activating a new one closes the others.
+      if (input.active)
+        await tx
+          .update(polls)
+          .set({ active: false })
+          .where(eq(polls.active, true));
 
-    const [poll] = await tx
-      .insert(polls)
-      .values({
-        announcementId: input.announcementId,
-        question: input.question.trim(),
-        active: input.active ?? false,
-        startsAt: new Date(),
-        endsAt: input.endsAt ?? null,
-      })
-      .returning({ id: polls.id });
+      const [poll] = await tx
+        .insert(polls)
+        .values({
+          announcementId: input.announcementId,
+          question: input.question.trim(),
+          active: input.active ?? false,
+          startsAt: new Date(),
+          endsAt: input.endsAt ?? null,
+        })
+        .returning({ id: polls.id });
 
-    await tx
-      .insert(pollOptions)
-      .values(
-        labels.map((label, position) => ({ pollId: poll.id, label, position })),
+      await tx.insert(pollOptions).values(
+        labels.map((label, position) => ({
+          pollId: poll.id,
+          label,
+          position,
+        })),
       );
 
-    return poll;
-  });
+      return poll;
+    }),
+  );
+}
+
+/**
+ * The one open question, as the database states it.
+ *
+ * `poll_single_active_idx` refuses a second open poll. Each writer closes the
+ * others before opening its own, so the index only fires when two of them ran
+ * at once; the one that lost is told so instead of reporting a fault.
+ */
+async function onlyOneOpen<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (isUniqueViolation(error))
+      throw new ConflictError("error.pollAlreadyOpen");
+    throw error;
+  }
 }
 
 /**
@@ -271,23 +299,41 @@ export async function setPollActive(
    * open question at all: the first statement had already closed the one that
    * was running.
    */
-  const [row] = await db().transaction(async (tx) => {
-    if (active)
-      await tx
-        .update(polls)
-        .set({ active: false })
-        .where(eq(polls.active, true));
+  const [row] = await onlyOneOpen(() =>
+    db().transaction(async (tx) => {
+      if (active) {
+        /*
+         * Only the question of a published note opens. Opening the poll of a
+         * draft rang every member's bell for a note none of them could read,
+         * and took votes on it.
+         */
+        const [target] = await tx
+          .select({ published: announcements.published })
+          .from(polls)
+          .innerJoin(announcements, eq(announcements.id, polls.announcementId))
+          .where(eq(polls.id, pollId))
+          .limit(1);
+        if (!target) throw new NotFoundError("error.pollNotFound");
+        if (!target.published)
+          throw new ConflictError("error.pollNotPublished");
 
-    return tx
-      .update(polls)
-      .set({ active })
-      .where(eq(polls.id, pollId))
-      .returning({
-        id: polls.id,
-        active: polls.active,
-        question: polls.question,
-      });
-  });
+        await tx
+          .update(polls)
+          .set({ active: false })
+          .where(eq(polls.active, true));
+      }
+
+      return tx
+        .update(polls)
+        .set({ active })
+        .where(eq(polls.id, pollId))
+        .returning({
+          id: polls.id,
+          active: polls.active,
+          question: polls.question,
+        });
+    }),
+  );
   if (!row) throw new NotFoundError("error.pollNotFound");
 
   // Opening a poll is worth an entry; closing one is not, since there is

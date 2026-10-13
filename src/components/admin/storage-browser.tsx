@@ -27,8 +27,8 @@ import { cn } from "@/lib/utils";
 /**
  * The disk, seen twice at once.
  *
- * The map and the list answered the same question in two languages and made
- * the reader carry the translation: find the fat folder in the picture, then
+ * The map and the list answer the same question in two languages, and apart
+ * they make the reader carry the translation: find the fat folder in the picture, then
  * find it again in the table before deleting anything. So they are put side by
  * side and given one address. Opening a rectangle moves the list; opening a
  * row moves the map; pointing at either lights up the other. There is one

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -41,7 +41,6 @@ import {
 } from "@/lib/discovery/moods";
 import type {
   DiscoverQuery,
-  Genre,
   MediaKind,
   MediaSummary,
 } from "@/lib/providers/metadata";
@@ -226,7 +225,7 @@ async function personalRanking(
  * has no provider id for are dropped: nothing can be asked about them. The list
  * lives for the length of one render.
  */
-async function recentTitles(
+export async function recentTitles(
   accountId: string,
 ): Promise<{ history: SeedTitle[]; watched: Set<string> }> {
   const empty = { history: [], watched: new Set<string>() };
@@ -263,7 +262,12 @@ async function recentTitles(
       and(
         inArray(libraryItems.ratingKey, [...new Set(keys)]),
         inArray(libraryItems.kind, ["movie", "show"]),
-        isNotNull(libraryItems.tmdbId),
+        // A re-cut the server matched to nothing still has the id Umbra
+        // worked out for it.
+        or(
+          isNotNull(libraryItems.tmdbId),
+          isNotNull(libraryItems.cutProviderId),
+        ),
       ),
     );
 
@@ -272,8 +276,8 @@ async function recentTitles(
       row.ratingKey,
       {
         kind: (row.kind === "movie" ? "movie" : "tv") as MediaKind,
-        // A re-cut the server matched to the wrong series was watched as the
-        // series it really is.
+        // A re-cut, matched to the wrong series or to none, was watched as
+        // the series it really is.
         providerId: row.cutProviderId ?? (row.tmdbId as string),
       },
     ]),
@@ -330,18 +334,6 @@ async function familiarQueries(accountId: string): Promise<DiscoverQuery[]> {
     })),
   );
 }
-
-export const genreOptions = cache(async function genreOptions(
-  kind: MediaKind,
-  language?: string,
-): Promise<Genre[]> {
-  try {
-    return await tmdbProvider.genres(kind, language);
-  } catch (error) {
-    console.warn("[discovery] genre list unavailable", error);
-    return [];
-  }
-});
 
 export type GuidedSelection = {
   /** Already here: the evening can start now. */
@@ -457,9 +449,9 @@ export async function guidedSelection(
        * What is already known about a title answers without a call.
        *
        * Every details call counts against the quota the gateway keeps for the
-       * provider, and a selection used to spend one per candidate: a burst of
-       * them was refused mid-selection, each refused title fell out, and a half
-       * came back with two cards. So the index answers for what the server
+       * provider, and a selection spending one per candidate would have a burst
+       * of them refused mid-selection: each refused title falls out, and a half
+       * comes back with two cards. So the index answers for what the server
        * holds, the provider's own listing answers for what it filtered itself,
        * and a call is only made for what neither of them knows, or for the
        * seasons of a series, which nothing else carries.

@@ -2,6 +2,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { TabBar } from "@/components/tab-bar";
 import { requireMemberPage } from "@/lib/auth/session";
+import { hasUnreadNews } from "@/lib/domain/announcements";
 import { getTranslator } from "@/lib/i18n/server";
 
 /**
@@ -14,7 +15,10 @@ import { getTranslator } from "@/lib/i18n/server";
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
   const account = await requireMemberPage();
-  const t = await getTranslator();
+  const [t, newsUnread] = await Promise.all([
+    getTranslator(),
+    hasUnreadNews(account.id),
+  ]);
 
   return (
     <>
@@ -26,10 +30,9 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
         {/*
          * The weather, shared by every screen.
          *
-         * The home page used to be the only one with a sky behind it, so every
-         * move away from it swapped an atmosphere for flat paper and read as a
-         * jump between two sites. The same glow now sits at the top of every
-         * page, barely lit, and the sticky header keeps one tint under it
+         * With a sky behind the home page alone, every move away from it would
+         * swap an atmosphere for flat paper and read as a jump between two
+         * sites. The same glow sits at the top of every page, barely lit, and the sticky header keeps one tint under it
          * wherever you land: going home changes how bright the top of the page
          * is, not whether it is there at all.
          *
@@ -47,7 +50,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       {/* Room for the tab bar, which floats over the foot of the page on a
           phone: without it the credits end under the bar. Zero elsewhere. */}
       <div className="h-(--umbra-tabbar) shrink-0" aria-hidden />
-      <TabBar isStaff={account.role !== "member"} />
+      <TabBar isStaff={account.role !== "member"} newsUnread={newsUnread} />
     </>
   );
 }

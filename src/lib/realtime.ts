@@ -5,9 +5,9 @@ import { dbClient } from "@/lib/db";
 /**
  * Live fan-out, over the database that already holds the rows.
  *
- * A notification used to be true only on the next navigation: the header
- * counted on the server and nothing told the page afterwards. What was missing
- * was not storage but a nudge, so this carries a nudge and nothing else. The
+ * Without it a notification would be true only on the next navigation: the
+ * header counts on the server and nothing tells the page afterwards. What is
+ * needed is a nudge, so this carries a nudge and nothing else. The
  * open streams hear that something landed for a set of accounts and go and read
  * it themselves, which keeps every authorisation check where it already is: no
  * payload travels through the channel, so a listener cannot learn about an
@@ -84,8 +84,8 @@ export async function publishNotified(accountIds: string[]): Promise<void> {
  * How many streams one account may hold open at once.
  *
  * A person is a handful of tabs, not a hundred: a few on a desktop, one on a
- * phone. Opening one is rate limited, but nothing used to bound how many
- * stayed open, and every one of them costs a timer, a listener and two queries
+ * phone. Opening one is rate limited, which does not bound how many stay
+ * open, and every one of them costs a timer, a listener and two queries
  * on every nudge. Past the cap the oldest is closed rather than the newest
  * refused, so the tab somebody is actually looking at is the one that keeps
  * working.

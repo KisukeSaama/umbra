@@ -48,7 +48,7 @@ const PER_PAGE = 30;
  * read here and nowhere else. See `docs/adr/0020-staff-remember-who-is-who.md`.
  *
  * The list is read one page at a time: every row carries up to three buttons,
- * and a community of two hundred was six hundred of them on one screen. The
+ * and a community of two hundred is six hundred of them on one screen. The
  * page asks for a count and for that page, so the rest never leaves the
  * database.
  */

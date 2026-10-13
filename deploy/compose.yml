@@ -40,6 +40,9 @@ services:
     environment:
       <<: *umbra-env
       APP_URL: https://${APP_HOST}
+      # The visuals attached to notes. The web container alone writes and
+      # serves them, and the housekeeping step it runs is what sweeps them.
+      UPLOADS_PATH: /data/uploads
     networks:
       - application
       - egress
@@ -56,6 +59,10 @@ services:
       # path comes from paths.env, which is also where STORAGE_PATHS takes its
       # default, so the mount and what the gauge measures cannot drift apart.
       - ${MEDIA_ROOT}:${MEDIA_ROOT}:rw
+      # The one directory Umbra writes files into, since the root filesystem
+      # is read-only. Under DATA_DIR beside the database, so the same backups
+      # see it, and owned by uid 10001, which the pipeline sees to.
+      - ${DATA_DIR}/${DEPLOY_ENV}/uploads:/data/uploads:rw
     # expose, never ports: Traefik reaches this over the docker network.
     expose:
       - "3000"

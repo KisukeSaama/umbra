@@ -21,7 +21,7 @@ Reporting is three closed questions.
 1. **Which title**, searched in the local library index rather than at the
    provider, because only something on the server can be reported.
 2. **Where**, for a series: the whole thing, one season, or one episode. The
-   list comes from what the server actually holds.
+   list comes from what the server holds.
 3. **What is wrong**, from a fixed list that changes with the answer to the
    second question. A film is never offered "a season is missing".
 

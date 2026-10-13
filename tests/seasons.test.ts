@@ -7,6 +7,7 @@ import {
   isSeasonReleased,
   isSeriesIncomplete,
   isUnaired,
+  mergeEpisodes,
   seasonShortfall,
 } from "@/lib/domain/seasons";
 import { formatEpisodeRuns } from "@/lib/format";
@@ -205,5 +206,32 @@ describe("unaired episodes", () => {
     expect(isUnaired("2026-09-09", new Date("2026-09-09T00:30:00+02:00"))).toBe(
       false,
     );
+  });
+});
+
+describe("one season from a calendar and the server", () => {
+  it("takes dates from the calendar and presence from the server", () => {
+    expect(
+      mergeEpisodes(
+        [
+          { episodeNumber: 2, title: "Two", airDate: "2026-01-13" },
+          { episodeNumber: 1, title: "One", airDate: "2026-01-06" },
+        ],
+        [
+          { episodeNumber: 1, title: "Episode 1" },
+          // Held, and listed nowhere: still on the server.
+          { episodeNumber: 3, title: "Episode 3" },
+        ],
+      ),
+    ).toEqual([
+      { episodeNumber: 1, title: "One", airDate: "2026-01-06", onServer: true },
+      {
+        episodeNumber: 2,
+        title: "Two",
+        airDate: "2026-01-13",
+        onServer: false,
+      },
+      { episodeNumber: 3, title: "Episode 3", airDate: null, onServer: true },
+    ]);
   });
 });

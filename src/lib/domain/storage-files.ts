@@ -93,14 +93,27 @@ function assertPathNames(names: string[]) {
  * Each name in a selection.
  *
  * Kept apart from the path check on purpose: a selection is bounded by
- * `MAX_BATCH`, a path by `MAX_DEPTH`. Sharing one function meant a selection of
- * more than thirty-two entries was refused as though it were a path thirty-two
- * directories deep, which is not what any caller was told.
+ * `MAX_BATCH`, a path by `MAX_DEPTH`. Sharing one function would refuse a
+ * selection of more than thirty-two entries as though it were a path
+ * thirty-two directories deep, which is not what any caller is told.
  */
 function assertEachName(names: string[]) {
   if (!Array.isArray(names)) throw new BadRequestError("error.invalidPath");
   for (const name of names)
     if (!isSafeName(name)) throw new BadRequestError("error.invalidPath");
+}
+
+/**
+ * What the root listing hides, refused when it is named beside a path.
+ *
+ * `locate` applies `isLibrary` to the first segment of a path, but a request
+ * at the volume root carries an empty path and names its entries apart, so the
+ * same rule is applied to those names here.
+ */
+function assertReachableAt(path: string[], names: string[]) {
+  if (path.length > 0) return;
+  for (const name of names)
+    if (!isLibrary(name)) throw new NotFoundError("error.invalidPath");
 }
 
 /**
@@ -228,6 +241,8 @@ export async function weighStorageEntries(
   const { target } = await locate(volume, path, volumes);
   assertEachName(names);
   if (names.length > MAX_BATCH) throw new BadRequestError("error.invalidPath");
+  // At the root, a name is reached the way a path is: only if it is a library.
+  assertReachableAt(path, names);
 
   const weight: StorageWeight = { bytes: 0, files: 0, partial: false };
   for (const name of names) {
@@ -371,6 +386,7 @@ export async function openStorageVideo(
 ): Promise<StorageStream> {
   const { target } = await locate(volume, path, volumes);
   if (!isSafeName(name)) throw new BadRequestError("error.invalidPath");
+  assertReachableAt(path, [name]);
   const type = videoType(name);
   if (!type) throw new BadRequestError("error.notPlayable");
 

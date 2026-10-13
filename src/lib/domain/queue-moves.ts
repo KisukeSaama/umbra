@@ -29,6 +29,14 @@ export type QueueMoveOutcome = {
  * A row that refuses the move does not stop the others. Between the tick and
  * the press a colleague may have settled it, and that is an answer about that
  * row, not about the selection; it is reported back and the rest goes on.
+ *
+ * A row that fails for a reason nobody planned for is reported the same way,
+ * under the generic key, and logged. Rethrowing it would answer the whole
+ * selection with an error while the rows before it were already moved and
+ * their followers told, and the screen would go on showing them as they were.
+ *
+ * An ask is moved as an ask: the kind is the client's word, so the report
+ * itself is checked to be one, and a fault sent under that name is refused.
  */
 export async function moveQueueItems(
   items: readonly { kind: QueueItemKind; id: string }[],
@@ -42,11 +50,16 @@ export async function moveQueueItems(
     try {
       if (item.kind === "request")
         await updateRequestStatus(item.id, bulkRequestTarget(move), note);
-      else await updateReportStatus(item.id, askTarget(move), note);
+      else await updateReportStatus(item.id, askTarget(move), note, "ask");
       outcome.moved += 1;
     } catch (error) {
-      if (!(error instanceof AppError)) throw error;
-      outcome.failed.push({ id: item.id, messageKey: error.messageKey });
+      if (!(error instanceof AppError))
+        console.error(`[queue] move failed id=${item.id} move=${move}`, error);
+      outcome.failed.push({
+        id: item.id,
+        messageKey:
+          error instanceof AppError ? error.messageKey : "error.internal",
+      });
     }
   }
 
@@ -64,7 +77,9 @@ function askTarget(move: BulkMove) {
  * What the one word typed does to every row it is sent to.
  *
  * Accepting opens on nothing, since the rows each have their own word and the
- * box cannot show them all: left empty, it leaves those words alone. Refusing
+ * box cannot show them all: left empty, it leaves those words alone, except on
+ * a request coming back from `postponed`, whose word said why it waited for
+ * room and is erased by `noteFor`, as the row's own button erases it. Refusing
  * opens on nothing too, as it does on a row, and there an empty box means no
  * word, because what was said while fetching the title is no longer true once
  * it is declined, and the same goes for putting it off: the word that goes

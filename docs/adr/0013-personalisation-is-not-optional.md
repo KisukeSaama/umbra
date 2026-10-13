@@ -44,5 +44,5 @@ its own. Umbra still never stores a list of what anyone watched.
   server. Umbra offers no smaller lever, and it should not pretend to.
 - The privacy promise now rests entirely on the shape of the data rather than on
   a switch, so any future change to `taste_profile` has to be judged on its own.
-- If the media server does not answer, the profile is simply absent, exactly as
+- If the media server does not answer, the profile is absent, exactly as
   before.

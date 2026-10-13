@@ -13,7 +13,7 @@ import { useEffect } from "react";
  *
  * So while there is something to watch, the route is re-rendered on a slow
  * beat. No websocket and no state to keep in the browser: the page is already
- * the truth, it just needs asking again.
+ * the truth, it needs asking again.
  */
 export function AutoRefresh({
   active,

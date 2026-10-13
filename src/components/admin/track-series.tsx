@@ -20,7 +20,7 @@ const MAX_RESULTS = 6;
  * Accepting a request is what usually starts the tracker; this is for a show
  * nobody asked for that the server keeps anyway. It searches the same catalogue
  * as the palette, keeps the series alone, and tracking one that is already
- * tracked simply turns it back on, so there is no state to guard here.
+ * tracked turns it back on, so there is no state to guard here.
  *
  * A series the server holds as a re-cut offers no button: no calendar lines up
  * with its numbering, so it is looked after by hand. The route refuses it too.

@@ -22,6 +22,11 @@ type JanusRequest = {
   query?: Record<string, string | number | undefined>;
   headers?: Record<string, string>;
   method?: "GET" | "POST";
+  /**
+   * Refuse an answer served from the gateway cache. Set on calls that carry a
+   * member's own credential: a cached answer there may belong to someone else.
+   */
+  refuseCached?: boolean;
 };
 
 export async function janus<T = unknown>({
@@ -30,6 +35,7 @@ export async function janus<T = unknown>({
   query,
   headers,
   method = "GET",
+  refuseCached = false,
 }: JanusRequest): Promise<T> {
   const config = env();
   const url = new URL(
@@ -43,11 +49,13 @@ export async function janus<T = unknown>({
   try {
     response = await fetch(url, {
       method,
+      // A call site's headers come first, so nothing it sends can stand in
+      // for the two that identify this service.
       headers: {
-        "X-Janus-Application-Id": config.JANUS_APPLICATION_ID,
-        "X-Janus-Api-Key": config.JANUS_API_KEY,
         Accept: "application/json",
         ...headers,
+        "X-Janus-Application-Id": config.JANUS_APPLICATION_ID,
+        "X-Janus-Api-Key": config.JANUS_API_KEY,
       },
       signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
       // Janus holds the cache; Next's would duplicate it and hide the gateway
@@ -60,7 +68,9 @@ export async function janus<T = unknown>({
       cause instanceof Error && cause.name === "TimeoutError"
         ? `no answer within ${CLIENT_TIMEOUT_MS / 1000} s`
         : "network failure";
-    throw new UpstreamError(slug, `${reason} on ${path}`);
+    throw new UpstreamError(slug, `${reason} on ${path}`, {
+      origin: "network",
+    });
   }
 
   const correlationId = response.headers.get("X-Janus-Correlation-Id") ?? "";
@@ -69,6 +79,14 @@ export async function janus<T = unknown>({
   ).startsWith("application/problem+json");
 
   if (response.ok) {
+    const cache = (response.headers.get("X-Janus-Cache") ?? "").toUpperCase();
+    if (refuseCached && (cache === "HIT" || cache === "STALE")) {
+      console.error(
+        `[janus] cached answer refused slug=${slug} path=${path} cache=${cache} ` +
+          `correlationId=${correlationId}`,
+      );
+      throw new UpstreamError(slug, `cached answer refused on ${path}`);
+    }
     try {
       return (await response.json()) as T;
     } catch (cause) {
@@ -94,10 +112,31 @@ export async function janus<T = unknown>({
       response.headers.get("Retry-After") ?? undefined,
     );
   }
-  if (response.status === 404 && isGatewayRefusal) {
-    throw new UpstreamError(slug, `no API registered under slug "${slug}"`);
+  /*
+   * A refusal from the gateway carries its reason in `detail`, and that reason
+   * is what tells an operator which record to fix: a grant missing, a path
+   * outside what was given, a key rotated. So it is recorded with the error,
+   * not only logged. An answer from the API itself keeps to its status: its
+   * body is the provider's, and can say anything.
+   */
+  if (isGatewayRefusal) {
+    const reason =
+      response.status === 404
+        ? `no API at slug "${slug}", or its record is disabled`
+        : `status ${response.status} on ${path}`;
+    throw new UpstreamError(
+      slug,
+      `${reason}: ${String(detail).slice(0, 200)}`,
+      {
+        origin: "gateway",
+        status: response.status,
+      },
+    );
   }
-  throw new UpstreamError(slug, `status ${response.status} on ${path}`);
+  throw new UpstreamError(slug, `status ${response.status} on ${path}`, {
+    origin: "upstream",
+    status: response.status,
+  });
 }
 
 function safeJson(raw: string): { detail?: string } | null {

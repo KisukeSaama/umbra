@@ -10,16 +10,18 @@ import {
   FollowUpIcon,
   HouseIcon,
 } from "@/components/icons";
+import { NewsDot } from "@/components/main-nav";
+import { useNewsUnread } from "@/components/news-seen";
 import { useTranslator } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
  * The member nav on a phone: a bar of tabs at the foot of the screen.
  *
- * It used to be a second row under the header, which cost a quarter of a
- * phone screen to a sticky band before a single poster was in sight, and put
- * the four destinations at the one edge a thumb does not reach. Down here the
- * header is one row again and every destination is under the thumb, which is
+ * A second row under the header would cost a quarter of a phone screen to a
+ * sticky band before a single poster was in sight, and put the four
+ * destinations at the one edge a thumb does not reach. Down here the header
+ * is one row and every destination is under the thumb, which is
  * where every app the members already use keeps them.
  *
  * The same four destinations as the desktop pill, in the same order, with the
@@ -36,9 +38,17 @@ const TABS = [
   { href: "/news", key: "nav.news", icon: AnnounceIcon },
 ] as const;
 
-export function TabBar({ isStaff }: { isStaff: boolean }) {
+export function TabBar({
+  isStaff,
+  newsUnread = false,
+}: {
+  isStaff: boolean;
+  /** A note went out since this member last opened the feed. */
+  newsUnread?: boolean;
+}) {
   const t = useTranslator();
   const pathname = usePathname();
+  const unread = useNewsUnread(newsUnread);
 
   const tabs = isStaff
     ? [
@@ -69,11 +79,16 @@ export function TabBar({ isStaff }: { isStaff: boolean }) {
                     : "text-muted-foreground active:text-foreground",
                 )}
               >
-                <Icon
-                  className="size-6"
-                  weight={active ? "fill" : "light"}
-                  aria-hidden
-                />
+                <span className="relative">
+                  <Icon
+                    className="size-6"
+                    weight={active ? "fill" : "light"}
+                    aria-hidden
+                  />
+                  {tab.href === "/news" && unread ? (
+                    <NewsDot className="absolute -top-0.5 -right-1 ml-0 size-2" />
+                  ) : null}
+                </span>
                 <span className="max-w-full truncate leading-none">
                   {t(tab.key)}
                 </span>

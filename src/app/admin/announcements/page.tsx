@@ -5,11 +5,18 @@ import { ActionButton } from "@/components/admin/action-button";
 import { AnnouncementForm } from "@/components/admin/announcement-form";
 import { LikersDialog } from "@/components/admin/likers-dialog";
 import { formatPercent } from "@/components/formatting";
-import { ExternalLinkIcon, PollIcon, ThumbsDownIcon } from "@/components/icons";
+import {
+  ExternalLinkIcon,
+  ImageIcon,
+  PinIcon,
+  PollIcon,
+  ThumbsDownIcon,
+} from "@/components/icons";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { isFeaturedNow } from "@/lib/announcements";
 import { requireStaffPage } from "@/lib/auth/session";
 import {
   countAllAnnouncements,
@@ -97,6 +104,7 @@ export default async function AdminAnnouncementsPage({
               const poll = announcement.poll;
               const { likes, dislikes } = announcement.reactions;
               const likers = roster.get(announcement.id);
+              const featuredNow = isFeaturedNow(announcement);
               return (
                 <li key={announcement.id}>
                   <Card className="gap-3">
@@ -129,6 +137,35 @@ export default async function AdminAnnouncementsPage({
                               ? t("admin.announcements.published")
                               : t("admin.announcements.draft")}
                           </Badge>
+                          {announcement.featured ? (
+                            <Badge
+                              variant={featuredNow ? "secondary" : "outline"}
+                            >
+                              <PinIcon />
+                              {!featuredNow
+                                ? t("admin.announcements.feature.ended")
+                                : announcement.featuredUntil
+                                  ? t(
+                                      "admin.announcements.feature.badgeUntil",
+                                      {
+                                        date: formatDate(
+                                          announcement.featuredUntil,
+                                          locale,
+                                        ),
+                                      },
+                                    )
+                                  : t("admin.announcements.feature.badge")}
+                            </Badge>
+                          ) : null}
+                          {announcement.image ? (
+                            <Badge
+                              variant="outline"
+                              title={announcement.image.alt}
+                            >
+                              <ImageIcon />
+                              {t("admin.announcements.image.listed")}
+                            </Badge>
+                          ) : null}
                           {poll ? (
                             <Badge variant="outline">
                               <PollIcon />
@@ -247,6 +284,22 @@ export default async function AdminAnnouncementsPage({
                             {t("admin.announcements.publish")}
                           </ActionButton>
                         )}
+
+                        {announcement.published ? (
+                          <ActionButton
+                            url={`/api/admin/announcements/${announcement.id}`}
+                            body={{
+                              featured: featuredNow ? null : { until: null },
+                            }}
+                            size="sm"
+                            variant="secondary"
+                          >
+                            <PinIcon />
+                            {featuredNow
+                              ? t("admin.announcements.feature.unpin")
+                              : t("admin.announcements.feature.pin")}
+                          </ActionButton>
+                        ) : null}
 
                         {poll ? (
                           <ActionButton

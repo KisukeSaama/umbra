@@ -295,7 +295,7 @@ export function isSettledByJob(
  *
  * Settling is left out wherever a job can see the outcome: a missing season or
  * episode is fixed when Plex holds it, and the sync is what says so. A hand
- * closing it early told the members it was there when it was not. Everything
+ * closing it early would tell the members it is there when it is not. Everything
  * else keeps the manual close, since nothing else would ever settle it: what
  * Plex cannot see (a codec, a track, a playback failure), and what nothing can
  * count (a re-cut, a series nobody put under watch).

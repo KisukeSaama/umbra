@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { AnnouncementCard } from "@/components/home/announcement-card";
+import { FeaturedNote } from "@/components/home/featured-note";
 import { Hero } from "@/components/home/hero";
 import { InProgressRequests } from "@/components/home/in-progress-requests";
 import { RecentlyAdded } from "@/components/home/recently-added";
@@ -13,7 +14,10 @@ import { Shelf } from "@/components/shelf";
 import { CardSkeleton, ShelfSkeleton } from "@/components/skeletons";
 import { requireMemberPage } from "@/lib/auth/session";
 import { monthlyStats } from "@/lib/domain/analytics";
-import { latestAnnouncement } from "@/lib/domain/announcements";
+import {
+  featuredAnnouncement,
+  latestAnnouncement,
+} from "@/lib/domain/announcements";
 import { trendingShelf } from "@/lib/domain/discovery";
 import { recentlyAdded } from "@/lib/domain/library";
 import { activePoll } from "@/lib/domain/polls";
@@ -34,17 +38,20 @@ export default async function HomePage() {
   const account = await requireMemberPage();
   const { locale } = await getI18n();
 
-  const [recent, inProgress, poll, announcement, storage, stats] =
+  const [recent, inProgress, poll, featured, storage, stats] =
     await Promise.all([
       recentlyAdded(14),
       inProgressRequests(6),
       activePoll(account?.id),
-      // With the reader, so the thumbs on the home card show what they pressed
-      // on the feed: read anonymously, the card forgot their reaction.
-      latestAnnouncement(account.id),
+      featuredAnnouncement(account.id),
       storageOutlook(),
       monthlyStats(),
     ]);
+  // With the reader, so the thumbs on the home card show what they pressed on
+  // the feed: read anonymously, the card forgot their reaction. The note
+  // already leading the page is left out, so the card below says something
+  // else rather than the same thing twice.
+  const announcement = await latestAnnouncement(account.id, featured?.id);
 
   const aside = inProgress.length > 0 || poll !== null;
 
@@ -53,6 +60,9 @@ export default async function HomePage() {
       <Hero posters={recent} />
 
       <div className="umbra-container space-y-10 py-8 sm:space-y-12 sm:py-12">
+        {/* The one note the staff want everybody to see comes before anything
+            else the page has to say. */}
+        {featured ? <FeaturedNote announcement={featured} /> : null}
         <MonthStats stats={stats} />
         <RecentlyAdded items={recent} />
 
@@ -86,10 +96,14 @@ export default async function HomePage() {
             ) : null}
           </div>
           <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-            <AnnouncementCard
-              announcement={announcement}
-              className="lg:col-span-2"
-            />
+            {/* With the only note pinned above, an empty card here would say
+                there is no news right under the one there is. */}
+            {announcement || !featured ? (
+              <AnnouncementCard
+                announcement={announcement}
+                className="lg:col-span-2"
+              />
+            ) : null}
             <StorageCard storage={storage} />
           </div>
         </div>

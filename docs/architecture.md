@@ -68,29 +68,31 @@ attributes bare or prefixed with `@`, so the parser in
 Posters come from the public TMDB image CDN, never proxied from the media server:
 that keeps the media server invisible to browsers and avoids a binary proxy.
 Library entries get their poster path filled in by a capped enrichment pass after
-each sync.
+each sync. A title the provider refuses is stamped and waits a month; a quota
+reached, a gateway refusal or a provider out of reach stamps nothing and ends the
+pass, so one 429 does not park a whole sync's worth of new titles.
 
 ## Data model
 
-| Table                                         | Holds                                                             |
-| --------------------------------------------- | ----------------------------------------------------------------- |
-| `account`                                     | a Plex account id, a name, a role, a staff-only note              |
-| `session`                                     | a session digest and its expiry                                   |
-| `auth_pin`                                    | a plex.tv pin being confirmed, short-lived                        |
-| `media`                                       | a title Umbra knows about, because it was requested or is tracked |
-| `library_item`                                | the local index of the server library                             |
-| `media_request`, `request_follower`           | a request and its status, and who is waiting on it                |
-| `tracked_series`                              | a series under watch, and its key on the server                   |
-| `episode`                                     | the broadcast calendar, and presence on the server                |
-| `episode_task`                                | an aired episode that is still missing                            |
-| `report`, `report_follower`                   | a problem a member pointed at, and who is waiting on it           |
-| `notification`                                | what a member has been told, as data rather than as a sentence    |
-| `taste_profile`                               | a few weighted genre ids per account, replaced on every run       |
-| `announcement`, `poll`, `poll_option`, `vote` | community. A poll hangs off the announcement carrying it          |
-| `storage_snapshot`                            | a storage measurement, with per-volume detail                     |
-| `storage_tree_snapshot`                       | what fills the disk, walked directory by directory                |
-| `job_state`, `job_run`                        | resume point and run history                                      |
-| `analytics_daily`                             | daily counters, with no account column                            |
+| Table                                         | Holds                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------- |
+| `account`                                     | a Plex account id, a name, a role, a staff-only note, news seen     |
+| `session`                                     | a session digest and its expiry                                     |
+| `auth_pin`                                    | a plex.tv pin being confirmed, short-lived                          |
+| `media`                                       | a title Umbra knows about, because it was requested or is tracked   |
+| `library_item`                                | the local index of the server library                               |
+| `media_request`, `request_follower`           | a request and its status, and who is waiting on it                  |
+| `tracked_series`                              | a series under watch, and its key on the server                     |
+| `episode`                                     | the broadcast calendar, and presence on the server                  |
+| `episode_task`                                | an aired episode that is still missing                              |
+| `report`, `report_follower`                   | a problem a member pointed at, and who is waiting on it             |
+| `notification`                                | what a member has been told, as data rather than as a sentence      |
+| `taste_profile`                               | a few weighted genre ids per account, replaced on every run         |
+| `announcement`, `poll`, `poll_option`, `vote` | community. A poll hangs off the note carrying it, a visual is a key |
+| `storage_snapshot`                            | a storage measurement, with per-volume detail                       |
+| `storage_tree_snapshot`                       | what fills the disk, walked directory by directory                  |
+| `job_state`, `job_run`                        | resume point and run history                                        |
+| `analytics_daily`                             | daily counters, with no account column                              |
 
 Uniqueness lives in the database, never in a read-then-write:
 
@@ -110,7 +112,7 @@ Uniqueness lives in the database, never in a read-then-write:
   beside them share the workspace but not the accounts page.
 - `report_active_idx`, partial unique on
   `(media_id, coalesce(season_number, -1), coalesce(episode_number, -1), reason)`
-  where the status is still live. The `coalesce` is not decoration: two NULLs
+  where the status is still live. The `coalesce` is needed: two NULLs
   never collide in Postgres, so without it "the whole series" would duplicate on
   every click. The query builder cannot name an expression as a conflict target,
   which is why creating a report is one hand-written statement.
@@ -123,6 +125,11 @@ Uniqueness lives in the database, never in a read-then-write:
   subject and the step it announces, so a fan-out can be replayed with
   `ON CONFLICT DO NOTHING` and a request going accepted then available says both
   things rather than only the first.
+- `announcement_single_featured_idx`, partial unique on `featured` where it is
+  true: one note leads the home page. Pinning one unpins the others in the same
+  transaction, and two pins landing together leave the second refused rather
+  than two notes pinned. `announcement_featured_published_check` keeps a draft
+  from being the one. See `docs/adr/0022-uploaded-visuals-and-the-featured-note.md`.
 
 `library_item` is an index, not a cache of the media server API: it is what lets a
 search answer "already available" in one query instead of asking the server per
@@ -130,9 +137,12 @@ result.
 
 ## Jobs
 
-`runSyncCycle()` in `src/lib/jobs/index.ts` runs seven steps in dependency order,
+`runSyncCycle()` in `src/lib/jobs/index.ts` runs eight steps in dependency order,
 each recorded in `job_run` and stamped in `job_state` on success. A failing step
 does not stop the others: a metadata outage must not prevent a storage snapshot.
+A failed run records a dictionary key, its values and a technical detail rather
+than a sentence (`src/lib/jobs/failure.ts`), so the synchronisation page words it
+in the reader's language and keeps the slug, status and path that match the logs.
 
 The cycle records a run of its own too, under `sync-cycle`, written before the
 first step starts and closed after the last. It is the lock (one running cycle,
@@ -146,7 +156,16 @@ button was pressed, and the page stopped following a cycle that was not over.
    their server entry; close requests and missing-episode reports whose title has
    appeared; retire requests whose title has left the server since it arrived;
    fill in missing posters and genres.
-2. **series-sync**: refresh the calendar of series due for a resync.
+2. **series-sync**: put under watch the accepted series whose tracking failed at
+   the time, then refresh the calendar of series due for a resync. A series is
+   due on the later of its last full sync and its last refused attempt, so one
+   the provider keeps refusing (a season it will not give, a title it no longer
+   knows) waits half a day like the others instead of coming back first on every
+   cycle; deferred tracking stamps its request the same way. Such a refusal is
+   that series' own and the loop goes on, the step failing at the end with a
+   count and the first few titles. A failure of the whole service (a 429, a
+   gateway refusal, a timeout, a provider down) is everyone's: it ends the loop
+   and fails the step there and then, and stamps nothing.
 3. **episode-reconcile**: mark episodes available or missing, raise tasks, close
    tasks whose episode arrived, then settle the season and series reports the
    refreshed calendar can now answer.
@@ -159,14 +178,21 @@ button was pressed, and the page stopped following a cycle that was not over.
    enough to load: the files of the folder being drawn come from the live
    listing. The walk never follows a symbolic link and never takes a path from
    a request.
-6. **taste-profile**: rebuild the profile of every approved account from a
-   rolling window of the media server history, replacing the rows rather than
-   adding to them. There is no account it skips: personalisation has no switch,
+6. **taste-profile**: rebuild the profile of every account the server is still
+   shared with from a rolling window of the media server history, replacing the
+   rows rather than adding to them. An account the server is no longer shared
+   with is skipped, since keeping a profile for somebody who left would be
+   keeping more than the minimum; no other is: personalisation has no switch,
    see `docs/adr/0013-personalisation-is-not-optional.md`.
-7. **housekeeping**: delete what nothing else deletes, bounded per run so a
+7. **membership-sweep**: end the sessions of everyone the server is no longer
+   shared with and forget their taste profile, from the owner's view of the
+   shares on plex.tv. A step of its own so a gateway that is down fails it alone
+   and not the deletions after it; it does nothing until the owner slug is set.
+8. **housekeeping**: delete what nothing else deletes, bounded per run so a
    backlog drains over several passes: expired sessions and pins, old job runs,
    disk maps past a week except the latest, read notifications past a month and
-   everything past six.
+   everything past six, and the uploaded visuals no note names any more once
+   they have gone a day untouched.
 
 The sweep in library-sync is scoped to the section that just answered, and only
 when it answered with something. A section whose storage is not mounted comes
@@ -185,9 +211,11 @@ deployed on; what bounds it is the caller, the worker giving up on the answer
 after fifteen minutes while the server carries on. A long step writes where it is
 into `job_state.cursor` at most every second and a half, which is what the
 administration reads to say "twelve thousand files walked" instead of showing a
-spinner. A run still marked running after forty-five minutes was interrupted by
-a restart, and is closed as failed the next time anyone asks, so a crash never
-blocks the button for good.
+spinner. Every run, the cycle's own included, stamps `heartbeat_at` every fifteen
+seconds for as long as it is on its feet, whether or not it has progress to
+write. A run silent for five minutes was interrupted by a restart, and is closed
+as failed the next time anyone asks, so a crash never blocks the button for good
+and a step that is merely long is never declared dead.
 
 Reconciliation compares dates against now rather than reacting to an event, so
 nothing is missed after downtime, and `ON CONFLICT DO NOTHING` on the task means a
@@ -261,12 +289,15 @@ work.
   paired with a global cap.
 - Cross-site request forgery: the session cookie is `SameSite=Lax`, and
   `src/proxy.ts` refuses any mutation under `/api` whose `Origin` or
-  `Sec-Fetch-Site` names another site.
+  `Sec-Fetch-Site` names another site. The one route it does not run on, the
+  upload of a note's visual, makes the same check itself first (see "Uploaded
+  visuals" below).
 - Access is checked in every page, not only in the layout above it: a layout does
   not stop the page under it from rendering and is not re-run on a client-side
   navigation. `requireMemberPage` and `requireAdminPage` redirect, `requireMember`
-  and `requireAdmin` throw. Blocking or demoting an account ends its sessions at
-  once.
+  and `requireAdmin` throw. Changing a role ends no session and needs to end
+  none: the role is read from the account on every request, so a demotion holds
+  from the next one.
 - Shared secrets (`CRON_SECRET`, the administrator Plex id) are compared in
   constant time.
 - Content Security Policy, `Permissions-Policy` and HSTS on every response; the
@@ -295,10 +326,9 @@ is one so the shelf comes back where it was left, and falls back to a plain link
 home when the address was reached cold. A button in the bottom corner appears
 after a screen of scrolling and goes back to the top.
 
-Discovery shelves each stream inside their own `Suspense` boundary. That is not a
-performance trick: the gateway can refuse one listing, and this way it costs a
-rail rather than the page. Nothing here caches a provider response, because Janus
-owns that; `React.cache()` only deduplicates the same call inside one render.
+Discovery shelves each stream inside their own `Suspense` boundary, because the
+gateway can refuse one listing, and this way it costs a rail rather than the
+page. Nothing here caches a provider response, because Janus owns that; `React.cache()` only deduplicates the same call inside one render.
 
 Appearance follows the operating system and
 language follows the browser (`Accept-Language`, resolved once per request and
@@ -309,6 +339,40 @@ whose browser speaks a language they do not.
 Wording lives in `src/lib/i18n/dictionaries.ts`, where `fr` is typed against `en`,
 so a missing translation is a compile error rather than a blank label. Visual
 rules are in [DESIGN.md](DESIGN.md).
+
+## Uploaded visuals
+
+A note's visual is the one file Umbra writes. It lives in `UPLOADS_PATH`, a
+flat directory on a volume of its own (`${DATA_DIR}/${DEPLOY_ENV}/uploads`,
+mounted at `/data/uploads` in the web container, owned by uid 10001), because
+the container's root filesystem is read-only. The worker does not mount it.
+
+`POST /api/admin/uploads` takes the picture as a bare body, counts its bytes as
+they arrive and stops at ten megabytes, then `src/lib/images.ts` decodes it with
+sharp, orients it, fits it inside 1600 pixels and writes it again as WebP with
+no metadata. The file is named after the SHA-256 of those bytes, written beside
+its final name and renamed into place. `src/lib/domain/uploads.ts` is the only
+code that touches the directory, and it only ever turns a key matching
+`^[0-9a-f]{64}$` into a file name, so no request names a path.
+
+That route is the one path under `/api` the proxy leaves out. Next buffers in
+memory every body the proxy sees, up to `experimental.proxyClientMaxBodySize`,
+which is a single limit for the whole application and stays at 64 kB and one
+byte. Raising it for one staff route would let every caller of every route
+make the server hold a picture's worth of memory before `jsonBody` refused
+them. The route makes the cross-site check itself instead.
+
+Files are served by `GET /api/uploads/<key>.webp`, to members, and to a member
+only when a published note names the key: the staff see every file, since the
+composer previews one before any note carries it. The address never changes
+what it serves, so the answer is `private, max-age=31536000, immutable`, and
+`private` keeps Cloudflare from caching a members-only picture for whoever asks
+next. The pages draw them with `next/image` and `unoptimized`, since the
+optimiser fetches without the reader's session.
+
+Nothing tracks which files are in use. The housekeeping step lists the
+directory and removes what no note names after a day of grace, which covers a
+picture dropped and never saved, a note deleted and a visual replaced.
 
 ## The body of an announcement
 

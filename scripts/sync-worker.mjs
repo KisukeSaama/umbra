@@ -2,7 +2,7 @@
  * Scheduled synchronisation for Umbra.
  *
  * Next has no scheduler of its own, and a cron on the host would put
- * application logic outside the application. This container simply calls the
+ * application logic outside the application. This container calls the
  * sync endpoint on a loop.
  *
  * It holds no state: the endpoint is idempotent and catches up on its own, so a

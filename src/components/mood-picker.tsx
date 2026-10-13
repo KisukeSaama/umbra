@@ -50,11 +50,9 @@ const SKIPPED_STORAGE_KEY = "umbra-picker-skipped";
 /**
  * "I do not know what to watch", answered properly.
  *
- * It used to be a die: one random title, take it or roll again. Four closed
- * questions turn that into an actual suggestion, and the answer comes back in
- * two halves on purpose. What is already on the server can be watched tonight;
- * what is not can be asked for. Both are useful, and they are useful for
- * different reasons.
+ * Four closed questions make a suggestion rather than a roll of the dice, and
+ * the answer comes back in two halves on purpose. What is already on the
+ * server can be watched tonight; what is not can be asked for.
  *
  * Not one free-text field in the whole thing.
  */
@@ -182,8 +180,8 @@ export function MoodPicker() {
             </Button>
           </div>
         </div>
-        {/* The hint describes the two halves, so it follows what came back: it
-            used to promise titles on Kisuflix above a selection that had none. */}
+        {/* The hint describes the two halves, so it follows what came back:
+            it never promises titles on Kisuflix above a selection with none. */}
         {selection.tonight.length > 0 || selection.ideas.length > 0 ? (
           <p className="text-muted-foreground text-sm">
             {t(

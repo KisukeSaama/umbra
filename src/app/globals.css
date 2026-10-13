@@ -52,10 +52,9 @@
 }
 
 /*
- * Reading sizes. The people this fronts are of every age, and the interface
- * default used to be 14px with a lot of 12px under it, which the older half
- * read with their glasses off the table. Body copy is now 16px and the small
- * size 13px, kept for dates, years, counts and key caps rather than sentences.
+ * Reading sizes. The people this fronts are of every age, and the stock 14px
+ * default with a lot of 12px under it is read by the older half with their
+ * glasses off the table. Body copy is 16px and the small size 13px, kept for dates, years, counts and key caps rather than sentences.
  * Both are rem, so the larger setting in the account menu scales them too.
  */
 @theme {
@@ -232,10 +231,10 @@
   /*
    * The same sky, barely lit, at the top of every page that is not the home.
    *
-   * Without it the arrival was the only screen with weather and every other one
-   * opened on flat paper, so moving between them read as two different sites
-   * rather than as two rooms of one. Going home now changes how bright the top
-   * of the page is, not whether it exists, and the sticky header keeps the same
+   * Without it the arrival would be the only screen with weather and every
+   * other one would open on flat paper, so moving between them would read as
+   * two different sites rather than as two rooms of one. Going home changes how
+   * bright the top of the page is, not whether it exists, and the sticky header keeps the same
    * tint under it wherever you land.
    */
   .umbra-dawn {
@@ -385,9 +384,9 @@
     left: 0;
     /*
      * As wide as the screen rather than as the block, and travelling a screen
-     * width: sized to the block, a short bar flashed in a tenth of the time
-     * the banner took, and a page of them read as a dozen lights. The band
-     * now crosses every block at one speed, at nearly the same moment.
+     * width: sized to the block, a short bar flashes in a tenth of the time
+     * the banner takes, and a page of them reads as a dozen lights. The band
+     * crosses every block at one speed, at nearly the same moment.
      */
     width: 100vw;
     pointer-events: none;
