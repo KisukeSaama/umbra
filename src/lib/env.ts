@@ -65,6 +65,13 @@ const schema = z.object({
   /** `Movies:/data/movies,Series:/data/series` */
   STORAGE_PATHS: z.string().default(""),
 
+  /**
+   * Where the visuals attached to notes are kept: the one directory Umbra
+   * writes files into. A volume of its own in the deployment, since the
+   * container's root is read-only; a folder beside the checkout in development.
+   */
+  UPLOADS_PATH: z.string().trim().min(1).default(".uploads"),
+
   /** Token expected by the scheduled sync route. */
   CRON_SECRET: z.string().min(16).optional(),
 

@@ -190,6 +190,13 @@
       "when": 1791901010956,
       "tag": "0026_audit_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791902492669,
+      "tag": "0027_announcement_visual_and_pin",
+      "breakpoints": true
     }
   ]
 }

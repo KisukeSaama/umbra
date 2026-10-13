@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
      * byte over that cap on purpose: past it Next truncates instead of
      * refusing, and a body cut to exactly 64 kB could still parse, whereas one
      * byte more is measured by `jsonBody` and refused.
+     *
+     * The one larger body, a note's visual, goes to a route the proxy does
+     * not run on (see its matcher), so this limit never applies to it.
      */
     proxyClientMaxBodySize: 64 * 1024 + 1,
   },

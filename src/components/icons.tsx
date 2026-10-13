@@ -24,6 +24,7 @@ import {
   HandHeart,
   HardDrives,
   House,
+  ImageSquare,
   Info,
   List,
   ListChecks,
@@ -33,6 +34,7 @@ import {
   NotePencil,
   Moon,
   Play,
+  PushPin,
   Plus,
   Scissors,
   SignOut,
@@ -46,6 +48,7 @@ import {
   ThumbsUp,
   Trash,
   Tray,
+  UploadSimple,
   UserCircle,
   Users,
   Warning,
@@ -142,6 +145,9 @@ export const ThumbsDownIcon = icon(ThumbsDown, "regular");
 export const StarIcon = icon(Star, "fill");
 /** A staff note on an account: something the staff wrote, never a member. */
 export const NoteIcon = icon(NotePencil, "regular");
+export const ImageIcon = icon(ImageSquare);
+export const PinIcon = icon(PushPin, "regular");
+export const UploadIcon = icon(UploadSimple, "regular");
 
 /** Waiting. The only icon that carries motion. */
 export function SpinnerIcon({ className, ...props }: IconProps) {

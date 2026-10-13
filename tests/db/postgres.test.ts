@@ -127,9 +127,9 @@ describe.skipIf(!hasDatabase)("reopening a declined report", () => {
 /**
  * The request lifecycle, against the table it lives in.
  *
- * The graph in `docs/product.md` only ever moves forward, and it used to be a
- * drawing rather than a rule: every status was accepted from every status. This
- * is the regression test for the two moves that did real damage.
+ * The graph in `docs/product.md` is a rule, not a drawing: a status is reached
+ * only from the statuses that lead to it. The two moves asserted here are the
+ * ones that do real damage when allowed.
  */
 describe.skipIf(!hasDatabase)("moving a request", () => {
   beforeEach(emptyDatabase);
@@ -583,9 +583,9 @@ describe.skipIf(!hasDatabase)("sharing a request", () => {
   });
 
   /*
-   * ADR 0021 made going back the normal flow: taken up, put off for lack of
-   * room, taken up again the day there is room. Keyed on the status alone, the
-   * second acceptance met the first and nobody heard the title was coming.
+   * Going back is the normal flow (ADR 0021): taken up, put off for lack of
+   * room, taken up again the day there is room. The second acceptance is news
+   * of its own, not a repeat of the first.
    */
   it("tells the followers every time a request is accepted again", async () => {
     const { first, requestId } = await askedFilm();
@@ -683,10 +683,10 @@ describe.skipIf(!hasDatabase)("sharing a request", () => {
 /**
  * Reconciliation, against the tables it compares.
  *
- * Presence used to be a one-way door: an episode marked available stayed
- * available after its file was deleted, so no task came back and a report
- * saying the series was behind could settle itself against a calendar that
- * claimed everything was there. Both directions are asserted here.
+ * Presence goes both ways: an episode whose file is deleted stops being
+ * available, so its task comes back and a report saying the series is behind
+ * cannot settle itself against a calendar claiming everything is there. Both
+ * directions are asserted here.
  */
 describe.skipIf(!hasDatabase)("reconciling episodes", () => {
   beforeEach(emptyDatabase);
@@ -1301,8 +1301,8 @@ describe.skipIf(!hasDatabase)("a re-cut on the server", () => {
     ]);
 
     try {
-      // No provider id from the server, so a filter on it alone dropped the
-      // one title this member watched.
+      // The server gives the cut no provider id: the shelf has to use the one
+      // Umbra matched, or the one title this member watched is left out.
       const { history } = await discovery.recentTitles(account.id);
       expect(history).toEqual([{ kind: "tv", providerId: "77" }]);
     } finally {
@@ -1397,7 +1397,7 @@ describe.skipIf(!hasDatabase)("measuring a season asked for", () => {
         missing: 2,
         held: 1,
         aired: 3,
-        codes: expect.any(String),
+        codes: "S01E02-S01E03",
       });
       expect(gaps.has("episode")).toBe(false);
       expect(provider).not.toHaveBeenCalled();
@@ -1704,5 +1704,257 @@ describe.skipIf(!hasDatabase)("titles the provider keeps refusing", () => {
     } finally {
       vi.restoreAllMocks();
     }
+  });
+});
+
+describe.skipIf(!hasDatabase)("the featured note and the news dot", () => {
+  let announcements: typeof import("@/lib/domain/announcements");
+  let uploads: typeof import("@/lib/domain/uploads");
+  let uploadsDirectory: string;
+
+  beforeAll(async () => {
+    if (!hasDatabase) return;
+    const { mkdtemp } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { resetEnvCache } = await import("@/lib/env");
+    uploadsDirectory = await mkdtemp(path.join(tmpdir(), "umbra-db-uploads-"));
+    process.env.UPLOADS_PATH = uploadsDirectory;
+    resetEnvCache();
+    announcements = await import("@/lib/domain/announcements");
+    uploads = await import("@/lib/domain/uploads");
+  });
+
+  beforeEach(emptyDatabase);
+
+  async function note(
+    values: Partial<typeof schema.announcements.$inferInsert> = {},
+  ) {
+    const [row] = await db()
+      .insert(schema.announcements)
+      .values({
+        title: "A note",
+        content: "Body",
+        published: true,
+        publishedAt: new Date(),
+        ...values,
+      })
+      .returning();
+    return row;
+  }
+
+  async function member(name = "reader") {
+    const [row] = await db()
+      .insert(schema.accounts)
+      .values({ plexAccountId: `test:${name}`, username: name })
+      .returning();
+    return row;
+  }
+
+  it("refuses a second pinned note at the database", async () => {
+    await note({ featured: true });
+    await expect(note({ featured: true })).rejects.toThrow();
+  });
+
+  it("refuses a pinned draft at the database", async () => {
+    await expect(
+      note({ featured: true, published: false, publishedAt: null }),
+    ).rejects.toThrow();
+  });
+
+  it("moves the pin rather than refusing it, through the domain", async () => {
+    const first = await note({ featured: true });
+    const second = await note();
+    await announcements.updateAnnouncement(second.id, {
+      featured: { until: null },
+    });
+    const pinned = await db()
+      .select({ id: schema.announcements.id })
+      .from(schema.announcements)
+      .where(eq(schema.announcements.featured, true));
+    expect(pinned).toEqual([{ id: second.id }]);
+    expect((await announcements.featuredAnnouncement())?.id).toBe(second.id);
+    expect(first.id).not.toBe(second.id);
+  });
+
+  it("stops showing a pin past its date, with nothing run to take it down", async () => {
+    await note({
+      featured: true,
+      featuredUntil: new Date(Date.now() - 60_000),
+    });
+    expect(await announcements.featuredAnnouncement()).toBeNull();
+
+    await db()
+      .update(schema.announcements)
+      .set({
+        featuredUntil: new Date(Date.now() + 60_000),
+      });
+    expect(await announcements.featuredAnnouncement()).not.toBeNull();
+  });
+
+  it("takes the pin off a note that is withdrawn", async () => {
+    const pinned = await note({ featured: true });
+    await announcements.updateAnnouncement(pinned.id, { published: false });
+    const [row] = await db()
+      .select({ featured: schema.announcements.featured })
+      .from(schema.announcements)
+      .where(eq(schema.announcements.id, pinned.id));
+    expect(row.featured).toBe(false);
+  });
+
+  it("refuses a fundraiser without the address of its page", async () => {
+    await expect(
+      announcements.createAnnouncement({
+        title: "Fundraiser",
+        content: "What it is for",
+        category: "funding",
+        published: false,
+      }),
+    ).rejects.toMatchObject({ messageKey: "error.fundingNeedsLink" });
+
+    const funding = await note({
+      category: "funding",
+      linkUrl: "https://example.org/pot",
+    });
+    await expect(
+      announcements.updateAnnouncement(funding.id, { link: null }),
+    ).rejects.toMatchObject({ messageKey: "error.fundingNeedsLink" });
+  });
+
+  it("attaches a stored visual with its own size, and refuses one that is not there", async () => {
+    const sharp = (await import("sharp")).default;
+    const stored = await uploads.storeUpload(
+      await sharp({
+        create: { width: 90, height: 30, channels: 3, background: "#c80" },
+      })
+        .png()
+        .toBuffer(),
+    );
+    const { id } = await announcements.createAnnouncement({
+      title: "With a picture",
+      content: "Body",
+      category: "information",
+      published: false,
+      image: { key: stored.key, alt: "An ochre band" },
+    });
+    const [row] = await db()
+      .select()
+      .from(schema.announcements)
+      .where(eq(schema.announcements.id, id));
+    expect(row).toMatchObject({
+      imageKey: stored.key,
+      imageWidth: 90,
+      imageHeight: 30,
+      imageAlt: "An ochre band",
+    });
+
+    // A draft's picture is for the staff alone.
+    expect(await uploads.canReadUpload(stored.key, { role: "member" })).toBe(
+      false,
+    );
+    expect(await uploads.canReadUpload(stored.key, { role: "assistant" })).toBe(
+      true,
+    );
+    await announcements.updateAnnouncement(id, { published: true });
+    expect(await uploads.canReadUpload(stored.key, { role: "member" })).toBe(
+      true,
+    );
+
+    await expect(
+      announcements.createAnnouncement({
+        title: "Missing picture",
+        content: "Body",
+        category: "information",
+        published: false,
+        image: { key: "e".repeat(64), alt: "Nothing" },
+      }),
+    ).rejects.toMatchObject({ messageKey: "error.imageMissing" });
+  });
+
+  it("refuses a visual without words at the database", async () => {
+    await expect(
+      note({
+        imageKey: "f".repeat(64),
+        imageWidth: 10,
+        imageHeight: 10,
+        imageAlt: "  ",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("keeps a visual a note still names when the sweep runs", async () => {
+    const { readdir, utimes } = await import("node:fs/promises");
+    const path = await import("node:path");
+    const sharp = (await import("sharp")).default;
+    const make = (background: string) =>
+      sharp({ create: { width: 20, height: 20, channels: 3, background } })
+        .png()
+        .toBuffer();
+    const kept = await uploads.storeUpload(await make("#123"));
+    const orphan = await uploads.storeUpload(await make("#456"));
+    await note({
+      imageKey: kept.key,
+      imageWidth: kept.width,
+      imageHeight: kept.height,
+      imageAlt: "Kept",
+    });
+    const old = new Date(Date.now() - 2 * 86_400_000);
+    for (const key of [kept.key, orphan.key])
+      await utimes(path.join(uploadsDirectory, `${key}.webp`), old, old);
+
+    expect(await uploads.sweepOrphanUploads()).toBe(1);
+    const left = await readdir(uploadsDirectory);
+    expect(left).toContain(`${kept.key}.webp`);
+    expect(left).not.toContain(`${orphan.key}.webp`);
+    // A second pass finds nothing left to do.
+    expect(await uploads.sweepOrphanUploads()).toBe(0);
+  });
+
+  it("lights the dot for a note published since the last visit, and only then", async () => {
+    const reader = await member();
+    // Nothing published: nothing to read.
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(false);
+
+    const first = await note({ publishedAt: new Date(Date.now() - 60_000) });
+    // Never opened the feed: everything there is new.
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(true);
+
+    await announcements.markNewsSeen(reader.id, first.publishedAt!);
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(false);
+
+    // A draft is news to nobody.
+    await note({ published: false, publishedAt: null });
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(false);
+
+    await note({ publishedAt: new Date() });
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(true);
+  });
+
+  it("never moves the seen marker backwards, nor past now", async () => {
+    const reader = await member();
+    const seen = async () =>
+      (
+        await db()
+          .select({ at: schema.accounts.newsSeenAt })
+          .from(schema.accounts)
+          .where(eq(schema.accounts.id, reader.id))
+      )[0].at;
+
+    const recent = new Date(Date.now() - 1000);
+    await announcements.markNewsSeen(reader.id, recent);
+    await announcements.markNewsSeen(
+      reader.id,
+      new Date(Date.now() - 86_400_000),
+    );
+    expect((await seen())?.getTime()).toBe(recent.getTime());
+
+    await announcements.markNewsSeen(
+      reader.id,
+      new Date(Date.now() + 86_400_000),
+    );
+    expect((await seen())!.getTime()).toBeLessThanOrEqual(Date.now());
+    // A note published after the call is still unread.
+    await note({ publishedAt: new Date(Date.now() + 5_000) });
+    expect(await announcements.hasUnreadNews(reader.id)).toBe(true);
   });
 });

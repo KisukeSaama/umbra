@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { EMBED_RATIOS } from "@/lib/announcements";
+import { EMBED_RATIOS, UPLOAD_KEY_PATTERN } from "@/lib/announcements";
 import { parseEmbedCode } from "@/lib/embed";
 
 /**
@@ -47,3 +47,29 @@ export const embedSchema = z
       ratio: input.ratio ?? parsed.ratio ?? "wide",
     };
   });
+
+/**
+ * The visual a note carries: the key of a file the upload route wrote, and the
+ * words a screen reader says in its place. Those words are the staff's, like
+ * the rest of the note, so nothing a member writes is ever published. They are
+ * required: a picture with no description says nothing to whoever cannot see
+ * it, and the fundraiser is the note that most needs to be understood.
+ */
+export const imageSchema = z.object({
+  key: z.string().regex(UPLOAD_KEY_PATTERN, { message: "error.imageMissing" }),
+  alt: z.string().trim().min(2, { message: "error.imageAltMissing" }).max(200),
+});
+
+/**
+ * A pin to the top of the home page, with an end date or without one. A date
+ * already past would pin a note nobody sees, so it is refused.
+ */
+export const featureSchema = z.object({
+  until: z.coerce
+    .date()
+    .nullish()
+    .transform((value) => value ?? null)
+    .refine((value) => value === null || value.getTime() > Date.now(), {
+      message: "error.featureEndPast",
+    }),
+});

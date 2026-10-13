@@ -23,6 +23,13 @@ One image, three containers:
   media has to be writable by that user or its group; if it is not, a deletion
   answers read-only and changes nothing, which is a safe failure rather than a
   silent one.
+  It also mounts `/home/kisuke/umbra/<env>/uploads` at `/data/uploads`, the one
+  directory Umbra writes files into (the visuals attached to notes, see
+  `docs/adr/0022-uploaded-visuals-and-the-featured-note.md`), and points
+  `UPLOADS_PATH` at it. The pipeline creates that directory next to the database
+  and hands it to uid 10001; if it ends up owned by anyone else, an upload
+  answers that the folder cannot be written and nothing else breaks. Back it up
+  with the database: a note whose file is gone shows its space and no picture.
 - `worker`: the same image running `scripts/sync-worker.mjs`, calling the sync
   endpoint on a loop. No public surface, and `MIGRATE_ON_START=false`, because
   only the web container owns the schema.

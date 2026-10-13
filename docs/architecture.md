@@ -74,25 +74,25 @@ pass, so one 429 does not park a whole sync's worth of new titles.
 
 ## Data model
 
-| Table                                         | Holds                                                             |
-| --------------------------------------------- | ----------------------------------------------------------------- |
-| `account`                                     | a Plex account id, a name, a role, a staff-only note              |
-| `session`                                     | a session digest and its expiry                                   |
-| `auth_pin`                                    | a plex.tv pin being confirmed, short-lived                        |
-| `media`                                       | a title Umbra knows about, because it was requested or is tracked |
-| `library_item`                                | the local index of the server library                             |
-| `media_request`, `request_follower`           | a request and its status, and who is waiting on it                |
-| `tracked_series`                              | a series under watch, and its key on the server                   |
-| `episode`                                     | the broadcast calendar, and presence on the server                |
-| `episode_task`                                | an aired episode that is still missing                            |
-| `report`, `report_follower`                   | a problem a member pointed at, and who is waiting on it           |
-| `notification`                                | what a member has been told, as data rather than as a sentence    |
-| `taste_profile`                               | a few weighted genre ids per account, replaced on every run       |
-| `announcement`, `poll`, `poll_option`, `vote` | community. A poll hangs off the announcement carrying it          |
-| `storage_snapshot`                            | a storage measurement, with per-volume detail                     |
-| `storage_tree_snapshot`                       | what fills the disk, walked directory by directory                |
-| `job_state`, `job_run`                        | resume point and run history                                      |
-| `analytics_daily`                             | daily counters, with no account column                            |
+| Table                                         | Holds                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------- |
+| `account`                                     | a Plex account id, a name, a role, a staff-only note, news seen     |
+| `session`                                     | a session digest and its expiry                                     |
+| `auth_pin`                                    | a plex.tv pin being confirmed, short-lived                          |
+| `media`                                       | a title Umbra knows about, because it was requested or is tracked   |
+| `library_item`                                | the local index of the server library                               |
+| `media_request`, `request_follower`           | a request and its status, and who is waiting on it                  |
+| `tracked_series`                              | a series under watch, and its key on the server                     |
+| `episode`                                     | the broadcast calendar, and presence on the server                  |
+| `episode_task`                                | an aired episode that is still missing                              |
+| `report`, `report_follower`                   | a problem a member pointed at, and who is waiting on it             |
+| `notification`                                | what a member has been told, as data rather than as a sentence      |
+| `taste_profile`                               | a few weighted genre ids per account, replaced on every run         |
+| `announcement`, `poll`, `poll_option`, `vote` | community. A poll hangs off the note carrying it, a visual is a key |
+| `storage_snapshot`                            | a storage measurement, with per-volume detail                       |
+| `storage_tree_snapshot`                       | what fills the disk, walked directory by directory                  |
+| `job_state`, `job_run`                        | resume point and run history                                        |
+| `analytics_daily`                             | daily counters, with no account column                              |
 
 Uniqueness lives in the database, never in a read-then-write:
 
@@ -112,7 +112,7 @@ Uniqueness lives in the database, never in a read-then-write:
   beside them share the workspace but not the accounts page.
 - `report_active_idx`, partial unique on
   `(media_id, coalesce(season_number, -1), coalesce(episode_number, -1), reason)`
-  where the status is still live. The `coalesce` is not decoration: two NULLs
+  where the status is still live. The `coalesce` is needed: two NULLs
   never collide in Postgres, so without it "the whole series" would duplicate on
   every click. The query builder cannot name an expression as a conflict target,
   which is why creating a report is one hand-written statement.
@@ -125,6 +125,11 @@ Uniqueness lives in the database, never in a read-then-write:
   subject and the step it announces, so a fan-out can be replayed with
   `ON CONFLICT DO NOTHING` and a request going accepted then available says both
   things rather than only the first.
+- `announcement_single_featured_idx`, partial unique on `featured` where it is
+  true: one note leads the home page. Pinning one unpins the others in the same
+  transaction, and two pins landing together leave the second refused rather
+  than two notes pinned. `announcement_featured_published_check` keeps a draft
+  from being the one. See `docs/adr/0022-uploaded-visuals-and-the-featured-note.md`.
 
 `library_item` is an index, not a cache of the media server API: it is what lets a
 search answer "already available" in one query instead of asking the server per
@@ -186,7 +191,8 @@ button was pressed, and the page stopped following a cycle that was not over.
 8. **housekeeping**: delete what nothing else deletes, bounded per run so a
    backlog drains over several passes: expired sessions and pins, old job runs,
    disk maps past a week except the latest, read notifications past a month and
-   everything past six.
+   everything past six, and the uploaded visuals no note names any more once
+   they have gone a day untouched.
 
 The sweep in library-sync is scoped to the section that just answered, and only
 when it answered with something. A section whose storage is not mounted comes
@@ -283,7 +289,9 @@ work.
   paired with a global cap.
 - Cross-site request forgery: the session cookie is `SameSite=Lax`, and
   `src/proxy.ts` refuses any mutation under `/api` whose `Origin` or
-  `Sec-Fetch-Site` names another site.
+  `Sec-Fetch-Site` names another site. The one route it does not run on, the
+  upload of a note's visual, makes the same check itself first (see "Uploaded
+  visuals" below).
 - Access is checked in every page, not only in the layout above it: a layout does
   not stop the page under it from rendering and is not re-run on a client-side
   navigation. `requireMemberPage` and `requireAdminPage` redirect, `requireMember`
@@ -318,10 +326,9 @@ is one so the shelf comes back where it was left, and falls back to a plain link
 home when the address was reached cold. A button in the bottom corner appears
 after a screen of scrolling and goes back to the top.
 
-Discovery shelves each stream inside their own `Suspense` boundary. That is not a
-performance trick: the gateway can refuse one listing, and this way it costs a
-rail rather than the page. Nothing here caches a provider response, because Janus
-owns that; `React.cache()` only deduplicates the same call inside one render.
+Discovery shelves each stream inside their own `Suspense` boundary, because the
+gateway can refuse one listing, and this way it costs a rail rather than the
+page. Nothing here caches a provider response, because Janus owns that; `React.cache()` only deduplicates the same call inside one render.
 
 Appearance follows the operating system and
 language follows the browser (`Accept-Language`, resolved once per request and
@@ -332,6 +339,40 @@ whose browser speaks a language they do not.
 Wording lives in `src/lib/i18n/dictionaries.ts`, where `fr` is typed against `en`,
 so a missing translation is a compile error rather than a blank label. Visual
 rules are in [DESIGN.md](DESIGN.md).
+
+## Uploaded visuals
+
+A note's visual is the one file Umbra writes. It lives in `UPLOADS_PATH`, a
+flat directory on a volume of its own (`${DATA_DIR}/${DEPLOY_ENV}/uploads`,
+mounted at `/data/uploads` in the web container, owned by uid 10001), because
+the container's root filesystem is read-only. The worker does not mount it.
+
+`POST /api/admin/uploads` takes the picture as a bare body, counts its bytes as
+they arrive and stops at ten megabytes, then `src/lib/images.ts` decodes it with
+sharp, orients it, fits it inside 1600 pixels and writes it again as WebP with
+no metadata. The file is named after the SHA-256 of those bytes, written beside
+its final name and renamed into place. `src/lib/domain/uploads.ts` is the only
+code that touches the directory, and it only ever turns a key matching
+`^[0-9a-f]{64}$` into a file name, so no request names a path.
+
+That route is the one path under `/api` the proxy leaves out. Next buffers in
+memory every body the proxy sees, up to `experimental.proxyClientMaxBodySize`,
+which is a single limit for the whole application and stays at 64 kB and one
+byte. Raising it for one staff route would let every caller of every route
+make the server hold a picture's worth of memory before `jsonBody` refused
+them. The route makes the cross-site check itself instead.
+
+Files are served by `GET /api/uploads/<key>.webp`, to members, and to a member
+only when a published note names the key: the staff see every file, since the
+composer previews one before any note carries it. The address never changes
+what it serves, so the answer is `private, max-age=31536000, immutable`, and
+`private` keeps Cloudflare from caching a members-only picture for whoever asks
+next. The pages draw them with `next/image` and `unoptimized`, since the
+optimiser fetches without the reader's session.
+
+Nothing tracks which files are in use. The housekeeping step lists the
+directory and removes what no note names after a day of grace, which covers a
+picture dropped and never saved, a note deleted and a visual replaced.
 
 ## The body of an announcement
 

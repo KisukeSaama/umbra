@@ -75,6 +75,13 @@ export const accounts = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /**
+     * The publication date of the newest note this member had in front of them
+     * on the news page. One timestamp, moved forward and never added to: it is
+     * what the dot on the "news" entry compares against, and it says nothing
+     * about which notes were read.
+     */
+    newsSeenAt: timestamp("news_seen_at", { withTimezone: true }),
   },
   (t) => [
     check(
@@ -234,11 +241,11 @@ export const libraryItems = pgTable(
     /**
      * When the enrichment pass last looked at this row.
      *
-     * Without it the pass starved. A title the provider has no poster for
+     * Without it the pass would starve. A title the provider has no poster for
      * leaves `poster_path` null forever, the selection asks for rows that are
-     * still missing something newest first, and once a screenful of those sat
-     * at the top the same rows were fetched on every run while the older ones
-     * behind them never got their genres or their score. Stamped when the
+     * still missing something newest first, and once a screenful of those sits
+     * at the top the same rows are fetched on every run while the older ones
+     * behind them never get their genres or their score. Stamped when the
      * call answered and when the provider refused the title, so a row that
      * cannot be filled waits its turn instead of taking everyone else's; not
      * when the gateway or the provider as a whole failed, which says nothing
@@ -403,9 +410,9 @@ export const trackedSeries = pgTable("tracked_series", {
    * When the series sync last tried this series and the provider refused it.
    *
    * `last_synced_at` moves only on a full answer, so a series with one season
-   * the provider will not give (an announced one, typically) stayed the oldest
-   * in the queue and was asked for first on every cycle, twenty of them taking
-   * every slot. The due query reads whichever of the two is later, so a series
+   * the provider will not give (an announced one, typically) would stay the
+   * oldest in the queue and be asked for first on every cycle, twenty of them
+   * taking every slot. The due query reads whichever of the two is later, so a series
    * that keeps failing waits its turn like one that succeeded.
    */
   syncAttemptedAt: timestamp("sync_attempted_at", { withTimezone: true }),
@@ -523,12 +530,47 @@ export const announcements = pgTable(
     embedUrl: text("embed_url"),
     embedTitle: text("embed_title"),
     embedRatio: text("embed_ratio").$type<EmbedRatio>(),
+    /**
+     * One visual, uploaded by the staff and re-encoded by Umbra: the key is the
+     * SHA-256 of the stored file, so its address never serves two different
+     * pictures and can be cached for good. The alternative text is the staff's
+     * words, required with the picture. See
+     * `docs/adr/0022-uploaded-visuals-and-the-featured-note.md`.
+     */
+    imageKey: text("image_key"),
+    imageWidth: integer("image_width"),
+    imageHeight: integer("image_height"),
+    imageAlt: text("image_alt"),
+    /**
+     * Pinned to the top of the home page, until `featured_until` when there is
+     * one. A pin past its date simply stops showing: nothing has to run to
+     * take it down.
+     */
+    featured: boolean("featured").notNull().default(false),
+    featuredUntil: timestamp("featured_until", { withTimezone: true }),
     createdAt,
     updatedAt,
     publishedAt: timestamp("published_at", { withTimezone: true }),
   },
   (t) => [
     index("announcement_published_idx").on(t.published, t.publishedAt),
+    // One note on the front of the home page at a time. Unpinning the others
+    // and pinning this one is two statements, so two pins landing together
+    // would both commit without it; the index makes the second one fail.
+    uniqueIndex("announcement_single_featured_idx")
+      .on(t.featured)
+      .where(sql`${t.featured}`),
+    // A draft is shown to nobody, so it cannot be what the home page leads with.
+    check(
+      "announcement_featured_published_check",
+      sql`NOT ${t.featured} OR ${t.published}`,
+    ),
+    // The four visual columns are written together or cleared together, and a
+    // picture never goes out without the words that describe it.
+    check(
+      "announcement_image_check",
+      sql`(${t.imageKey} IS NULL AND ${t.imageWidth} IS NULL AND ${t.imageHeight} IS NULL AND ${t.imageAlt} IS NULL) OR (${t.imageKey} ~ '^[0-9a-f]{64}$' AND ${t.imageWidth} > 0 AND ${t.imageHeight} > 0 AND length(btrim(${t.imageAlt})) > 0)`,
+    ),
     check(
       "announcement_category_check",
       sql`${t.category} IN ('information', 'infrastructure', 'content', 'update', 'storage', 'funding')`,
@@ -596,8 +638,8 @@ export const polls = pgTable(
     // One question per note: a second one would be a second note.
     uniqueIndex("poll_announcement_idx").on(t.announcementId),
     // One open question at a time. Closing the others and opening this one is
-    // two statements, and two publications landing together both committed an
-    // open poll; the second one now fails instead.
+    // two statements, so two publications landing together could both commit
+    // an open poll; the index makes the second one fail instead.
     uniqueIndex("poll_single_active_idx")
       .on(t.active)
       .where(sql`${t.active}`),
@@ -787,9 +829,9 @@ export const jobRuns = pgTable(
     /**
      * The last sign of life from the process running this step.
      *
-     * A step used to be called interrupted on its start time alone, which
-     * meant a first walk of a large library was declared dead while it was
-     * still walking, and the button would start a second one over it. The
+     * Judged on its start time alone, a first walk of a large library would
+     * be declared dead while it was still walking, and the button would start
+     * a second one over it. The
      * runner stamps this every few seconds for as long as it is on its feet,
      * so what closes a run is silence rather than duration.
      */
@@ -807,7 +849,7 @@ export const jobRuns = pgTable(
      *
      * Asking "is anything running" and then starting is two statements, and
      * the worker's call and the administrator's button can land between them.
-     * A second insert now fails instead, which the runner reads as "someone
+     * A second insert fails, which the runner reads as "someone
      * else holds this step" rather than as an error.
      */
     uniqueIndex("job_run_single_running_idx")
@@ -1084,7 +1126,7 @@ export const tasteProfiles = pgTable(
       .references(() => accounts.id, { onDelete: "cascade" }),
     /**
      * Films and shows do not share a genre numbering at the provider, and the
-     * mismatch is silent: a show id sent to a film listing simply returns
+     * mismatch is silent: a show id sent to a film listing returns
      * nothing. The kind is part of the key so a weight is never read in the
      * wrong space.
      */

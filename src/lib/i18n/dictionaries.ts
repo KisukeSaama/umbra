@@ -26,6 +26,7 @@ export const en = {
   /* Beside the same triangle on a phone, where the header row is short. */
   "nav.openPlexShort": "Plex",
   "nav.news": "News",
+  "nav.newsUnread": "New notes since your last visit",
   "nav.admin": "Admin",
   "nav.signOut": "Sign out",
   "nav.theme": "Appearance",
@@ -39,7 +40,7 @@ export const en = {
   "nav.language.auto": "Browser setting",
   "nav.language.en": "English",
   "nav.language.fr": "Français",
-  "home.title": "What will you discover tonight?",
+  "home.title": "What are we watching tonight?",
   "home.searchPlaceholder": "Search for a movie, series or anime...",
 
   "section.recentlyAdded": "Recently added",
@@ -98,7 +99,7 @@ export const en = {
   "status.requested": "Request already recorded",
   "status.request": "Request",
   /* On a card, where the pill says what the title is rather than offering an
-     action: "Request" there read as a button that does nothing. */
+     action: "Request" there would read as a button that does nothing. */
   "status.requestedShort": "Requested",
   /* Under the title of a card, in words, what the mark on the poster says. */
   "status.availableShort": "On Kisuflix",
@@ -157,6 +158,10 @@ export const en = {
   "news.reactions": "Reactions",
   "news.like": "I like it",
   "news.dislike": "I do not like it",
+  "news.featured": "Featured",
+  "news.funding.cta": "Take part in the fundraiser",
+  "news.funding.voluntary":
+    "Taking part is entirely voluntary and changes nothing about your access to Kisuflix.",
 
   "storage.used": "{percent} used",
   "storage.available": "{value} available of {total}",
@@ -240,6 +245,21 @@ export const en = {
     "A link must be a web address starting with http or https.",
   "error.invalidEmbed":
     "The embed code must contain an iframe whose address starts with https.",
+  "error.imageUnreadable":
+    "This file could not be read as a picture. Use a JPEG, PNG, WebP, GIF or AVIF image.",
+  "error.imageTooLarge": "The picture is over 10 MB.",
+  "error.imageMissing":
+    "The picture is no longer available. Add it to the note again.",
+  "error.imageAltMissing": "Describe the picture for those who cannot see it.",
+  "error.uploadsUnwritable":
+    "Umbra cannot write to its uploads folder. The volume needs checking.",
+  "error.fundingNeedsLink":
+    "A fundraiser needs the address of the page where it takes place.",
+  "error.featureNeedsPublish":
+    "Only a published note can be featured on the home page.",
+  "error.featureEndPast": "The end of the feature must be in the future.",
+  "error.featureTaken":
+    "Another note was featured at the same moment. Reload and try again.",
   "error.scanRunning": "The disk is already being measured.",
   "error.syncRunning": "A synchronisation is already under way.",
   "error.invalidPath": "Unknown path.",
@@ -281,7 +301,7 @@ export const en = {
   "admin.waitingOthers.one": "{name} and {count} other",
   "admin.inbox.episodes": "{count} episodes to add",
   "admin.inbox.episodes.one": "{count} episode to add",
-  "admin.inbox.clear": "Nothing waiting. Everything is up to date.",
+  "admin.inbox.clear": "Nothing waiting.",
   "admin.inbox.lastSubmission": "Last member submission received on",
   "admin.inbox.noSubmission": "No submission yet",
   "admin.nav.requests": "Requests",
@@ -426,6 +446,36 @@ export const en = {
   "admin.announcements.dislikes": "Did not like it",
   "admin.announcements.poll.hint":
     "A poll is an announcement that expects an answer back. Publishing the note opens the question.",
+  "admin.announcements.image": "Add a visual",
+  "admin.announcements.image.hint":
+    "A picture shown with the note, on the feed and on the home page when it is featured.",
+  "admin.announcements.image.drop":
+    "Drop a picture here or paste it from the clipboard",
+  "admin.announcements.image.choose": "Choose a file",
+  "admin.announcements.image.formats":
+    "JPEG, PNG, WebP, GIF or AVIF, up to 10 MB. Umbra resizes it and removes everything it says about where and when it was taken.",
+  "admin.announcements.image.uploading": "Preparing the picture",
+  "admin.announcements.image.replace": "Replace",
+  "admin.announcements.image.remove": "Remove the visual",
+  "admin.announcements.image.alt": "Description",
+  "admin.announcements.image.altHint":
+    "What the picture shows, read aloud to those who cannot see it.",
+  "admin.announcements.image.listed": "With a visual",
+  "admin.announcements.link.fundingRequired":
+    'A fundraiser always leads to the page where it takes place. Without a wording, the button reads "{label}".',
+  "admin.announcements.feature": "Feature on the home page",
+  "admin.announcements.feature.hint":
+    "Shown first on the home page, large and with its visual. One note at a time: featuring this one takes the pin off the other.",
+  "admin.announcements.feature.until": "Until",
+  "admin.announcements.feature.untilHint":
+    "Optional. Without a date the note stays featured until the pin is taken off.",
+  "admin.announcements.feature.draft":
+    "A draft is shown to nobody: a featured note is published with it.",
+  "admin.announcements.feature.pin": "Feature on home",
+  "admin.announcements.feature.unpin": "Stop featuring",
+  "admin.announcements.feature.badge": "Featured",
+  "admin.announcements.feature.badgeUntil": "Featured until {date}",
+  "admin.announcements.feature.ended": "Feature ended",
   "admin.polls.question": "Question",
   "admin.polls.options": "Options",
   "admin.polls.addOption": "Add an option",
@@ -624,8 +674,7 @@ export const en = {
   "picker.commitment.long.hint":
     "Characters to follow for at least two seasons.",
   "picker.commitment.any": "Any commitment",
-  "picker.commitment.any.hint":
-    "Short or long series, see what appeals to you.",
+  "picker.commitment.any.hint": "Short and long series alike.",
   "picker.surprise": "Surprise me",
   "picker.surprise.hint":
     "A selection close to your tastes, without the questions.",
@@ -641,7 +690,7 @@ export const en = {
   "picker.mood.drama": "Drama",
   "picker.mood.drama.hint": "For human stories that move you.",
   "picker.mood.any": "Any genre",
-  "picker.mood.any.hint": "Any genre could surprise you.",
+  "picker.mood.any.hint": "Every genre is welcome.",
   "picker.again": "New selection",
   "picker.restart": "Choose my criteria",
   "picker.result": "Here is what that gives",
@@ -684,7 +733,7 @@ export const en = {
   "title.onServer": "This is on Kisuflix",
   "title.onServerPartly": "On Kisuflix, but not all of it",
   "title.requestedByYou": "You asked for it",
-  "title.waiting": "Popular pick: {count} people are already waiting for it.",
+  "title.waiting": "{count} people are already waiting for it.",
   "title.postponedForYou":
     "You asked for it. It will be added once there is more room on Kisuflix.",
   "title.postponed":
@@ -930,6 +979,7 @@ export const fr: Record<TranslationKey, string> = {
   "nav.openPlex": "Ouvrir Plex",
   "nav.openPlexShort": "Plex",
   "nav.news": "Actualités",
+  "nav.newsUnread": "Nouvelles annonces depuis votre dernière visite",
   "nav.admin": "Admin",
   "nav.signOut": "Se déconnecter",
   "nav.theme": "Apparence",
@@ -943,7 +993,7 @@ export const fr: Record<TranslationKey, string> = {
   "nav.language.auto": "Réglage du navigateur",
   "nav.language.en": "English",
   "nav.language.fr": "Français",
-  "home.title": "Qu'allez-vous découvrir ce soir ?",
+  "home.title": "Qu'est-ce qu'on regarde ce soir ?",
   "home.searchPlaceholder": "Rechercher un film, une série, un anime...",
 
   "section.recentlyAdded": "Ajoutés récemment",
@@ -1054,6 +1104,10 @@ export const fr: Record<TranslationKey, string> = {
   "news.reactions": "Réactions",
   "news.like": "J'aime",
   "news.dislike": "Je n'aime pas",
+  "news.featured": "À la une",
+  "news.funding.cta": "Participer à la cagnotte",
+  "news.funding.voluntary":
+    "Participer est entièrement libre et ne change rien à votre accès à Kisuflix.",
 
   "storage.used": "{percent} utilisés",
   "storage.available": "{value} disponibles sur {total}",
@@ -1139,6 +1193,22 @@ export const fr: Record<TranslationKey, string> = {
     "Un lien doit être une adresse web commençant par http ou https.",
   "error.invalidEmbed":
     "Le code embed doit contenir une iframe dont l'adresse commence par https.",
+  "error.imageUnreadable":
+    "Ce fichier n'a pas pu être lu comme une image. Utilisez une image JPEG, PNG, WebP, GIF ou AVIF.",
+  "error.imageTooLarge": "L'image dépasse 10 Mo.",
+  "error.imageMissing":
+    "L'image n'est plus disponible. Ajoutez-la de nouveau à l'annonce.",
+  "error.imageAltMissing":
+    "Décrivez l'image pour les personnes qui ne peuvent pas la voir.",
+  "error.uploadsUnwritable":
+    "Umbra ne peut pas écrire dans son dossier d'images. Le volume est à vérifier.",
+  "error.fundingNeedsLink":
+    "Une cagnotte a besoin de l'adresse de la page où elle se déroule.",
+  "error.featureNeedsPublish":
+    "Seule une annonce publiée peut être mise à la une.",
+  "error.featureEndPast": "La fin de la mise à la une doit être dans le futur.",
+  "error.featureTaken":
+    "Une autre annonce a été mise à la une au même moment. Rechargez et réessayez.",
   "error.scanRunning": "Le disque est déjà en cours de mesure.",
   "error.syncRunning": "Une synchronisation est déjà en cours.",
   "error.invalidPath": "Chemin inconnu.",
@@ -1179,7 +1249,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.waitingOthers.one": "{name} et {count} autre personne",
   "admin.inbox.episodes": "{count} épisodes à ajouter",
   "admin.inbox.episodes.one": "{count} épisode à ajouter",
-  "admin.inbox.clear": "Rien en attente. Tout est à jour.",
+  "admin.inbox.clear": "Rien en attente.",
   "admin.inbox.lastSubmission": "Dernière sollicitation reçue le",
   "admin.inbox.noSubmission": "Aucune sollicitation pour le moment",
   "admin.nav.requests": "Demandes",
@@ -1324,6 +1394,36 @@ export const fr: Record<TranslationKey, string> = {
   "admin.announcements.dislikes": "N'ont pas aimé",
   "admin.announcements.poll.hint":
     "Un sondage est une annonce qui attend une réponse. Publier l'annonce ouvre la question.",
+  "admin.announcements.image": "Ajouter un visuel",
+  "admin.announcements.image.hint":
+    "Une image affichée avec l'annonce, dans les actualités et sur l'accueil quand elle est à la une.",
+  "admin.announcements.image.drop":
+    "Déposez une image ici ou collez-la depuis le presse-papiers",
+  "admin.announcements.image.choose": "Choisir un fichier",
+  "admin.announcements.image.formats":
+    "JPEG, PNG, WebP, GIF ou AVIF, 10 Mo au plus. Umbra la redimensionne et retire tout ce qu'elle dit du lieu et du moment de la prise de vue.",
+  "admin.announcements.image.uploading": "Préparation de l'image",
+  "admin.announcements.image.replace": "Remplacer",
+  "admin.announcements.image.remove": "Retirer le visuel",
+  "admin.announcements.image.alt": "Description",
+  "admin.announcements.image.altHint":
+    "Ce que montre l'image, lu à voix haute pour les personnes qui ne la voient pas.",
+  "admin.announcements.image.listed": "Avec un visuel",
+  "admin.announcements.link.fundingRequired":
+    "Une cagnotte mène toujours à la page où elle se déroule. Sans texte, le bouton affiche « {label} ».",
+  "admin.announcements.feature": "Mettre à la une de l'accueil",
+  "admin.announcements.feature.hint":
+    "Affichée en premier sur l'accueil, en grand et avec son visuel. Une annonce à la fois : mettre celle-ci à la une retire l'autre.",
+  "admin.announcements.feature.until": "Jusqu'au",
+  "admin.announcements.feature.untilHint":
+    "Facultatif. Sans date, l'annonce reste à la une jusqu'à ce qu'on l'en retire.",
+  "admin.announcements.feature.draft":
+    "Un brouillon n'est montré à personne : une annonce à la une est publiée avec.",
+  "admin.announcements.feature.pin": "Mettre à la une",
+  "admin.announcements.feature.unpin": "Retirer de la une",
+  "admin.announcements.feature.badge": "À la une",
+  "admin.announcements.feature.badgeUntil": "À la une jusqu'au {date}",
+  "admin.announcements.feature.ended": "N'est plus à la une",
   "admin.polls.question": "Question",
   "admin.polls.options": "Choix",
   "admin.polls.addOption": "Ajouter un choix",
@@ -1523,8 +1623,7 @@ export const fr: Record<TranslationKey, string> = {
   "picker.commitment.long.hint":
     "Des personnages à retrouver pendant au moins deux saisons.",
   "picker.commitment.any": "Peu importe",
-  "picker.commitment.any.hint":
-    "Séries courtes ou longues, laissez-vous tenter.",
+  "picker.commitment.any.hint": "Séries courtes comme longues.",
   "picker.surprise": "Me surprendre",
   "picker.surprise.hint":
     "Une sélection proche de vos goûts, sans répondre aux questions.",
@@ -1541,7 +1640,7 @@ export const fr: Record<TranslationKey, string> = {
   "picker.mood.drama": "Drame",
   "picker.mood.drama.hint": "Pour des histoires humaines qui remuent.",
   "picker.mood.any": "Peu importe",
-  "picker.mood.any.hint": "Tous les genres peuvent vous surprendre.",
+  "picker.mood.any.hint": "Tous les genres sont les bienvenus.",
   "picker.again": "Nouvelle sélection",
   "picker.restart": "Choisir mes critères",
   "picker.result": "Voilà ce que ça donne",
@@ -1585,7 +1684,7 @@ export const fr: Record<TranslationKey, string> = {
   "title.onServer": "C'est sur Kisuflix",
   "title.onServerPartly": "Sur Kisuflix, mais pas en entier",
   "title.requestedByYou": "Vous l'avez demandé",
-  "title.waiting": "Ce titre a du succès : {count} personnes l'attendent déjà.",
+  "title.waiting": "{count} personnes l'attendent déjà.",
   "title.postponedForYou":
     "Vous l'avez demandé. Ce sera ajouté quand il y aura davantage de place sur Kisuflix.",
   "title.postponed":

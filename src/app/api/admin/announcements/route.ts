@@ -3,26 +3,40 @@ import { z } from "zod";
 
 import { jsonBody, route } from "@/lib/api";
 import { requireStaff } from "@/lib/auth/session";
-import { embedSchema, linkSchema } from "@/app/api/admin/announcements/schema";
+import {
+  embedSchema,
+  featureSchema,
+  imageSchema,
+  linkSchema,
+} from "@/app/api/admin/announcements/schema";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/announcements";
 import { createAnnouncement } from "@/lib/domain/announcements";
 import { checkRate, perMinute } from "@/lib/rate-limit";
 
-const schema = z.object({
-  title: z.string().min(2).max(120),
-  content: z.string().min(2).max(4000),
-  category: z.enum(ANNOUNCEMENT_CATEGORIES),
-  published: z.boolean().default(false),
-  link: linkSchema.nullish(),
-  embed: embedSchema.nullish(),
-  poll: z
-    .object({
-      question: z.string().min(2).max(200),
-      options: z.array(z.string().min(1).max(80)).min(2).max(8),
-      endsAt: z.coerce.date().nullish(),
-    })
-    .nullish(),
-});
+const schema = z
+  .object({
+    title: z.string().min(2).max(120),
+    content: z.string().min(2).max(4000),
+    category: z.enum(ANNOUNCEMENT_CATEGORIES),
+    published: z.boolean().default(false),
+    link: linkSchema.nullish(),
+    embed: embedSchema.nullish(),
+    image: imageSchema.nullish(),
+    featured: featureSchema.nullish(),
+    poll: z
+      .object({
+        question: z.string().min(2).max(200),
+        options: z.array(z.string().min(1).max(80)).min(2).max(8),
+        endsAt: z.coerce.date().nullish(),
+      })
+      .nullish(),
+  })
+  // A fundraiser is a note pointing at its page: without the address it has
+  // nothing to offer. The domain asks again, for an edit that changes half.
+  .refine((input) => input.category !== "funding" || Boolean(input.link), {
+    message: "error.fundingNeedsLink",
+    path: ["link"],
+  });
 
 export async function POST(request: NextRequest) {
   return route(async () => {
@@ -33,6 +47,8 @@ export async function POST(request: NextRequest) {
       ...input,
       link: input.link ?? null,
       embed: input.embed ?? null,
+      image: input.image ?? null,
+      featured: input.featured ?? null,
       poll: input.poll
         ? { ...input.poll, endsAt: input.poll.endsAt ?? null }
         : null,

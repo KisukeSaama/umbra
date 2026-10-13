@@ -30,6 +30,7 @@ import {
   trackAcceptedSeries,
 } from "@/lib/domain/series";
 import { recordStorageSnapshot, scanStorageTree } from "@/lib/domain/storage";
+import { sweepOrphanUploads } from "@/lib/domain/uploads";
 import { accountsForTaste, refreshTasteProfile } from "@/lib/domain/taste";
 import {
   StepFailure,
@@ -99,11 +100,11 @@ const HEARTBEAT_EVERY_MS = 15_000;
  * A step that has gone quiet this long was interrupted.
  *
  * A process restarted mid-walk leaves a row nothing will ever finish, and that
- * row would block the next attempt forever. It used to be judged on how long
- * it had been going, which is not the same question: a first walk of a large
- * library runs past three quarters of an hour without being in any trouble,
- * and it was declared interrupted while it was still walking, after which the
- * button would gladly start a second one over it. So the runner stamps
+ * row would block the next attempt forever. How long it has been going is not
+ * the same question: a first walk of a large library runs past three quarters
+ * of an hour without being in any trouble, and judged on its age it would be
+ * declared interrupted while still walking, after which the button would
+ * start a second one over it. So the runner stamps
  * `heartbeat_at` for as long as it is on its feet, and what closes a run is
  * silence. Generous against a busy event loop, and still far short of a step.
  */
@@ -585,6 +586,9 @@ async function runSteps(): Promise<JobOutcome[]> {
     await runJob("housekeeping", async () => {
       let removed = await purgeNotifications();
       removed += await purgeExpired();
+      // The visuals no note names any more: a note deleted, a picture
+      // replaced, or one dropped in the composer and never saved.
+      removed += await sweepOrphanUploads();
       return removed;
     }),
   );
@@ -595,8 +599,8 @@ async function runSteps(): Promise<JobOutcome[]> {
 /**
  * Rows nothing else ever deletes.
  *
- * Sessions and pins expire but were never swept, and the run history grew
- * forever. Bounded by date rather than by a cursor, so a long backlog drains
+ * Sessions and pins expire but nothing else sweeps them, and the run history
+ * would grow forever. Bounded by date rather than by a cursor, so a long backlog drains
  * over successive runs and a missed schedule costs nothing.
  */
 async function purgeExpired(): Promise<number> {
@@ -644,10 +648,10 @@ export type JobStatusRow = {
  * What the synchronisation page shows.
  *
  * The last run of each step, asked for as such. Reading the last fifty rows and
- * picking through them looked like the same thing and was not: a cycle writes
- * one row per step every half hour, so fifty rows is about three hours, and the
- * disk walk runs every six. Half the time its card had no last run, no duration
- * and no count, for a step that had simply not come round yet.
+ * picking through them is not the same thing: a cycle writes one row per step
+ * every half hour, so fifty rows is about three hours, and the disk walk runs
+ * every six. Half the time its card would have no last run, no duration and no
+ * count, for a step that had not come round yet.
  */
 export async function jobStatus(): Promise<JobStatusRow[]> {
   const states = await db().select().from(jobState);

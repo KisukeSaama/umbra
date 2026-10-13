@@ -164,9 +164,9 @@ variables:
             case "$DATA_REL" in ""|/*|*..*) exit 1 ;; esac
             host_target="/host-home/$TARGET_REL"
             host_data="/host-home/$DATA_REL/$DEPLOY_ENV"
-            mkdir -p "$host_target" "$host_data/postgres"
+            mkdir -p "$host_target" "$host_data/postgres" "$host_data/uploads"
             tar -C "$host_target" -xf -
-            chmod 750 "$host_target" "$host_data" "$host_data/postgres"
+            chmod 750 "$host_target" "$host_data" "$host_data/postgres" "$host_data/uploads"
             chmod 640 "$host_target/compose.yml" "$host_target/paths.env"
             chmod 600 "$host_target/app.env"
             # Recursive only when the owner actually differs: an existing
@@ -174,11 +174,17 @@ variables:
             if [ "$(stat -c %u:%g "$host_data/postgres")" != "$PG_OWNER" ]; then
               chown -R "$PG_OWNER" "$host_data/postgres"
             fi
+            # The web container runs as uid 10001 (see the Dockerfile) and
+            # writes the visuals of notes here; a root-owned directory would
+            # refuse every upload.
+            if [ "$(stat -c %u:%g "$host_data/uploads")" != "10001:10001" ]; then
+              chown -R 10001:10001 "$host_data/uploads"
+            fi
           '
       }
 
       validate_paths
-      mkdir -p "${TARGET_DIR}" "${ENV_DATA_DIR}/postgres"
+      mkdir -p "${TARGET_DIR}" "${ENV_DATA_DIR}/postgres" "${ENV_DATA_DIR}/uploads"
       write_runtime_files "${TARGET_DIR}"
       stage_on_host "${TARGET_DIR}"
     - echo "${CI_REGISTRY_PASSWORD:-${CI_JOB_TOKEN}}" | docker login --username "${CI_REGISTRY_USER:-gitlab-ci-token}" --password-stdin "${CI_REGISTRY}"

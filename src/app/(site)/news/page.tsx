@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import type { ComponentType, ReactNode } from "react";
 
 import { AnnouncementReactions } from "@/components/announcement-reactions";
+import {
+  FundingNotice,
+  linkLabel,
+  NoteImage,
+} from "@/components/announcement-parts";
 import { EmptyNote } from "@/components/empty-note";
 import { GlyphTile } from "@/components/glyph-tile";
 import {
@@ -16,6 +21,7 @@ import {
   type IconProps,
 } from "@/components/icons";
 import { Markdown } from "@/components/markdown";
+import { MarkNewsSeen } from "@/components/news-seen";
 import { Pagination } from "@/components/pagination";
 import { daysUntil } from "@/components/formatting";
 import { PollCard } from "@/components/poll-card";
@@ -77,6 +83,13 @@ type NoteProps = {
  * reading long after it landed, so nothing is dropped off the end: the older
  * ones move one step further back, at an address that can be shared. Only the
  * first page has a front page; further back, every note is a journal entry.
+ *
+ * A fundraiser reads the same way everywhere: its visual, what the money is
+ * for in the staff's words, the button to the page where it happens, and the
+ * fixed line that says taking part is voluntary. Never an amount.
+ *
+ * Opening the first page is what takes the dot off the "news" entry, up to the
+ * newest note it showed (`MarkNewsSeen`).
  */
 export default async function NewsPage({ searchParams }: PageProps<"/news">) {
   const account = await requireMemberPage();
@@ -110,6 +123,10 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
 
       {announcements.length === 0 ? (
         <EmptyNote icon={AnnounceIcon}>{t("news.none")}</EmptyNote>
+      ) : null}
+
+      {lead?.publishedAt ? (
+        <MarkNewsSeen through={lead.publishedAt.toISOString()} />
       ) : null}
 
       {lead ? (
@@ -158,8 +175,16 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
  * the screen is; the width left over goes to the column of what surrounds it.
  */
 function LeadNote({ announcement, t, locale }: NoteProps) {
+  const funding = announcement.category === "funding";
   return (
     <article className="bg-card ring-foreground/10 grid overflow-hidden rounded-2xl ring-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      {announcement.image ? (
+        <NoteImage
+          image={announcement.image}
+          eager
+          className="max-h-[24rem] object-cover lg:col-span-2"
+        />
+      ) : null}
       <div className="min-w-0 space-y-6 p-6 sm:p-8">
         <Category announcement={announcement} t={t}>
           {announcement.publishedAt ? (
@@ -192,12 +217,16 @@ function LeadNote({ announcement, t, locale }: NoteProps) {
           />
         ) : null}
         {/* With no question to answer, the way out is the one thing the note
-            asks of its reader, so it takes the lamp. A poll keeps it. */}
-        <NoteLink
-          announcement={announcement}
-          t={t}
-          primary={!announcement.poll}
-        />
+            asks of its reader, so it takes the lamp; a fundraiser keeps it
+            whatever else it carries. Otherwise a poll does. */}
+        <div className="space-y-3">
+          <NoteLink
+            announcement={announcement}
+            t={t}
+            primary={funding || !announcement.poll}
+          />
+          {funding ? <FundingNotice t={t} /> : null}
+        </div>
         <div className="lg:mt-auto">
           <AnnouncementReactions
             announcementId={announcement.id}
@@ -239,7 +268,16 @@ function FeedNote({ announcement, t, locale }: NoteProps) {
         <h2 className="text-xl leading-snug font-semibold tracking-tight text-balance">
           {announcement.title}
         </h2>
+        {announcement.image ? (
+          <NoteImage
+            image={announcement.image}
+            className="ring-foreground/10 max-h-[28rem] max-w-3xl rounded-xl object-cover ring-1"
+          />
+        ) : null}
         <Markdown content={announcement.content} className="max-w-prose" />
+        {announcement.category === "funding" ? (
+          <FundingNotice t={t} className="max-w-prose" />
+        ) : null}
         <NoteEmbed announcement={announcement} t={t} />
         <NotePoll announcement={announcement} />
       </div>
@@ -339,9 +377,7 @@ function NoteLink({
       variant={primary ? "default" : "secondary"}
       className="max-w-full self-start"
     >
-      <span className="truncate">
-        {announcement.link.label ?? t("news.openLink")}
-      </span>
+      <span className="truncate">{linkLabel(announcement, t)}</span>
       <ExternalLinkIcon data-icon="inline-end" />
     </Button>
   );

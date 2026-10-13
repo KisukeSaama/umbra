@@ -114,7 +114,26 @@ export async function jsonBody<T>(
  * lets a body of multi-byte characters weigh up to three times the cap.
  */
 async function cappedText(request: Request): Promise<string> {
-  if (!request.body) return "";
+  return new TextDecoder().decode(await cappedBytes(request, MAX_BODY_BYTES));
+}
+
+/**
+ * The body as bytes, refused with a 400 as soon as it is over `max`.
+ *
+ * The declared length is believed only when it says too much; otherwise the
+ * bytes are counted as they arrive, so a chunked body or a false header costs
+ * at most `max` bytes of memory before it is turned away.
+ */
+export async function cappedBytes(
+  request: Request,
+  max: number,
+  messageKey = "error.badRequest",
+): Promise<Uint8Array> {
+  const declared = Number(request.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > max)
+    throw new BadRequestError(messageKey);
+  if (!request.body) return new Uint8Array(0);
+
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -122,9 +141,9 @@ async function cappedText(request: Request): Promise<string> {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
-    if (total > MAX_BODY_BYTES) {
+    if (total > max) {
       await reader.cancel().catch(() => {});
-      throw new BadRequestError();
+      throw new BadRequestError(messageKey);
     }
     chunks.push(value);
   }
@@ -134,5 +153,5 @@ async function cappedText(request: Request): Promise<string> {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(bytes);
+  return bytes;
 }

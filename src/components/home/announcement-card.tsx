@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AnnouncementReactions } from "@/components/announcement-reactions";
+import { FundingNotice, linkLabel } from "@/components/announcement-parts";
 import { EmptyNote } from "@/components/empty-note";
 import { AnnounceIcon, ExternalLinkIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
@@ -87,6 +88,9 @@ export async function AnnouncementCard({
                   {plainText(announcement.content)}
                 </p>
               </Link>
+              {announcement.category === "funding" ? (
+                <FundingNotice t={t} className="pt-2" />
+              ) : null}
             </div>
 
             <div className="border-border/60 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
@@ -100,12 +104,20 @@ export async function AnnouncementCard({
                     target="_blank"
                     rel="noreferrer noopener"
                     className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" }),
+                      buttonVariants({
+                        // A fundraiser's button is the one thing it asks of
+                        // the reader, so it takes the lamp.
+                        variant:
+                          announcement.category === "funding"
+                            ? "default"
+                            : "outline",
+                        size: "sm",
+                      }),
                       "max-w-full",
                     )}
                   >
                     <span className="truncate">
-                      {announcement.link.label ?? t("news.openLink")}
+                      {linkLabel(announcement, t)}
                     </span>
                     <ExternalLinkIcon className="shrink-0" />
                   </a>

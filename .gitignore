@@ -21,6 +21,8 @@
 /build
 
 # misc
+# Visuals uploaded in development (UPLOADS_PATH defaults here).
+/.uploads/
 .DS_Store
 *.pem
 
