@@ -14,7 +14,19 @@ import { env, isProduction } from "@/lib/env";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import type { PlexAccount } from "@/lib/providers/plex-tv";
 
-export const SESSION_COOKIE = "umbra_session";
+/**
+ * The session cookie's name.
+ *
+ * In production it carries the `__Host-` prefix, which the browser only accepts
+ * on a cookie set `Secure`, on `/` and with no `Domain`: a sibling subdomain,
+ * or anything that answers over plain HTTP, cannot plant or shadow it. The
+ * prefix needs HTTPS, so development over `http://localhost` keeps the bare
+ * name. A cookie under the old name is simply no longer read, which signs its
+ * holder out once.
+ */
+export function sessionCookie() {
+  return isProduction() ? "__Host-umbra_session" : "umbra_session";
+}
 
 export type CurrentAccount = {
   id: string;
@@ -50,7 +62,7 @@ export async function createSession(accountId: string) {
     .values({ tokenHash: hashToken(token), accountId, expiresAt });
 
   const store = await cookies();
-  store.set(SESSION_COOKIE, token, {
+  store.set(sessionCookie(), token, {
     httpOnly: true,
     sameSite: "lax",
     secure: isProduction(),
@@ -78,13 +90,21 @@ export async function createSession(accountId: string) {
 
 export async function destroySession() {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const token = store.get(sessionCookie())?.value;
   if (token) {
     await db()
       .delete(sessions)
       .where(eq(sessions.tokenHash, hashToken(token)));
   }
-  store.delete(SESSION_COOKIE);
+  // Written out rather than `delete`, which sends no `Secure`: a browser
+  // refuses to touch a `__Host-` cookie with a header that lacks it.
+  store.set(sessionCookie(), "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProduction(),
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 /**
@@ -94,7 +114,7 @@ export async function destroySession() {
 export const currentAccount = cache(
   async (): Promise<CurrentAccount | null> => {
     const store = await cookies();
-    const token = store.get(SESSION_COOKIE)?.value;
+    const token = store.get(sessionCookie())?.value;
     if (!token) return null;
 
     const [row] = await db()

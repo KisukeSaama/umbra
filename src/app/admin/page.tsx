@@ -18,7 +18,7 @@ import {
   listRequests,
   type RequestRow,
 } from "@/lib/domain/requests";
-import { seasonGap } from "@/lib/domain/season-gap";
+import { type SeasonGap, seasonGaps } from "@/lib/domain/season-gap";
 import {
   countOpenEpisodeTasks,
   listOpenEpisodeTasks,
@@ -97,6 +97,12 @@ export default async function AdminDashboardPage() {
   );
 
   const quiet = asked.length === 0 && reports.length === 0 && openTasks === 0;
+  // Measured for the asks on the board alone, in one read for all of them.
+  const gaps = await seasonGaps(
+    asked
+      .slice(0, PREVIEW)
+      .flatMap((entry) => (entry.kind === "ask" ? [entry.ask] : [])),
+  );
 
   // The last time a member asked for something, request or report alike. It
   // tells the administration how warm the place is, which a job timestamp
@@ -142,7 +148,13 @@ export default async function AdminDashboardPage() {
           >
             {asked.slice(0, 6).map((entry) => {
               if (entry.kind === "ask")
-                return <ReportQueueRow key={entry.ask.id} report={entry.ask} />;
+                return (
+                  <ReportQueueRow
+                    key={entry.ask.id}
+                    report={entry.ask}
+                    gap={gaps.get(entry.ask.id) ?? null}
+                  />
+                );
               const { request } = entry;
               return (
                 <Row
@@ -252,9 +264,15 @@ function createdAt(
 }
 
 /** A live report on the desk, fault or ask, with the one move that comes next. */
-async function ReportQueueRow({ report }: { report: ReportRow }) {
+async function ReportQueueRow({
+  report,
+  gap = null,
+}: {
+  report: ReportRow;
+  /** Read by the page for every ask on the board: see `seasonGaps`. */
+  gap?: SeasonGap | null;
+}) {
   const t = await getTranslator();
-  const gap = await seasonGap(report);
   return (
     <Row
       main={report.media.title}

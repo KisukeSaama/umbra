@@ -7,6 +7,7 @@ import {
   openStorageVideo,
   RangeNotSatisfiableError,
 } from "@/lib/domain/storage-files";
+import { checkRate, perMinute } from "@/lib/rate-limit";
 
 /**
  * One video, played from the explorer.
@@ -21,7 +22,14 @@ const pathSchema = z.array(z.string().min(1).max(255)).max(32);
 
 export async function GET(request: NextRequest) {
   try {
-    await requireStaff();
+    const account = await requireStaff();
+    /*
+     * Generous on purpose: a player asks for a new range on every seek and
+     * often several while it buffers, so a cap sized like the other reads
+     * would stall a film being scrubbed through. What it bounds is a loop
+     * opening file descriptors on the machine that also serves the media.
+     */
+    checkRate("storage-stream", account.id, perMinute(600));
     const params = request.nextUrl.searchParams;
     const volume = params.get("volume") ?? "";
     const name = params.get("name") ?? "";

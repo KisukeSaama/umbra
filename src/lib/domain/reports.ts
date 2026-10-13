@@ -709,11 +709,17 @@ export async function setReportNote(
  *
  * Taking one up may carry a word for everyone waiting on it, which reaches them
  * in their notification and on their follow-up page.
+ *
+ * `only` narrows the move to asks. The request queue moves the seasons asked
+ * for alongside the requests, and the kind of each row comes from the client:
+ * a fault sent there under the name of an ask is refused here, from the reason
+ * the report actually carries, rather than trusted.
  */
 export async function updateReportStatus(
   reportId: string,
   status: ReportStatus,
   adminNote?: string | null,
+  only?: "ask",
 ) {
   const [current] = await db()
     .select({
@@ -728,6 +734,8 @@ export async function updateReportStatus(
     .where(eq(reports.id, reportId))
     .limit(1);
   if (!current) throw new NotFoundError("error.reportNotFound");
+  if (only === "ask" && !isAsk(current.reason))
+    throw new ConflictError("error.illegalTransition");
   // The same question the queue asked before drawing the button, asked again
   // here: the series may have gone under watch, or off it, in between.
   if (!canTransition(current.status, status, current.reason, current))

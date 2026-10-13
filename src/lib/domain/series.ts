@@ -27,7 +27,11 @@ import { ensureMedia } from "@/lib/domain/catalog";
 import { alternateCutOf } from "@/lib/domain/cuts";
 import { alternateCutFor } from "@/lib/domain/library";
 import { followedSeriesKeys } from "@/lib/domain/taste";
-import { ConflictError, NotFoundError } from "@/lib/errors";
+import {
+  ConflictError,
+  NotFoundError,
+  isServiceWideFailure,
+} from "@/lib/errors";
 import { isRunning } from "@/lib/providers/metadata";
 import { tmdbProvider } from "@/lib/providers/tmdb";
 import { episodesInWeek, today, weekStatus } from "@/lib/week";
@@ -535,7 +539,9 @@ export async function listTrackedSeries(
     })
     .from(trackedSeries)
     .innerJoin(media, eq(media.id, trackedSeries.mediaId))
-    .orderBy(asc(media.title));
+    // The id breaks ties between two series of the same name, so a page read
+    // after another never shows one twice and the other not at all.
+    .orderBy(asc(media.title), asc(trackedSeries.id));
 
   return window ? query.limit(window.limit).offset(window.offset) : query;
 }
@@ -577,7 +583,19 @@ export async function listOpenEpisodeTasks(
     .innerJoin(trackedSeries, eq(trackedSeries.id, episodes.seriesId))
     .innerJoin(media, eq(media.id, trackedSeries.mediaId))
     .where(eq(episodeTasks.status, "open"))
-    .orderBy(asc(episodes.airDate));
+    /*
+     * A season released at once gives dozens of tasks on one date, and
+     * Postgres keeps no order among ties from one offset to the next: a task
+     * could land on two pages and on none. Everything after the date is there
+     * to make the order total, the task id last because it is unique.
+     */
+    .orderBy(
+      asc(episodes.airDate),
+      asc(media.title),
+      asc(episodes.seasonNumber),
+      asc(episodes.episodeNumber),
+      asc(episodeTasks.id),
+    );
 
   return window ? query.limit(window.limit).offset(window.offset) : query;
 }
@@ -623,26 +641,34 @@ export async function linkSeriesToLibrary(): Promise<number> {
 }
 
 /**
- * Shows due for a resync: active ones first, oldest sync first.
+ * Shows due for a resync: active ones first, the one looked at longest ago
+ * first.
  *
  * A show that is off is looked at too, once a week rather than twice a day.
  * Without that it could never come back: the provider is the only thing that
  * knows a finished series has been renewed, and a series nobody resyncs is
  * never asked about again.
+ *
+ * "Looked at" is the later of the last full sync and the last refused attempt.
+ * Read on the sync alone, a series the provider keeps refusing never moved and
+ * stayed first in line, so twenty of them took every slot on every cycle and
+ * no healthy series was synced again.
  */
 export async function seriesDueForSync(limit = 20) {
+  const lookedAt = sql`GREATEST(${trackedSeries.lastSyncedAt}, ${trackedSeries.syncAttemptedAt})`;
   return db()
     .select({
       id: trackedSeries.id,
       providerId: media.providerId,
+      title: media.title,
       lastSyncedAt: trackedSeries.lastSyncedAt,
     })
     .from(trackedSeries)
     .innerJoin(media, eq(media.id, trackedSeries.mediaId))
     .where(
       sql`(
-        ${trackedSeries.lastSyncedAt} IS NULL
-        OR ${trackedSeries.lastSyncedAt} < now() - CASE
+        ${lookedAt} IS NULL
+        OR ${lookedAt} < now() - CASE
              WHEN ${trackedSeries.enabled} THEN INTERVAL '12 hours'
              ELSE INTERVAL '7 days'
            END
@@ -650,9 +676,24 @@ export async function seriesDueForSync(limit = 20) {
     )
     .orderBy(
       desc(trackedSeries.enabled),
-      sql`${trackedSeries.lastSyncedAt} NULLS FIRST`,
+      sql`${lookedAt} NULLS FIRST`,
+      asc(trackedSeries.id),
     )
     .limit(limit);
+}
+
+/**
+ * Records that the provider refused this series on this pass.
+ *
+ * Only for a refusal that belongs to the series: a gateway or a provider that
+ * is down as a whole says nothing about it, and stamping it then would push a
+ * healthy series half a day back for someone else's trouble.
+ */
+export async function markSeriesSyncAttempted(seriesId: string) {
+  await db()
+    .update(trackedSeries)
+    .set({ syncAttemptedAt: new Date() })
+    .where(eq(trackedSeries.id, seriesId));
 }
 
 /**
@@ -664,10 +705,15 @@ export async function seriesDueForSync(limit = 20) {
  * on the next cycle. Idempotent, since tracking a series that is already
  * tracked is an upsert. A series the administration took off the watch by
  * hand is not a leftover, and stays off.
+ *
+ * A request the provider keeps refusing is stamped and waits half a day, the
+ * cadence of the series sync, so it cannot hold the ten places ahead of the
+ * others. A failure of the whole service ends the pass instead: the step
+ * fails and says so, and the next title would only have failed the same way.
  */
 export async function trackAcceptedSeries(limit = 10): Promise<number> {
   const rows = await db()
-    .select({ providerId: media.providerId })
+    .select({ requestId: mediaRequests.id, providerId: media.providerId })
     .from(mediaRequests)
     .innerJoin(media, eq(media.id, mediaRequests.mediaId))
     .where(
@@ -678,7 +724,16 @@ export async function trackAcceptedSeries(limit = 10): Promise<number> {
         sql`NOT EXISTS (
           SELECT 1 FROM tracked_series AS s WHERE s.media_id = ${media.id}
         )`,
+        sql`(
+          ${mediaRequests.trackAttemptedAt} IS NULL
+          OR ${mediaRequests.trackAttemptedAt} < now() - INTERVAL '12 hours'
+        )`,
       ),
+    )
+    .orderBy(
+      sql`${mediaRequests.trackAttemptedAt} NULLS FIRST`,
+      asc(mediaRequests.createdAt),
+      asc(mediaRequests.id),
     )
     .limit(limit);
 
@@ -688,10 +743,15 @@ export async function trackAcceptedSeries(limit = 10): Promise<number> {
       await trackSeries(row.providerId);
       tracked += 1;
     } catch (error) {
+      if (isServiceWideFailure(error)) throw error;
       console.warn(
         `[series] deferred tracking failed providerId=${row.providerId}`,
         error,
       );
+      await db()
+        .update(mediaRequests)
+        .set({ trackAttemptedAt: new Date() })
+        .where(eq(mediaRequests.id, row.requestId));
     }
   }
   return tracked;

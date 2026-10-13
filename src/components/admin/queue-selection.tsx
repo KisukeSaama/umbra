@@ -52,6 +52,11 @@ type SelectableRow = {
   id: string;
   title: string;
   moves: readonly BulkMove[];
+  /**
+   * The row's refusal is a cancellation: a request already taken up, whose
+   * own button says "Cancel" rather than "Reject".
+   */
+  cancels?: boolean;
 };
 
 type SelectionState = {
@@ -87,6 +92,24 @@ const MOVE_TITLES = {
   reject: "admin.queue.bulk.reject",
   reopen: "admin.queue.bulk.reopen",
 } as const satisfies Record<BulkMove, TranslationKey>;
+
+/**
+ * A refusal reaching only requests already taken up is named as their rows
+ * name it, a cancellation; any new request or ask among them makes it a
+ * refusal again, which is what it is for those.
+ */
+function wording(move: BulkMove, rows: readonly SelectableRow[]) {
+  const cancels =
+    move === "reject" &&
+    rows.length > 0 &&
+    rows.every((row) => !row.moves.includes(move) || row.cancels);
+  return cancels
+    ? {
+        label: "admin.requests.cancel" as const,
+        title: "admin.queue.bulk.cancel" as const,
+      }
+    : { label: MOVE_LABELS[move], title: MOVE_TITLES[move] };
+}
 
 /** What the box under a move invites, as on the row's own button. */
 const NOTE_PLACEHOLDERS = {
@@ -211,7 +234,13 @@ export function QueueSelectPage() {
 }
 
 /** One row's box, which is also how the row tells the selection it exists. */
-export function QueueSelectBox({ kind, id, title, moves }: SelectableRow) {
+export function QueueSelectBox({
+  kind,
+  id,
+  title,
+  moves,
+  cancels,
+}: SelectableRow) {
   const t = useTranslator();
   const { register, unregister, selected, toggle } = useSelection();
   // The array is rebuilt on every server render; what it holds is what counts.
@@ -223,9 +252,10 @@ export function QueueSelectBox({ kind, id, title, moves }: SelectableRow) {
       id,
       title,
       moves: movesKey ? (movesKey.split(",") as BulkMove[]) : [],
+      cancels,
     });
     return () => unregister(id);
-  }, [register, unregister, kind, id, title, movesKey]);
+  }, [register, unregister, kind, id, title, movesKey, cancels]);
 
   // A press rather than a change, since only a press says whether shift was
   // held; the keyboard's space bar is a press too. The label around the box
@@ -311,6 +341,9 @@ function BulkBar() {
           ? error.message
           : translateError(locale, undefined),
       );
+      // Some rows may have moved before the answer went wrong: the page is
+      // read again, so it shows them where they now are.
+      router.refresh();
     } finally {
       setBusy(false);
     }
@@ -346,7 +379,7 @@ function BulkBar() {
               setPending(move);
             }}
           >
-            {t(MOVE_LABELS[move])}
+            {t(wording(move, chosen).label)}
             {/* Said when the move reaches only part of the selection. */}
             {count < chosen.length ? (
               <span className="tabular-nums opacity-70">{count}</span>
@@ -368,7 +401,7 @@ function BulkBar() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {t(MOVE_TITLES[pending], { count: reached.length })}
+                {t(wording(pending, reached).title, { count: reached.length })}
               </DialogTitle>
               {reached.length < chosen.length ? (
                 <DialogDescription>
@@ -417,7 +450,7 @@ function BulkBar() {
               </Button>
               <Button disabled={busy} onClick={() => void run(pending)}>
                 {busy ? <SpinnerIcon /> : null}
-                {t(MOVE_TITLES[pending], { count: reached.length })}
+                {t(wording(pending, reached).title, { count: reached.length })}
               </Button>
             </DialogFooter>
           </DialogContent>

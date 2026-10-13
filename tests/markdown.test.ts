@@ -187,6 +187,14 @@ describe("inline", () => {
     }
   });
 
+  it("refuses a backslash in an address inside Umbra", () => {
+    // Browsers read `/\evil.example` as `//evil.example`, another host.
+    for (const href of ["/\\evil.example", "/news\\x"]) {
+      const source = `[x](${href})`;
+      expect(inline(source).some((node) => node.type === "link")).toBe(false);
+    }
+  });
+
   it("takes no markup from a code span", () => {
     expect(inline("`<script>alert(1)</script>`")).toEqual([
       { type: "code", value: "<script>alert(1)</script>" },

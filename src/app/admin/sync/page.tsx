@@ -148,10 +148,15 @@ function JobCard({
           </p>
         ) : null}
 
+        {/* Worded here, in the reader's language; the technical detail stays
+            as recorded, in monospace, because it is what matches the logs. */}
         {job.lastError ? (
-          <p className="bg-destructive/10 text-destructive rounded-lg px-2.5 py-2 font-mono text-xs break-words">
-            {job.lastError}
-          </p>
+          <div className="bg-destructive/10 text-destructive space-y-1 rounded-lg px-2.5 py-2 text-xs break-words">
+            <p>{t(job.lastError.key, job.lastError.values)}</p>
+            {job.lastError.detail ? (
+              <p className="font-mono">{job.lastError.detail}</p>
+            ) : null}
+          </div>
         ) : null}
 
         <p className="text-muted-foreground font-mono text-xs">{job.jobName}</p>

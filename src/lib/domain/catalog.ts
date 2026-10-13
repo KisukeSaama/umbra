@@ -23,7 +23,7 @@ import {
   matchesProviderId,
   REAL_MATCH_FIRST,
 } from "@/lib/domain/library";
-import { isSeriesIncomplete } from "@/lib/domain/seasons";
+import { isSeriesIncomplete, mergeEpisodes } from "@/lib/domain/seasons";
 import { settledIndex } from "@/lib/domain/settled";
 import { withAnimeScore } from "@/lib/domain/similar";
 import type {
@@ -541,31 +541,7 @@ export async function seasonEpisodes(
     episodesOnServer(providerId, seasonNumber),
   ]);
 
-  const present = new Map(held.map((row) => [row.episodeNumber, row.title]));
-  const episodes = new Map<number, EpisodeState>();
-
-  for (const episode of listed)
-    episodes.set(episode.episodeNumber, {
-      episodeNumber: episode.episodeNumber,
-      title: episode.title,
-      airDate: episode.airDate,
-      onServer: present.has(episode.episodeNumber),
-    });
-
-  // An episode the server holds and the provider does not list is still on the
-  // server, and saying otherwise would contradict the card above it.
-  for (const [episodeNumber, title] of present)
-    if (!episodes.has(episodeNumber))
-      episodes.set(episodeNumber, {
-        episodeNumber,
-        title,
-        airDate: null,
-        onServer: true,
-      });
-
-  return [...episodes.values()].sort(
-    (a, b) => a.episodeNumber - b.episodeNumber,
-  );
+  return mergeEpisodes(listed, held);
 }
 
 export function yearOf(releaseDate: string | null | undefined): number | null {

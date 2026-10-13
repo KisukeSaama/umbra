@@ -238,9 +238,11 @@ export const libraryItems = pgTable(
      * leaves `poster_path` null forever, the selection asks for rows that are
      * still missing something newest first, and once a screenful of those sat
      * at the top the same rows were fetched on every run while the older ones
-     * behind them never got their genres or their score. Stamped whether the
-     * call answered or not, so a row that cannot be filled waits its turn
-     * instead of taking everyone else's.
+     * behind them never got their genres or their score. Stamped when the
+     * call answered and when the provider refused the title, so a row that
+     * cannot be filled waits its turn instead of taking everyone else's; not
+     * when the gateway or the provider as a whole failed, which says nothing
+     * about the title.
      */
     enrichedAt: timestamp("enriched_at", { withTimezone: true }),
     addedAt: timestamp("added_at", { withTimezone: true }),
@@ -318,6 +320,13 @@ export const mediaRequests = pgTable(
      */
     untrackedAt: timestamp("untracked_at", { withTimezone: true }),
     /**
+     * When `trackAcceptedSeries` last tried to put this accepted series under
+     * watch and the provider refused it. The deferred tracking reads it so a
+     * request that keeps failing waits half a day instead of coming back
+     * ahead of every other one on each cycle.
+     */
+    trackAttemptedAt: timestamp("track_attempted_at", { withTimezone: true }),
+    /**
      * When the title first reached the server for this request.
      *
      * Set once by the sync and never cleared, whatever the status does next. It
@@ -390,6 +399,16 @@ export const trackedSeries = pgTable("tracked_series", {
   /** Server-side key of the show, discovered by the library sync. */
   plexRatingKey: text("plex_rating_key"),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  /**
+   * When the series sync last tried this series and the provider refused it.
+   *
+   * `last_synced_at` moves only on a full answer, so a series with one season
+   * the provider will not give (an announced one, typically) stayed the oldest
+   * in the queue and was asked for first on every cycle, twenty of them taking
+   * every slot. The due query reads whichever of the two is later, so a series
+   * that keeps failing waits its turn like one that succeeded.
+   */
+  syncAttemptedAt: timestamp("sync_attempted_at", { withTimezone: true }),
   createdAt,
 });
 
@@ -573,8 +592,16 @@ export const polls = pgTable(
     endsAt: timestamp("ends_at", { withTimezone: true }),
     createdAt,
   },
-  // One question per note: a second one would be a second note.
-  (t) => [uniqueIndex("poll_announcement_idx").on(t.announcementId)],
+  (t) => [
+    // One question per note: a second one would be a second note.
+    uniqueIndex("poll_announcement_idx").on(t.announcementId),
+    // One open question at a time. Closing the others and opening this one is
+    // two statements, and two publications landing together both committed an
+    // open poll; the second one now fails instead.
+    uniqueIndex("poll_single_active_idx")
+      .on(t.active)
+      .where(sql`${t.active}`),
+  ],
 );
 
 export const pollOptions = pgTable(

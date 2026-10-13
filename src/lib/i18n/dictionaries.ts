@@ -218,6 +218,10 @@ export const en = {
   "error.pollClosed": "This poll is closed.",
   "error.pollNotFound": "Poll not found.",
   "error.pollNeedsTwoOptions": "A poll needs at least two options.",
+  "error.pollNotPublished":
+    "This poll belongs to an announcement that is not published.",
+  "error.pollAlreadyOpen":
+    "Another poll was opened at the same moment. Try again.",
   "error.invalidOption": "Unknown option.",
   "error.invalidPin": "Invalid sign-in code.",
   "error.invalidProviderId": "Unknown title.",
@@ -335,6 +339,8 @@ export const en = {
   "admin.queue.bulk.accept.one": "Accept {count} request",
   "admin.queue.bulk.reject": "Reject {count} requests",
   "admin.queue.bulk.reject.one": "Reject {count} request",
+  "admin.queue.bulk.cancel": "Cancel {count} requests",
+  "admin.queue.bulk.cancel.one": "Cancel {count} request",
   "admin.queue.bulk.reopen": "Reopen {count} requests",
   "admin.queue.bulk.postpone": "Postpone {count} requests",
   "admin.queue.bulk.postpone.one": "Postpone {count} request",
@@ -344,7 +350,7 @@ export const en = {
   "admin.queue.bulk.onlySome.one":
     "Only {count} of the {total} selected can take this move; the others are left as they are.",
   "admin.queue.bulk.keepNotes":
-    "Left empty, each request keeps the word it already carries.",
+    "Left empty, each request keeps the word it already carries, except one coming back from on hold, whose word about room is erased.",
   "admin.queue.bulk.done": "{count} requests moved.",
   "admin.queue.bulk.done.one": "{count} request moved.",
   "admin.queue.bulk.failed": "{count} could not be moved: {reason}",
@@ -452,6 +458,19 @@ export const en = {
   "admin.jobs.items": "{count} items",
   "admin.jobs.items.one": "{count} item",
   "admin.jobs.took": "in {value}",
+  "admin.jobs.failure.upstream":
+    "The service behind {slug} did not answer as expected.",
+  "admin.jobs.failure.rateLimited":
+    "The gateway quota was reached: the step stopped and picks up on the next pass.",
+  "admin.jobs.failure.interrupted":
+    "Interrupted: the step went silent, most likely through a restart.",
+  "admin.jobs.failure.unexpected": "Unexpected error.",
+  "admin.jobs.failure.series":
+    "{count} of {total} series not synced: {titles}.",
+  "admin.jobs.failure.series.one":
+    "{count} of {total} series not synced: {titles}.",
+  "admin.jobs.failure.seriesMore":
+    "{count} of {total} series not synced: {titles} and {more} more.",
   "admin.sync.explain":
     "The server runs these steps by itself, roughly every half hour. Nothing here depends on running at a given time: a step that was missed is caught up on the next pass rather than lost.",
   "admin.sync.failing": "{count} steps failed on their last attempt.",
@@ -473,7 +492,7 @@ export const en = {
     "Walks the directories to find out what is taking the room. A few times a day, since it is slow.",
   "admin.job.taste-profile": "Taste profiles",
   "admin.job.taste-profile.hint":
-    "Rebuilds the favourite genres of the approved members. Replaced every time, never accumulated.",
+    "Rebuilds the favourite genres of the people the server is shared with. Replaced every time, never accumulated.",
   "admin.job.membership-sweep": "Server members",
   "admin.job.membership-sweep.hint":
     "Signs out the accounts the server is no longer shared with. Does nothing until the owner slug is configured.",
@@ -1098,6 +1117,10 @@ export const fr: Record<TranslationKey, string> = {
   "error.pollClosed": "Ce sondage est clos.",
   "error.pollNotFound": "Sondage introuvable.",
   "error.pollNeedsTwoOptions": "Un sondage demande au moins deux choix.",
+  "error.pollNotPublished":
+    "Ce sondage appartient à une annonce qui n'est pas publiée.",
+  "error.pollAlreadyOpen":
+    "Un autre sondage vient d'être ouvert au même moment. Réessayez.",
   "error.invalidOption": "Choix inconnu.",
   "error.invalidPin": "Code de connexion invalide.",
   "error.invalidProviderId": "Titre inconnu.",
@@ -1167,7 +1190,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.requests.status.requested": "Nouvelle",
   "admin.requests.status.accepted": "Prise en compte",
   "admin.requests.status.available": "Disponible",
-  "admin.requests.status.postponed": "Temporisée",
+  "admin.requests.status.postponed": "En attente",
   "admin.requests.status.rejected": "Refusée",
   "admin.requests.status.removed": "Retirée du serveur",
   "admin.requests.reasked": "Redemandée",
@@ -1179,7 +1202,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.requests.reopen": "Réouvrir",
   "admin.requests.declineNotePlaceholder":
     "Affiché au membre avec la réponse, par exemple pourquoi.",
-  "admin.requests.postpone": "Refuser temporairement",
+  "admin.requests.postpone": "Mettre en attente",
   "admin.requests.postponeNotePlaceholder":
     "Facultatif. Le membre lit déjà que ce sera ajouté quand il y aura davantage de place.",
   "admin.requests.note": "Mot pour le membre (facultatif)",
@@ -1198,7 +1221,7 @@ export const fr: Record<TranslationKey, string> = {
   "admin.queue.stage.todo": "À traiter",
   "admin.queue.stage.doing": "En cours",
   "admin.queue.stage.done": "Clos",
-  "admin.queue.stage.later": "Temporisées",
+  "admin.queue.stage.later": "En attente",
   "admin.queue.stage.all": "Tout",
   "admin.queue.emptyStage": "Rien à cette étape.",
   "admin.queue.search": "Rechercher dans la file",
@@ -1214,16 +1237,18 @@ export const fr: Record<TranslationKey, string> = {
   "admin.queue.bulk.accept.one": "Accepter {count} demande",
   "admin.queue.bulk.reject": "Refuser {count} demandes",
   "admin.queue.bulk.reject.one": "Refuser {count} demande",
+  "admin.queue.bulk.cancel": "Annuler {count} demandes",
+  "admin.queue.bulk.cancel.one": "Annuler {count} demande",
   "admin.queue.bulk.reopen": "Réouvrir {count} demandes",
-  "admin.queue.bulk.postpone": "Refuser temporairement {count} demandes",
-  "admin.queue.bulk.postpone.one": "Refuser temporairement {count} demande",
+  "admin.queue.bulk.postpone": "Mettre en attente {count} demandes",
+  "admin.queue.bulk.postpone.one": "Mettre en attente {count} demande",
   "admin.queue.bulk.reopen.one": "Réouvrir {count} demande",
   "admin.queue.bulk.onlySome":
     "Seules {count} des {total} sélectionnées sont concernées ; les autres restent telles quelles.",
   "admin.queue.bulk.onlySome.one":
     "Seule {count} des {total} sélectionnées est concernée ; les autres restent telles quelles.",
   "admin.queue.bulk.keepNotes":
-    "Laissé vide, chaque demande garde le mot qu'elle porte déjà.",
+    "Laissé vide, chaque demande garde le mot qu'elle porte déjà, sauf celle qui sort de l'attente, dont le mot sur la place est effacé.",
   "admin.queue.bulk.done": "{count} demandes traitées.",
   "admin.queue.bulk.done.one": "{count} demande traitée.",
   "admin.queue.bulk.failed": "{count} n'ont pas pu être traitées : {reason}",
@@ -1331,6 +1356,19 @@ export const fr: Record<TranslationKey, string> = {
   "admin.jobs.items": "{count} éléments",
   "admin.jobs.items.one": "{count} élément",
   "admin.jobs.took": "en {value}",
+  "admin.jobs.failure.upstream":
+    "Le service derrière {slug} n'a pas répondu comme prévu.",
+  "admin.jobs.failure.rateLimited":
+    "Le quota de la passerelle est atteint : l'étape s'est arrêtée et reprendra au prochain passage.",
+  "admin.jobs.failure.interrupted":
+    "Interrompue : l'étape ne donnait plus signe de vie, sans doute à cause d'un redémarrage.",
+  "admin.jobs.failure.unexpected": "Erreur inattendue.",
+  "admin.jobs.failure.series":
+    "{count} séries sur {total} non synchronisées : {titles}.",
+  "admin.jobs.failure.series.one":
+    "{count} série sur {total} non synchronisée : {titles}.",
+  "admin.jobs.failure.seriesMore":
+    "{count} séries sur {total} non synchronisées : {titles} et {more} de plus.",
   "admin.sync.explain":
     "Le serveur exécute ces étapes tout seul, environ toutes les demi-heures. Rien ici ne dépend d'une heure précise : une étape manquée est rattrapée au passage suivant plutôt que perdue.",
   "admin.sync.failing": "{count} étapes ont échoué à leur dernière tentative.",
@@ -1352,7 +1390,7 @@ export const fr: Record<TranslationKey, string> = {
     "Parcourt les dossiers pour savoir ce qui prend la place. Quelques fois par jour, parce que c'est lent.",
   "admin.job.taste-profile": "Profils de goût",
   "admin.job.taste-profile.hint":
-    "Recalcule les genres préférés des membres approuvés. Remplacés à chaque fois, jamais accumulés.",
+    "Recalcule les genres préférés des personnes avec qui le serveur est partagé. Remplacés à chaque fois, jamais accumulés.",
   "admin.job.membership-sweep": "Membres du serveur",
   "admin.job.membership-sweep.hint":
     "Déconnecte les comptes avec qui le serveur n'est plus partagé. Sans effet tant que le slug propriétaire n'est pas configuré.",

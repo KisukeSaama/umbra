@@ -38,10 +38,6 @@ import { posterUrl, tmdbProvider } from "@/lib/providers/tmdb";
  */
 export const LIVE_REQUEST_STATUSES = ["requested", "accepted"] as const;
 
-export function isLiveRequest(status: RequestStatus): boolean {
-  return (LIVE_REQUEST_STATUSES as readonly RequestStatus[]).includes(status);
-}
-
 export type RequestRow = {
   id: string;
   status: RequestStatus;
@@ -437,8 +433,8 @@ function toRequestRow(row: {
 const inLibraryColumn = sql<boolean>`exists (
   select 1
     from library_item as l
-   where l.tmdb_id = ${media.providerId}
-     and l.cut_provider_id is null
+   where ((l.tmdb_id = ${media.providerId} and l.cut_provider_id is null)
+          or l.cut_provider_id = ${media.providerId})
      and l.kind = case ${media.mediaType} when 'movie' then 'movie' else 'show' end
 )`;
 
@@ -657,13 +653,19 @@ export async function countRequests(
  *
  * Reopening a refusal erases it too: the word that came with the refusal
  * explained it, and would contradict a request back in the queue.
+ *
+ * Leaving `postponed` with no word sent erases it as well: what it said was
+ * why the title waits for room, and that stops being true the moment it stops
+ * waiting. The row's own button opens on an empty box for that reason; a
+ * selection accepted with nothing typed has to end in the same place.
  */
 export function noteFor(
   status: RequestStatus,
   adminNote?: string | null,
+  from?: RequestStatus,
 ): string | null | undefined {
   if (status === "available" || status === "requested") return null;
-  if (adminNote === undefined) return undefined;
+  if (adminNote === undefined) return from === "postponed" ? null : undefined;
   return adminNote?.trim() || null;
 }
 
@@ -780,8 +782,6 @@ export async function updateRequestStatus(
   status: RequestStatus,
   adminNote?: string | null,
 ) {
-  const note = noteFor(status, adminNote);
-
   const [subject] = await db()
     .select({
       status: mediaRequests.status,
@@ -797,6 +797,8 @@ export async function updateRequestStatus(
   if (!subject) throw new NotFoundError("error.requestNotFound");
   if (!canMoveRequest(subject.status, status))
     throw new ConflictError("error.illegalTransition");
+
+  const note = noteFor(status, adminNote, subject.status);
 
   const [updated] = await db()
     .update(mediaRequests)
@@ -821,6 +823,7 @@ export async function updateRequestStatus(
       mediaId: mediaRequests.mediaId,
       status: mediaRequests.status,
       adminNote: mediaRequests.adminNote,
+      updatedAt: mediaRequests.updatedAt,
     })
     // Only a reopening can meet the index: the title was asked for again after
     // the refusal, and that newer request is the one to work.
@@ -857,6 +860,7 @@ export async function updateRequestStatus(
     status,
     subject.title,
     updated.adminNote,
+    updated.updatedAt,
   );
   return updated;
 }
@@ -867,12 +871,22 @@ export async function updateRequestStatus(
  * The step is part of the notification key, so a request moving through
  * accepted and then available says both things rather than only the first, and
  * a job replaying the same move says nothing twice.
+ *
+ * A move made by hand passes the moment it was written, and that moment joins
+ * the step. Since ADR 0021 a request goes back and forth as the normal flow,
+ * accepted, put off for lack of room, accepted again the day there is room, and
+ * keyed on the status alone the second acceptance met the first and was
+ * dropped, leaving every follower on "waiting for room". Each manual move is a
+ * decision of its own; the same press sent twice is still one, since only one
+ * of the two passes the status check of `updateRequestStatus`. A job replaying
+ * a move passes nothing and keeps the plain status, so it stays idempotent.
  */
 export async function notifyRequestFollowers(
   requestId: string,
   status: RequestStatus,
   title: string,
   note?: string | null,
+  movedAt?: Date,
 ) {
   const rows = await db()
     .select({ accountId: requestFollowers.accountId })
@@ -885,7 +899,7 @@ export async function notifyRequestFollowers(
     {
       kind: "request_status",
       subjectId: requestId,
-      step: status,
+      step: movedAt ? `${status}:${movedAt.getTime()}` : status,
       payload: note ? { title, status, note } : { title, status },
     },
   );
@@ -896,6 +910,10 @@ export async function notifyRequestFollowers(
  * sync, so nothing has to be closed by hand, and it clears the administrator
  * note on the way out for the same reason `updateRequestStatus` does. A request
  * put off for lack of room is closed too: the title found its way in anyway.
+ *
+ * Presence is read as `retireRequestsGoneFromLibrary` reads it, the id worked
+ * out for a re-cut included: a series that arrives only as its "Kai" is on the
+ * server for search and the title page, and its request has to say so too.
  */
 export async function closeRequestsPresentInLibrary(): Promise<number> {
   const result = await db().execute(sql`
@@ -905,12 +923,13 @@ export async function closeRequestsPresentInLibrary(): Promise<number> {
            available_at = COALESCE(r.available_at, now()),
            updated_at = now()
       FROM media AS m
-      JOIN library_item AS l
-        ON l.tmdb_id = m.provider_id
-       AND l.cut_provider_id IS NULL
-       AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END
      WHERE r.media_id = m.id
        AND r.status IN ('requested', 'accepted', 'postponed')
+       AND EXISTS (
+             SELECT 1 FROM library_item AS l
+              WHERE ((l.tmdb_id = m.provider_id AND l.cut_provider_id IS NULL)
+                     OR l.cut_provider_id = m.provider_id)
+                AND l.kind = CASE m.media_type WHEN 'movie' THEN 'movie' ELSE 'show' END)
   `);
   return result.count ?? 0;
 }

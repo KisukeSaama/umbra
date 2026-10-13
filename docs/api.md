@@ -5,7 +5,8 @@ not go through it: server components call the domain layer directly.
 
 ## Conventions
 
-- JSON in, JSON out. Session in an `HttpOnly` cookie, `umbra_session`.
+- JSON in, JSON out. Session in an `HttpOnly` cookie, `__Host-umbra_session`
+  in production and `umbra_session` in development, where there is no HTTPS.
 - An error is `{ "error": "<code>", "messageKey": "<key>" }` with a matching HTTP
   status. The client resolves `messageKey` in its own language; the server never
   sends a sentence. Codes: `bad_request`, `unauthorized`, `forbidden`,
@@ -109,8 +110,10 @@ somebody else opened, 409 with `error.requestUnderway` once the administration
 has acted on it. Shares the requests bucket.
 
 **`POST /api/polls/{id}/vote`** (member), body `{ "optionId": "uuid" }`. Ten a
-minute. Returns the poll with its results; 409 with `error.alreadyVoted` on a
-second attempt or `error.pollClosed` on a closed poll.
+minute. Returns the poll with its results. One vote per person: a second one
+moves the first rather than being refused. 400 with `error.invalidOption` for an
+option that is not the poll's, 404 with `error.pollNotFound` for a poll that does
+not exist or hangs off a draft, 409 with `error.pollClosed` on a closed poll.
 
 **`PUT /api/announcements/{id}/reaction`** (member), body
 `{ "value": "like" | "dislike" | null }`. Thirty a minute. Sets the visitor's
@@ -188,6 +191,7 @@ access or take anything away for good.
 | Route                                  | Body                                                       | Effect                                                                                                                                                                                                                                                                                                       |
 | -------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `PATCH /api/admin/requests/{id}`       | `{ status?, adminNote? }`                                  | Moves a request along its lifecycle. An illegal move is a 409, as is `available` for a title the index does not hold yet. `accepted` on a series also starts tracking it; `adminNote` is an optional word shown to the requester and cleared on `available`. A body without a status rewrites the word alone |
+| `PATCH /api/admin/requests`            | `{ move, adminNote?, items[] }`                            | Moves several rows of the request queue at once; see below                                                                                                                                                                                                                                                   |
 | `PATCH /api/admin/reports/{id}`        | `{ status?, adminNote? }`                                  | Moves a report along its state machine, where an illegal move is also a 409. `acknowledged` on a series also starts tracking it. A body without a status rewrites the word alone                                                                                                                             |
 | `POST /api/admin/series`               | `{ providerId }`                                           | Tracks a series and pulls its calendar. A 409 with `error.seriesIsCut` when the server holds it as a re-cut                                                                                                                                                                                                  |
 | `PATCH /api/admin/series/{id}`         | `{ enabled }`                                              | Pauses or resumes tracking                                                                                                                                                                                                                                                                                   |
@@ -206,6 +210,41 @@ access or take anything away for good.
 | `POST /api/admin/search-sites`         | `{ name, url, queryParam, params[], position?, enabled? }` | Adds a search page the queues can open. `url` must be http or https, `params` is `{ key, value }[]`, and a name already taken is a 409. The terms are written by Umbra, never configured                                                                                                                     |
 | `PATCH /api/admin/search-sites/{id}`   | partial                                                    | Edits a site, reorders it, enables or disables it                                                                                                                                                                                                                                                            |
 | `DELETE /api/admin/search-sites/{id}`  |                                                            | Deletes a site                                                                                                                                                                                                                                                                                               |
+
+### The request queue
+
+A request moves `requested` to `accepted`, `postponed` or `rejected`;
+`accepted` to `postponed` or `rejected`; `postponed` to `accepted` or
+`rejected`; `rejected` back to `requested`. `available` and `removed` are the
+library sync's alone, and a request in any live status, `postponed` included,
+is closed as `available` when its title reaches the server. `postponed` means
+worth having, no room yet (`docs/adr/0021-a-request-can-wait-for-room.md`): it
+keeps the title's one live request, so a member asking for it joins it, and a
+member cannot withdraw from it. Leaving it for `accepted` without a word erases
+the word it carried, which said why it waited. Every move made here notifies
+the followers, a move back to a status held before included.
+
+**`PATCH /api/admin/requests`** (staff), body
+`{ "move": "accept" | "postpone" | "reject" | "reopen", "adminNote"?: "...", "items": [{ "kind": "request" | "ask", "id": "uuid" }] }`,
+one to fifty items, an id sent twice moved once. Each row goes through the same
+move as its own route, one after the other: a request to `accepted`,
+`postponed`, `rejected` or `requested`, a season asked for (filed as a report)
+to `acknowledged`, `rejected` or `open`. An ask cannot be postponed, and an id
+sent as an ask that is a fault report is refused. `adminNote`, at most 500
+characters, goes to every row; left empty, an acceptance keeps each row's word
+(except on a request leaving `postponed`), a refusal or a postponement erases
+it, and a reopening ignores it. Answers `{ "moved": 3, "failed": [{ "id",
+"messageKey" }] }`: a row that refuses the move (`error.illegalTransition`, a
+row already settled by somebody else, `error.requestNotFound`, an unexpected
+fault as `error.internal`) does not stop the others. Shares the administration
+bucket.
+
+The queue pages, `/admin/requests` and `/admin/reports`, take a `q` search
+parameter alongside the stage and the page. It is trimmed and cut to a hundred
+characters and six words, and every word must be found somewhere on the row:
+the title or its original title, the provider id typed whole, the staff's note,
+or the name of whoever opened it or waits on it. Wildcards are read as
+themselves, and the counts on the stages read the same filter as the list.
 
 ### The storage explorer
 

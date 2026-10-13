@@ -279,6 +279,19 @@ describe("what the root listing hides", () => {
     ).rejects.toThrow(AppError);
   });
 
+  it("neither weighs nor plays what it hides at the root", async () => {
+    await writeFile(join(base, "media", "data", "dump.mkv"), "x");
+    expect(
+      await code(weighStorageEntries("Media", [], ["data"], volumes)),
+    ).toBe("error.invalidPath");
+    expect(
+      await code(openStorageVideo("Media", [], "data", null, volumes)),
+    ).toBe("error.invalidPath");
+    // A library at the root is still weighed.
+    const weight = await weighStorageEntries("Media", [], ["Movies"], volumes);
+    expect(weight.files).toBe(3);
+  });
+
   it("still allows the same name deeper down", async () => {
     const listing = await listStorageDirectory(
       "Media",

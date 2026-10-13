@@ -68,7 +68,9 @@ attributes bare or prefixed with `@`, so the parser in
 Posters come from the public TMDB image CDN, never proxied from the media server:
 that keeps the media server invisible to browsers and avoids a binary proxy.
 Library entries get their poster path filled in by a capped enrichment pass after
-each sync.
+each sync. A title the provider refuses is stamped and waits a month; a quota
+reached, a gateway refusal or a provider out of reach stamps nothing and ends the
+pass, so one 429 does not park a whole sync's worth of new titles.
 
 ## Data model
 
@@ -130,9 +132,12 @@ result.
 
 ## Jobs
 
-`runSyncCycle()` in `src/lib/jobs/index.ts` runs seven steps in dependency order,
+`runSyncCycle()` in `src/lib/jobs/index.ts` runs eight steps in dependency order,
 each recorded in `job_run` and stamped in `job_state` on success. A failing step
 does not stop the others: a metadata outage must not prevent a storage snapshot.
+A failed run records a dictionary key, its values and a technical detail rather
+than a sentence (`src/lib/jobs/failure.ts`), so the synchronisation page words it
+in the reader's language and keeps the slug, status and path that match the logs.
 
 The cycle records a run of its own too, under `sync-cycle`, written before the
 first step starts and closed after the last. It is the lock (one running cycle,
@@ -146,7 +151,16 @@ button was pressed, and the page stopped following a cycle that was not over.
    their server entry; close requests and missing-episode reports whose title has
    appeared; retire requests whose title has left the server since it arrived;
    fill in missing posters and genres.
-2. **series-sync**: refresh the calendar of series due for a resync.
+2. **series-sync**: put under watch the accepted series whose tracking failed at
+   the time, then refresh the calendar of series due for a resync. A series is
+   due on the later of its last full sync and its last refused attempt, so one
+   the provider keeps refusing (a season it will not give, a title it no longer
+   knows) waits half a day like the others instead of coming back first on every
+   cycle; deferred tracking stamps its request the same way. Such a refusal is
+   that series' own and the loop goes on, the step failing at the end with a
+   count and the first few titles. A failure of the whole service (a 429, a
+   gateway refusal, a timeout, a provider down) is everyone's: it ends the loop
+   and fails the step there and then, and stamps nothing.
 3. **episode-reconcile**: mark episodes available or missing, raise tasks, close
    tasks whose episode arrived, then settle the season and series reports the
    refreshed calendar can now answer.
@@ -159,11 +173,17 @@ button was pressed, and the page stopped following a cycle that was not over.
    enough to load: the files of the folder being drawn come from the live
    listing. The walk never follows a symbolic link and never takes a path from
    a request.
-6. **taste-profile**: rebuild the profile of every approved account from a
-   rolling window of the media server history, replacing the rows rather than
-   adding to them. There is no account it skips: personalisation has no switch,
+6. **taste-profile**: rebuild the profile of every account the server is still
+   shared with from a rolling window of the media server history, replacing the
+   rows rather than adding to them. An account the server is no longer shared
+   with is skipped, since keeping a profile for somebody who left would be
+   keeping more than the minimum; no other is: personalisation has no switch,
    see `docs/adr/0013-personalisation-is-not-optional.md`.
-7. **housekeeping**: delete what nothing else deletes, bounded per run so a
+7. **membership-sweep**: end the sessions of everyone the server is no longer
+   shared with and forget their taste profile, from the owner's view of the
+   shares on plex.tv. A step of its own so a gateway that is down fails it alone
+   and not the deletions after it; it does nothing until the owner slug is set.
+8. **housekeeping**: delete what nothing else deletes, bounded per run so a
    backlog drains over several passes: expired sessions and pins, old job runs,
    disk maps past a week except the latest, read notifications past a month and
    everything past six.
@@ -185,9 +205,11 @@ deployed on; what bounds it is the caller, the worker giving up on the answer
 after fifteen minutes while the server carries on. A long step writes where it is
 into `job_state.cursor` at most every second and a half, which is what the
 administration reads to say "twelve thousand files walked" instead of showing a
-spinner. A run still marked running after forty-five minutes was interrupted by
-a restart, and is closed as failed the next time anyone asks, so a crash never
-blocks the button for good.
+spinner. Every run, the cycle's own included, stamps `heartbeat_at` every fifteen
+seconds for as long as it is on its feet, whether or not it has progress to
+write. A run silent for five minutes was interrupted by a restart, and is closed
+as failed the next time anyone asks, so a crash never blocks the button for good
+and a step that is merely long is never declared dead.
 
 Reconciliation compares dates against now rather than reacting to an event, so
 nothing is missed after downtime, and `ON CONFLICT DO NOTHING` on the task means a
@@ -265,8 +287,9 @@ work.
 - Access is checked in every page, not only in the layout above it: a layout does
   not stop the page under it from rendering and is not re-run on a client-side
   navigation. `requireMemberPage` and `requireAdminPage` redirect, `requireMember`
-  and `requireAdmin` throw. Blocking or demoting an account ends its sessions at
-  once.
+  and `requireAdmin` throw. Changing a role ends no session and needs to end
+  none: the role is read from the account on every request, so a demotion holds
+  from the next one.
 - Shared secrets (`CRON_SECRET`, the administrator Plex id) are compared in
   constant time.
 - Content Security Policy, `Permissions-Policy` and HSTS on every response; the

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -226,7 +226,7 @@ async function personalRanking(
  * has no provider id for are dropped: nothing can be asked about them. The list
  * lives for the length of one render.
  */
-async function recentTitles(
+export async function recentTitles(
   accountId: string,
 ): Promise<{ history: SeedTitle[]; watched: Set<string> }> {
   const empty = { history: [], watched: new Set<string>() };
@@ -263,7 +263,12 @@ async function recentTitles(
       and(
         inArray(libraryItems.ratingKey, [...new Set(keys)]),
         inArray(libraryItems.kind, ["movie", "show"]),
-        isNotNull(libraryItems.tmdbId),
+        // A re-cut the server matched to nothing still has the id Umbra
+        // worked out for it.
+        or(
+          isNotNull(libraryItems.tmdbId),
+          isNotNull(libraryItems.cutProviderId),
+        ),
       ),
     );
 
@@ -272,8 +277,8 @@ async function recentTitles(
       row.ratingKey,
       {
         kind: (row.kind === "movie" ? "movie" : "tv") as MediaKind,
-        // A re-cut the server matched to the wrong series was watched as the
-        // series it really is.
+        // A re-cut, matched to the wrong series or to none, was watched as
+        // the series it really is.
         providerId: row.cutProviderId ?? (row.tmdbId as string),
       },
     ]),

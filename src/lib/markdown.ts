@@ -263,7 +263,8 @@ function safeHref(raw: string): string | null {
   if (href === "") return null;
   if (/^https?:\/\/\S+$/i.test(href)) return href;
   if (/^mailto:\S+$/i.test(href)) return href;
-  if (/^\/(?!\/)\S*$/.test(href)) return href;
+  // A backslash is read as a slash by browsers, so `/\host` would leave Umbra.
+  if (/^\/(?![/\\])[^\s\\]*$/.test(href)) return href;
   return null;
 }
 

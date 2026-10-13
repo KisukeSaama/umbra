@@ -48,7 +48,7 @@ before changing behaviour and `docs/architecture.md` before changing structure.
 ## Shape of the code
 
 ```
-src/app/(site)      community pages, gated on an approved account
+src/app/(site)      community pages, gated on a member of the server
 src/app/admin       administration, gated on the admin or assistant role
 src/app/api         REST routes: mutations, search, sign-in, scheduled sync
 src/lib/domain      the business rules; pages and routes stay thin

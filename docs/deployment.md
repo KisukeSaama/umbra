@@ -94,3 +94,29 @@ first pass indexes the library, which is what makes search able to answer
 - `expose`, never `ports`.
 - The compose project name is `umbra-<env>`, which is what keeps dev and prod
   apart on a shared host.
+
+## The origin answers Cloudflare only
+
+The anonymous sign-in buckets are keyed on the visitor's address, read from
+`CF-Connecting-IP` (`src/lib/rate-limit.ts`). That header can only be trusted
+when every request reaching Traefik came through Cloudflare, which writes it
+itself. A host that can reach the origin directly can send any value it likes,
+spread itself over as many per-address buckets as it wants and keep the global
+caps (60 pins and 300 claims a minute) full, which locks every new sign-in out
+for as long as it keeps going.
+
+The guarantee belongs to the platform, not to this repository: the Traefik
+entrypoints and the host firewall are shared by every application and are
+configured in `devops/docs`, not by container labels. One of the two must hold:
+
+- the host firewall accepts 443 only from the published Cloudflare ranges
+  (`https://www.cloudflare.com/ips-v4` and `ips-v6`), or
+- the `websecure` entrypoint sets `forwardedHeaders.trustedIPs` to those ranges
+  and a plugin or rule overwrites `CF-Connecting-IP` with the peer address for
+  anything else.
+
+Check it after any change to the host network: a request sent straight to the
+origin's address with a `Host: umbra.kisukesaama.com` header must not get an
+answer. The global caps stay where they are: they are what keeps the plex.tv
+quota in Janus safe from a caller who forges addresses, and with the origin
+closed nobody can forge one.

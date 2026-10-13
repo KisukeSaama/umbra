@@ -23,6 +23,7 @@ import {
 } from "@/lib/domain/requests";
 import {
   linkSeriesToLibrary,
+  markSeriesSyncAttempted,
   reconcileEpisodes,
   seriesDueForSync,
   syncSeriesEpisodes,
@@ -30,7 +31,15 @@ import {
 } from "@/lib/domain/series";
 import { recordStorageSnapshot, scanStorageTree } from "@/lib/domain/storage";
 import { accountsForTaste, refreshTasteProfile } from "@/lib/domain/taste";
-import { UpstreamError } from "@/lib/errors";
+import {
+  StepFailure,
+  decodeFailure,
+  describeFailure,
+  eachInIsolation,
+  encodeFailure,
+  summariseSeriesFailures,
+  type RunFailure,
+} from "@/lib/jobs/failure";
 
 /**
  * Scheduled work.
@@ -56,7 +65,7 @@ export type JobName = (typeof JOB_NAMES)[number];
 export type JobOutcome = {
   job: JobName;
   items: number;
-  error?: string;
+  error?: RunFailure;
   /**
    * The step did not run. Either another cycle holds it, or it is not due yet:
    * both are ordinary, and neither is a success to be recorded as one.
@@ -107,16 +116,6 @@ const STALE_AFTER_MS = 5 * 60_000;
  */
 const SYNC_CYCLE = "sync-cycle";
 
-/**
- * A cycle is every step in a row, so it is given the time of several.
- *
- * Kept on the clock rather than on a beat of its own: the cycle does no work,
- * its row is a lock, and a beat would only repeat what its steps already say.
- * A crash costs the button three hours at worst, and nothing in the meantime
- * runs twice, since each step holds its own row against a second cycle.
- */
-const CYCLE_STALE_AFTER_MS = 3 * 60 * 60_000;
-
 type Report = (progress: JobProgress) => void;
 
 async function runJob(
@@ -153,24 +152,7 @@ async function runJob(
     void writeProgress(job, progress);
   };
 
-  /*
-   * Said by every step, whether or not it has anything to report.
-   *
-   * A step that writes no progress is not a step that has stopped, and this is
-   * what tells the two apart. Unreferenced so it can never hold the process
-   * open on its own, and failures are swallowed: a missed beat costs at worst
-   * a run closed early, a thrown one would cost the work.
-   */
-  const heartbeat = setInterval(() => {
-    void db()
-      .update(jobRuns)
-      .set({ heartbeatAt: new Date() })
-      .where(eq(jobRuns.id, run.id))
-      .catch((error: unknown) => {
-        console.warn(`[jobs] ${job} heartbeat not written`, error);
-      });
-  }, HEARTBEAT_EVERY_MS);
-  heartbeat.unref?.();
+  const stopBeating = beat(run.id, job);
 
   try {
     const items = await work(report);
@@ -188,22 +170,47 @@ async function runJob(
 
     return { job, items };
   } catch (error) {
-    const message = describeFailure(error);
+    // Bounded by construction rather than cut: an encoded failure sliced at a
+    // length would no longer read back.
+    const failure = describeFailure(error);
     console.error(`[jobs] ${job} failed`, error);
     await db()
       .update(jobRuns)
       .set({
         status: "failure",
         finishedAt: new Date(),
-        error: message.slice(0, 500),
+        error: encodeFailure(failure),
       })
       .where(eq(jobRuns.id, run.id));
     await writeProgress(job, null);
 
-    return { job, items: 0, error: message };
+    return { job, items: 0, error: failure };
   } finally {
-    clearInterval(heartbeat);
+    stopBeating();
   }
+}
+
+/**
+ * Says a run is still on its feet, every fifteen seconds, until stopped.
+ *
+ * Said by every step and by the cycle holding them, whether or not there is
+ * anything to report. A run that writes no progress is not a run that has
+ * stopped, and this is what tells the two apart. Unreferenced so it can never
+ * hold the process open on its own, and failures are swallowed: a missed beat
+ * costs at worst a run closed early, a thrown one would cost the work.
+ */
+function beat(runId: string, label: string): () => void {
+  const heartbeat = setInterval(() => {
+    void db()
+      .update(jobRuns)
+      .set({ heartbeatAt: new Date() })
+      .where(eq(jobRuns.id, runId))
+      .catch((error: unknown) => {
+        console.warn(`[jobs] ${label} heartbeat not written`, error);
+      });
+  }, HEARTBEAT_EVERY_MS);
+  heartbeat.unref?.();
+  return () => clearInterval(heartbeat);
 }
 
 async function writeProgress(job: JobName, progress: JobProgress | null) {
@@ -264,17 +271,18 @@ export async function runningJob(job: JobName): Promise<{
  * sweeper nobody runs.
  *
  * Read on the last beat rather than on the start, so a long step is left alone
- * for as long as it keeps saying it is there. The cycle beats too, through the
- * steps it is running; on its own row the two dates are the same thing.
+ * for as long as it keeps saying it is there. The cycle beats on its own row
+ * as well, from the runner that holds it, so a cycle is judged the same way.
  */
-async function closeStaleRuns(
-  job: JobName | typeof SYNC_CYCLE,
-  after = STALE_AFTER_MS,
-) {
-  const stale = new Date(Date.now() - after);
+async function closeStaleRuns(job: JobName | typeof SYNC_CYCLE) {
+  const stale = new Date(Date.now() - STALE_AFTER_MS);
   const closed = await db()
     .update(jobRuns)
-    .set({ status: "failure", finishedAt: new Date(), error: "interrupted" })
+    .set({
+      status: "failure",
+      finishedAt: new Date(),
+      error: encodeFailure({ key: "admin.jobs.failure.interrupted" }),
+    })
     .where(
       and(
         eq(jobRuns.jobName, job),
@@ -293,10 +301,11 @@ async function closeStaleRuns(
  * What the synchronisation page follows. Asked of the cycle rather than of its
  * steps, which leave a gap between one and the next where nothing is running
  * and the cycle is nonetheless far from over. A cycle left behind by a restart
- * ages out, which is what keeps a crash from blocking the button forever.
+ * goes quiet, and five minutes of silence is what keeps a crash from blocking
+ * the button forever.
  */
 export async function syncCycleRunning(): Promise<boolean> {
-  const stale = new Date(Date.now() - CYCLE_STALE_AFTER_MS);
+  const stale = new Date(Date.now() - STALE_AFTER_MS);
   const [row] = await db()
     .select({ count: sql<number>`count(*)::int` })
     .from(jobRuns)
@@ -304,7 +313,7 @@ export async function syncCycleRunning(): Promise<boolean> {
       and(
         eq(jobRuns.jobName, SYNC_CYCLE),
         eq(jobRuns.status, "running"),
-        gt(jobRuns.startedAt, stale),
+        gt(jobRuns.heartbeatAt, stale),
       ),
     );
   return (row?.count ?? 0) > 0;
@@ -361,7 +370,7 @@ async function due(job: JobName, hours: number): Promise<boolean> {
 export async function startSyncCycle(): Promise<{
   finished: Promise<JobOutcome[]>;
 } | null> {
-  await closeStaleRuns(SYNC_CYCLE, CYCLE_STALE_AFTER_MS);
+  await closeStaleRuns(SYNC_CYCLE);
 
   const [run] = await db()
     .insert(jobRuns)
@@ -386,6 +395,9 @@ export async function runSyncCycle(): Promise<JobOutcome[] | null> {
  * itself only fails when something outside any step throws.
  */
 async function finishCycle(runId: string): Promise<JobOutcome[]> {
+  // The steps beat on their own rows; this is the cycle's, which also covers
+  // the moments between two steps.
+  const stopBeating = beat(runId, SYNC_CYCLE);
   try {
     const outcomes = await runSteps();
     await db()
@@ -398,33 +410,18 @@ async function finishCycle(runId: string): Promise<JobOutcome[]> {
       .where(eq(jobRuns.id, runId));
     return outcomes;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
     await db()
       .update(jobRuns)
       .set({
         status: "failure",
         finishedAt: new Date(),
-        error: message.slice(0, 500),
+        error: encodeFailure(describeFailure(error)),
       })
       .where(eq(jobRuns.id, runId));
     throw error;
+  } finally {
+    stopBeating();
   }
-}
-
-/**
- * What a failed run records for the administration.
- *
- * An application error's message is its translation key, which says that a
- * provider failed but not which one or how. The run history is read by the
- * administration only, so the gateway slug and the detail go with it.
- */
-function describeFailure(error: unknown): string {
-  if (error instanceof UpstreamError) {
-    return [error.messageKey, error.slug, error.detail]
-      .filter(Boolean)
-      .join(" ");
-  }
-  return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -476,32 +473,30 @@ async function runSteps(): Promise<JobOutcome[]> {
 
       /*
        * One series the provider no longer answers for must not hold back the
-       * others. It has not synced, so it comes back first on every pass, and a
-       * loop that stopped at it would starve every series behind it for as long
-       * as it stayed in the list. The step still fails, naming it, because only
-       * an administrator can decide what becomes of a series that is gone.
+       * others, so its failure is its own: the attempt is stamped, which sends
+       * it to the back of the queue for half a day, and the loop goes on. The
+       * step still fails, naming it, because only an administrator can decide
+       * what becomes of a series that is gone.
+       *
+       * A failure of the whole service is not one series' and is not caught
+       * here: a 429, a gateway refusal, a provider down or out of reach ends
+       * the loop and fails the step, and no series is stamped for it.
        */
       const due = await seriesDueForSync();
-      let synced = 0;
-      const failures: string[] = [];
-      for (const series of due) {
-        try {
-          synced += await syncSeriesEpisodes(series.id, series.providerId);
-        } catch (error) {
+      const { done, refused } = await eachInIsolation(
+        due,
+        (series) => syncSeriesEpisodes(series.id, series.providerId),
+        async (series, error) => {
           console.warn(
             `[jobs] series-sync skipped providerId=${series.providerId}`,
             error,
           );
-          failures.push(`${series.providerId}: ${describeFailure(error)}`);
-        }
-      }
-      if (failures.length > 0) {
-        throw new Error(
-          `${failures.length} of ${due.length} series not synced; ` +
-            failures.join("; "),
-        );
-      }
-      return synced;
+          await markSeriesSyncAttempted(series.id);
+        },
+      );
+      if (refused.length > 0)
+        throw new StepFailure(summariseSeriesFailures(refused, due.length));
+      return done;
     }),
   );
 
@@ -635,7 +630,8 @@ export type JobStatusRow = {
   lastSuccessAt: Date | null;
   lastStatus: string | null;
   lastRunAt: Date | null;
-  lastError: string | null;
+  /** Why the last run failed, as a key the page words and its detail. */
+  lastError: RunFailure | null;
   /** How long the last run took, in milliseconds, when it finished. */
   lastDurationMs: number | null;
   /** What the last run went through: titles, episodes, files, rows deleted. */
@@ -677,7 +673,7 @@ export async function jobStatus(): Promise<JobStatusRow[]> {
       lastSuccessAt: state?.lastSuccessAt ?? null,
       lastStatus: run?.status ?? null,
       lastRunAt: run?.started_at ?? null,
-      lastError: run?.error ?? null,
+      lastError: decodeFailure(run?.error ?? null),
       lastDurationMs:
         run?.finished_at && run.started_at
           ? new Date(run.finished_at).getTime() -

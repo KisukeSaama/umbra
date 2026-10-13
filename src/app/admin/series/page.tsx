@@ -49,9 +49,8 @@ const PER_PAGE = 30;
  *
  * Both are read one page at a time, each on its own parameter: a season that
  * aired into an empty library opens one task per episode, and every task and
- * every show carries buttons of its own. The slices are cut here rather than
- * in the queries, since neither list takes a window and this page does not own
- * the domain layer.
+ * every show carries buttons of its own. Each list is counted and sliced in
+ * the query, so the rows past the page are never read at all.
  */
 export default async function AdminSeriesPage({
   searchParams,

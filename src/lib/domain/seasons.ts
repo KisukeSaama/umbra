@@ -1,4 +1,4 @@
-import type { SeasonState } from "@/lib/domain/catalog";
+import type { EpisodeState, SeasonState } from "@/lib/domain/catalog";
 import { dayKey } from "@/lib/format";
 
 /**
@@ -87,6 +87,47 @@ export function seasonShortfall(
     missing: aired.filter((episode) => !episode.onServer).length,
     runs,
   };
+}
+
+/**
+ * One season's episodes, from a calendar and from what the server holds.
+ *
+ * The calendar, the provider's or the tracker's copy of it, owns the numbering
+ * and the dates; the server owns presence. An episode the server holds and the
+ * calendar does not list is still on the server, and saying otherwise would
+ * contradict the card above it.
+ */
+export function mergeEpisodes(
+  listed: readonly {
+    episodeNumber: number;
+    title: string | null;
+    airDate: string | null;
+  }[],
+  held: readonly { episodeNumber: number; title: string | null }[],
+): EpisodeState[] {
+  const present = new Map(held.map((row) => [row.episodeNumber, row.title]));
+  const episodes = new Map<number, EpisodeState>();
+
+  for (const episode of listed)
+    episodes.set(episode.episodeNumber, {
+      episodeNumber: episode.episodeNumber,
+      title: episode.title,
+      airDate: episode.airDate,
+      onServer: present.has(episode.episodeNumber),
+    });
+
+  for (const [episodeNumber, title] of present)
+    if (!episodes.has(episodeNumber))
+      episodes.set(episodeNumber, {
+        episodeNumber,
+        title,
+        airDate: null,
+        onServer: true,
+      });
+
+  return [...episodes.values()].sort(
+    (a, b) => a.episodeNumber - b.episodeNumber,
+  );
 }
 
 /**

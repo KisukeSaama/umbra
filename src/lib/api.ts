@@ -98,13 +98,41 @@ export async function jsonBody<T>(
 
   let raw: unknown;
   try {
-    const text = await request.text();
-    // A caller that declares nothing, or lies about it, is measured instead.
-    if (text.length > MAX_BODY_BYTES) throw new BadRequestError();
+    const text = await cappedText(request);
     raw = text === "" ? {} : JSON.parse(text);
   } catch (error) {
     if (error instanceof AppError) throw error;
     raw = {};
   }
   return schema.parse(raw);
+}
+
+/**
+ * The body as text, read chunk by chunk and given up on as soon as it passes
+ * the cap. A caller that declares nothing (a chunked body), or lies about it,
+ * is measured instead, in bytes: a string's length counts UTF-16 units, which
+ * lets a body of multi-byte characters weigh up to three times the cap.
+ */
+async function cappedText(request: Request): Promise<string> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => {});
+      throw new BadRequestError();
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }

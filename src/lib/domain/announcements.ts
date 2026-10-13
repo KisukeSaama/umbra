@@ -121,8 +121,11 @@ export async function latestAnnouncement(
 /**
  * Fills in the questions.
  *
- * One query finds every poll of the page, so a feed of thirty notes costs two
- * round trips plus one tally per poll rather than one per note.
+ * One query finds every poll of the page and one counts who could answer, so
+ * the cost follows the questions rather than the notes: each poll then takes
+ * two or three reads of its own (`pollView`: the poll, its tally in a single
+ * snapshot, and the reader's vote when there is a reader). A feed of thirty
+ * notes without a question costs two round trips.
  */
 async function withPolls(
   rows: {
@@ -373,7 +376,8 @@ export async function updateAnnouncement(
 }
 
 /**
- * Everyone approved hears about a new note.
+ * Everyone with an account hears about a new note: holding one already means
+ * the server is shared with them (see `docs/adr/0014-only-members-of-the-server.md`).
  *
  * The entry carries the title and the category, never the body: the body can be
  * long, it can be edited, and the bell is a pointer rather than a copy.

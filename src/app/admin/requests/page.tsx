@@ -24,6 +24,7 @@ import {
   waitingOnRequests,
   type RequestRow,
 } from "@/lib/domain/requests";
+import { seasonGaps } from "@/lib/domain/season-gap";
 import { listEnabledSearchSites } from "@/lib/domain/search-sites";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import {
@@ -126,10 +127,11 @@ export default async function AdminRequestsPage({
   const asks = entries.flatMap((entry) =>
     entry.kind === "ask" ? [entry.ask] : [],
   );
-  const [waiting, waitingOnAsks, searchSites] = await Promise.all([
+  const [waiting, waitingOnAsks, searchSites, gaps] = await Promise.all([
     waitingOnRequests(requests.map(({ id }) => id)),
     waitingOnReports(asks.map(({ id }) => id)),
     listEnabledSearchSites(),
+    seasonGaps(asks),
   ]);
 
   // An empty queue says so; an empty search keeps its box, to be changed.
@@ -173,6 +175,7 @@ export default async function AdminRequestsPage({
                 <ReportItem
                   key={entry.ask.id}
                   report={entry.ask}
+                  gap={gaps.get(entry.ask.id) ?? null}
                   waiting={waitingOnAsks.get(entry.ask.id) ?? []}
                   showStatus={showStatus}
                   searchSites={searchSites}

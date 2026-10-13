@@ -64,6 +64,7 @@ export async function RequestItem({
             id={request.id}
             title={request.media.title}
             moves={bulkMoves(request.status)}
+            cancels={request.status === "accepted"}
           />
         ) : undefined
       }

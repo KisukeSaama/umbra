@@ -104,6 +104,19 @@ function assertEachName(names: string[]) {
 }
 
 /**
+ * What the root listing hides, refused when it is named beside a path.
+ *
+ * `locate` applies `isLibrary` to the first segment of a path, but a request
+ * at the volume root carries an empty path and names its entries apart, so the
+ * same rule is applied to those names here.
+ */
+function assertReachableAt(path: string[], names: string[]) {
+  if (path.length > 0) return;
+  for (const name of names)
+    if (!isLibrary(name)) throw new NotFoundError("error.invalidPath");
+}
+
+/**
  * The directory a request points at, or an error.
  *
  * Two checks, because each catches what the other cannot. The lexical one
@@ -228,6 +241,8 @@ export async function weighStorageEntries(
   const { target } = await locate(volume, path, volumes);
   assertEachName(names);
   if (names.length > MAX_BATCH) throw new BadRequestError("error.invalidPath");
+  // At the root, a name is reached the way a path is: only if it is a library.
+  assertReachableAt(path, names);
 
   const weight: StorageWeight = { bytes: 0, files: 0, partial: false };
   for (const name of names) {
@@ -371,6 +386,7 @@ export async function openStorageVideo(
 ): Promise<StorageStream> {
   const { target } = await locate(volume, path, volumes);
   if (!isSafeName(name)) throw new BadRequestError("error.invalidPath");
+  assertReachableAt(path, [name]);
   const type = videoType(name);
   if (!type) throw new BadRequestError("error.notPlayable");
 

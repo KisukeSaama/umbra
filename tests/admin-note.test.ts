@@ -35,6 +35,14 @@ describe("the note left on a request", () => {
     expect(noteFor("requested", "not this one")).toBeNull();
   });
 
+  it("erases the word about room when a request stops waiting for it", () => {
+    expect(noteFor("accepted", undefined, "postponed")).toBeNull();
+    expect(noteFor("accepted", " room at last ", "postponed")).toBe(
+      "room at last",
+    );
+    expect(noteFor("accepted", undefined, "requested")).toBeUndefined();
+  });
+
   it("stays writable for as long as it is shown", () => {
     expect(canCarryNote("requested")).toBe(true);
     expect(canCarryNote("accepted")).toBe(true);

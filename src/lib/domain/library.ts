@@ -28,6 +28,7 @@ import {
   titleWithoutCut,
   type AlternateCut,
 } from "@/lib/domain/cuts";
+import { isServiceWideFailure } from "@/lib/errors";
 import type { LibraryItem } from "@/lib/providers/library";
 import { plexLibrary } from "@/lib/providers/plex";
 import { posterUrl, RATING_FLOOR, tmdbProvider } from "@/lib/providers/tmdb";
@@ -232,7 +233,8 @@ export async function recentlyAdded(limit = 12): Promise<RecentItem[]> {
  *
  * Capped per run: the point is a steady trickle after each sync, not a burst of
  * calls against the provider quota. Only titles with a known provider id can be
- * resolved, and a failure simply leaves the entry for the next run.
+ * resolved. A title the provider refuses waits a month; a failure of the whole
+ * service ends the pass and leaves every row for the next run.
  *
  * Genres ride along because the details call already carries them. They are
  * what the genre shelves read and what the taste profile is built from, so they
@@ -326,6 +328,14 @@ export async function enrichLibraryPosters(limit = 120): Promise<number> {
         .where(eq(libraryItems.id, row.id));
       filled += 1;
     } catch (error) {
+      /*
+       * A quota reached, a gateway refusing or a provider out of reach says
+       * nothing about this title. Stamping it then parked a whole sync's worth
+       * of new titles for a month over one 429, and they are what the picker
+       * filters on. So the row is left as it was, for the next run, and the
+       * pass ends: every row behind it would fail the same way.
+       */
+      if (isServiceWideFailure(error)) throw error;
       console.warn(`[library] lookup failed tmdbId=${providerId}`, error);
       // Stamped even so: a title the provider keeps refusing must not be asked
       // for again on every run at the cost of the rows behind it.

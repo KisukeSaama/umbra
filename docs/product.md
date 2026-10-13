@@ -38,8 +38,11 @@ and keeps both the interface and the security surface small.
 title already on the list joins that request rather than opening another: it
 appears on their follow-up page and they hear about each of its steps. The
 administration reads who and how many are waiting on each request and each report,
-because that is what decides what to fetch or fix first. Members never see that
-number: no counter, no ranking, nothing that turns asking into a contest. See
+because that is what decides what to fetch or fix first. Members see that number
+in one place only: on the page of a title somebody already asked for, under the
+button that joins the request, so a title already asked for does not read as a
+dead end. There is no counter on a card or in search, no ranking and no "most
+wanted" shelf, nothing that turns asking into a contest. See
 `docs/adr/0016-requests-have-followers.md`.
 
 **A broadcast is never a download.** The tracker knows when an episode is
@@ -232,6 +235,25 @@ leaves, it is handed to whoever joined next. The request itself only goes when
 the last person waiting leaves, and then it leaves no row: nothing happened to
 it, and the title has to be askable again.
 
+### Working the queue
+
+The request queue and the report queue each carry a search box. Every word typed
+has to be found somewhere on the row: the title, under either of its names, the
+provider id typed whole, the staff's note, or the name of anybody who asked or
+waits. The stage counts follow the search, so they always describe what is
+listed.
+
+Rows of the request queue, seasons asked for included, can be ticked and moved
+together: accepted, put on hold, refused or reopened in one gesture, behind a
+confirmation that names every row it reaches. A shift-press ticks a range and
+Escape lets go. A selection never spans pages, and it never reaches further than
+the rows' own buttons: a move is offered to the rows that could take it alone,
+each row goes through that same move, and its followers are told exactly as they
+would have been one by one. One word may go with the move, to every row; left
+empty, an acceptance keeps each row's own word, except on a request leaving on
+hold, whose word about room has nothing left to say. A row a colleague settled in
+the meantime is reported back and stays ticked; the rest goes through.
+
 ## Reporting a problem
 
 A request says a title is missing. A report says a title is here and is wrong.
@@ -258,9 +280,10 @@ fetched", and the sync settles it once the server holds what was asked for.
 
 Taking a report up may carry the same optional word, for everyone waiting on it,
 under the same rules: it reaches them in the notification and on their follow-up
-page, it can be rewritten or taken back afterwards without moving the report,
-and it is erased when the report is marked fixed. A refusal keeps its word,
-which is the one place the reason for it can be read.
+page, and it can be rewritten or taken back afterwards without moving the
+report. It stays when the report closes, whether it is marked fixed, refused or
+settled by the sync, since the last word is the one place the outcome can be
+read; closing may replace it with another. Only reopening a report clears it.
 
 One live report per title, place and reason. A second member reporting the same
 thing joins the existing one and is told what happens to it. The staff see how

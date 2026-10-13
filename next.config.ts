@@ -14,6 +14,17 @@ const nextConfig: NextConfig = {
   // contained build rather than the whole node_modules tree.
   output: "standalone",
   poweredByHeader: false,
+  experimental: {
+    /*
+     * `src/proxy.ts` runs on `/api`, so Next buffers every body there before a
+     * route sees it, up to 10 MB by default. Nothing a route accepts is larger
+     * than the 64 kB cap of `jsonBody` (`src/lib/api.ts`). The limit is one
+     * byte over that cap on purpose: past it Next truncates instead of
+     * refusing, and a body cut to exactly 64 kB could still parse, whereas one
+     * byte more is measured by `jsonBody` and refused.
+     */
+    proxyClientMaxBodySize: 64 * 1024 + 1,
+  },
   images: {
     // Posters come from the public TMDB CDN. The media server is never exposed
     // to the browser.

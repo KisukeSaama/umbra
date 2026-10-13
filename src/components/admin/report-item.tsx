@@ -6,7 +6,7 @@ import { WaitingList } from "@/components/admin/waiting-list";
 import { Badge } from "@/components/ui/badge";
 import type { ReportStatus } from "@/lib/db/schema";
 import type { ReportRow } from "@/lib/domain/reports";
-import { seasonGap } from "@/lib/domain/season-gap";
+import type { SeasonGap } from "@/lib/domain/season-gap";
 import { formatDate } from "@/lib/format";
 import type { TranslationKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
@@ -31,12 +31,18 @@ import { searchLinksFor, type SearchSiteView } from "@/lib/search-sites";
  */
 export async function ReportItem({
   report,
+  gap = null,
   waiting,
   showStatus = true,
   searchSites,
   selectable = false,
 }: {
   report: ReportRow;
+  /**
+   * What a season asked for as a whole lacks in files, read by the page for
+   * all its rows at once: see `seasonGaps`.
+   */
+  gap?: SeasonGap | null;
   /** Who is waiting on it, by name, the first being whoever reported first. */
   waiting: string[];
   /** Left out where the stage shown holds a single status. */
@@ -50,7 +56,6 @@ export async function ReportItem({
   selectable?: boolean;
 }) {
   const { t, locale } = await getI18n();
-  const gap = await seasonGap(report);
   const moves = nextStatuses(report.status, report.reason, report);
 
   return (

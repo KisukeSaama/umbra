@@ -54,6 +54,10 @@ export function checkRate(
  * own peer in `X-Real-IP`. `X-Forwarded-For` comes last: its first entry is
  * whatever the visitor chose to send, so it is only a hint, never the key on
  * its own. The anonymous buckets pair it with a global quota for that reason.
+ *
+ * `CF-Connecting-IP` is only as good as the guarantee that nothing reaches the
+ * origin except through Cloudflare; that guarantee is the platform's, see
+ * "The origin answers Cloudflare only" in `docs/deployment.md`.
  */
 export function clientAddress(headers: Pick<Headers, "get">): string {
   const direct =
