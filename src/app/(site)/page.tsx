@@ -53,8 +53,6 @@ export default async function HomePage() {
   // else rather than the same thing twice.
   const announcement = await latestAnnouncement(account.id, featured?.id);
 
-  const aside = inProgress.length > 0 || poll !== null;
-
   return (
     <>
       <Hero posters={recent} />
@@ -73,36 +71,28 @@ export default async function HomePage() {
           <TrendingRail locale={locale} />
         </Suspense>
 
-        {/* Two rows cut on the same line: a wide card that is read, then a
-            narrow one that is glanced at. The week and the announcement take
-            two thirds, what is coming and the storage the last one, so the
-            columns meet from one row to the next instead of floating past
-            each other. Nothing is stretched to a neighbour's height, and a
-            side with nothing in it gives its third back to the week. */}
-        <div className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-            <div className={aside ? "lg:col-span-2" : "lg:col-span-3"}>
-              <Suspense fallback={<CardSkeleton lines={5} />}>
-                <ThisWeek accountId={account.id} locale={locale} />
-              </Suspense>
-            </div>
-            {aside ? (
-              <div className="space-y-6">
-                <InProgressRequests requests={inProgress} />
-                {poll ? (
-                  <PollCard poll={poll} daysLeft={daysUntil(poll.endsAt)} />
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+        {/* Two columns stacked on their own: a wide one that is read, the
+            week then the announcement, and a narrow one that is glanced at,
+            what is coming, the poll, the storage. Rows cut on the same line
+            left a hole under a short week as tall as the posters beside it;
+            stacked, each card sits right under the one before whatever their
+            lengths, and only the feet of the columns may differ. Nothing is
+            stretched to a neighbour's height. */}
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+          <div className="space-y-6 lg:col-span-2">
+            <Suspense fallback={<CardSkeleton lines={5} />}>
+              <ThisWeek accountId={account.id} locale={locale} />
+            </Suspense>
             {/* With the only note pinned above, an empty card here would say
                 there is no news right under the one there is. */}
             {announcement || !featured ? (
-              <AnnouncementCard
-                announcement={announcement}
-                className="lg:col-span-2"
-              />
+              <AnnouncementCard announcement={announcement} />
+            ) : null}
+          </div>
+          <div className="space-y-6">
+            <InProgressRequests requests={inProgress} />
+            {poll ? (
+              <PollCard poll={poll} daysLeft={daysUntil(poll.endsAt)} />
             ) : null}
             <StorageCard storage={storage} />
           </div>
